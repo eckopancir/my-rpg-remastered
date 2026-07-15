@@ -1,0 +1,107 @@
+.header {
+  height: 56px;
+  padding: 0 var(--space-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, var(--wa-bg-deep) 0%, var(--wa-bg-rust) 100%);
+  border-bottom: 1px solid rgba(146, 64, 14, 0.3);
+  z-index: var(--z-overlay);
+  position: relative;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(217, 119, 6, 0.3), transparent);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.logo {
+  font-family: var(--wa-font-display);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--wa-accent-amber);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(217, 119, 6, 0.3), 0 2px 4px rgba(0,0,0,0.5);
+  padding-right: var(--space-md);
+  border-right: 1px solid rgba(146, 64, 14, 0.3);
+  line-height: 1;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--wa-font-hud);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.navLink:hover {
+  color: var(--text-primary);
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.15);
+}
+
+.navLinkActive {
+  color: var(--wa-accent-amber);
+  background: rgba(217, 119, 6, 0.1);
+  border-color: rgba(217, 119, 6, 0.2);
+  text-shadow: 0 0 8px rgba(217, 119, 6, 0.2);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  color: var(--text-secondary);
+  font-family: var(--wa-font-hud);
+  font-weight: 600;
+  padding: 4px 10px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(200,200,200,0.06);
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+}
+
+.statValue {
+  color: var(--wa-accent-amber);
+  font-weight: 700;
+}
+
+.hpBar {
+  min-width: 120px;
+}
