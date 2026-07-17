@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { useCombatGridStore, checkVisibility, getDist } from '../../stores/combatGridStore';
+import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
@@ -37,6 +38,11 @@ export const BattleGrid = () => {
   const isShaking = useCombatGridStore((s) => s.isShaking);
   const reserve = useCombatGridStore((s) => s.reserve);
   const popups = useCombatGridStore((s) => s.popups);
+  const playerInvisible = useCombatGridStore((s) => s.playerInvisible);
+  const shieldCharges = usePlayerStore((s) => s.stats.shieldCharges);
+  const activeEffects = usePlayerStore((s) => s.activeEffects);
+  const isBarrierActive = activeEffects.some((e) => e.statBoostsMult?.incomingDamageMult);
+  const isEvasionActive = activeEffects.some((e) => e.statBoosts?.evasion);
   const shotLine = useCombatGridStore((s) => s.shotLine);
   const flyingGrenade = useCombatGridStore((s) => s.flyingGrenade);
   const globalEffects = useCombatGridStore((s) => s.globalEffects);
@@ -47,6 +53,7 @@ export const BattleGrid = () => {
   const rotatePlayer = useCombatGridStore((s) => s.rotatePlayer);
   const selectEnemy = useCombatGridStore((s) => s.selectEnemy);
   const attackEnemy = useCombatGridStore((s) => s.attackEnemy);
+  const selectedAbility = useCombatGridStore((s) => s.selectedAbility);
   const setPlannedPath = useCombatGridStore((s) => s.setPlannedPath);
   const lootingEnemy = useCombatGridStore((s) => s.lootingEnemy);
   const canFinish = useMemo(() => {
@@ -121,12 +128,29 @@ export const BattleGrid = () => {
     return obstacles.some(o => o.type === 'woods' && o.isWalkable && playerPos.x >= o.x && playerPos.x < o.x + o.w && playerPos.y >= o.y && playerPos.y < o.y + o.h);
   }, [obstacles, playerPos]);
 
+  // -- Woods cells for enemy transparency --
+  const woodsCells = useMemo(() => {
+    const set = new Set<string>();
+    for (const ob of obstacles) {
+      if (ob.type === 'woods' && ob.isWalkable) {
+        for (let dx = 0; dx < ob.w; dx++) {
+          for (let dy = 0; dy < ob.h; dy++) {
+            set.add(`${ob.x + dx},${ob.y + dy}`);
+          }
+        }
+      }
+    }
+    return set;
+  }, [obstacles]);
+
   const isNightTime = useCombatGridStore((s) => s.isNightTime);
   const playerXpct = (playerPos.x / 31) * 100;
   const playerYpct = (playerPos.y / 31) * 100;
 
   // -- Per-cell visibility check (like original) --
   const isCellVisible = useCallback((x: number, y: number) => {
+    const dist = getDist(playerPos, { x, y });
+    if (dist <= 2) return true;
     return checkVisibility(playerPos, playerRotation, { x, y }, obstacles);
   }, [playerPos, playerRotation, obstacles]);
 
@@ -176,10 +200,23 @@ export const BattleGrid = () => {
 
   const handleCellClick = useCallback((x: number, y: number) => {
     if (turn !== 'player' || isMoving) return;
+    if (useCombatGridStore.getState().isPlacingMine) {
+      useCombatGridStore.getState().placeMine(x, y);
+      return;
+    }
+    if (useCombatGridStore.getState().isTeleporting) {
+      useCombatGridStore.getState().teleportTo(x, y);
+      return;
+    }
     const enemy = enemies.find((e) => !e.dead && e.currentHp > 0 && e.pos.x === x && e.pos.y === y);
     if (enemy) {
+      const store = useCombatGridStore.getState();
       selectEnemy(enemy.id);
-      attackEnemy(enemy.id);
+      if (store.selectedAbility !== null) {
+        store.useAbility(enemy.id);
+      } else {
+        attackEnemy(enemy.id);
+      }
       return;
     }
     // Combined loot from multiple corpses on same cell
@@ -347,7 +384,7 @@ export const BattleGrid = () => {
 
                 {/* Player */}
                 {isPlayer && (
-                  <div className={`${styles.unit} ${styles.player}${isPlayerInWoods ? ` ${styles.inWoods}` : ''}${playerLocating ? ` ${styles.locating}` : ''}`} style={{ zIndex: 10 }}>
+                  <div className={`${styles.unit} ${styles.player}${isPlayerInWoods ? ` ${styles.inWoods}` : ''}${playerLocating ? ` ${styles.locating}` : ''}${playerInvisible ? ` ${styles.invisible}` : ''}${shieldCharges > 0 ? ` ${styles.shieldActive}` : ''}${isBarrierActive ? ` ${styles.barrierActive}` : ''}${isEvasionActive ? ` ${styles.evasionActive}` : ''}`} style={{ zIndex: 10 }}>
                     <img src={images.hero} alt="hero" className={styles.playerSprite} draggable={false} style={{ transform: `rotate(${playerRotation - 90}deg)` }} />
                   </div>
                 )}
@@ -355,12 +392,13 @@ export const BattleGrid = () => {
                 {/* Living Enemy */}
                 {enemy && (
                   <div
-                    className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${hovered ? ` ${styles.enemyCrosshair}` : ''}${isInRange ? ` ${styles.inRangeEnemy}` : ''}`}
+                    className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered ? ` ${styles.enemyCrosshair}` : ''}${isInRange ? ` ${styles.inRangeEnemy}` : ''}`}
                     style={{ borderColor: ENEMY_COLORS[enemy.faction] || '#a1a1aa', width: enemy.bigModel || '100%', height: enemy.bigModel || '100%', zIndex: 5 }}
                   >
                     {enemy.isEnraged && <div className={styles.enemyStatusBadge}>💢</div>}
                     {enemy.isInvisible && <div className={styles.enemyStatusBadge}>👤</div>}
                     {isSel && <div className={styles.crosshairCircle} />}
+
                     <img
                       src={getEnemyImage(enemy.faction, enemy.name)}
                       alt={enemy.name}
@@ -398,7 +436,7 @@ export const BattleGrid = () => {
               y1={`${(shotLine.from.y / 31) * 100}%`}
               x2={`${(shotLine.to.x / 31) * 100}%`}
               y2={`${(shotLine.to.y / 31) * 100}%`}
-              className={`${styles.tracerLine}${shotLine.type === 'aim' ? ` ${styles.aimShot}` : ''}`}
+              className={`${styles.tracerLine}${shotLine.type === 'aim' ? ` ${styles.aimShot}` : ''}${shotLine.type === 'bazooka' ? ` ${styles.bazookaShot}` : ''}${shotLine.type === 'heal' ? ` ${styles.healShot}` : ''}`}
             />
           </svg>
         )}
@@ -433,14 +471,46 @@ export const BattleGrid = () => {
         ))}
 
         {/* Global effects */}
-        {globalEffects.map((eff, i) => (
-          <div key={i} className={`${styles.dangerZone} ${eff.type === 'REDZONE' ? styles.redZonePulse : styles.grenadeZone}`} style={{
-            left: `${(eff.pos.x / 31) * 100}%`,
-            top: `${(eff.pos.y / 31) * 100}%`,
-          }}>
-            {eff.type === 'REDZONE' && <div className={styles.dangerLabel}>☢️</div>}
-          </div>
-        ))}
+        {globalEffects.map((eff, i) => {
+          if (eff.type === 'TELEPORT_LAND') {
+            return (
+              <div
+                key={i}
+                className={styles.teleportLand}
+                style={{
+                  left: `${(eff.pos.x / 31) * 100}%`,
+                  top: `${(eff.pos.y / 31) * 100}%`,
+                }}
+              >
+                <div className={styles.teleportWave} />
+              </div>
+            );
+          }
+          if (eff.type === 'MINE') {
+            return (
+              <div
+                key={i}
+                className={styles.mine}
+                style={{
+                  left: `${(eff.pos.x / 31) * 100}%`,
+                  top: `${(eff.pos.y / 31) * 100}%`,
+                }}
+              />
+            );
+          }
+          return (
+            <div
+              key={i}
+              className={`${styles.dangerZone} ${eff.type === 'REDZONE' ? styles.redZonePulse : styles.grenadeZone}`}
+              style={{
+                left: `${(eff.pos.x / 31) * 100}%`,
+                top: `${(eff.pos.y / 31) * 100}%`,
+              }}
+            >
+              {eff.type === 'REDZONE' && <div className={styles.dangerLabel}>☢️</div>}
+            </div>
+          );
+        })}
 
         {/* Battle popups — offset vertically to avoid stacking */}
         {(() => {

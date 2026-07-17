@@ -8,10 +8,9 @@ export type AbilityEffect =
   | { type: 'status'; id: string; duration: number }
   | { type: 'summon' }
   | { type: 'teleport' }
-  | { type: 'create_decoy' }
   | { type: 'mark_zone'; duration: number; damageMultiplier: number }
   | { type: 'reveal_map'; duration: number }
-  | { type: 'sprint_boost'; duration: number };
+  | { type: 'sprint_boost'; duration: number; value?: number };
 
 export interface AccessoryAbility {
   id: string;
@@ -23,4 +22,6 @@ export interface AccessoryAbility {
   skipTurn?: boolean;
   effects: AbilityEffect[];
   powerRating: number;
+  requiresTarget?: boolean;
+  range?: number;
 }

@@ -9,6 +9,12 @@ export interface ExpeditionEntry {
   duration: number;
   remaining: number;
   difficulty: number;
+  cardData?: {
+    enemyKeys: string[];
+    chipReward: number;
+    xpReward: number;
+    cardRarityName: string;
+  };
 }
 
 export interface Toast {

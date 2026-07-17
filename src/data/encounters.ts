@@ -1,100 +1,237 @@
-export interface Encounter {
-  id: string;
+import blockpostBg from '../assets/images/characters/Заброшенный Военный Блокпост.png';
+import arsenalBg from '../assets/images/characters/Секретный Арсенал.png';
+import warehouseBg from '../assets/images/characters/Военные склады.png';
+import labBg from '../assets/images/characters/Химическая лаборатория.png';
+import patrolBg from '../assets/images/characters/Военный патруль.png';
+
+export type EnemyShortName = 'tank' | 'melee' | 'sniper' | 'drob' | 'original' | 'medic' | 'boss';
+
+export interface RarityTier {
   name: string;
-  description: string;
-  difficulty: number;
-  enemyCount: number;
-  rewards: string[];
-  expReward: number;
-  chipReward: number;
-  type: 'combat' | 'loot' | 'event';
+  tier: number;
+  slBonus: number;
+  weight: number;
+  color: string;
 }
 
-const encounterTemplates: Omit<Encounter, 'id'>[] = [
-  { name: 'Разведка', description: 'Тихая разведка местности. Можно избежать боя.', difficulty: 1, enemyCount: 0, rewards: ['Информация'], expReward: 50, chipReward: 20, type: 'event' },
-  { name: 'Засада', description: 'Враги устроили засаду! Приготовься к бою.', difficulty: 3, enemyCount: 2, rewards: ['Оружие', 'Боеприпасы'], expReward: 100, chipReward: 30, type: 'combat' },
-  { name: 'Заброшенный склад', description: 'Старый склад с припасами. Много добычи.', difficulty: 2, enemyCount: 1, rewards: ['Припасы', 'Материалы'], expReward: 80, chipReward: 50, type: 'loot' },
-  { name: 'Патруль', description: 'Враждебный патруль прочесывает территорию.', difficulty: 4, enemyCount: 3, rewards: ['Оружие', 'Броня'], expReward: 120, chipReward: 40, type: 'combat' },
-  { name: 'Лагерь', description: 'Вражеский лагерь. Можно атаковать или обойти.', difficulty: 5, enemyCount: 4, rewards: ['Оружие', 'Чипы', 'Припасы'], expReward: 200, chipReward: 80, type: 'combat' },
-  { name: 'Аномалия', description: 'Странная аномалия искажает реальность. Опасно.', difficulty: 6, enemyCount: 0, rewards: ['Редкие материалы'], expReward: 150, chipReward: 100, type: 'event' },
-  { name: 'Караван', description: 'Разбитый караван. Можно обыскать.', difficulty: 1, enemyCount: 0, rewards: ['Чипы', 'Припасы', 'Оружие'], expReward: 60, chipReward: 100, type: 'loot' },
-  { name: 'Укрепленная точка', description: 'Сильно укрепленная позиция. Штурм будет тяжелым.', difficulty: 7, enemyCount: 5, rewards: ['Легендарные предметы', 'Моды'], expReward: 300, chipReward: 150, type: 'combat' },
-  { name: 'Торговец', description: 'Одинокий торговец ищет охрану.', difficulty: 1, enemyCount: 0, rewards: ['Чипы'], expReward: 40, chipReward: 200, type: 'event' },
-  { name: 'Зараженная зона', description: 'Зона сильного заражения. Нужна защита.', difficulty: 4, enemyCount: 3, rewards: ['Медикаменты', 'Материалы'], expReward: 130, chipReward: 60, type: 'combat' },
-  { name: 'Схрон', description: 'Чей-то тайник с припасами. Удача!', difficulty: 1, enemyCount: 0, rewards: ['Припасы', 'Боеприпасы', 'Чипы'], expReward: 30, chipReward: 80, type: 'loot' },
-  { name: 'Босс-локация', description: 'Огромный монстр или элитный отряд. Максимальная награда.', difficulty: 9, enemyCount: 1, rewards: ['Легендарные предметы', 'Моды', 'Чипы'], expReward: 500, chipReward: 500, type: 'combat' },
+export interface CardTemplate {
+  id: string;
+  name: string;
+  image: string;
+  enemyPool: { type: EnemyShortName; weight: number }[];
+  slMin: number;
+  slMax: number;
+  enemyMin: number;
+  enemyMax: number;
+}
+
+export interface GeneratedCard {
+  id: string;
+  templateId: string;
+  name: string;
+  image: string;
+  sl: number;
+  rarity: { name: string; tier: number; slBonus: number; color: string };
+  totalSl: number;
+  enemyTypes: EnemyShortName[];
+  enemyCount: number;
+  chipReward: number;
+  xpReward: number;
+  type: 'combat';
+}
+
+export const CARD_RARITY_TIERS: RarityTier[] = [
+  { name: 'Обычный', tier: 0, slBonus: 0, weight: 33, color: 'white' },
+  { name: 'Редкий', tier: 1, slBonus: 50, weight: 25, color: 'lime' },
+  { name: 'Раритетный', tier: 2, slBonus: 100, weight: 18, color: 'deepskyblue' },
+  { name: 'Эпический', tier: 3, slBonus: 150, weight: 12, color: 'mediumpurple' },
+  { name: 'Смертоносный', tier: 4, slBonus: 200, weight: 7, color: 'red' },
+  { name: 'Легендарный', tier: 5, slBonus: 250, weight: 4, color: 'gold' },
+  { name: 'Божественный', tier: 6, slBonus: 300, weight: 1, color: 'cyan' },
 ];
 
-const shuffle = <T,>(arr: T[]): T[] => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+export const ENEMY_TYPE_MULTIPLIERS: Record<EnemyShortName, number> = {
+  original: 1.0,
+  drob: 1.5,
+  melee: 1.5,
+  sniper: 2.0,
+  tank: 2.0,
+  medic: 2.0,
+  boss: 5.0,
 };
 
-const LS_REFRESH_KEY = 'expeditionRefreshTime';
-const LS_ENCOUNTERS_KEY = 'currentAvailableEncounters';
-const LS_BLOCKED_CARDS_KEY = 'expeditionBlockedCards';
+export const ENEMY_TYPE_TO_KEY: Record<EnemyShortName, string> = {
+  tank: 'Военные (tank)',
+  melee: 'Военные (melee)',
+  sniper: 'Военные (sniper)',
+  drob: 'Военные (drob)',
+  original: 'Военные (original)',
+  medic: 'Военные (medic)',
+  boss: 'Военные (boss)',
+};
 
-export const generateEncounters = (zoneDifficulty: number, count: number = 8): Encounter[] => {
-  const storedRefresh = localStorage.getItem(LS_REFRESH_KEY);
-  const storedEncounters = localStorage.getItem(LS_ENCOUNTERS_KEY);
+const CARD_TEMPLATES: CardTemplate[] = [
+  {
+    id: 'blockpost',
+    name: 'Заброшенный Военный Блокпост',
+    image: blockpostBg,
+    enemyPool: [
+      { type: 'drob', weight: 25 },
+      { type: 'original', weight: 50 },
+      { type: 'medic', weight: 25 },
+    ],
+    slMin: 15, slMax: 30,
+    enemyMin: 2, enemyMax: 5,
+  },
+  {
+    id: 'arsenal',
+    name: 'Секретный Арсенал',
+    image: arsenalBg,
+    enemyPool: [
+      { type: 'tank', weight: 25 },
+      { type: 'melee', weight: 25 },
+      { type: 'original', weight: 50 },
+    ],
+    slMin: 30, slMax: 45,
+    enemyMin: 2, enemyMax: 5,
+  },
+  {
+    id: 'warehouse',
+    name: 'Военные склады',
+    image: warehouseBg,
+    enemyPool: [
+      { type: 'sniper', weight: 10 },
+      { type: 'drob', weight: 15 },
+      { type: 'original', weight: 25 },
+      { type: 'medic', weight: 25 },
+    ],
+    slMin: 50, slMax: 70,
+    enemyMin: 2, enemyMax: 6,
+  },
+  {
+    id: 'lab',
+    name: 'Химическая лаборатория',
+    image: labBg,
+    enemyPool: [
+      { type: 'boss', weight: 100 },
+    ],
+    slMin: 200, slMax: 200,
+    enemyMin: 1, enemyMax: 1,
+  },
+  {
+    id: 'patrol',
+    name: 'Военный патруль',
+    image: patrolBg,
+    enemyPool: [
+      { type: 'tank', weight: 10 },
+      { type: 'melee', weight: 10 },
+      { type: 'sniper', weight: 10 },
+      { type: 'drob', weight: 10 },
+      { type: 'original', weight: 49 },
+      { type: 'medic', weight: 10 },
+      { type: 'boss', weight: 1 },
+    ],
+    slMin: 1, slMax: 100,
+    enemyMin: 4, enemyMax: 12,
+  },
+];
+
+function weightedRandom<T extends { weight: number }>(items: T[]): T {
+  const total = items.reduce((s, i) => s + i.weight, 0);
+  let r = Math.random() * total;
+  for (const item of items) {
+    r -= item.weight;
+    if (r <= 0) return item;
+  }
+  return items[items.length - 1];
+}
+
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function generateEnemyTypes(pool: { type: EnemyShortName; weight: number }[], count: number): EnemyShortName[] {
+  const enemies: EnemyShortName[] = [];
+  for (let i = 0; i < count; i++) {
+    enemies.push(weightedRandom(pool).type);
+  }
+  return enemies;
+}
+
+function calcChipReward(totalSl: number, enemyTypes: EnemyShortName[]): number {
+  const avgMult = enemyTypes.reduce((s, t) => s + ENEMY_TYPE_MULTIPLIERS[t], 0) / enemyTypes.length;
+  return Math.round(totalSl * enemyTypes.length * 0.5 * avgMult);
+}
+
+function calcXpReward(totalSl: number, enemyTypes: EnemyShortName[]): number {
+  const avgMult = enemyTypes.reduce((s, t) => s + ENEMY_TYPE_MULTIPLIERS[t], 0) / enemyTypes.length;
+  return Math.round(totalSl * enemyTypes.length * 0.8 * avgMult);
+}
+
+const LS_CARDS_KEY = 'militaryCards';
+const LS_REFRESH_KEY = 'militaryCardsRefresh';
+const REFRESH_INTERVAL = 300000;
+
+export function generateCards(): GeneratedCard[] {
+  const cards: GeneratedCard[] = [];
+  for (let i = 0; i < 9; i++) {
+    const template = CARD_TEMPLATES[Math.floor(Math.random() * CARD_TEMPLATES.length)];
+    const sl = randInt(template.slMin, template.slMax);
+    const rarity = weightedRandom(CARD_RARITY_TIERS);
+    const totalSl = sl + rarity.slBonus;
+    const enemyCount = randInt(template.enemyMin, template.enemyMax);
+    const enemyTypes = generateEnemyTypes(template.enemyPool, enemyCount);
+
+    cards.push({
+      id: `card_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
+      templateId: template.id,
+      name: template.name,
+      image: template.image,
+      sl,
+      rarity: { name: rarity.name, tier: rarity.tier, slBonus: rarity.slBonus, color: rarity.color },
+      totalSl,
+      enemyTypes,
+      enemyCount,
+      chipReward: calcChipReward(totalSl, enemyTypes),
+      xpReward: calcXpReward(totalSl, enemyTypes),
+      type: 'combat',
+    });
+  }
+  return cards;
+}
+
+export function getAvailableCards(): GeneratedCard[] {
+  const stored = localStorage.getItem(LS_CARDS_KEY);
+  const refreshStr = localStorage.getItem(LS_REFRESH_KEY);
   const now = Date.now();
-  const refreshTime = storedRefresh ? parseInt(storedRefresh) : 0;
 
-  if (storedEncounters && now - refreshTime < 6000000) {
-    try {
-      return JSON.parse(storedEncounters);
-    } catch {}
+  if (stored && refreshStr) {
+    const lastRefresh = parseInt(refreshStr);
+    if (now - lastRefresh < REFRESH_INTERVAL) {
+      try {
+        const parsed: GeneratedCard[] = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length === 9) return parsed;
+      } catch {}
+    }
   }
 
-  const ALL_ENCOUNTERS = encounterTemplates.map((t, i) => ({ ...t, id: `enc_${i}` }));
-
-  const suitable = ALL_ENCOUNTERS.filter((e) => e.difficulty <= zoneDifficulty + 3 && e.difficulty >= Math.max(1, zoneDifficulty - 2));
-
-  const pool = suitable.length >= count ? suitable : ALL_ENCOUNTERS;
-  const shuffled = shuffle(pool);
-  const selected = shuffled.slice(0, count).map((e) => ({
-    ...e,
-    id: `${e.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-  }));
-
+  const cards = generateCards();
+  localStorage.setItem(LS_CARDS_KEY, JSON.stringify(cards));
   localStorage.setItem(LS_REFRESH_KEY, String(now));
-  localStorage.setItem(LS_ENCOUNTERS_KEY, JSON.stringify(selected));
+  return cards;
+}
 
-  return selected;
-};
+export function getRefreshTime(): number {
+  const refreshStr = localStorage.getItem(LS_REFRESH_KEY);
+  if (!refreshStr) return 300;
+  const elapsed = Date.now() - parseInt(refreshStr);
+  const remaining = Math.max(0, REFRESH_INTERVAL - elapsed);
+  return Math.ceil(remaining / 1000);
+}
 
-const BLOCK_DURATION = 60000; // 60 seconds
-
-export const blockEncounter = (encounterId: string) => {
-  const stored = localStorage.getItem(LS_BLOCKED_CARDS_KEY);
-  const blocked: Record<string, { id: string; time: number }[]> = stored ? JSON.parse(stored) : {};
-  const zoneKey = 'current';
-  if (!blocked[zoneKey]) blocked[zoneKey] = [];
-  // Remove expired block if exists
-  blocked[zoneKey] = blocked[zoneKey].filter((e) => Date.now() - e.time < BLOCK_DURATION);
-  blocked[zoneKey].push({ id: encounterId, time: Date.now() });
-  localStorage.setItem(LS_BLOCKED_CARDS_KEY, JSON.stringify(blocked));
-};
-
-export const getBlockedEncounters = (): Set<string> => {
-  const stored = localStorage.getItem(LS_BLOCKED_CARDS_KEY);
-  if (!stored) return new Set();
-  const blocked: Record<string, { id: string; time: number }[]> = JSON.parse(stored);
-  const zoneKey = 'current';
-  const list = blocked[zoneKey] || [];
-  return new Set(list.filter((e) => Date.now() - e.time < BLOCK_DURATION).map((e) => e.id));
-};
-
-export const cleanupBlockedEncounters = () => {
-  const stored = localStorage.getItem(LS_BLOCKED_CARDS_KEY);
-  if (!stored) return;
-  const blocked: Record<string, { id: string; time: number }[]> = JSON.parse(stored);
-  for (const key of Object.keys(blocked)) {
-    blocked[key] = blocked[key].filter((e) => Date.now() - e.time < BLOCK_DURATION);
-  }
-  localStorage.setItem(LS_BLOCKED_CARDS_KEY, JSON.stringify(blocked));
-};
+export function forceRefresh(): GeneratedCard[] {
+  const cards = generateCards();
+  localStorage.setItem(LS_CARDS_KEY, JSON.stringify(cards));
+  localStorage.setItem(LS_REFRESH_KEY, String(Date.now()));
+  return cards;
+}

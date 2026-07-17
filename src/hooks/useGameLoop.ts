@@ -28,12 +28,22 @@ export const useGameLoop = () => {
       ui.tick();
 
       // 4. Check if an expedition completed → start combat
-      const completedExp = ui.queue.find((e) => e.status === 'completed');
-      if (completedExp && !player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning) {
-        player.startCombat(completedExp.difficulty || 5);
-        useCombatGridStore.getState().initCombat(completedExp.difficulty || 5);
-        ui.removeFromQueue(completedExp.id);
-        ui.processQueue();
+      // Re-get fresh references — player/ui were captured before travelTick/processQueue/ui.tick
+      const freshPlayer = usePlayerStore.getState();
+      const freshUi = useUiStore.getState();
+      const completedExp = freshUi.queue.find((e) => e.status === 'completed');
+      if (completedExp && !freshPlayer.combat.isFighting && !freshPlayer.travel.isTraveling && !freshPlayer.travel.isReturning) {
+        freshPlayer.startCombat(completedExp.difficulty || 5);
+        useCombatGridStore.getState().initCombat(
+          completedExp.difficulty || 5,
+          undefined,
+          completedExp.cardData?.enemyKeys,
+          completedExp.cardData
+            ? { chipReward: completedExp.cardData.chipReward, xpReward: completedExp.cardData.xpReward, cardRarityName: completedExp.cardData.cardRarityName }
+            : undefined
+        );
+        freshUi.removeFromQueue(completedExp.id);
+        freshUi.processQueue();
       }
 
       // 5. Rest tick
@@ -68,9 +78,10 @@ export const useGameLoop = () => {
       // 8. Base upgrade tick (works even if Base page is not mounted)
       player.baseUpgradeTick();
 
-      // 9. Timed items decay — decrement timeLimit on equipped items
+      // 9. Timed items decay — only while not traveling
+      if (!player.travel.isTraveling && !player.travel.isReturning) {
       const eq = player.equipment;
-      for (const slot of ['head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots', 'ammo1', 'ammo2', 'ammo3', 'ammo4']) {
+      for (const slot of ['head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots']) {
         const item = eq[slot as keyof typeof eq];
         if (item && (item as any).timeLimit && (item as any).timeLimit > 0) {
           const newTime = (item as any).timeLimit - 1;
@@ -83,6 +94,7 @@ export const useGameLoop = () => {
             }));
           }
         }
+      }
       }
     }, 1000);
 

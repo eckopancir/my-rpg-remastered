@@ -1,87 +1,89 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
-import { generateEncounters, blockEncounter, getBlockedEncounters, cleanupBlockedEncounters } from '../data/encounters';
-import { ZONES } from '../data/zones';
+import { getAvailableCards, getRefreshTime, forceRefresh, ENEMY_TYPE_TO_KEY } from '../data/encounters';
+import type { GeneratedCard, EnemyShortName } from '../data/encounters';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore, type ExpeditionEntry } from '../stores/uiStore';
+
+const RARITY_BG: Record<string, string> = {
+  'Обычный': 'rgba(255,255,255,0.3)',
+  'Редкий': 'rgba(0,255,0,0.35)',
+  'Раритетный': 'rgba(0,191,255,0.35)',
+  'Эпический': 'rgba(147,112,219,0.35)',
+  'Смертоносный': 'rgba(255,0,0,0.35)',
+  'Легендарный': 'rgba(255,215,0,0.35)',
+  'Божественный': 'rgba(0,255,255,0.35)',
+};
+
+const ENEMY_LABELS: Record<EnemyShortName, string> = {
+  tank: 'Танк',
+  melee: 'Мили',
+  sniper: 'Снайпер',
+  drob: 'Дробовик',
+  original: 'Стрелок',
+  medic: 'Медик',
+  boss: 'БОСС',
+};
 
 export const Expedition = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const zoneName = searchParams.get('zone') || 'Свалка мусора';
-
+  const zoneName = searchParams.get('zone') || 'Военная база';
   const addLog = usePlayerStore((s) => s.addLog);
   const addToQueue = useUiStore((s) => s.addToQueue);
   const addToast = useUiStore((s) => s.addToast);
-  const hasEncounterInQueue = useUiStore((s) => s.hasEncounterInQueue);
 
-  const zone = ZONES.find((z) => z.name === zoneName) || ZONES[3];
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const [encounters, setEncounters] = useState(() => {
-    cleanupBlockedEncounters();
-    return generateEncounters(zone.difficulty, 8);
-  });
-
-  const [refreshTimer, setRefreshTimer] = useState(600);
+  const [cards, setCards] = useState<GeneratedCard[]>(() => getAvailableCards());
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [refreshTime, setRefreshTime] = useState(() => getRefreshTime());
 
   useEffect(() => {
-    if (refreshTimer <= 0) return;
+    if (refreshTime <= 0) return;
     const t = setInterval(() => {
-      setRefreshTimer((prev) => {
+      setRefreshTime((prev) => {
         if (prev <= 1) {
-          cleanupBlockedEncounters();
-          setEncounters(generateEncounters(zone.difficulty, 8));
-          setSelectedIds([]);
-          return 600;
+          setCards(forceRefresh());
+          setSelectedId(null);
+          return 300;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [refreshTimer, zone.difficulty]);
+  }, [refreshTime]);
 
-  const blockedIds = getBlockedEncounters();
-
-  const toggleSelect = (id: string) => {
-    if (hasEncounterInQueue(id) || blockedIds.has(id)) {
-      addToast('Это столкновение заблокировано (60 сек.)', 'warning');
-      return;
-    }
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleStart = () => {
-    if (selectedIds.length === 0) return;
-
-    const selectedEncounters = encounters.filter((e) => selectedIds.includes(e.id));
-    selectedEncounters.forEach((e) => blockEncounter(e.id));
+  const handleStart = useCallback((cardId?: string) => {
+    const id = cardId || selectedId;
+    if (!id) return;
+    const card = cards.find((c) => c.id === id);
+    if (!card) return;
 
     const entryId = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    const totalTime = zone.travelTime + selectedEncounters.length * 3;
-
     const entry: ExpeditionEntry = {
       id: entryId,
-      zoneName: zone.name,
-      encounterIds: selectedEncounters.map((e) => e.id),
+      zoneName,
+      encounterIds: [card.id],
       status: 'pending',
-      duration: totalTime,
-      remaining: totalTime,
-      difficulty: zone.difficulty,
+      duration: 3,
+      remaining: 3,
+      difficulty: card.totalSl,
+      cardData: {
+        enemyKeys: card.enemyTypes.map((t) => ENEMY_TYPE_TO_KEY[t]),
+        chipReward: card.chipReward,
+        xpReward: card.xpReward,
+        cardRarityName: card.rarity.name,
+      },
     };
 
     addToQueue(entry);
-    addLog(`📋 Экспедиция в "${zone.name}" (${selectedEncounters.length} стычек) добавлена.`, 'info');
-    addToast(`Экспедиция в "${zone.name}" запущена!`, 'success');
-
-    usePlayerStore.getState().startTravel(zone.name, 1);
+    addLog(`📋 Экспедиция на карту "${card.name}" (SL ${card.totalSl}) добавлена.`, 'info');
+    addToast(`Экспедиция на "${card.name}" запущена!`, 'success');
+    usePlayerStore.getState().startTravel(zoneName, 1);
     navigate('/');
-  };
+  }, [selectedId, cards, zoneName, addToQueue, addLog, addToast, navigate]);
 
   return (
     <motion.div
@@ -93,67 +95,97 @@ export const Expedition = () => {
       <WapPanel variant="metal" padding="lg">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 600 }}>{zone.name}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Выбери столкновения для экспедиции</div>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>{zoneName}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Выбери столкновение для экспедиции</div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              Обновление: {Math.floor(refreshTimer / 60)}:{String(refreshTimer % 60).padStart(2, '0')}
+              Обновление: {Math.floor(refreshTime / 60)}:{String(refreshTime % 60).padStart(2, '0')}
             </span>
-            <Button
-              variant="primary"
-              onClick={handleStart}
-              disabled={selectedIds.length === 0}
-            >
-              🚀 Старт ({selectedIds.length})
-            </Button>
           </div>
         </div>
 
-        {/* Encounters grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-          {encounters.map((enc, i) => {
-            const isSelected = selectedIds.includes(enc.id);
-            const isBlocked = hasEncounterInQueue(enc.id) || blockedIds.has(enc.id);
-            const typeIcon = enc.type === 'combat' ? '⚔️' : enc.type === 'loot' ? '📦' : '❓';
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {cards.map((card) => {
+            const isSelected = selectedId === card.id;
+            const rarityBg = RARITY_BG[card.rarity.name] || 'rgba(255,255,255,0.3)';
+            const rarityColor = card.rarity.color;
+
+            const enemyCounts: Partial<Record<EnemyShortName, number>> = {};
+            card.enemyTypes.forEach((t) => {
+              enemyCounts[t] = (enemyCounts[t] || 0) + 1;
+            });
 
             return (
               <motion.div
-                key={enc.id}
-                whileHover={!isBlocked ? { scale: 1.02 } : {}}
-                onClick={() => !isBlocked && toggleSelect(enc.id)}
+                key={card.id}
+                whileHover={{ scale: 1.03 }}
+                onClick={() => setSelectedId(card.id)}
+                onDoubleClick={() => handleStart(card.id)}
                 style={{
-                  padding: 16,
-                  background: isSelected ? 'var(--accent-primary-dim)' : 'var(--bg-glass)',
-                  border: `1px solid ${
-                    isBlocked ? 'rgba(248,113,113,0.3)' :
-                    isSelected ? 'var(--border-accent)' : 'var(--border-glass)'
-                  }`,
+                  padding: 20,
+                  background: `
+                    linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.6)),
+                    url(${card.image}) center/cover
+                  `,
+                  border: `2px solid ${isSelected ? rarityColor : 'rgba(255,255,255,0.08)'}`,
+                  boxShadow: isSelected ? `0 0 14px ${rarityColor}` : 'none',
                   borderRadius: 'var(--radius-md)',
-                  cursor: isBlocked ? 'not-allowed' : 'pointer',
-                  opacity: isBlocked ? 0.5 : 1,
+                  cursor: 'pointer',
                   transition: 'all 150ms ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  minHeight: 140,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    #{i + 1} {typeIcon}
-                  </span>
-                  <span style={{
-                    padding: '2px 6px', borderRadius: 4, fontSize: 10,
-                    background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)',
-                  }}>
-                    SL {enc.difficulty}
-                  </span>
+                <div style={{
+                  position: 'absolute', top: 8, right: 8,
+                  padding: '2px 8px', borderRadius: 4, fontSize: 10,
+                  background: rarityBg,
+                  color: '#000', fontWeight: 700,
+                }}>
+                  {card.rarity.name}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>{enc.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.3 }}>
-                  {enc.description}
+
+                <div style={{
+                  position: 'absolute', top: 8, left: 8,
+                  padding: '2px 8px', borderRadius: 4, fontSize: 11,
+                  background: 'rgba(0,0,0,0.55)',
+                  color: '#fff', fontWeight: 600,
+                }}>
+                  SL {card.totalSl}
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)' }}>
-                  <span>+{enc.expReward} XP</span>
-                  <span>+{enc.chipReward} 💾</span>
-                  <span>{enc.enemyCount > 0 ? `👾 x${enc.enemyCount}` : ''}</span>
+
+                <div style={{
+                  fontSize: 14, fontWeight: 600, marginTop: 20,
+                  color: '#fff',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+                }}>
+                  {card.name}
+                </div>
+
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', fontSize: 11 }}>
+                  {(Object.entries(enemyCounts) as [EnemyShortName, number][]).map(([type, count]) => (
+                    <span key={type} style={{
+                      padding: '1px 6px', borderRadius: 3,
+                      background: 'rgba(0,0,0,0.45)',
+                      color: '#ddd',
+                    }}>
+                      {ENEMY_LABELS[type] || type} ×{count}
+                    </span>
+                  ))}
+                </div>
+
+                <div style={{
+                  marginTop: 'auto',
+                  display: 'flex', gap: 10, fontSize: 12,
+                  color: '#bbb',
+                }}>
+                  <span>+{card.chipReward} 💾</span>
+                  <span>+{card.xpReward} XP</span>
                 </div>
               </motion.div>
             );
@@ -162,13 +194,6 @@ export const Expedition = () => {
 
         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button variant="ghost" onClick={() => navigate('/map')}>← Назад к карте</Button>
-          <Button
-            variant="primary"
-            onClick={handleStart}
-            disabled={selectedIds.length === 0}
-          >
-            🚀 Начать экспедицию ({selectedIds.length})
-          </Button>
         </div>
       </WapPanel>
     </motion.div>

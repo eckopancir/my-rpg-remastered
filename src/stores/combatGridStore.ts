@@ -3,8 +3,9 @@ import { usePlayerStore } from './playerStore';
 import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
+import { generateItem } from '../engine/items';
 import { GAME_ITEMS } from '../data/GameItems';
-import { playCombatSound } from '../hooks/useSound';
+import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
 import { ALL_ABILITIES } from '../data/accessoryAbilities';
@@ -62,6 +63,9 @@ export interface GridEnemy {
   health?: number;
   isMinion?: boolean;
   factionKey?: string;
+  stunned?: boolean;
+  stunTurns?: number;
+  lifetime?: number;
 }
 
 export interface GridObstacle {
@@ -98,7 +102,7 @@ export interface GrenadeAnim {
 }
 
 export interface GlobalEffect {
-  type: 'GRENADE' | 'REDZONE';
+  type: 'GRENADE' | 'REDZONE' | 'TELEPORT' | 'TELEPORT_LAND' | 'MINE';
   pos: { x: number; y: number };
   damage: number;
   timer: number;
@@ -141,8 +145,17 @@ export interface CombatGridStore {
   playerAbilities: (AccessoryAbility | null)[];
   abilityCooldowns: number[];
   selectedAbility: number | null;
+  playerInvisible: boolean;
+  playerInvisTurns: number;
+  isTeleporting: boolean;
+  isPlacingMine: boolean;
+  immortalityTurns: number;
 
-  initCombat: (difficulty: number, encounteredFaction?: string) => void;
+  cardRarityName: string | null;
+  initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }) => void;
+  teleportTo: (x: number, y: number) => void;
+  placeMine: (x: number, y: number) => void;
+  checkAutoTriggers: () => void;
   movePlayer: (x: number, y: number) => void;
   handleKeyboardMove: (dx: number, dy: number) => void;
   rotatePlayer: (x: number, y: number) => void;
@@ -208,7 +221,7 @@ export const checkVisibility = (
     if (!isValidCell(checkX, checkY)) continue;
     const isBlocking = obstacles.some(
       (obs) =>
-        obs.isHigh &&
+        (obs.isHigh || (obs.blocks && !obs.isWalkable)) &&
         obs.x === checkX &&
         obs.y === checkY &&
         !(checkX === viewerPos.x && checkY === viewerPos.y) &&
@@ -514,11 +527,12 @@ export const calculateCombatResult = (attacker: any, target: any) => {
 
   const displayDmg = Math.round(dmg);
 
-  if (isCrit && isBlocked) {
+  const isRealCrit = isCrit && critMultiplier > 1;
+  if (isRealCrit && isBlocked) {
     text = `💥 КРИТ ЗАБЛОКИРОВАН! -${displayDmg}`;
     type = 'BLOCK';
     sound = 'block';
-  } else if (isCrit) {
+  } else if (isRealCrit) {
     text = `🔥 КРИТ x${critMultiplier}! -${displayDmg}`;
   } else if (isBlocked) {
     text = `🛡️ БЛОК -${(currentBlockReduction * 100).toFixed(0)}%! -${displayDmg}`;
@@ -528,6 +542,21 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   }
 
   return { damage: displayDmg, type, text, sound };
+};
+
+/** Проверяет щит игрока перед получением урона. Если щит активен — поглощает атаку, возвращает true */
+export const absorbWithShield = (pos: { x: number; y: number }): boolean => {
+  const playerStats = usePlayerStore.getState().stats;
+  if (playerStats.shieldCharges > 0) {
+    usePlayerStore.setState((st: any) => ({
+      stats: { ...st.stats, shieldCharges: st.stats.shieldCharges - 1 },
+    }));
+    const store = useCombatGridStore.getState();
+    store.addPopup(pos.x, pos.y, '🛡️ ЩИТ! Атака поглощена!', 'BLOCK');
+    store.addBattleLog('🛡️ ЩИТ поглотил атаку');
+    return true;
+  }
+  return false;
 };
 
 export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
@@ -565,6 +594,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   playerAbilities: [],
   abilityCooldowns: [],
   selectedAbility: null,
+  playerInvisible: false,
+  playerInvisTurns: 0,
+  isTeleporting: false,
+  isPlacingMine: false,
+  immortalityTurns: 0,
+  cardRarityName: null,
 
   addMessage: (msg) => set({ message: msg }),
 
@@ -575,7 +610,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set((s) => ({ popups: [...s.popups, { id, x, y, text, type }] }));
     setTimeout(() => {
       set((s) => ({ popups: s.popups.filter((p) => p.id !== id) }));
-    }, 1200);
+    }, 1000);
   },
 
   triggerShake: () => {
@@ -595,28 +630,58 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   findPath: (from, to) => findPath(from, to, get().obstacles),
 
-  initCombat: (difficulty, encounteredFaction) => {
+  initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards) => {
+    // Reset combat-only player state
+    usePlayerStore.setState((st: any) => ({
+      stats: { ...st.stats, shieldCharges: 0 },
+      activeEffects: (st.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_')),
+    }));
     const player = usePlayerStore.getState();
-    const enemyCount = Math.min(1 + Math.floor(difficulty / 4), 6);
+
+    // Override rewards with card values when in card mode
+    if (cardRewards) {
+      usePlayerStore.setState((st: any) => ({
+        combat: {
+          ...st.combat,
+          enemyChipReward: cardRewards.chipReward,
+          enemyExpReward: cardRewards.xpReward,
+        },
+      }));
+      set({ cardRarityName: cardRewards.cardRarityName });
+    }
 
     // Player starts at (2,2) like original
     const playerPos = { x: 2, y: 2 };
 
-    // Determine which faction keys to use
+    const playerLevel = player.level;
+    const levelMult = 1 + 0.2 * (Math.max(1, playerLevel) - 1);
+    const extraMult = 1 + (difficulty || 0) / 100;
+    const accuracyAdd = (playerLevel - 1) * 0.001;
+
     const allFactionKeys = Object.keys(ENEMY_BASE_STATS);
-    let validKeys = allFactionKeys;
-    if (encounteredFaction) {
-      const matched = allFactionKeys.filter((k) => k === encounteredFaction || ENEMY_BASE_STATS[k].faction === encounteredFaction);
-      if (matched.length > 0) validKeys = matched;
+    let factionKeysPool: string[];
+    let enemyCount: number;
+
+    if (cardEnemyKeys && cardEnemyKeys.length > 0) {
+      enemyCount = cardEnemyKeys.length;
+      factionKeysPool = cardEnemyKeys;
+    } else {
+      enemyCount = Math.min(1 + Math.floor(difficulty / 4), 6);
+      factionKeysPool = allFactionKeys;
+      if (encounteredFaction) {
+        const matched = allFactionKeys.filter((k) => k === encounteredFaction || ENEMY_BASE_STATS[k].faction === encounteredFaction);
+        if (matched.length > 0) factionKeysPool = matched;
+      }
     }
 
     const enemies: GridEnemy[] = [];
     for (let i = 0; i < enemyCount; i++) {
-      const factionKey = validKeys[Math.floor(Math.random() * validKeys.length)];
+      const factionKey = cardEnemyKeys ? cardEnemyKeys[i] : factionKeysPool[Math.floor(Math.random() * factionKeysPool.length)];
       const base = ENEMY_BASE_STATS[factionKey];
-      const levelScale = difficulty || 1;
-      const scaledHealth = base.health * (1 + (levelScale - 1) * 0.15);
-      const scaledDamage = base.damage * (1 + (levelScale - 1) * 0.1);
+      if (!base) continue;
+      const totalMult = levelMult * extraMult;
+      const scaledHealth = Math.round(base.health * totalMult);
+      const scaledDamage = Math.round(base.damage * totalMult);
       const spawnX = Math.min(GRID - 3, Math.max(20, GRID - 3 - (i % 2) * 2));
       const spawnY = 20 + (i % 3) * 3 + Math.floor(i / 3) * 4;
       const abilities = base.skillUse && base.skillUse.length > 0 && base.skillUse[0] !== ''
@@ -632,20 +697,20 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         id: i,
         name: factionKey,
         faction: base.faction || 'Неизвестно',
-        dps: base.damage * (1 + (base.speed || 0)),
-        speed: base.speed || 0,
+        dps: scaledDamage * (1 + (base.speed * totalMult || 0)),
+        speed: base.speed * totalMult,
         currentHp: scaledHealth,
         maxHp: scaledHealth,
         health: base.health,
         damage: scaledDamage,
-        armor: base.armor,
-        accuracy: base.accuracy,
-        evasion: base.evasion,
-        block: base.block,
-        punching: base.punching,
-        vampir: base.vampir,
-        crit: base.crit,
-        regen: base.regen || 0,
+        armor: Math.round(base.armor * totalMult),
+        accuracy: Math.min(2, base.accuracy + accuracyAdd),
+        evasion: Math.min(1, base.evasion * totalMult),
+        block: base.block * totalMult,
+        punching: base.punching * totalMult,
+        vampir: base.vampir * totalMult,
+        crit: base.crit * totalMult,
+        regen: (base.regen || 0) * totalMult,
         pos: { x: spawnX, y: spawnY + i },
         isHit: false,
         dead: false,
@@ -683,6 +748,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set({
       isActive: true, playerPos, enemies, obstacles,
       playerAbilities, abilityCooldowns, selectedAbility: null,
+      playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: MAX_AMMO,
       range: ATTACK_RANGE, isDefensiveMode: false,
       turnCount: 0, selectedEnemy: null, message: '⚔️ Твой ход',
@@ -708,6 +774,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     set({ isDefensiveMode: false, isMoving: true, isSelected: false, plannedPath: [] });
+    playCombatSound('run', 0.15);
     const stepsTaken = path.length - 1;
 
     // Animate movement with steps
@@ -723,7 +790,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           isMoving: false,
           message: `🚶 Шагнул (AP: ${newAp}/${s.maxAp})`,
         }));
-        playCombatSound('run', 0.2);
+        stopCombatSound('run');
         if (newAp <= 0) {
           const s = get();
           const hasEnemies = s.enemies.some((e) => !e.dead) || s.reserve.length > 0;
@@ -764,6 +831,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       isDefensiveMode: false,
       message: `🚶 Шаг (AP: ${newAp}/${state.maxAp})`,
     });
+    playCombatSound('run', 0.15);
     if (newAp <= 0) {
       const s = get();
       const hasEnemies = s.enemies.some((e) => !e.dead) || s.reserve.length > 0;
@@ -808,15 +876,86 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (state.abilityCooldowns[idx] > 0) { get().addMessage('❌ Способность перезаряжается'); set({ selectedAbility: null }); return; }
     if (state.ap < ability.apCost) { get().addMessage('❌ Не хватает AP'); return; }
 
+    // Barrage: fire 20 random shots, no target needed
+    if (ability.id === 'barrage') {
+      const alive = state.enemies.filter((e) => !e.dead && e.currentHp > 0);
+      if (alive.length === 0) { set({ selectedAbility: null }); return; }
+      playCombatSound('m134', 0.3);
+      get().addBattleLog(`🌊 ${ability.name}: 20 выстрелов по случайным целям!`);
+      const baseDmg = usePlayerStore.getState().stats.damage || 5;
+      for (let i = 0; i < 20; i++) {
+        setTimeout(() => {
+          const s = get();
+          const targets = s.enemies.filter((e) => !e.dead && e.currentHp > 0);
+          if (targets.length === 0) return;
+          const pick = targets[Math.floor(Math.random() * targets.length)];
+          const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
+          pick.currentHp = Math.max(0, pick.currentHp - rawDmg);
+          pick.isHit = true;
+          set({ shotLine: { from: s.playerPos, to: pick.pos } });
+          setTimeout(() => { const st = get(); if (st.shotLine?.to === pick.pos) set({ shotLine: null }); }, 300);
+          get().addPopup(pick.pos.x, pick.pos.y, `-${rawDmg} 🌊`, 'DMG');
+          if (pick.currentHp <= 0) {
+            pick.dead = true;
+            pick.isHit = false;
+            get().addBattleLog(`💀 ${pick.name} уничтожен!`);
+          }
+          if (i === 19) set({ enemies: [...get().enemies] });
+          else set({ enemies: [...s.enemies] });
+        }, i * 200);
+      }
+      const newCooldowns = [...state.abilityCooldowns];
+      newCooldowns[idx] = ability.cooldown;
+      set({ abilityCooldowns: newCooldowns, ap: state.ap - ability.apCost, selectedAbility: null, selectedEnemy: null, message: `🌊 ${ability.name} (AP: ${state.ap - ability.apCost})` });
+      return;
+    }
+
     const targetEnemy = enemyId != null
       ? state.enemies.find((e) => e.id === enemyId)
       : null;
 
-    // If ability has damage effects, require a target
-    const needsTarget = ability.effects.some((ef) => ef.type === 'damage' || ef.type === 'mark_zone');
+    // If ability has damage effects or requiresTarget flag, require a target
+    const needsTarget = ability.effects.some((ef) => ef.type === 'damage' || ef.type === 'mark_zone') || ability.requiresTarget;
     if (needsTarget && !targetEnemy) {
       get().addMessage('❌ Выбери цель для этой способности');
       set({ selectedAbility: null });
+      return;
+    }
+
+    // Per-ability range check
+    if (targetEnemy && ability.range != null) {
+      const dist = getDist(state.playerPos, targetEnemy.pos);
+      if (dist > ability.range) {
+        get().addMessage(`❌ ${ability.name}: цель вне радиуса (${ability.range})`);
+        set({ selectedAbility: null });
+        return;
+      }
+    }
+
+    // Visibility check for targeted abilities
+    if (needsTarget && targetEnemy) {
+      if (!checkVisibility(state.playerPos, state.playerRotation, targetEnemy.pos, state.obstacles, { fov: 360 })) {
+        get().addMessage(`❌ ${ability.name}: цель за препятствием`);
+        set({ selectedAbility: null });
+        return;
+      }
+    }
+
+    // Mine: place on grid instead of effect processing
+    if (ability.id === 'mine') {
+      set({ isPlacingMine: true, message: '💣 Выбери клетку для мины' });
+      get().addBattleLog('💣 Мина: выбери клетку для установки');
+      const newCooldowns = [...state.abilityCooldowns];
+      newCooldowns[idx] = ability.cooldown;
+      const newAp = get().ap - ability.apCost;
+      set({
+        abilityCooldowns: newCooldowns,
+        ap: newAp,
+        selectedAbility: null,
+        selectedEnemy: null,
+        message: `💣 ${ability.name} (AP: ${newAp})`,
+        enemies: [...state.enemies],
+      });
       return;
     }
 
@@ -827,10 +966,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (type === 'heal_percent') {
         const player = usePlayerStore.getState();
         const healAmt = Math.round(player.stats.maxHp * (effect as AbilityEffect & { type: 'heal_percent' }).value / 100);
+        playCombatSound('medshot4', 0.4);
         usePlayerStore.setState((st: any) => ({
           stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + healAmt) },
         }));
-        usePlayerStore.getState().recalcStats();
         get().addPopup(state.playerPos.x, state.playerPos.y, `+${healAmt} ❤️`, 'HEAL');
         get().addBattleLog(`🩹 ${ability.name}: +${healAmt} HP`);
       }
@@ -840,7 +979,6 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         usePlayerStore.setState((st: any) => ({
           stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + val) },
         }));
-        usePlayerStore.getState().recalcStats();
         get().addPopup(state.playerPos.x, state.playerPos.y, `+${val} ❤️`, 'HEAL');
       }
 
@@ -850,8 +988,122 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const baseDmg = usePlayerStore.getState().stats.damage || 5;
           const dmg = Math.round(baseDmg * dmgEffect.multiplier);
           const aoe = dmgEffect.aoe || 1;
+
+          // Snipe: 4s aim delay, x15 damage
+          if (ability.id === 'snipe') {
+            playCombatSound('snayperskoy', 0.4);
+            set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'aim' } });
+            get().addBattleLog(`🎯 ${ability.name}: прицеливание...`);
+            setTimeout(() => {
+              const s = get();
+              const tgt = s.enemies.find((e: GridEnemy) => e.id === targetEnemy.id);
+              if (!tgt || tgt.dead || tgt.currentHp <= 0) { set({ shotLine: null }); return; }
+              const rawDmg = Math.round(Math.max(1, dmg * (1 - tgt.armor * 0.01)));
+              tgt.currentHp = Math.max(0, tgt.currentHp - rawDmg);
+              tgt.isHit = true;
+              set({ shotLine: null, enemies: [...s.enemies] });
+              get().addPopup(tgt.pos.x, tgt.pos.y, `-${rawDmg} 🎯`, 'DMG');
+              if (tgt.currentHp <= 0) {
+                tgt.dead = true; tgt.isHit = false;
+                get().addBattleLog(`💀 ${tgt.name} уничтожен!`);
+              }
+              get().triggerShake();
+            }, 4000);
+            continue;
+          }
+
+          // Bazooka (shock): 2s delay, red line, screen shake
+          if (ability.id === 'shock') {
+            playCombatSound('bazooka_sound_effect', 0.4);
+            set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'bazooka' } });
+            get().addBattleLog(`🚀 ${ability.name}: выстрел...`);
+            setTimeout(() => {
+              const s = get();
+              set({ shotLine: null });
+              const tgt = s.enemies.find((e: GridEnemy) => e.id === targetEnemy.id);
+              if (!tgt || tgt.dead || tgt.currentHp <= 0) return;
+              const rawDmg = Math.round(Math.max(1, dmg * (1 - tgt.armor * 0.01)));
+              get().triggerShake();
+              s.enemies.forEach((e: GridEnemy) => {
+                if (e.dead) return;
+                const dist = Math.abs(e.pos.x - tgt.pos.x) + Math.abs(e.pos.y - tgt.pos.y);
+                if (dist <= 3) {
+                  const splashDmg = Math.round(rawDmg * (1 - dist * 0.15));
+                  e.currentHp = Math.max(0, e.currentHp - splashDmg);
+                  e.isHit = true;
+                  get().addPopup(e.pos.x, e.pos.y, `-${splashDmg} 💥`, 'DMG');
+                  if (e.currentHp <= 0) { e.dead = true; e.isHit = false; get().addBattleLog(`💀 ${e.name} уничтожен!`); }
+                }
+              });
+              set({ enemies: [...s.enemies] });
+            }, 2000);
+            continue;
+          }
+
+          // Berserker sacrifice: lose 30% HP, deal 50% enemy HP as damage (custom handler, not standard damage)
+          if (ability.id === 'berserk_sacrifice') {
+            playCombatSound('Maim', 0.4);
+            const s = get();
+            const tgt = s.enemies.find((e: GridEnemy) => e.id === targetEnemy.id);
+            if (!tgt || tgt.dead || tgt.currentHp <= 0) continue;
+            const playerStats = usePlayerStore.getState().stats;
+            const hpCost = Math.round(playerStats.currentHp * 0.3);
+            usePlayerStore.setState((st: any) => ({
+              stats: { ...st.stats, currentHp: Math.max(1, st.stats.currentHp - hpCost) },
+            }));
+            get().addPopup(s.playerPos.x, s.playerPos.y, `💀 -${hpCost} HP`, 'DMG');
+            get().addBattleLog(`💀 ${ability.name}: потеряно ${hpCost} HP`);
+            const pctDmg = Math.round(tgt.currentHp * 0.5);
+            tgt.currentHp = Math.max(0, tgt.currentHp - pctDmg);
+            tgt.isHit = true;
+            set({ shotLine: { from: s.playerPos, to: tgt.pos } });
+            setTimeout(() => set({ shotLine: null }), 400);
+            get().addPopup(tgt.pos.x, tgt.pos.y, `💀 -${pctDmg}`, 'DMG');
+            get().addBattleLog(`💀 ${ability.name}: ${tgt.name} теряет ${pctDmg} HP`);
+            if (tgt.currentHp <= 0) {
+              tgt.dead = true; tgt.isHit = false;
+              get().addBattleLog(`💀 ${tgt.name} уничтожен!`);
+            }
+            set({ enemies: [...s.enemies] });
+            continue;
+          }
+
+          if (ability.id === 'grenade') {
+            // Animated grenade: 2s flight + explosion
+            playCombatSound('grenadegun', 0.4);
+            set({ flyingGrenade: { from: state.playerPos, to: targetEnemy.pos } });
+            get().addBattleLog(`💣 ${ability.name}: бросок...`);
+            setTimeout(() => {
+              const s = get();
+              set({ flyingGrenade: null });
+              const radius = Math.ceil(Math.sqrt(2) / 2);
+              const enemies = s.enemies.map((e: GridEnemy) => {
+                if (e.dead) return e;
+                const dist = Math.abs(e.pos.x - targetEnemy.pos.x) + Math.abs(e.pos.y - targetEnemy.pos.y);
+                if (dist <= radius) {
+                  const finalDmg = Math.round(dmg * (1 - dist * 0.15));
+                  e.currentHp = Math.max(0, e.currentHp - finalDmg);
+                  get().addPopup(e.pos.x, e.pos.y, `-${finalDmg}`, 'DMG');
+                  if (e.currentHp <= 0) {
+                    e.dead = true; e.isHit = false;
+                    get().addBattleLog(`💀 ${e.name} уничтожен!`);
+                  }
+                }
+                return e;
+              });
+              set({ enemies });
+              get().triggerShake();
+              // Add explosion global effect
+              set((st: any) => ({
+                globalEffects: [...st.globalEffects, { type: 'GRENADE' as const, pos: { ...targetEnemy.pos }, damage: 0, timer: 2 }],
+              }));
+              setTimeout(() => set((st: any) => ({ globalEffects: st.globalEffects.filter((g: any) => g.timer > 1) })), 2000);
+            }, 2000);
+            continue;
+          }
+
           if (aoe > 1) {
-            // Area damage
+            // Area damage (non-grenade AOE)
             const radius = Math.ceil(Math.sqrt(aoe) / 2);
             for (const e of state.enemies) {
               if (e.dead) continue;
@@ -869,10 +1121,48 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             }
           } else {
             // Single target
-            const finalDmg = Math.round(Math.max(1, dmg * (1 - targetEnemy.armor * 0.01)));
-            targetEnemy.currentHp = Math.max(0, targetEnemy.currentHp - finalDmg);
-            targetEnemy.isHit = true;
-            get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, `-${finalDmg} 🎯`, 'DMG');
+            if (ability.id === 'aimshot') {
+              playCombatSound('Silvertarget', 0.4);
+              set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'aim' } });
+              setTimeout(() => set({ shotLine: null }), 600);
+              const finalDmg = Math.round(Math.max(1, dmg));
+              targetEnemy.currentHp = Math.max(0, targetEnemy.currentHp - finalDmg);
+              targetEnemy.isHit = true;
+              get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, `-${finalDmg} 🎯`, 'DMG');
+            } else {
+              if (ability.id === 'hammer_strike') playCombatSound('Corruption', 0.4);
+              const finalDmg = Math.round(Math.max(1, dmg * (1 - targetEnemy.armor * 0.01)));
+              targetEnemy.currentHp = Math.max(0, targetEnemy.currentHp - finalDmg);
+              targetEnemy.isHit = true;
+              get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, `-${finalDmg} 🎯`, 'DMG');
+            }
+
+            // Ram: knockback 2 cells + stun
+            if (ability.id === 'ram') {
+              playCombatSound('SkullBasher', 0.4);
+              const dx = targetEnemy.pos.x - state.playerPos.x;
+              const dy = targetEnemy.pos.y - state.playerPos.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > 0) {
+                const nx = Math.round(dx / dist);
+                const ny = Math.round(dy / dist);
+                let pushX = targetEnemy.pos.x + nx * 2;
+                let pushY = targetEnemy.pos.y + ny * 2;
+                const obs = get().obstacles;
+                const blocked = obs.some((o) => o.x === pushX && o.y === pushY && o.blocks);
+                const occupied = get().enemies.some((e) => e.id !== targetEnemy.id && !e.dead && e.pos.x === pushX && e.pos.y === pushY);
+                if (blocked || occupied) {
+                  pushX = targetEnemy.pos.x + nx;
+                  pushY = targetEnemy.pos.y + ny;
+                }
+                targetEnemy.pos.x = pushX;
+                targetEnemy.pos.y = pushY;
+                get().triggerShake();
+                get().addPopup(pushX, pushY, '💥 ОТБРОС!', 'SPECIAL');
+              }
+              playCombatSound('melee', 0.4);
+            }
+
             if (targetEnemy.currentHp <= 0) {
               targetEnemy.dead = true;
               targetEnemy.isHit = false;
@@ -885,6 +1175,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
       if (type === 'stat_boost') {
         const boost = effect as AbilityEffect & { type: 'stat_boost' };
+        // Enemy debuff (acid armor reduction)
+        if (boost.stat === 'enemyArmorReduction' && targetEnemy) {
+          if (ability.id === 'acid') playCombatSound('arci', 0.4);
+          const reduction = targetEnemy.armor * boost.value;
+          targetEnemy.armor = Math.max(0, targetEnemy.armor - reduction);
+          get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, `☠️ Броня -${Math.round(boost.value * 100)}%`, 'DEBUFF');
+          get().addBattleLog(`☠️ ${ability.name}: броня ${targetEnemy.name} снижена на ${Math.round(boost.value * 100)}% (${boost.duration} хода)`);
+          continue;
+        }
+        if (ability.id === 'armor_shred') playCombatSound('Battle_Fury', 0.4);
+        if (ability.id === 'vampiric') playCombatSound('Mask_of_Madness', 0.4);
+        if (ability.id === 'block_stance') playCombatSound('Armlet', 0.4);
+        if (ability.id === 'wind_speed') playCombatSound('speed1', 0.4);
         const player = usePlayerStore.getState();
         const existing = player.activeEffects.find((e) => e.id === `ability_${ability.id}`);
         if (existing) {
@@ -904,6 +1207,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
       if (type === 'stat_boost_mult') {
         const boost = effect as AbilityEffect & { type: 'stat_boost_mult' };
+        if (ability.id === 'barrier') playCombatSound('Buckler', 0.4);
+        if (ability.id === 'rage') playCombatSound('BlackKing', 0.4);
+        if (ability.id === 'fortify') playCombatSound('442', 0.4);
+        if (ability.id === 'adrenaline') playCombatSound('Bottle_Pour', 0.4);
         const player = usePlayerStore.getState();
         const existing = player.activeEffects.find((e) => e.id === `ability_${ability.id}`);
         if (existing) {
@@ -924,6 +1231,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
 
       if (type === 'heal_over_time') {
+        if (ability.id === 'regen') playCombatSound('tablets', 0.4);
         const hot = effect as AbilityEffect & { type: 'heal_over_time' };
         const player = usePlayerStore.getState();
         const existing = player.activeEffects.find((e) => e.id === `ability_${ability.id}`);
@@ -945,79 +1253,78 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
       if (type === 'status') {
         const statusEffect = effect as AbilityEffect & { type: 'status' };
-        if (statusEffect.id === 'evasion' || statusEffect.id === 'invisibility' || statusEffect.id === 'shield' || statusEffect.id === 'stun') {
+        if (statusEffect.id === 'evasion') {
+          playCombatSound('LotusOrbcast', 0.4);
           get().addBattleLog(`👤 ${ability.name} активирована (${statusEffect.id})`);
-          // Store status in player store via effects
           usePlayerStore.getState().addEffect({
             id: `ability_${statusEffect.id}`,
             name: ability.name,
             duration: statusEffect.duration,
             remaining: statusEffect.duration,
-            statBoosts: statusEffect.id === 'evasion' ? { evasion: 1 } : {},
+            statBoosts: { evasion: 1 },
           });
+        }
+        if (statusEffect.id === 'shield') {
+          playCombatSound('MaximumArmor', 0.4);
+          usePlayerStore.setState((st: any) => ({
+            stats: { ...st.stats, shieldCharges: 3 },
+          }));
+          get().addPopup(state.playerPos.x, state.playerPos.y, '🛡️ ЩИТ (3 атаки)!', 'BUFF');
+          get().addBattleLog(`🛡️ ${ability.name}: поглощает 3 атаки`);
+        }
+        if (statusEffect.id === 'invisibility') {
+          playCombatSound('invis', 0.4);
+          set({ playerInvisible: true, playerInvisTurns: statusEffect.duration });
+          get().addPopup(state.playerPos.x, state.playerPos.y, '👻 НЕВИДИМОСТЬ!', 'BUFF');
+          get().addBattleLog(`👻 ${ability.name}: невидимость на ${statusEffect.duration} хода`);
+        }
+        if (statusEffect.id === 'stun' && targetEnemy) {
+          playCombatSound('Echo_Sabre', 0.4);
+          targetEnemy.stunned = true;
+          targetEnemy.stunTurns = statusEffect.duration;
+          get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, '⚡ СТАН!', 'SPECIAL');
+          get().addBattleLog(`⚡ ${ability.name}: цель оглушена на ${statusEffect.duration} ход`);
         }
       }
 
       if (type === 'teleport') {
+        set({ isTeleporting: true, message: '✨ Выбери клетку для телепортации' });
         get().addBattleLog(`✨ ${ability.name}: выбери клетку для телепортации`);
-        // Teleport target selection is done in UI; for now just log
-      }
-
-      if (type === 'create_decoy') {
-        const decoy: GridObstacle = {
-          id: Date.now(),
-          x: state.playerPos.x + 1,
-          y: state.playerPos.y,
-          w: 1, h: 1,
-          type: 'decoy',
-          blocks: false,
-          icon: '🎭',
-        };
-        set((s) => ({ obstacles: [...s.obstacles, decoy] }));
-        get().addBattleLog(`🎭 ${ability.name}: создана приманка`);
       }
 
       if (type === 'summon') {
         const player = usePlayerStore.getState();
-        const summon: GridEnemy = {
-          id: `summon_${Date.now()}`,
-          name: 'Миньон',
+        const spawnPos = { x: state.playerPos.x + 1, y: state.playerPos.y };
+        get().addPopup(spawnPos.x, spawnPos.y, '👥 ПРИЗЫВ!', 'SPECIAL');
+        const clone: GridEnemy = {
+          id: `clone_${Date.now()}`,
+          name: 'Клон',
           faction: 'Союзник',
-          currentHp: 100,
-          maxHp: 100,
-          damage: player.stats.damage * 0.5,
-          dps: player.stats.damage * 0.5,
-          armor: 0,
-          accuracy: 0.8,
-          evasion: 0,
-          block: 0,
-          punching: 0,
-          vampir: 0,
-          crit: 0.05,
-          regen: 0,
-          pos: { x: state.playerPos.x + 1, y: state.playerPos.y },
-          isHit: false,
-          dead: false,
-          runAp: 4,
-          rotation: 90,
-          rangeDistance: 5,
-          shotPrice: 1,
-          skillUse: [],
-          cooldowns: {},
-          isInvisible: false,
-          invisTurns: 0,
-          baseEvasion: 0,
-          isEnraged: false,
-          rageTurns: 0,
-          hasSummoned: false,
-          bigModel: '80%',
-          isSpinning: false,
-          loot: [],
-          looted: false,
+          currentHp: Math.max(500, Math.round((player.stats.maxHp || 200) * 0.5)),
+          maxHp: Math.max(500, Math.round((player.stats.maxHp || 200) * 0.5)),
+          damage: Math.round((player.stats.damage || 10) * 0.5),
+          dps: Math.round((player.stats.damage || 10) * 0.5),
+          armor: Math.round((player.stats.armor || 0) * 0.5),
+          accuracy: player.stats.accuracy || 0.8,
+          evasion: (player.stats.evasion || 0) * 0.5,
+          block: (player.stats.block || 0) * 0.5,
+          punching: (player.stats.punching || 0) * 0.5,
+          vampir: (player.stats.vampir || 0) * 0.5,
+          crit: (player.stats.crit || 0) * 0.5,
+          regen: (player.stats.regen || 0) * 0.5,
+          pos: spawnPos,
+          isHit: false, dead: false,
+          runAp: 4, rotation: 90, rangeDistance: 5, shotPrice: 1,
+          skillUse: [], cooldowns: {},
+          isInvisible: false, invisTurns: 0, baseEvasion: (player.stats.evasion || 0) * 0.5,
+          isEnraged: false, rageTurns: 0, hasSummoned: false,
+          bigModel: '100%', isSpinning: false,
+          loot: [], looted: false,
           isMinion: true,
+          lifetime: 3,
         };
-        set((s) => ({ enemies: [...s.enemies, summon] }));
-        get().addBattleLog(`👥 ${ability.name}: призван миньон`);
+        set((s) => ({ enemies: [...s.enemies, clone] }));
+        get().addBattleLog(`👥 ${ability.name}: призван клон (${Math.max(500, Math.round((player.stats.maxHp || 200) * 0.5))} HP, ${Math.round((player.stats.damage || 10) * 0.5)} DMG, 3 хода)`);
       }
 
       if (type === 'mark_zone') {
@@ -1037,6 +1344,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
       if (type === 'sprint_boost') {
         const sprint = effect as AbilityEffect & { type: 'sprint_boost' };
+        const bonusAp = sprint.value ?? 10;
         usePlayerStore.getState().addEffect({
           id: `ability_sprint`,
           name: ability.name,
@@ -1044,16 +1352,35 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           remaining: sprint.duration,
           statBoosts: { speed: 0.5 },
         });
-        get().addBattleLog(`🏃 ${ability.name}: x2 перемещение на ${sprint.duration} хода`);
-        // Double the AP pool for this turn
-        set((s) => ({ maxAp: s.maxAp * 2, ap: s.ap * 2 }));
+        if (ability.id === 'stimulant') playCombatSound('Butterfly', 0.4);
+        playCombatSound('Phase_Boots', 0.4);
+        get().addBattleLog(`🏃 ${ability.name}: +${bonusAp} AP на ${sprint.duration} ход`);
+        set((s) => ({ maxAp: s.maxAp + bonusAp, ap: s.ap + bonusAp }));
       }
+    }
+
+    // Block stance: reduce maxAp by 1
+    if (ability.id === 'block_stance') {
+      set((s) => ({ maxAp: Math.max(1, s.maxAp - 1), ap: Math.min(s.ap, s.maxAp - 1) }));
+    }
+
+    // Second wind: sacrifice 90% HP, gain immortality for 3 turns
+    if (ability.id === 'second_wind') {
+      const player = usePlayerStore.getState();
+      const newHp = Math.round(player.stats.maxHp * 0.1);
+      const sacrifice = player.stats.currentHp - newHp;
+      usePlayerStore.setState((st) => ({ stats: { ...st.stats, currentHp: newHp } }));
+      set({ immortalityTurns: 3 });
+      playCombatSound('Aeon_Disk', 0.4);
+      get().addPopup(state.playerPos.x, state.playerPos.y, `💀 -${sacrifice} HP`, 'DAMAGE');
+      get().addPopup(state.playerPos.x, state.playerPos.y, '🛡️ БЕССМЕРТИЕ! (3 хода)', 'BUFF');
+      get().addBattleLog(`💀 ${ability.name}: -${sacrifice} HP, бессмертие 3 хода`);
     }
 
     // Apply costs and cooldown
     const newCooldowns = [...state.abilityCooldowns];
     newCooldowns[idx] = ability.cooldown;
-    const newAp = state.ap - ability.apCost;
+    const newAp = get().ap - ability.apCost;
     set({
       abilityCooldowns: newCooldowns,
       ap: newAp,
@@ -1081,6 +1408,46 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   selectEnemy: (id) => set({ selectedEnemy: id }),
 
+  teleportTo: (x, y) => {
+    const state = get();
+    if (!state.isTeleporting) return;
+    const isBlocked = state.enemies.some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y)
+      || state.obstacles.some((o: any) => o.x === x && o.y === y && o.blocks);
+    if (isBlocked) { get().addMessage('❌ Клетка занята'); return; }
+    const visible = checkVisibility(state.playerPos, state.playerRotation, { x, y }, state.obstacles);
+    if (!visible) { get().addMessage('❌ Клетка не видна'); return; }
+    const angle = getAngle(state.playerPos, { x, y });
+    set({ playerPos: { x, y }, playerRotation: angle, isTeleporting: false, isSelected: false, plannedPath: [], message: '✨ Телепорт!' });
+    playCombatSound('Blink', 0.4);
+    get().addPopup(x, y, '✨ ТЕЛЕПОРТ!', 'SPECIAL');
+    get().addBattleLog(`✨ Телепорт на (${x}, ${y})`);
+    // Teleport landing visual effect
+    set((st: any) => ({
+      globalEffects: [...st.globalEffects, { type: 'TELEPORT_LAND' as const, pos: { x, y }, damage: 0, timer: 2 }],
+    }));
+    setTimeout(() => set((st: any) => ({ globalEffects: st.globalEffects.filter((g: any) => g.type !== 'TELEPORT_LAND') })), 2000);
+  },
+
+  placeMine: (x, y) => {
+    const state = get();
+    if (!state.isPlacingMine) return;
+    if (getDist(state.playerPos, { x, y }) > 3) { get().addMessage('❌ Слишком далеко (макс 3)'); return; }
+    const isBlocked = state.enemies.some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y)
+      || state.obstacles.some((o: any) => o.x === x && o.y === y && o.blocks);
+    if (isBlocked) { get().addMessage('❌ Клетка занята'); return; }
+    const playerStats = usePlayerStore.getState().stats;
+    const mineDmg = Math.round(playerStats.damage * 10);
+    set((st: any) => ({
+      globalEffects: [...st.globalEffects, { type: 'MINE', pos: { x, y }, damage: mineDmg, timer: 999 }],
+      isPlacingMine: false, isSelected: false, message: '💣 Мина установлена!',
+    }));
+    get().addPopup(x, y, '💣 МИНА', 'SPECIAL');
+    get().addBattleLog(`💣 Мина установлена на (${x}, ${y})`);
+  },
+
+  checkAutoTriggers: () => {
+  },
+
   setIsSelected: (v) => set({ isSelected: v }),
 
   attackEnemy: (enemyId) => {
@@ -1096,6 +1463,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const dist = getDist(state.playerPos, enemy.pos);
     const effectiveRange = state.isDefensiveMode ? state.range + 5 : state.range;
     if (dist > effectiveRange) { get().addMessage('❌ Вне радиуса атаки'); return; }
+
+    if (!checkVisibility(state.playerPos, state.playerRotation, enemy.pos, state.obstacles, { fov: 360 })) {
+      get().addMessage('❌ Цель за препятствием');
+      return;
+    }
 
     const player = usePlayerStore.getState();
     const angle = getAngle(state.playerPos, enemy.pos);
@@ -1156,46 +1528,49 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Extra shots from speed (no AP/ammo cost)
     const bonusShots = calcExtraShots(player.stats.speed || 0);
     for (let i = 0; i < bonusShots; i++) {
-      const st = get();
-      const en = st.enemies.find((en) => en.id === enemyId);
-      if (!en || en.dead || en.currentHp <= 0) break;
-
-      const pStats = usePlayerStore.getState().stats;
-      let effDps = pStats.damage;
-      const fac = en.faction;
-      if (fac === 'Мутанты') effDps = Math.max(effDps, pStats.dpsToxis || 0);
-      else if (fac === 'Роботы') effDps = Math.max(effDps, pStats.dpsEmi || 0);
-      else if (['Бандиты', 'Военные'].includes(fac)) {
-        effDps = Math.max(effDps, pStats.dpsExtro || 0, pStats.dpsFire || 0);
-      }
-      if (pStats.stamina < 0.1 * pStats.maxStamina) effDps *= 0.5;
-
-      const atkStat = { dps: effDps, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
-      const tgtStat = { armor: en.armor, evasion: en.evasion, block: en.block };
-      const res = calculateCombatResult(atkStat, tgtStat);
-      const dmg = Math.round(res.damage);
-
-      set({ shotLine: { from: st.playerPos, to: en.pos } });
-      setTimeout(() => set({ shotLine: null }), 400);
-
-      set((s) => ({
-        enemies: s.enemies.map((e) =>
-          e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - dmg), isHit: true } : e
-        ),
-      }));
-
-      get().addPopup(en.pos.x, en.pos.y, res.text, res.type);
-      get().addPopup(st.playerPos.x, st.playerPos.y, '+1 🏃', 'BUFF');
-
+      const delay = 500 * (i + 1);
       setTimeout(() => {
-        set((s) => ({ enemies: s.enemies.map((e) => e.id === enemyId ? { ...e, isHit: false } : e) }));
-      }, 300);
+        const st = get();
+        const en = st.enemies.find((en) => en.id === enemyId);
+        if (!en || en.dead || en.currentHp <= 0) return;
 
-      const vamp = Math.round(dmg * (pStats.vampir || 0));
-      if (vamp > 0) {
-        usePlayerStore.setState((st) => ({ stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vamp) } }));
-        get().addPopup(st.playerPos.x, st.playerPos.y, `+${vamp} 🩸`, 'VAMP');
-      }
+        const pStats = usePlayerStore.getState().stats;
+        let effDps = pStats.damage;
+        const fac = en.faction;
+        if (fac === 'Мутанты') effDps = Math.max(effDps, pStats.dpsToxis || 0);
+        else if (fac === 'Роботы') effDps = Math.max(effDps, pStats.dpsEmi || 0);
+        else if (['Бандиты', 'Военные'].includes(fac)) {
+          effDps = Math.max(effDps, pStats.dpsExtro || 0, pStats.dpsFire || 0);
+        }
+        if (pStats.stamina < 0.1 * pStats.maxStamina) effDps *= 0.5;
+
+        const atkStat = { dps: effDps, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
+        const tgtStat = { armor: en.armor, evasion: en.evasion, block: en.block };
+        const res = calculateCombatResult(atkStat, tgtStat);
+        const dmg = Math.round(res.damage);
+
+        set({ shotLine: { from: st.playerPos, to: en.pos } });
+        setTimeout(() => set({ shotLine: null }), 400);
+
+        set((s) => ({
+          enemies: s.enemies.map((e) =>
+            e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - dmg), isHit: true } : e
+          ),
+        }));
+
+        get().addPopup(en.pos.x, en.pos.y, res.text, res.type);
+        get().addPopup(st.playerPos.x, st.playerPos.y, '+1 🏃', 'BUFF');
+
+        setTimeout(() => {
+          set((s) => ({ enemies: s.enemies.map((e) => e.id === enemyId ? { ...e, isHit: false } : e) }));
+        }, 300);
+
+        const vamp = Math.round(dmg * (pStats.vampir || 0));
+        if (vamp > 0) {
+          usePlayerStore.setState((st) => ({ stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vamp) } }));
+          get().addPopup(st.playerPos.x, st.playerPos.y, `+${vamp} 🩸`, 'VAMP');
+        }
+      }, delay);
     }
 
     setTimeout(() => {
@@ -1252,12 +1627,25 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
 
   finishBattle: () => {
+    const state = get();
     const playerStore = usePlayerStore.getState();
     const expReward = Math.floor(playerStore.combat.enemyExpReward * (1 + playerStore.level * 0.1));
     const chipReward = playerStore.combat.enemyChipReward;
     playerStore.addExp(expReward);
     playerStore.addChips(chipReward);
     playerStore.addLog(`🏆 Победа! +${expReward} опыта, +${chipReward} чипов`, 'loot');
+
+    // Guaranteed item reward matching card rarity
+    if (state.cardRarityName) {
+      try {
+        const item = generateItem(GAME_ITEMS, playerStore.level, undefined, state.cardRarityName);
+        if (item) {
+          useInventoryStore.getState().addItem(item);
+          playerStore.addLog(`🎁 Награда: ${item.displayName || item.name} (${state.cardRarityName})`, 'loot');
+        }
+      } catch (e) { /* ignore */ }
+    }
+
     playerStore.addLog('🚀 Возвращаемся на базу...', 'loot');
     playerStore.startReturnHome();
     usePlayerStore.setState((st) => ({
@@ -1311,7 +1699,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     for (let i = 0; i < count; i++) {
-      const base = generateEnemy('zone', 1);
+      const playerLevel = usePlayerStore.getState().level;
+      const base = generateEnemy(playerLevel, 1);
       let attempts = 0;
       let spawnX: number, spawnY: number;
       do {
@@ -1326,19 +1715,20 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         id: newId,
         name: base.faction || 'Враг',
         faction: base.faction || 'Неизвестно',
-        dps: base.dps || base.damage,
+        dps: base.scaledDamage * (1 + base.scaledSpeed),
+        speed: base.scaledSpeed,
         currentHp: base.scaledHealth,
         maxHp: base.scaledHealth,
         health: base.health,
         damage: base.scaledDamage,
-        armor: base.armor,
-        accuracy: base.accuracy,
-        evasion: base.evasion,
-        block: base.block,
-        punching: base.punching,
-        vampir: base.vampir,
-        crit: base.crit,
-        regen: base.regen || 0,
+        armor: base.scaledArmor,
+        accuracy: base.scaledAccuracy,
+        evasion: base.scaledEvasion,
+        block: base.scaledBlock,
+        punching: base.scaledPunching,
+        vampir: base.scaledVampir,
+        crit: base.scaledCrit,
+        regen: base.scaledRegen,
         pos: { x: spawnX, y: spawnY },
         isHit: false,
         dead: false,
@@ -1394,6 +1784,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
 
   endTurn: () => {
+    stopCombatSound('run');
     const state = get();
     if (state.turn !== 'player' || state.isMoving) return;
     // Check all dead + no reserve -> free movement
@@ -1415,18 +1806,36 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     get().tickAbilityCooldowns();
     // Tick player effects per turn instead of per real second
     usePlayerStore.getState().tickEffects();
+    // Reset maxAp if sprint/rush effect expired
+    const st = get();
+    const hasRush = usePlayerStore.getState().activeEffects.some((e: any) => e.id === 'ability_sprint');
+    if (!hasRush && st.maxAp > BASE_AP && st.maxAp <= BASE_AP + 10) {
+      set({ maxAp: BASE_AP, ap: Math.min(st.ap, BASE_AP) });
+    }
+    // Restore maxAp if block stance effect expired
+    const hasBlockStance = usePlayerStore.getState().activeEffects.some((e: any) => e.id === 'ability_block_stance');
+    if (!hasBlockStance && st.maxAp < BASE_AP) {
+      set({ maxAp: BASE_AP, ap: Math.min(st.ap, BASE_AP) });
+    }
     set({ turn: 'enemy', ap: 0, isDefensiveMode: false, isSelected: false, turnCount: nextTurnCount, message: '🤖 Ход врага...' });
   },
 
-  cleanup: () => set({
-    isActive: false, enemies: [], obstacles: [], turn: 'player',
-    ap: BASE_AP, turnCount: 0, selectedEnemy: null, message: '',
-    cursorPos: null, isVictory: false, isMoving: false, popups: [],
-    shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
-    plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
-    playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
-    ammo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
-  }),
+  cleanup: () => {
+    usePlayerStore.setState((st: any) => ({
+      stats: { ...st.stats, shieldCharges: 0 },
+      activeEffects: (st.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_')),
+    }));
+    set({
+      isActive: false, enemies: [], obstacles: [], turn: 'player',
+      ap: BASE_AP, turnCount: 0, selectedEnemy: null, message: '',
+      cursorPos: null, isVictory: false, isMoving: false, popups: [],
+      shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
+      plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
+      playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
+      playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,
+      ammo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
+    });
+  },
 }));
 
 // Enemy skill execution
@@ -1488,11 +1897,13 @@ export async function executeSkill(
       const attackerStats = { dps: aimDps, accuracy: (enemy.accuracy || 1) + 2.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false };
       const result = calculateCombatResult(attackerStats, { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult });
       if (result.damage > 0) {
-        const finalDmg = Math.round(result.damage);
-        usePlayerStore.setState((st: any) => ({
-          stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
-        }));
-        get().addPopup(pPos.x, pPos.y, result.text, result.type);
+        if (!absorbWithShield(pPos)) {
+          const finalDmg = Math.round(result.damage);
+          usePlayerStore.setState((st: any) => ({
+            stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
+          }));
+          get().addPopup(pPos.x, pPos.y, result.text, result.type);
+        }
       } else {
         get().addPopup(pPos.x, pPos.y, result.text, 'SPECIAL');
       }
@@ -1536,12 +1947,16 @@ export async function executeSkill(
           }
           const ramDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2;
           const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false }, { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult });
-          const finalDmg = Math.round(result.damage);
-          usePlayerStore.setState((st: any) => ({
-            stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
-          }));
           get().triggerShake();
-          get().addPopup(pPos.x, pPos.y, `БА-БАХ! ${result.text}`, result.type);
+          if (result.damage > 0 && !absorbWithShield(pPos)) {
+            const finalDmg = Math.round(result.damage);
+            usePlayerStore.setState((st: any) => ({
+              stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
+            }));
+            get().addPopup(pPos.x, pPos.y, `БА-БАХ! ${result.text}`, result.type);
+          } else {
+            get().addPopup(pPos.x, pPos.y, `🛡️ ЩИТ выдержал таран!`, 'BLOCK');
+          }
           enemy.pos = finalStep;
           setCd('ram', 8);
           if (!enemy.cooldowns) enemy.cooldowns = {};
@@ -1597,24 +2012,25 @@ export async function executeSkill(
 
     case 'summoner': {
       if (enemy.currentHp < enemy.maxHp * 0.6 && !enemy.hasSummoned) {
-        const minionBase = generateEnemy('zone', 0);
+        const playerLevel = usePlayerStore.getState().level;
+        const minionBase = generateEnemy(playerLevel, -80);
         const minion = {
           ...minionBase,
           id: `minion-${Date.now()}`,
           name: `${enemy.name} (помощник)`,
-          dps: (minionBase.scaledDamage || 5) * (1 + (minionBase.speed || 0)),
-          speed: minionBase.speed || 0,
+          dps: minionBase.scaledDamage * (1 + minionBase.scaledSpeed),
+          speed: minionBase.scaledSpeed,
           currentHp: minionBase.scaledHealth || 200,
           maxHp: minionBase.scaledHealth || 200,
           damage: minionBase.scaledDamage || 5,
-          armor: minionBase.armor || 1,
-          accuracy: minionBase.accuracy || 0.7,
-          evasion: minionBase.evasion || 0.03,
-          block: minionBase.block || 0,
-          punching: minionBase.punching || 0,
-          vampir: minionBase.vampir || 0.001,
-          crit: minionBase.crit || 0,
-          regen: minionBase.regen || 0,
+          armor: minionBase.scaledArmor || 1,
+          accuracy: minionBase.scaledAccuracy || 0.7,
+          evasion: minionBase.scaledEvasion || 0.03,
+          block: minionBase.scaledBlock || 0,
+          punching: minionBase.scaledPunching || 0,
+          vampir: minionBase.scaledVampir || 0.001,
+          crit: minionBase.scaledCrit || 0,
+          regen: minionBase.scaledRegen || 0,
           pos: { x: enemy.pos.x + 1, y: enemy.pos.y },
           isHit: false,
           dead: false,

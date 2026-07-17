@@ -148,7 +148,7 @@ export const BattleField = ({
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: factionStyle.color, marginTop: 20 }}>{enemyName}</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-              DMG {enemyDamage.toFixed(0)} | ARM {enemyArmor.toFixed(1)}
+              DMG {enemyDamage} | ARM {enemyArmor}
             </div>
           </motion.div>
         </div>

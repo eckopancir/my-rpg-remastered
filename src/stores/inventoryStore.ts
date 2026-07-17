@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Item } from '../types/items';
 
-export type InvTab = 'weapons' | 'armor' | 'consumables' | 'mods' | 'materials' | 'all';
+export type InvTab = 'weapons' | 'armor' | 'mods' | 'materials' | 'all';
 export type SortKey = 'name' | 'level' | 'rarity' | 'price';
 
 interface InventoryStore {

@@ -8,7 +8,7 @@ import { BattleGrid } from '../components/widgets/BattleGrid';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
-import { useSound } from '../hooks/useSound';
+import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { getEnemyImage, images } from '../assets/index';
 
 const LogPanel = () => {
@@ -100,29 +100,73 @@ export const Battle = () => {
     }
   }, [selectedAbility, selectedEnemy, attackEnemy, useAbility]);
 
-  // Keyboard handler
+  // Hold-to-walk WASD + keyboard shortcuts
+  const heldDir = useRef<{ dx: number; dy: number } | null>(null);
+  const moveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (turn !== 'player' || isVictory || isDefeat) return;
       if (isMoving) return;
 
+      let dx = 0, dy = 0;
       switch (e.code) {
-        case 'KeyW': case 'ArrowUp':    e.preventDefault(); handleKeyboardMove(0, -1); break;
-        case 'KeyS': case 'ArrowDown':  e.preventDefault(); handleKeyboardMove(0, 1); break;
-        case 'KeyA': case 'ArrowLeft':  e.preventDefault(); handleKeyboardMove(-1, 0); break;
-        case 'KeyD': case 'ArrowRight': e.preventDefault(); handleKeyboardMove(1, 0); break;
-        case 'Space': e.preventDefault(); selectMe(); break;
+        case 'KeyW': case 'ArrowUp':    e.preventDefault(); dx = 0; dy = -1; break;
+        case 'KeyS': case 'ArrowDown':  e.preventDefault(); dx = 0; dy = 1; break;
+        case 'KeyA': case 'ArrowLeft':  e.preventDefault(); dx = -1; dy = 0; break;
+        case 'KeyD': case 'ArrowRight': e.preventDefault(); dx = 1; dy = 0; break;
+        case 'Space': e.preventDefault(); endTurn(); break;
         case 'KeyR': reload(); playSound('reload'); break;
         case 'KeyF': toggleDefense(); break;
-        case 'Enter': endTurn(); break;
+        case 'Enter': e.preventDefault(); selectMe(); break;
         case 'Digit1': selectAbility(0); break;
         case 'Digit2': selectAbility(1); break;
         case 'Digit3': selectAbility(2); break;
         case 'Digit4': selectAbility(3); break;
       }
+
+      if (dx !== 0 || dy !== 0) {
+        heldDir.current = { dx, dy };
+        handleKeyboardMove(dx, dy);
+        if (!moveInterval.current) {
+          moveInterval.current = setInterval(() => {
+            const s = useCombatGridStore.getState();
+            if (s.turn !== 'player' || s.ap <= 0 || s.isMoving || s.isVictory || s.isDefeat) {
+              if (moveInterval.current) { clearInterval(moveInterval.current); moveInterval.current = null; }
+              stopCombatSound('run');
+              return;
+            }
+            if (heldDir.current) {
+              handleKeyboardMove(heldDir.current.dx, heldDir.current.dy);
+            }
+          }, 220);
+        }
+      }
     };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      switch (e.code) {
+        case 'KeyW': case 'ArrowUp':
+        case 'KeyS': case 'ArrowDown':
+        case 'KeyA': case 'ArrowLeft':
+        case 'KeyD': case 'ArrowRight':
+          heldDir.current = null;
+          if (moveInterval.current) {
+            clearInterval(moveInterval.current);
+            moveInterval.current = null;
+          }
+          stopCombatSound('run');
+          break;
+      }
+    };
+
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+      if (moveInterval.current) { clearInterval(moveInterval.current); moveInterval.current = null; }
+    };
   }, [turn, isVictory, isMoving, handleKeyboardMove, selectMe, reload, toggleDefense, endTurn, playSound, selectAbility]);
 
   const selectedEnemyData = enemies.find((e) => selectedEnemy !== null && e.id === selectedEnemy);
@@ -276,7 +320,7 @@ export const Battle = () => {
                   marginTop: 6,
                 }}
               >
-                ⏭ КОНЕЦ ХОДА [ENTER]
+                ⏭ КОНЕЦ ХОДА [SPACE]
               </div>
             </div>
 
@@ -332,10 +376,10 @@ export const Battle = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center', marginBottom: 6 }}>
               {[
                 { key: 'WASD', label: 'Движение' },
-                { key: 'SPACE', label: 'Выбор' },
+                { key: 'SPACE', label: 'Конец хода' },
                 { key: 'R', label: 'Перезарядка' },
                 { key: 'F', label: 'Защита' },
-                { key: 'ENTER', label: 'Конец хода' },
+                { key: 'ENTER', label: 'Выбор' },
                 { key: 'RMB', label: 'Поворот' },
               ].map((h) => (
                 <span key={h.key} style={{
@@ -414,6 +458,19 @@ export const Battle = () => {
                 <span>🩸 Вампир: {Math.round((hoverTarget.vampir || 0) * 100)}%</span>
                 <span>📏 Дальн: {hoverTarget.rangeDistance || 7}</span>
                 <span>💨 AP: {hoverTarget.runAp || 5}</span>
+              </div>
+              {/* Power */}
+              <div style={{ padding: '0 13px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, marginTop: 4 }}>
+                <span>🟡 МОЩНОСТЬ</span>
+                <span>{(
+                  Math.round(hoverTarget.damage) * 3 +
+                  Math.round(hoverTarget.maxHp / 10) +
+                  Math.round(hoverTarget.armor) * 2 +
+                  Math.round((hoverTarget.evasion || 0) * 100) * 5 +
+                  Math.round((hoverTarget.block || 0) * 100) * 3 +
+                  Math.round((hoverTarget.crit || 0) * 100) * 2 +
+                  Math.round((hoverTarget.punching || 0) * 100) * 2
+                ).toLocaleString()}</span>
               </div>
               {/* Faction */}
               <div style={{ padding: '0 13px 13px', fontSize: 13, color: ENEMY_COLORS[hoverTarget.faction] || '#fff' }}>

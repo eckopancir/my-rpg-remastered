@@ -1,17 +1,18 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
-import { Button } from '../components/ui/Button';
 import { ZONES, type Zone } from '../data/zones';
 import { usePlayerStore } from '../stores/playerStore';
+import militaryBg from '../assets/images/map/military.png';
+
+const LOCKED_ZONES = new Set([
+  'Болото', 'Свалка мусора', 'Темный лес',
+  'База бандитов', 'Руины города', 'Старый завод',
+]);
 
 export const Map = () => {
   const navigate = useNavigate();
   const isTraveling = usePlayerStore((s) => s.travel.isTraveling);
-
-  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
-  const [encounterCount, setEncounterCount] = useState(3);
   const isNight = new Date().getHours() < 6 || new Date().getHours() >= 20;
 
   if (isTraveling) {
@@ -40,13 +41,6 @@ export const Map = () => {
       navigate('/bazaar');
       return;
     }
-    setSelectedZone(zone);
-  };
-
-  const handleStartExpedition = () => {
-    if (!selectedZone) return;
-    navigate(`/expedition?zone=${encodeURIComponent(selectedZone.name)}&count=${encounterCount}`);
-    setSelectedZone(null);
   };
 
   return (
@@ -59,29 +53,6 @@ export const Map = () => {
       <WapPanel variant="metal" padding="lg" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div style={{ fontSize: 18, fontWeight: 600 }}>🗺️ Карта мира {isNight ? '🌙' : '☀️'}</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {selectedZone && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                  Столкновений: 
-                  <select
-                    value={encounterCount}
-                    onChange={(e) => setEncounterCount(Number(e.target.value))}
-                    style={{
-                      marginLeft: 8, padding: '2px 8px',
-                      background: 'var(--bg-glass)', border: '1px solid var(--border-glass)',
-                      borderRadius: 4, color: 'var(--text-primary)', fontSize: 13,
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </span>
-                <Button variant="primary" onClick={handleStartExpedition}>
-                  🚀 В путь!
-                </Button>
-              </div>
-            )}
-          </div>
         </div>
 
         {isNight && (
@@ -98,49 +69,81 @@ export const Map = () => {
             flex: 1,
           }}
         >
-          {ZONES.filter((z) => z.name !== 'Наша база' && z.name !== 'Базар').map((zone) => (
-            <motion.div
-              key={zone.name}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => handleZoneClick(zone)}
-              style={{
-                padding: 20,
-                background: selectedZone?.name === zone.name ? 'var(--accent-primary-dim)' : 'var(--bg-glass)',
-                border: `1px solid ${selectedZone?.name === zone.name ? 'var(--border-accent)' : 'var(--border-glass)'}`,
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                transition: 'all 150ms ease',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              <div style={{ fontSize: 15, fontWeight: 600, color: selectedZone?.name === zone.name ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
-                {zone.name}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                {zone.description}
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
-                <span style={{
-                  padding: '2px 8px', borderRadius: 4, fontSize: 11,
-                  background: zone.difficulty > 15 ? 'rgba(248,113,113,0.15)' : 'rgba(74,222,128,0.15)',
-                  color: zone.difficulty > 15 ? 'var(--accent-danger)' : 'var(--accent-success)',
-                }}>
-                  SL {zone.difficulty}
-                </span>
-                {zone.allowedFactions.map((f) => (
-                  <span key={f} style={{
-                    padding: '2px 6px', borderRadius: 4, fontSize: 10,
-                    background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)',
+          {ZONES.filter((z) => z.name !== 'Наша база' && z.name !== 'Базар').map((zone) => {
+            const isLocked = LOCKED_ZONES.has(zone.name);
+            const isMilitary = zone.name === 'Военная база';
+            return (
+              <motion.div
+                key={zone.name}
+                whileHover={!isLocked ? { scale: 1.03 } : undefined}
+                whileTap={!isLocked ? { scale: 0.97 } : undefined}
+                onClick={() => handleZoneClick(zone)}
+                onDoubleClick={isMilitary ? () => navigate(`/expedition?zone=${encodeURIComponent(zone.name)}&count=3`) : undefined}
+                style={{
+                  padding: 20,
+                  background: isMilitary
+                    ? `linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.15)), url(${militaryBg}) center/cover`
+                    : isLocked
+                      ? 'var(--bg-glass)'
+                      : 'var(--bg-glass)',
+                  border: `1px solid ${
+                    isLocked
+                      ? 'rgba(100,100,100,0.2)'
+                      : 'var(--border-glass)'
+                  }`,
+                  borderRadius: 'var(--radius-md)',
+                  cursor: isLocked ? 'not-allowed' : 'pointer',
+                  opacity: isLocked ? 0.5 : 1,
+                  transition: 'all 150ms ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  minHeight: 120,
+                }}
+              >
+                <div style={{ fontSize: 22, fontWeight: 600, color: isLocked ? 'var(--text-muted)' : isMilitary ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                  {zone.name}
+                </div>
+                <div style={{ fontSize: 13, color: isMilitary ? 'rgba(255,255,255,0.75)' : 'var(--text-muted)', lineHeight: 1.4, fontFamily: isMilitary ? 'var(--wa-font-hud)' : undefined }}>
+                  {zone.description}
+                </div>
+                {isMilitary && (
+                  <div style={{ position: 'absolute', bottom: 8, right: 12, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+                    Дважды кликни чтобы начать
+                  </div>
+                )}
+                {isLocked && (
+                  <div style={{
+                    marginTop: 'auto', fontSize: 11, color: 'var(--text-muted)',
+                    fontStyle: 'italic', padding: '4px 0',
                   }}>
-                    {f}
-                  </span>
-                ))}
-              </div>
-            </motion.div>
-          ))}
+                    ⏳ ждите в новом обновлении
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: isLocked ? 0 : 'auto', flexWrap: 'wrap' }}>
+                  {!isLocked && (
+                    <span style={{
+                      padding: '2px 8px', borderRadius: 4, fontSize: 11,
+                      background: zone.difficulty > 15 ? 'rgba(248,113,113,0.15)' : 'rgba(74,222,128,0.15)',
+                      color: zone.difficulty > 15 ? 'var(--accent-danger)' : 'var(--accent-success)',
+                    }}>
+                      SL {zone.difficulty}
+                    </span>
+                  )}
+                  {!isLocked && zone.allowedFactions.map((f) => (
+                    <span key={f} style={{
+                      padding: '2px 6px', borderRadius: 4, fontSize: 10,
+                      background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)',
+                    }}>
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </WapPanel>
 

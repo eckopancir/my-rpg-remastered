@@ -10,7 +10,7 @@ import { getItemImage } from '../assets/index';
 import type { Item } from '../types/items';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 
-const tabs: InvTab[] = ['all', 'weapons', 'armor', 'consumables', 'mods', 'materials'];
+const tabs: InvTab[] = ['all', 'weapons', 'armor', 'mods', 'materials'];
 
 export const Inventory = () => {
   const {

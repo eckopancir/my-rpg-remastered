@@ -50,6 +50,7 @@ export interface PlayerStats {
   power: number;
   incomingDamageMult: number;
   bonusAp: number;
+  shieldCharges: number;
 }
 
 interface CombatState {
@@ -152,6 +153,7 @@ const EMPTY_STATS: PlayerStats = {
   power: 0,
   incomingDamageMult: 0,
   bonusAp: 0,
+  shieldCharges: 0,
 };
 
 const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
@@ -233,8 +235,8 @@ export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: num
   const FIGHT_TIME = 30;
   const blockRed = stats.block < 2.0 ? stats.block * 0.5 : stats.block < 3.0 ? 0.8 : 0.9;
   const armorEHP = stats.armor * FIGHT_TIME;
-  const evasionEHP = stats.evasion < 1 ? stats.maxHp * stats.evasion / (1 - stats.evasion) : Infinity;
-  const blockEHP = blockRed < 1 ? stats.maxHp * blockRed / (1 - blockRed) : Infinity;
+  const evasionEHP = stats.evasion < 1 ? 1000 * stats.evasion / (1 - stats.evasion) : Infinity;
+  const blockEHP = blockRed < 1 ? 1000 * blockRed / (1 - blockRed) : Infinity;
   const regenEHP = stats.regen * FIGHT_TIME;
   const vampirEHP = stats.vampir * effectiveDPS * FIGHT_TIME;
 
@@ -254,6 +256,7 @@ const BASE_STATS: PlayerStats = {
   power: 0,
   incomingDamageMult: 0,
   bonusAp: 0,
+  shieldCharges: 0,
 };
 
 const emptyEquipment = (): EquipmentStore => {
@@ -372,7 +375,7 @@ export const usePlayerStore = create<PlayerStore>()(
           block: Math.min(0.9, Math.max(0, BASE_STATS.block + equipBonus.block + effectBonus.block + skillBonus.block + setBonus.block)),
           punching: Math.max(0, BASE_STATS.punching + equipBonus.punching + effectBonus.punching + skillBonus.punching + setBonus.punching),
           accuracy: Math.min(2, Math.max(0.1, BASE_STATS.accuracy + equipBonus.accuracy + effectBonus.accuracy + skillBonus.accuracy + setBonus.accuracy)),
-          vampir: Math.min(0.5, Math.max(0, BASE_STATS.vampir + equipBonus.vampir + effectBonus.vampir + skillBonus.vampir + setBonus.vampir)),
+          vampir: Math.min(5.0, Math.max(0, BASE_STATS.vampir + equipBonus.vampir + effectBonus.vampir + skillBonus.vampir + setBonus.vampir)),
           speed: Math.max(0, BASE_STATS.speed + equipBonus.speed + effectBonus.speed + skillBonus.speed + setBonus.speed),
           dpsEmi: Math.max(0, BASE_STATS.dpsEmi + equipBonus.dpsEmi + effectBonus.dpsEmi + skillBonus.dpsEmi + setBonus.dpsEmi),
           dpsToxis: Math.max(0, BASE_STATS.dpsToxis + equipBonus.dpsToxis + effectBonus.dpsToxis + skillBonus.dpsToxis + setBonus.dpsToxis),
@@ -381,6 +384,7 @@ export const usePlayerStore = create<PlayerStore>()(
           power: 0,
           incomingDamageMult: 1,
           bonusAp: 0,
+          shieldCharges: s.stats.shieldCharges || 0,
         };
 
         // Ammo DPS stacking — each ammo slot adds its bonus
@@ -460,7 +464,7 @@ export const usePlayerStore = create<PlayerStore>()(
           woStats.block = Math.min(0.9, Math.max(0, woStats.block));
           woStats.punching = Math.max(0, woStats.punching);
           woStats.accuracy = Math.min(2, Math.max(0.1, woStats.accuracy));
-          woStats.vampir = Math.min(0.5, Math.max(0, woStats.vampir));
+          woStats.vampir = Math.min(5.0, Math.max(0, woStats.vampir));
           woStats.speed = Math.max(0, woStats.speed);
           woStats.dpsEmi = Math.max(0, woStats.dpsEmi);
           woStats.dpsToxis = Math.max(0, woStats.dpsToxis);
@@ -771,7 +775,7 @@ export const usePlayerStore = create<PlayerStore>()(
       addEffect: (effect) => {
         set((s) => ({ activeEffects: [...s.activeEffects, effect] }));
         get().recalcStats();
-        get().addLog(`✨ Активирован эффект: ${effect.name} (${effect.duration} сек.)`, 'heal');
+        get().addLog(`✨ Активирован эффект: ${effect.name} (${effect.duration} хода)`, 'heal');
       },
 
       removeEffect: (id) => {
@@ -857,21 +861,23 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       startCombat: (zoneDifficulty) => {
-        const enemyData = generateEnemy('zone', zoneDifficulty);
+        const playerLevel = get().level;
+        const enemyData = generateEnemy(playerLevel, zoneDifficulty);
         const enemyName = ('name' in enemyData ? (enemyData as any).name : 'Враг') || 'Враг';
+        const maxHp = Math.round(enemyData.scaledHealth);
         set({
           combat: {
-            isFighting: true, enemyHp: 0, enemyMaxHp: 0,
+            isFighting: true, enemyHp: maxHp, enemyMaxHp: maxHp,
             enemyName,
-            enemyDamage: enemyData.scaledDamage || 10,
-            enemyArmor: enemyData.armor || 2,
-            enemyRegen: enemyData.regen || 0.5,
-            enemyAccuracy: enemyData.accuracy || 0.9,
-            enemyEvasion: enemyData.evasion || 0.05,
-            enemyBlock: enemyData.block || 0,
-            enemyPunching: enemyData.punching || 0,
-            enemyCrit: enemyData.crit || 0,
-            enemyVampir: enemyData.vampir || 0.001,
+            enemyDamage: Math.round(enemyData.scaledDamage) || 10,
+            enemyArmor: enemyData.scaledArmor || 2,
+            enemyRegen: enemyData.scaledRegen || 0.5,
+            enemyAccuracy: enemyData.scaledAccuracy || 0.9,
+            enemyEvasion: enemyData.scaledEvasion || 0.05,
+            enemyBlock: enemyData.scaledBlock || 0,
+            enemyPunching: enemyData.scaledPunching || 0,
+            enemyCrit: enemyData.scaledCrit || 0,
+            enemyVampir: enemyData.scaledVampir || 0.001,
             enemyFaction: enemyData.faction || 'Неизвестно',
             enemyExpReward: (enemyData.expRewardMultiplier || 1) * 100,
             enemyChipReward: Math.floor(zoneDifficulty * 15 + 20),
@@ -947,7 +953,12 @@ export const usePlayerStore = create<PlayerStore>()(
           get().addLog(`💀 ПОРАЖЕНИЕ...`, 'warning');
           set((state) => ({ stats: { ...state.stats, currentHp: Math.floor(state.stats.maxHp * 0.3) } }));
         }
-        set((state) => ({ combat: { ...state.combat, isFighting: false } }));
+        // Clear combat-only effects
+        set((state) => ({
+          stats: { ...state.stats, shieldCharges: 0 },
+          activeEffects: (state.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_')),
+          combat: { ...state.combat, isFighting: false },
+        }));
       },
 
       rest: () => get().addLog('🛌 Начинаем отдых для восстановления сил.', 'info'),
