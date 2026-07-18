@@ -10,6 +10,7 @@ import { WapPanel } from '../ui/WapPanel';
 import type { Item } from '../../types/items';
 import { ItemTooltip } from './ItemTooltip';
 import { calcItemPower } from '../../utils/itemPower';
+import { getSellPrice } from '../../utils/sellPrice';
 
 const cellSize = 48;
 const cols = 11;
@@ -41,7 +42,8 @@ const SORT_OPTIONS = [
   { value: 'level', label: 'Уровень' },
   { value: 'damage', label: 'Урон' },
   { value: 'armor', label: 'Броня' },
-  { value: 'maxHp', label: 'HP' },
+  { value: 'health', label: 'Здоровье' },
+  { value: 'punching', label: 'Дробящий' },
   { value: 'crit', label: 'Крит' },
   { value: 'speed', label: 'Скорость' },
   { value: 'regen', label: 'Реген' },
@@ -74,12 +76,22 @@ const stackItems = (items: Item[]): StackedItem[] => {
   return Array.from(map.values());
 };
 
+const STAT_ALIASES: Record<string, string[]> = {
+  health: ['health', 'maxHp'],
+  maxHp: ['health', 'maxHp'],
+};
+
 const getStatValue = (item: Item, stat: string): number => {
   if (stat === 'level') return item.level || 1;
   if (stat === 'price') return item.price || 0;
   const stats = item.stats || {};
-  const v = stats[stat];
-  return typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
+  const keys = STAT_ALIASES[stat] || [stat];
+  for (const key of keys) {
+    const v = stats[key];
+    const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
+    if (val) return val;
+  }
+  return 0;
 };
 
 const slotFilterKey = (item: Item): string => {
@@ -269,7 +281,7 @@ export const InventoryOverlay = () => {
             </span>
             <span
               onClick={(e) => { e.stopPropagation(); toggle(); playClick(); }}
-              style={{ cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', padding: '0 4px' }}
+              style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}
             >
               ✕
             </span>
@@ -380,7 +392,7 @@ export const InventoryOverlay = () => {
               marginTop: 8, fontSize: 11,
             }}>
               <span style={{ color: 'var(--text-muted)' }}>
-                Всего: {processed.length}
+                Всего: {processed.length} | Стоимость хабара: 💾{items.reduce((sum, i) => sum + getSellPrice(i), 0).toLocaleString()}
               </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button

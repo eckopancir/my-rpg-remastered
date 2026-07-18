@@ -27,20 +27,21 @@ export const QUALITY_TIERS: QualityTier[] = [
 ];
 
 export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
-  weapon1: { crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005, damage: 2, armor: 2 },
+  weapon1: { crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005, damage: 2 },
   weapon2: {
     crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005,
-    dpsExtro: 2, dpsFire: 2, dpsEmi: 2, dpsToxis: 2, damage: 3, armor: 3,
+    dpsExtro: 2, dpsFire: 2, dpsEmi: 2, dpsToxis: 2, damage: 3,
   },
   head: { regen: 2, block: 0.005, evasion: 0.005, armor: 2, health: 250 },
   armor: { regen: 2, block: 0.005, evasion: 0.005, armor: 2, health: 250 },
   gloves: { regen: 2, block: 0.005, evasion: 0.005, armor: 2, health: 250 },
   boots: { regen: 2, block: 0.005, evasion: 0.005, armor: 2, health: 250 },
-  ammo: { regen: 0.005, block: 0.005, evasion: 0.005, armor: 0.005, health: 250, damage: 1 },
+  ammo: { regen: 0.01, block: 0.003, evasion: 0.003, armor: 1, health: 20, damage: 0.5 },
   mod: {
     regen: 0.005, block: 0.005, evasion: 0.005, armor: 2, health: 250, damage: 2,
     crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005,
     dpsExtro: 1, dpsFire: 1, dpsEmi: 1, dpsToxis: 1,
+    ammoCapacity: 5,
   },
 };
 
@@ -57,6 +58,8 @@ export interface ItemDefinition {
   mods?: Record<string, unknown>;
   set?: string;
   armorType?: string;
+  abilityId?: string;
+  ammoCapacity?: number;
 }
 
 export interface GeneratedItem {
@@ -78,9 +81,11 @@ export interface GeneratedItem {
   set?: string;
   armorType?: string;
   abilityId?: string;
+  ammoCapacity?: number;
 }
 
 const assignRandomAbility = (item: GeneratedItem) => {
+  if (item.abilityId) return;
   const slot = item.slot || '';
   if (slot === 'ammo') {
     const abilityIds = ALL_ABILITIES.map((a) => a.id);
@@ -191,6 +196,12 @@ export const generateItem = (
     const baseStatKeys = Object.keys(generatedItem.stats).filter((k) => (generatedItem.stats[k] || 0) > 0);
     bonusKeys = baseStatKeys.length > 0 ? baseStatKeys : Object.keys(bonusSource);
     procMultiplier = 0.3;
+  } else if (generatedItem.slot.startsWith('ammo')) {
+    const baseStatKeys = Object.keys(generatedItem.stats).filter((k) => (generatedItem.stats[k] || 0) > 0);
+    bonusKeys = baseStatKeys.length > 0
+      ? baseStatKeys.filter((k) => k in bonusSource)
+      : Object.keys(bonusSource);
+    procMultiplier = 1;
   } else {
     bonusKeys = Object.keys(bonusSource);
     procMultiplier = 1;

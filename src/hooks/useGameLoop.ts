@@ -16,19 +16,10 @@ export const useGameLoop = () => {
         player.returnHomeTick();
       }
 
-      // 2. Travel tick (to zone)
-      if (player.travel.isTraveling) {
-        player.travelTick();
-        if (!usePlayerStore.getState().travel.isTraveling) {
-          ui.processQueue();
-        }
-      }
-
-      // 3. Active expeditions - reduce timers
+      // 2. Active expeditions - reduce timers
       ui.tick();
 
-      // 4. Check if an expedition completed → start combat
-      // Re-get fresh references — player/ui were captured before travelTick/processQueue/ui.tick
+      // 3. Check if an expedition completed → start combat
       const freshPlayer = usePlayerStore.getState();
       const freshUi = useUiStore.getState();
       const completedExp = freshUi.queue.find((e) => e.status === 'completed');
@@ -46,7 +37,7 @@ export const useGameLoop = () => {
         freshUi.processQueue();
       }
 
-      // 5. Rest tick
+      // 4. Rest tick
       if (ui.isResting) {
         const done = player.restTick();
         if (done) {
@@ -55,7 +46,7 @@ export const useGameLoop = () => {
         }
       }
 
-      // 6. Passive regen — faster at base, slower outside
+      // 5. Passive regen — faster at base, slower outside
       if (!player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
         const s = player.stats;
         if (s.currentHp < s.maxHp || s.stamina < s.maxStamina) {
@@ -70,15 +61,15 @@ export const useGameLoop = () => {
         }
       }
 
-      // 7. Active effects tick (skip during combat — ticked per turn in endTurn)
+      // 6. Active effects tick (skip during combat — ticked per turn in endTurn)
       if (player.activeEffects.length > 0 && !player.combat.isFighting) {
         player.tickEffects();
       }
 
-      // 8. Base upgrade tick (works even if Base page is not mounted)
+      // 7. Base upgrade tick (works even if Base page is not mounted)
       player.baseUpgradeTick();
 
-      // 9. Timed items decay — only while not traveling
+      // 8. Timed items decay — only while not traveling
       if (!player.travel.isTraveling && !player.travel.isReturning) {
       const eq = player.equipment;
       for (const slot of ['head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots']) {

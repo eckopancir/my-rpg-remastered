@@ -35,6 +35,8 @@ export const Expedition = () => {
   const addLog = usePlayerStore((s) => s.addLog);
   const addToQueue = useUiStore((s) => s.addToQueue);
   const addToast = useUiStore((s) => s.addToast);
+  const countParam = searchParams.get('count');
+  const expeditionDuration = countParam ? Math.max(1, parseInt(countParam, 10) || 3) : 3;
 
   const [cards, setCards] = useState<GeneratedCard[]>(() => getAvailableCards());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -66,9 +68,9 @@ export const Expedition = () => {
       id: entryId,
       zoneName,
       encounterIds: [card.id],
-      status: 'pending',
-      duration: 3,
-      remaining: 3,
+      status: 'active',
+      duration: expeditionDuration,
+      remaining: expeditionDuration,
       difficulty: card.totalSl,
       cardData: {
         enemyKeys: card.enemyTypes.map((t) => ENEMY_TYPE_TO_KEY[t]),
@@ -81,7 +83,6 @@ export const Expedition = () => {
     addToQueue(entry);
     addLog(`📋 Экспедиция на карту "${card.name}" (SL ${card.totalSl}) добавлена.`, 'info');
     addToast(`Экспедиция на "${card.name}" запущена!`, 'success');
-    usePlayerStore.getState().startTravel(zoneName, 1);
     navigate('/');
   }, [selectedId, cards, zoneName, addToQueue, addLog, addToast, navigate]);
 

@@ -19,6 +19,7 @@ export interface AccessoryAbility {
   icon: string;
   apCost: number;
   cooldown: number;
+  passive?: boolean;
   skipTurn?: boolean;
   effects: AbilityEffect[];
   powerRating: number;

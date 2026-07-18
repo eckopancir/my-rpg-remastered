@@ -27,10 +27,10 @@ export const getEquipSlot = (item: Item): EquipmentSlot | null => {
 };
 
 const AMMO_BONUSES: Record<string, { dpsStat: keyof PlayerStats; multiplier: number }> = {
-  toxis: { dpsStat: 'dpsToxis', multiplier: 0.25 },
-  emi: { dpsStat: 'dpsEmi', multiplier: 0.25 },
-  normal: { dpsStat: 'dpsExtro', multiplier: 0.05 },
-  extro: { dpsStat: 'dpsFire', multiplier: 0.10 },
+  toxis: { dpsStat: 'dpsToxis', multiplier: 1.0 },
+  emi: { dpsStat: 'dpsEmi', multiplier: 1.0 },
+  normal: { dpsStat: 'dpsExtro', multiplier: 0.10 },
+  extro: { dpsStat: 'dpsFire', multiplier: 1.0 },
 };
 
 interface TravelState {
@@ -393,6 +393,17 @@ export const usePlayerStore = create<PlayerStore>()(
           if (ammo && ammo.damage && AMMO_BONUSES[ammo.damage]) {
             const bonus = AMMO_BONUSES[ammo.damage];
             newStats[bonus.dpsStat] += dps * bonus.multiplier;
+          }
+        }
+
+        // Bullet passive amplification — double matching elemental DPS
+        for (const ammoSlot of AMMO_SLOTS) {
+          const ammo = s.equipment[ammoSlot];
+          if (ammo && ammo.damage && ammo.damage !== 'normal') {
+            const bonus = AMMO_BONUSES[ammo.damage];
+            if (bonus && newStats[bonus.dpsStat] > 0) {
+              newStats[bonus.dpsStat] *= 2;
+            }
           }
         }
 

@@ -255,7 +255,7 @@ export const Equipment = () => {
         </span>
         <span
           onClick={(e) => { e.stopPropagation(); setEquipmentOpen(false); }}
-          style={{ cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', padding: '0 4px' }}
+          style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}
         >
           ✕
         </span>

@@ -2,6 +2,9 @@ import { getItemImage, images } from '../../assets/index';
 import type { Item } from '../../types/items';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
+import { getSellPrice } from '../../utils/sellPrice';
+import { SET_BONUSES } from '../../data/GameItems';
+import { usePlayerStore } from '../../stores/playerStore';
 
 interface ItemTooltipProps {
   item: Item;
@@ -47,6 +50,10 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
   const tooltipY = Math.min(y - 10, window.innerHeight - 340);
   const imgUrl = getItemImage(item.name, item.displayName);
   const itemPower = calcItemPower(item);
+  const equipment = usePlayerStore((s) => s.equipment);
+  const equippedSetCount = item.set
+    ? Object.values(equipment).filter((eq) => eq?.set === item.set).length
+    : 0;
 
   return (
     <div
@@ -72,11 +79,11 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
               ))}
             </div>
           ) : null}
-          {itemPower > 0 && (
-            <div style={{ position: 'absolute', top: -4, right: -4, fontSize: 10, fontWeight: 600, color: '#fbbf24', background: 'rgba(0,0,0,0.7)', padding: '1px 5px', borderRadius: 4, border: '1px solid rgba(251,191,36,0.3)' }}>
+          <div style={{ position: 'absolute', top: -4, right: -4 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#fbbf24', background: 'rgba(0,0,0,0.7)', padding: '1px 5px', borderRadius: 4, border: '1px solid rgba(251,191,36,0.3)' }}>
               ⚡{itemPower}
             </div>
-          )}
+          </div>
         </div>
       )}
       <div style={{
@@ -92,7 +99,43 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
         )}
       </div>
 
+      {item.slot === 'weapon2' && item.ammoCapacity && (
+        <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
+          📀 Вместимость: {item.ammoCapacity} патронов
+        </div>
+      )}
+      {item.slot === 'mod_magazine' && item.stats?.ammoCapacity && (
+        <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
+          📀 +{item.stats.ammoCapacity} патронов к вместимости
+        </div>
+      )}
       <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />
+
+      {item.set && SET_BONUSES[item.set] && (
+        <div style={{
+          background: 'rgba(88,28,135,0.08)', border: '1px solid rgba(88,28,135,0.2)',
+          borderRadius: 6, padding: '6px 8px', marginBottom: 8,
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#c084fc', marginBottom: 4 }}>
+            📦 Сет «{item.set}» — {equippedSetCount}/{SET_BONUSES[item.set].at(-1)?.count ?? '?'}
+          </div>
+          {SET_BONUSES[item.set].map((tier, idx) => {
+            const bonusStr = Object.entries(tier.bonuses)
+              .map(([k, v]) => `${STAT_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v >= 1 ? v : v.toFixed(3)}`)
+              .join(', ');
+            const isAchieved = equippedSetCount >= tier.count;
+            const isMax = idx === SET_BONUSES[item.set].length - 1;
+            return (
+              <div key={idx} style={{
+                fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.4)',
+                marginTop: 2, lineHeight: 1.4,
+              }}>
+                {isAchieved ? '✅ ' : isMax ? '🏆 ' : ''}({tier.count}) {bonusStr}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {item.abilityId && ABILITY_MAP[item.abilityId] && (
         <div style={{
@@ -130,12 +173,12 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
       )}
 
       <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {item.quality && (
-          <span style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: item.qualityColor }}>
-            {item.quality}
-          </span>
-        )}
-        {item.type && <span>{item.type === 'mod' ? 'Мод' : item.type}</span>}
+        <span style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: item.qualityColor }}>
+          {item.quality || item.type || ''}
+        </span>
+        <span style={{ color: 'var(--accent-warning)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+          💾{getSellPrice(item).toLocaleString()}
+        </span>
       </div>
     </div>
   );

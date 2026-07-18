@@ -638,6 +638,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     const player = usePlayerStore.getState();
 
+    // Read weapon ammo capacity from equipped weapon2 + mods
+    const weapon2 = player.equipment.weapon2;
+    let ammoCap = weapon2?.ammoCapacity || 30;
+    if (weapon2?.mods) {
+      for (const mod of Object.values(weapon2.mods)) {
+        if (mod?.stats?.ammoCapacity) ammoCap += mod.stats.ammoCapacity;
+      }
+    }
+
     // Override rewards with card values when in card mode
     if (cardRewards) {
       usePlayerStore.setState((st: any) => ({
@@ -742,14 +751,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Generate obstacles with safe zones around player and enemies
     const obstacles = generateObstacles(playerPos, enemies);
 
-    const playerAbilities = [...usePlayerStore.getState().accessoryAbilities];
+    const playerAbilities = [...usePlayerStore.getState().accessoryAbilities].filter((a) => a && !a.passive);
     const abilityCooldowns = playerAbilities.map(() => 0);
 
     set({
       isActive: true, playerPos, enemies, obstacles,
       playerAbilities, abilityCooldowns, selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0,
-      turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: MAX_AMMO,
+      turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: ammoCap, maxAmmo: ammoCap,
       range: ATTACK_RANGE, isDefensiveMode: false,
       turnCount: 0, selectedEnemy: null, message: '⚔️ Твой ход',
       isVictory: false, isDefeat: false, isMoving: false, isSelected: false,
@@ -1461,7 +1470,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!enemy || enemy.dead) return;
 
     const dist = getDist(state.playerPos, enemy.pos);
-    const effectiveRange = state.isDefensiveMode ? state.range + 5 : state.range;
+    const effectiveRange = state.isDefensiveMode ? state.range + 3 : state.range;
     if (dist > effectiveRange) { get().addMessage('❌ Вне радиуса атаки'); return; }
 
     if (!checkVisibility(state.playerPos, state.playerRotation, enemy.pos, state.obstacles, { fov: 360 })) {
@@ -1833,7 +1842,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,
-      ammo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
+      ammo: MAX_AMMO, maxAmmo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
     });
   },
 }));

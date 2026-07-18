@@ -241,6 +241,34 @@ export const ALL_ABILITIES: AccessoryAbility[] = [
     powerRating: 40,
     effects: [],
   },
+  {
+    id: 'ammo_normal', name: 'Калибр 7.62', icon: '🔫',
+    description: 'Усиливает базовый урон против людей.',
+    apCost: 0, cooldown: 0, passive: true,
+    powerRating: 10,
+    effects: [],
+  },
+  {
+    id: 'ammo_toxis', name: 'Токсичный заряд', icon: '☣️',
+    description: 'Удваивает токсичный урон от экипировки.',
+    apCost: 0, cooldown: 0, passive: true,
+    powerRating: 25,
+    effects: [],
+  },
+  {
+    id: 'ammo_extro', name: 'Разрывной заряд', icon: '💥',
+    description: 'Удваивает разрывной урон от экипировки.',
+    apCost: 0, cooldown: 0, passive: true,
+    powerRating: 25,
+    effects: [],
+  },
+  {
+    id: 'ammo_emi', name: 'ЭМИ-импульс', icon: '⚡',
+    description: 'Удваивает ЭМИ урон от экипировки.',
+    apCost: 0, cooldown: 0, passive: true,
+    powerRating: 25,
+    effects: [],
+  },
 ];
 
 export const ABILITY_MAP = Object.fromEntries(

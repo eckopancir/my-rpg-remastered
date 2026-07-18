@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
+import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem } from '../engine/items';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { usePlayerStore } from '../stores/playerStore';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { getItemImage } from '../assets/index';
+import { getSellPrice } from '../utils/sellPrice';
 import type { Item } from '../types/items';
 
 const SHOP_KEY = 'remastered_shop';
@@ -30,20 +32,29 @@ interface ShopItem {
   resourceName?: string;
 }
 
-const generateShop = (level: number): ShopItem[] => {
-  const items: ShopItem[] = [];
+const SHOP_QUALITY_MULT: Record<string, number> = {
+  'Божественный': 14, 'Легендарный': 10, 'Смертоносный': 7,
+  'Эпический': 5, 'Раритетный': 3, 'Редкий': 2, 'Обычный': 1,
+};
 
-  // Equipment (10 items)
-  for (let i = 0; i < 10; i++) {
-    const single = generateItem(GAME_ITEMS, level);
+const CATEGORY_SLOTS: Record<string, string[]> = {
+  weapons: ['weapon1', 'weapon2'],
+  armor: ['head', 'armor', 'gloves', 'boots'],
+  consumables: ['ammo'],
+  mods: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock',
+    'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness',
+    'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
+};
+
+const generateCategoryItem = (level: number, validSlots: string[], idx: number): ShopItem | null => {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const targetSlot = validSlots[Math.floor(Math.random() * validSlots.length)];
+    const single = generateItem(GAME_ITEMS, level, null, null, targetSlot);
     if (single) {
       const basePrice = level * 10 + Math.floor(Math.random() * 50);
-      const qualityMultiplier = single.quality === 'Легендарный' ? 10 :
-        single.quality === 'Эпический' ? 5 :
-        single.quality === 'Раритетный' ? 3 :
-        single.quality === 'Редкий' ? 2 : 1;
-      items.push({
-        id: single.id + '_eq_' + i + '_' + Date.now(),
+      const qualityMultiplier = SHOP_QUALITY_MULT[single.quality] || 1;
+      return {
+        id: single.id + '_cat_' + idx + '_' + Date.now(),
         name: single.name,
         displayName: single.displayName || single.name,
         level: single.level || level,
@@ -54,7 +65,23 @@ const generateShop = (level: number): ShopItem[] => {
         stats: single.stats || {},
         slot: single.slot,
         type: single.type,
-      });
+      };
+    }
+  }
+  return null;
+};
+
+const generateShop = (level: number): ShopItem[] => {
+  const items: ShopItem[] = [];
+  let idx = 0;
+
+  // Weapons (3), Armor (3), Consumables (3), Mods (3)
+  for (const cat of ['weapons', 'armor', 'consumables', 'mods'] as const) {
+    const slots = CATEGORY_SLOTS[cat];
+    const count = 3;
+    for (let i = 0; i < count; i++) {
+      const item = generateCategoryItem(level, slots, idx++);
+      if (item) items.push(item);
     }
   }
 
@@ -83,14 +110,7 @@ const generateShop = (level: number): ShopItem[] => {
   return items;
 };
 
-const getSellPrice = (item: Item): number => {
-  if (item.price) return Math.floor(item.price * 0.4);
-  const qualityMultiplier = item.quality === 'Легендарный' ? 8 :
-    item.quality === 'Эпический' ? 4 :
-    item.quality === 'Раритетный' ? 2.5 :
-    item.quality === 'Редкий' ? 1.5 : 1;
-  return Math.floor((item.level || 1) * 3 + 5 * qualityMultiplier);
-};
+
 
 type SortKey = 'price' | 'level' | 'name' | 'quality';
 
@@ -245,6 +265,8 @@ export const Bazaar = () => {
 
   const [hoveredShopItem, setHoveredShopItem] = useState<ShopItem | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [hoveredSellItem, setHoveredSellItem] = useState<Item | null>(null);
+  const [tooltipSellPos, setTooltipSellPos] = useState({ x: 0, y: 0 });
 
   const handleSellAll = () => {
     const total = totalSellValue;
@@ -269,8 +291,23 @@ export const Bazaar = () => {
               💾 {dataChips.toLocaleString()}
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              | {Math.floor(refreshTimer / 60)}:{(refreshTimer % 60).toString().padStart(2, '0')}
+              {Math.floor(refreshTimer / 60)}:{(refreshTimer % 60).toString().padStart(2, '0')}
             </span>
+            <Button size="sm" variant="ghost" onClick={() => {
+              const cost = 50 + playerLevel * 10;
+              if (!spendChips(cost)) {
+                addLog(`❌ Недостаточно 💾 для обновления. Нужно ${cost} 💾`, 'warning');
+                return;
+              }
+              const fresh = generateShop(playerLevel);
+              setShopItems(fresh);
+              setRefreshTimer(600);
+              localStorage.setItem(SHOP_KEY, JSON.stringify(fresh));
+              localStorage.setItem(SHOP_REFRESH_KEY, String(Date.now()));
+              addLog(`🔄 Базар обновлён за ${cost} 💾`, 'info');
+            }}>
+              🔄 {50 + playerLevel * 10}💾
+            </Button>
           </div>
         </div>
 
@@ -378,6 +415,9 @@ export const Bazaar = () => {
                   key={idx}
                   onDrop={(e) => handleSellDrop(idx, e)}
                   onDragOver={(e) => e.preventDefault()}
+                  onMouseEnter={(e) => { if (item) { setHoveredSellItem(item); setTooltipSellPos({ x: e.clientX, y: e.clientY }); } }}
+                  onMouseMove={(e) => { if (hoveredSellItem) setTooltipSellPos({ x: e.clientX, y: e.clientY }); }}
+                  onMouseLeave={() => setHoveredSellItem(null)}
                   style={{
                     width: 64, height: 64,
                     background: item ? 'var(--bg-glass)' : 'rgba(255,255,255,0.03)',
@@ -428,34 +468,8 @@ export const Bazaar = () => {
         )}
       </WapPanel>
 
-      {hoveredShopItem && (
-        <div style={{
-          position: 'fixed', left: Math.min(tooltipPos.x + 14, window.innerWidth - 260),
-          top: Math.min(tooltipPos.y - 8, window.innerHeight - 200),
-          zIndex: 9999, width: 210,
-          background: '#12121a', border: '1px solid var(--border-glass)',
-          borderRadius: 'var(--radius-sm)', padding: 8,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-          pointerEvents: 'none', fontSize: 11,
-        }}>
-          <div style={{ fontWeight: 600, color: hoveredShopItem.qualityColor || 'var(--text-primary)', marginBottom: 4, fontSize: 12 }}>
-            {hoveredShopItem.displayName}
-          </div>
-          <div style={{ color: 'var(--text-muted)', marginBottom: 4, fontSize: 10 }}>
-            Lv.{hoveredShopItem.level} • {hoveredShopItem.rarity} • {hoveredShopItem.quality}
-          </div>
-          <div style={{ color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 4 }}>
-            {Object.entries(hoveredShopItem.stats || {}).slice(0, 8).map(([k, v]) => {
-              const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
-              if (!val) return null;
-              return <div key={k}>{k}: +{val.toFixed(val > 1 ? 1 : 3)}</div>;
-            })}
-          </div>
-          <div style={{ color: 'var(--accent-primary)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-            {hoveredShopItem.price} 💾
-          </div>
-        </div>
-      )}
+      {hoveredShopItem && <ItemTooltip item={hoveredShopItem as unknown as Item} x={tooltipPos.x} y={tooltipPos.y} />}
+      {hoveredSellItem && <ItemTooltip item={hoveredSellItem} x={tooltipSellPos.x} y={tooltipSellPos.y} />}
     </motion.div>
   );
 };

@@ -247,12 +247,6 @@ export const Dashboard = () => {
 
       {/* Status cards */}
       <div style={{ display: 'flex', gap: 8 }}>
-        {travel.isTraveling && (
-          <WapPanel variant="metal" style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--wa-font-hud)', fontWeight: 600, marginBottom: 4 }}>🚀 {travel.destination}</div>
-            <ProgressBar value={travel.total - travel.remaining} max={travel.total} variant="accent" label={`${travel.remaining}c`} />
-          </WapPanel>
-        )}
         {combat.isFighting && (
           <div style={{ flex: 1, cursor: 'pointer', background: 'rgba(18,16,14,0.88)', borderRadius: 6, border: '1px solid rgba(146,64,14,0.3)', padding: 10 }} onClick={() => navigate('/battle')}>
             <div style={{ fontSize: 11, fontFamily: 'var(--wa-font-hud)', fontWeight: 600, marginBottom: 4, color: 'var(--wa-accent)' }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
@@ -265,7 +259,7 @@ export const Dashboard = () => {
             <ProgressBar value={stats.currentHp} max={stats.maxHp} variant="hp" label="HP" />
           </WapPanel>
         )}
-        {queue.length === 0 && !travel.isTraveling && !combat.isFighting && !isResting && (
+        {queue.length === 0 && !combat.isFighting && !isResting && (
           <WapPanel variant="metal" style={{ flex: 1 }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>Нет активных экспедиций. 🗺️ Карта</div>
           </WapPanel>

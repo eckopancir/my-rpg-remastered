@@ -290,7 +290,10 @@ export const Battle = () => {
                   opacity: turn !== 'player' || ap < 2 ? 0.4 : 1,
                 }}
               >
-                🛡️ ЗАЩИТА (2 AP) [F] {isDefensiveMode ? '(ВКЛ)' : ''}
+                🛡️ ЗАНЯТЬ ПОЗИЦИЮ (2 AP) [F] {isDefensiveMode ? '(АКТИВНО)' : ''}
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 3, textTransform: 'none' }}>
+                  +3 к дальности стрельбы, сбрасывается в конце хода
+                </div>
               </div>
 
               <div

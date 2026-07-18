@@ -7,6 +7,7 @@ import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { useUiStore } from '../stores/uiStore';
 import { usePlayerStore, getEquipSlot } from '../stores/playerStore';
 import { getItemImage } from '../assets/index';
+import { getSellPrice } from '../utils/sellPrice';
 import type { Item } from '../types/items';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 
@@ -211,6 +212,9 @@ export const Inventory = () => {
               No items found
             </div>
           )}
+        </div>
+        <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-secondary)', textAlign: 'right' }}>
+          Всего: {items.length} предметов | Общая стоимость хабара: 💾{items.reduce((sum, i) => sum + getSellPrice(i), 0).toLocaleString()}
         </div>
       </WapPanel>
 

@@ -10,6 +10,19 @@ import styles from './BattleGrid.module.css';
 
 const GRID_SIZE = 32;
 
+function offsetShotPoint(from: { x: number; y: number }, to: { x: number; y: number }, dist = 0.4) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 0.01) return { from, to };
+  const nx = dx / len;
+  const ny = dy / len;
+  return {
+    from: { x: from.x + nx * dist, y: from.y + ny * dist },
+    to: { x: to.x - nx * dist, y: to.y - ny * dist },
+  };
+}
+
 const ENEMY_COLORS: Record<string, string> = {
   Мутанты: '#7c3aed',
   Роботы: '#2563eb',
@@ -429,17 +442,20 @@ export const BattleGrid = () => {
         </div>
 
         {/* Shot tracer */}
-        {shotLine && (
-          <svg className={styles.shotSvg}>
-            <line
-              x1={`${(shotLine.from.x / 31) * 100}%`}
-              y1={`${(shotLine.from.y / 31) * 100}%`}
-              x2={`${(shotLine.to.x / 31) * 100}%`}
-              y2={`${(shotLine.to.y / 31) * 100}%`}
-              className={`${styles.tracerLine}${shotLine.type === 'aim' ? ` ${styles.aimShot}` : ''}${shotLine.type === 'bazooka' ? ` ${styles.bazookaShot}` : ''}${shotLine.type === 'heal' ? ` ${styles.healShot}` : ''}`}
-            />
-          </svg>
-        )}
+        {shotLine && (() => {
+          const p = offsetShotPoint(shotLine.from, shotLine.to, 0.4);
+          return (
+            <svg className={styles.shotSvg}>
+              <line
+                x1={`${(p.from.x / 31) * 100}%`}
+                y1={`${(p.from.y / 31) * 100}%`}
+                x2={`${(p.to.x / 31) * 100}%`}
+                y2={`${(p.to.y / 31) * 100}%`}
+                className={`${styles.tracerLine}${shotLine.type === 'aim' ? ` ${styles.aimShot}` : ''}${shotLine.type === 'bazooka' ? ` ${styles.bazookaShot}` : ''}${shotLine.type === 'heal' ? ` ${styles.healShot}` : ''}`}
+              />
+            </svg>
+          );
+        })()}
 
         {/* Flying grenade — animated trajectory from→to */}
         {flyingGrenade && (
