@@ -56,7 +56,7 @@ export const calcItemPower = (item: Item): number => {
   if (item.abilityId && ABILITY_MAP[item.abilityId]) {
     const base = ABILITY_MAP[item.abilityId].powerRating;
     const levelFactor = 1 + ((item.level || 1) - 1) * 0.05;
-    abilityPower = Math.round(base * levelFactor);
+    abilityPower = Math.round(base * levelFactor * 3);
   }
 
   return Math.max(0, Math.round(statDelta + abilityPower));

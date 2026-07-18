@@ -483,7 +483,12 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     return { damage: 0, type: 'MISS', text: 'ПРОМАХ', sound: null };
   }
 
-  const effectiveEnemyArmor = (target.armor || 0) * (1 - (attacker.punching || 0));
+  const p = attacker.punching || 0;
+  let pierceFactor: number;
+  if (p >= 2.0) pierceFactor = 0.7;
+  else if (p >= 1.0) pierceFactor = 0.5;
+  else pierceFactor = p * 0.5;
+  const effectiveEnemyArmor = (target.armor || 0) * (1 - pierceFactor);
   dmg = Math.max(0, dmg - effectiveEnemyArmor);
 
   let evasionChance = target.evasion || 0;
@@ -515,6 +520,7 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     isBlocked = true;
     if (blockVal >= 3.0) currentBlockReduction = 0.9;
     else if (blockVal >= 2.0) currentBlockReduction = 0.8;
+    else if (blockVal >= 1.0) currentBlockReduction = 0.7;
     else currentBlockReduction = 0.5;
     dmg *= 1 - currentBlockReduction;
     if (!sound) sound = 'block';

@@ -429,7 +429,7 @@ export const usePlayerStore = create<PlayerStore>()(
           if (item && item.abilityId && ABILITY_MAP[item.abilityId]) {
             const base = ABILITY_MAP[item.abilityId].powerRating;
             const levelFactor = 1 + (item.level - 1) * 0.05;
-            const pwr = Math.round(base * levelFactor);
+            const pwr = Math.round(base * levelFactor * 3);
             powerFromAbilities += pwr;
             abilityItems.push({ slot, itemName: item.displayName || item.name, abilityName: ABILITY_MAP[item.abilityId].name, power: pwr });
           }

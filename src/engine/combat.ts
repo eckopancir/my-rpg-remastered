@@ -65,6 +65,7 @@ const getCritMultiplier = (critVal: number): number => {
 const getBlockReduction = (blockVal: number): number => {
   if (blockVal >= 3.0) return 0.9;
   if (blockVal >= 2.0) return 0.8;
+  if (blockVal >= 1.0) return 0.7;
   return 0.5;
 };
 
@@ -139,7 +140,12 @@ export const calculateCombatStep = (
       messages.push(`💥 КРИТ x${critMult}!`);
     }
 
-    const effectiveEnemyArmor = enemy.armor * (1 - player.punching);
+    const playerPierce = player.punching || 0;
+    let playerPierceFactor: number;
+    if (playerPierce >= 2.0) playerPierceFactor = 0.7;
+    else if (playerPierce >= 1.0) playerPierceFactor = 0.5;
+    else playerPierceFactor = playerPierce * 0.5;
+    const effectiveEnemyArmor = enemy.armor * (1 - playerPierceFactor);
     const actualArmorReduction = Math.min(dmg, effectiveEnemyArmor);
     dmg = Math.max(0, dmg - actualArmorReduction);
     enemyArmorAbsorbed += actualArmorReduction;
@@ -173,7 +179,12 @@ export const calculateCombatStep = (
       messages.push(`💥 Враг критует x${critMult}!`);
     }
 
-    const effectivePlayerArmor = player.armor * (1 - enemy.punching);
+    const enemyPierce = enemy.punching || 0;
+    let enemyPierceFactor: number;
+    if (enemyPierce >= 2.0) enemyPierceFactor = 0.7;
+    else if (enemyPierce >= 1.0) enemyPierceFactor = 0.5;
+    else enemyPierceFactor = enemyPierce * 0.5;
+    const effectivePlayerArmor = player.armor * (1 - enemyPierceFactor);
     const actualArmorReduction = Math.min(dmg, effectivePlayerArmor);
     dmg = Math.max(0, dmg - actualArmorReduction);
     playerArmorAbsorbed += actualArmorReduction;

@@ -164,7 +164,7 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
             {ABILITY_MAP[item.abilityId].apCost} AP | КД: {ABILITY_MAP[item.abilityId].cooldown} хода
           </div>
           <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 2 }}>
-            ⭐ Сила: <span style={{ color: 'rgba(255,255,255,0.6)' }}>{ABILITY_MAP[item.abilityId].powerRating} (ур.{item.level || 1} × {(1 + ((item.level || 1) - 1) * 0.05).toFixed(2)})</span>
+            ⭐ Сила: <span style={{ color: 'rgba(255,255,255,0.6)' }}>{Math.round(ABILITY_MAP[item.abilityId].powerRating * (1 + ((item.level || 1) - 1) * 0.05) * 3)}</span>
           </div>
         </div>
       )}

@@ -53,9 +53,9 @@ export const SET_BONUSES: Record<
     { count: 6, bonuses: { health: 120, regen: 1.5, damage: 8, crit: 0.03 } },
   ],
   Бандиты: [
-    { count: 2, bonuses: { evasion: 0.02 } },
-    { count: 4, bonuses: { evasion: 0.04, crit: 0.02, speed: 0.01 } },
-    { count: 6, bonuses: { evasion: 0.06, crit: 0.04, speed: 0.03, damage: 8 } },
+    { count: 2, bonuses: { evasion: 0.016 } },
+    { count: 4, bonuses: { evasion: 0.032, crit: 0.02, speed: 0.01 } },
+    { count: 6, bonuses: { evasion: 0.048, crit: 0.04, speed: 0.03, damage: 8 } },
   ],
   Монолит: [
     { count: 2, bonuses: { armor: 3, block: 0.01 } },
@@ -73,9 +73,9 @@ export const SET_BONUSES: Record<
     { count: 6, bonuses: { damage: 18, crit: 0.07, maxHp: 80, armor: 6, allDps: 5 } },
   ],
   Сталкер: [
-    { count: 2, bonuses: { evasion: 0.02, regen: 1 } },
-    { count: 4, bonuses: { evasion: 0.04, regen: 2, health: 50 } },
-    { count: 6, bonuses: { evasion: 0.07, regen: 3.5, health: 150, armor: 4, stamina: 0.02 } },
+    { count: 2, bonuses: { evasion: 0.016, regen: 1 } },
+    { count: 4, bonuses: { evasion: 0.032, regen: 2, health: 50 } },
+    { count: 6, bonuses: { evasion: 0.056, regen: 3.5, health: 150, armor: 4, stamina: 0.02 } },
   ],
   'Наёмник': [
     { count: 2, bonuses: { damage: 5, crit: 0.02 } },
@@ -83,9 +83,9 @@ export const SET_BONUSES: Record<
     { count: 6, bonuses: { damage: 20, crit: 0.06, punching: 0.05, accuracy: 0.03, speed: 0.02 } },
   ],
   Призрак: [
-    { count: 2, bonuses: { evasion: 0.03, accuracy: 0.02 } },
-    { count: 3, bonuses: { evasion: 0.05, accuracy: 0.03, speed: 0.02 } },
-    { count: 5, bonuses: { evasion: 0.08, accuracy: 0.05, speed: 0.04, crit: 0.03 } },
+    { count: 2, bonuses: { evasion: 0.024, accuracy: 0.02 } },
+    { count: 3, bonuses: { evasion: 0.04, accuracy: 0.03, speed: 0.02 } },
+    { count: 5, bonuses: { evasion: 0.064, accuracy: 0.05, speed: 0.04, crit: 0.03 } },
   ],
 };
 
@@ -106,12 +106,12 @@ export const GAME_ITEMS: ItemDefinition[] = [
   { name: 'Сигареты', rarity: 'normal', slot: 'ammo', stats: { damage: 6, crit: 0.01 }, set: 'Бандиты', abilityId: 'adrenaline' },
   { name: 'Паёк длительного хранения', rarity: 'epic', slot: 'ammo', stats: { stamina: 0.02, health: 72 }, set: 'Монолит', abilityId: 'second_wind' },
   { name: 'Стимулятор "Форсаж"', rarity: 'epic', slot: 'ammo', stats: { speed: 0.03, block: 0.02 }, set: 'Монолит', abilityId: 'wind_speed' },
-  { name: 'Медицинский наногель', rarity: 'epic', slot: 'ammo', stats: { armor: 8, regen: 0.1 }, set: 'Монолит', abilityId: 'medkit' },
+  { name: 'Медицинский наногель', rarity: 'epic', slot: 'ammo', stats: { armor: 4, regen: 0.1 }, set: 'Монолит', abilityId: 'medkit' },
   { name: 'Связка гранат', rarity: 'epic', slot: 'ammo', stats: { damage: 12 }, set: 'Монолит', abilityId: 'grenade' },
   { name: 'Саморегенерирующий инъектор', rarity: 'epic', slot: 'ammo', stats: { regen: 0.1 }, set: 'Эхо', abilityId: 'regen' },
   { name: 'Калибровочный раствор', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.03 }, set: 'Эхо', abilityId: 'aimshot' },
   { name: 'Сыворотка "Перегрузка"', rarity: 'superepic', slot: 'ammo', stats: { damage: 9, speed: 0.03 }, set: 'Феникс', abilityId: 'adrenaline' },
-  { name: 'Наноботы-ремонтники', rarity: 'superepic', slot: 'ammo', stats: { armor: 8, regen: 0.1 }, set: 'Феникс', abilityId: 'barrier' },
+  { name: 'Наноботы-ремонтники', rarity: 'superepic', slot: 'ammo', stats: { armor: 4, regen: 0.1 }, set: 'Феникс', abilityId: 'barrier' },
   { name: 'Капсула "Критикус"', rarity: 'superepic', slot: 'ammo', stats: { crit: 0.05, accuracy: 0.02 }, set: 'Феникс', abilityId: 'snipe' },
   { name: 'Экзотический паёк', rarity: 'superepic', slot: 'ammo', stats: { health: 180, regen: 0.1 }, set: 'Феникс', abilityId: 'medkit' },
   { name: 'Активатор стамины', rarity: 'superepic', slot: 'ammo', stats: { stamina: 0.04, speed: 0.03 }, set: 'Феникс', abilityId: 'wind_speed' },
@@ -119,25 +119,25 @@ export const GAME_ITEMS: ItemDefinition[] = [
   // --- Ammo / Utilities ---
   { name: 'Гитара', rarity: 'normal', slot: 'ammo', stats: { punching: 0.02, damage: 2 }, set: 'Бандиты', abilityId: 'rage' },
   { name: 'Пояс выжившего', rarity: 'normal', slot: 'ammo', stats: { regen: 0.1, health: 28 }, abilityId: 'regen' },
-  { name: 'Амулет защиты', rarity: 'normal', slot: 'ammo', stats: { armor: 5, block: 0.01 }, abilityId: 'fortify' },
-  { name: 'Маяк для эвакуации', rarity: 'epic', slot: 'ammo', stats: { block: 0.02, armor: 3 }, set: 'Монолит', abilityId: 'barrier' },
+  { name: 'Амулет защиты', rarity: 'normal', slot: 'ammo', stats: { armor: 2, block: 0.01 }, abilityId: 'fortify' },
+  { name: 'Маяк для эвакуации', rarity: 'epic', slot: 'ammo', stats: { block: 0.02, armor: 2 }, set: 'Монолит', abilityId: 'barrier' },
   { name: 'Сигнальная ракета', rarity: 'epic', slot: 'ammo', stats: { crit: 0.02, accuracy: 0.02 }, set: 'Монолит', abilityId: 'aimshot' },
-  { name: 'Усиленный бронелист', rarity: 'epic', slot: 'ammo', stats: { armor: 18 }, set: 'Монолит', abilityId: 'fortify' },
-  { name: 'Маскировочная сеть', rarity: 'epic', slot: 'ammo', stats: { evasion: 0.03 }, set: 'Монолит', abilityId: 'invisibility' },
-  { name: 'Антивирусный чип', rarity: 'epic', slot: 'ammo', stats: { armor: 3, accuracy: 0.01 }, set: 'Эхо', abilityId: 'regen' },
-  { name: 'Ремонтный модуль', rarity: 'epic', slot: 'ammo', stats: { armor: 3, regen: 0.1 }, set: 'Эхо', abilityId: 'shield' },
+  { name: 'Усиленный бронелист', rarity: 'epic', slot: 'ammo', stats: { armor: 9 }, set: 'Монолит', abilityId: 'fortify' },
+  { name: 'Маскировочная сеть', rarity: 'epic', slot: 'ammo', stats: { evasion: 0.024 }, set: 'Монолит', abilityId: 'invisibility' },
+  { name: 'Антивирусный чип', rarity: 'epic', slot: 'ammo', stats: { armor: 2, accuracy: 0.01 }, set: 'Эхо', abilityId: 'regen' },
+  { name: 'Ремонтный модуль', rarity: 'epic', slot: 'ammo', stats: { armor: 2, regen: 0.1 }, set: 'Эхо', abilityId: 'shield' },
   { name: 'Комплект датчиков', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.03, crit: 0.015 }, set: 'Эхо', abilityId: 'armor_shred' },
   { name: 'Батарея повышенной ёмкости', rarity: 'epic', slot: 'ammo', stats: { stamina: 0.03, health: 45 }, set: 'Эхо', abilityId: 'stimulant' },
   { name: 'Термокатализатор', rarity: 'epic', slot: 'ammo', stats: { dpsFire: 10 }, set: 'Эхо', abilityId: 'ammo_extro' },
   { name: 'Мини-генератор ЭМИ', rarity: 'epic', slot: 'ammo', stats: { dpsEmi: 10 }, set: 'Эхо', abilityId: 'ammo_emi' },
   { name: 'Сканер уязвимостей', rarity: 'epic', slot: 'ammo', stats: { punching: 0.03, accuracy: 0.02 }, set: 'Эхо', abilityId: 'armor_shred' },
-  { name: 'Голографическая приманка', rarity: 'epic', slot: 'ammo', stats: { evasion: 0.04 }, set: 'Эхо', abilityId: 'evasion' },
+  { name: 'Голографическая приманка', rarity: 'epic', slot: 'ammo', stats: { evasion: 0.032 }, set: 'Эхо', abilityId: 'evasion' },
   { name: 'Усилитель сигнала', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.03, health: 45 }, set: 'Эхо', abilityId: 'aimshot' },
-  { name: 'Магнитная ловушка', rarity: 'epic', slot: 'ammo', stats: { block: 0.03, armor: 5 }, set: 'Эхо', abilityId: 'shield' },
-  { name: 'Генератор защитного поля', rarity: 'superepic', slot: 'ammo', stats: { armor: 20, block: 0.03 }, set: 'Феникс', abilityId: 'barrier' },
+  { name: 'Магнитная ловушка', rarity: 'epic', slot: 'ammo', stats: { block: 0.03, armor: 2 }, set: 'Эхо', abilityId: 'shield' },
+  { name: 'Генератор защитного поля', rarity: 'superepic', slot: 'ammo', stats: { armor: 10, block: 0.03 }, set: 'Феникс', abilityId: 'barrier' },
   { name: 'Тактический сканер', rarity: 'superepic', slot: 'ammo', stats: { accuracy: 0.04, crit: 0.03 }, set: 'Феникс', abilityId: 'snipe' },
   { name: 'Модуль энергетической отдачи', rarity: 'superepic', slot: 'ammo', stats: { damage: 9 }, set: 'Феникс', abilityId: 'adrenaline' },
-  { name: 'Реактивный ранец', rarity: 'superepic', slot: 'ammo', stats: { speed: 0.05, evasion: 0.02 }, set: 'Феникс', abilityId: 'rush' },
+  { name: 'Реактивный ранец', rarity: 'superepic', slot: 'ammo', stats: { speed: 0.05, evasion: 0.016 }, set: 'Феникс', abilityId: 'rush' },
 
   // --- Melee Weapons ---
   { name: 'Нож', rarity: 'normal', slot: 'weapon1', stats: { damage: 4, crit: 0.01 } },
@@ -207,7 +207,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Боевые когти "Грифон"',
     rarity: 'superepic',
     slot: 'weapon1',
-    stats: { damage: 12, vampir: 0.015, evasion: 0.005 },
+    stats: { damage: 12, vampir: 0.015, evasion: 0.004 },
     mods: {},
     set: 'Феникс',
   },
@@ -348,7 +348,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Старый пистолет Макарова',
     rarity: 'normal',
     slot: 'weapon2',
-    stats: { damage: 5, evasion: 0.005 },
+    stats: { damage: 5, evasion: 0.004 },
     mods: {},
     ammoCapacity: 8,
     set: 'Бандиты',
@@ -514,7 +514,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Шлем',
     rarity: 'normal',
     slot: 'head',
-    stats: { armor: 5, health: 100, evasion: -0.01 },
+    stats: { armor: 5, health: 100, evasion: -0.008 },
   },
   {
     name: 'Тактический шлем',
@@ -526,7 +526,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Шлем с visor',
     rarity: 'superepic',
     slot: 'head',
-    stats: { armor: 10, health: 200, crit: 0.03, evasion: 0.02 },
+    stats: { armor: 10, health: 200, crit: 0.03, evasion: 0.016 },
   },
   { name: 'Шлем стража', rarity: 'normal', slot: 'head', stats: { block: 0.005, armor: 2 } },
   {
@@ -553,7 +553,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Маска бандита',
     rarity: 'normal',
     slot: 'head',
-    stats: { armor: 1, evasion: 0.005 },
+    stats: { armor: 1, evasion: 0.004 },
     set: 'Бандиты',
   },
   {
@@ -604,7 +604,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Энергетическая броня',
     rarity: 'epic',
     slot: 'armor',
-    stats: { evasion: 0.01, armor: 3 },
+    stats: { evasion: 0.008, armor: 3 },
   },
   {
     name: 'Костяной нагрудник болотника',
@@ -618,7 +618,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Куртка бандита',
     rarity: 'normal',
     slot: 'armor',
-    stats: { evasion: 0.015, health: 10 },
+    stats: { evasion: 0.012, health: 10 },
     set: 'Бандиты',
   },
   {
@@ -639,7 +639,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Кираса "Бессмертие"',
     rarity: 'superepic',
     slot: 'armor',
-    stats: { armor: 15, block: 0.03, evasion: -0.03, health: 50 },
+    stats: { armor: 15, block: 0.03, evasion: -0.024, health: 50 },
     set: 'Феникс',
   },
 
@@ -659,12 +659,12 @@ export const GAME_ITEMS: ItemDefinition[] = [
     stats: { armor: 4, damage: 5, punching: 0.05 },
   },
   { name: 'Боевые перчатки', rarity: 'normal', slot: 'gloves', stats: { regen: 0.01, armor: 1 } },
-  { name: 'Перчатки молнии', rarity: 'epic', slot: 'gloves', stats: { evasion: 0.005, armor: 1 } },
+  { name: 'Перчатки молнии', rarity: 'epic', slot: 'gloves', stats: { evasion: 0.004, armor: 1 } },
   {
     name: 'Наручи из костей',
     rarity: 'epic',
     slot: 'gloves',
-    stats: { health: 5, regen: 0.01, evasion: -0.005 },
+    stats: { health: 5, regen: 0.01, evasion: -0.004 },
     set: 'Кости мутантов',
   },
 
@@ -672,7 +672,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Перчатки бандита',
     rarity: 'normal',
     slot: 'gloves',
-    stats: { evasion: 0.005, crit: 0.005 },
+    stats: { evasion: 0.004, crit: 0.004 },
     set: 'Бандиты',
   },
   {
@@ -698,7 +698,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
   },
 
   // --- Boots ---
-  { name: 'Кроссовки', rarity: 'normal', slot: 'boots', stats: { evasion: 0.01 } },
+  { name: 'Кроссовки', rarity: 'normal', slot: 'boots', stats: { evasion: 0.008 } },
   {
     name: 'Армейские ботинки',
     rarity: 'normal',
@@ -709,15 +709,15 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Тактические сапоги',
     rarity: 'normal',
     slot: 'boots',
-    stats: { armor: 3, evasion: 0.02, stamina: 0.03 },
+    stats: { armor: 3, evasion: 0.016, stamina: 0.03 },
   },
   {
     name: 'Реактивные ботинки',
     rarity: 'superepic',
     slot: 'boots',
-    stats: { armor: 4, evasion: 0.05, speed: 0.05 },
+    stats: { armor: 4, evasion: 0.04, speed: 0.05 },
   },
-  { name: 'Тяжёлые сапоги', rarity: 'normal', slot: 'boots', stats: { evasion: -0.1, armor: 5 } },
+  { name: 'Тяжёлые сапоги', rarity: 'normal', slot: 'boots', stats: { evasion: -0.08, armor: 5 } },
   { name: 'Сапоги охотника', rarity: 'normal', slot: 'boots', stats: { block: 0.005, armor: 2 } },
   {
     name: 'Ботинки из черепа',
@@ -731,7 +731,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Берцы бандита',
     rarity: 'normal',
     slot: 'boots',
-    stats: { evasion: 0.005, speed: -0.005 },
+    stats: { evasion: 0.004, speed: -0.004 },
     set: 'Бандиты',
   },
   {
@@ -745,26 +745,26 @@ export const GAME_ITEMS: ItemDefinition[] = [
     name: 'Сервоприводы',
     rarity: 'epic',
     slot: 'boots',
-    stats: { speed: 0.008, evasion: 0.005, armor: 1 },
+    stats: { speed: 0.008, evasion: 0.004, armor: 1 },
     set: 'Эхо',
   },
   {
     name: 'Ботинки "Немезида"',
     rarity: 'superepic',
     slot: 'boots',
-    stats: { armor: 4, block: 0.015, speed: -0.015, evasion: -0.01 },
+    stats: { armor: 4, block: 0.015, speed: -0.015, evasion: -0.008 },
     set: 'Феникс',
   },
 
   // --- Accessories ---
   { name: 'Медный браслет', rarity: 'normal', slot: 'ammo', stats: { health: 45, regen: 0.1 }, abilityId: 'regen' },
-  { name: 'Стальное кольцо', rarity: 'normal', slot: 'ammo', stats: { armor: 4, block: 0.01 }, abilityId: 'fortify' },
+  { name: 'Стальное кольцо', rarity: 'normal', slot: 'ammo', stats: { armor: 2, block: 0.01 }, abilityId: 'fortify' },
   { name: 'Амулет удачи', rarity: 'epic', slot: 'ammo', stats: { crit: 0.03, health: 72 }, abilityId: 'vampiric' },
   { name: 'Кристалл регенерации', rarity: 'superepic', slot: 'ammo', stats: { health: 135, regen: 0.1 }, abilityId: 'medkit' },
-  { name: 'Жетон наёмника', rarity: 'normal', slot: 'ammo', stats: { damage: 4, armor: 2 }, abilityId: 'adrenaline' },
-  { name: 'Медальон выжившего', rarity: 'epic', slot: 'ammo', stats: { health: 180, evasion: 0.03 }, abilityId: 'evasion' },
-  { name: 'Артефакт древних', rarity: 'superepic', slot: 'ammo', stats: { damage: 8, armor: 5, crit: 0.03 }, abilityId: 'berserk_sacrifice' },
-  { name: 'Костяной щит', rarity: 'epic', slot: 'ammo', stats: { armor: 8, block: 0.02 }, set: 'Кости мутантов', abilityId: 'fortify' },
+  { name: 'Жетон наёмника', rarity: 'normal', slot: 'ammo', stats: { damage: 4, armor: 1 }, abilityId: 'adrenaline' },
+  { name: 'Медальон выжившего', rarity: 'epic', slot: 'ammo', stats: { health: 180, evasion: 0.024 }, abilityId: 'evasion' },
+  { name: 'Артефакт древних', rarity: 'superepic', slot: 'ammo', stats: { damage: 8, armor: 2, crit: 0.03 }, abilityId: 'berserk_sacrifice' },
+  { name: 'Костяной щит', rarity: 'epic', slot: 'ammo', stats: { armor: 4, block: 0.02 }, set: 'Кости мутантов', abilityId: 'fortify' },
 
   { name: 'Костяной талисман', rarity: 'epic', slot: 'ammo', stats: { regen: 0.1, health: 45 }, set: 'Кости мутантов', abilityId: 'regen' },
 
@@ -948,14 +948,14 @@ export const GAME_ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     slot: 'mod_hardshell',
     type: 'mod',
-    stats: { evasion: 0.005 },
+    stats: { evasion: 0.004 },
   },
   {
     name: 'Композитная сетка',
     rarity: 'epic',
     slot: 'mod_hardshell',
     type: 'mod',
-    stats: { evasion: 0.005 },
+    stats: { evasion: 0.004 },
   },
   {
     name: 'Встроенный радар',
@@ -1053,7 +1053,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     slot: 'mod_magazine',
     type: 'mod',
-    stats: { ammoCapacity: 15, speed: -0.005, evasion: -0.005 },
+    stats: { ammoCapacity: 15, speed: -0.005, evasion: -0.004 },
   },
   {
     name: 'Компенсатор',
@@ -1243,7 +1243,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     slot: 'mod_lining',
     type: 'mod',
-    stats: { armor: 0.5, evasion: 0.003 },
+    stats: { armor: 0.5, evasion: 0.002 },
   },
   {
     name: 'Адаптивная подкладка',
@@ -1257,21 +1257,21 @@ export const GAME_ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     slot: 'mod_hardshell',
     type: 'mod',
-    stats: { evasion: 0.003, armor: 1 },
+    stats: { evasion: 0.002, armor: 1 },
   },
   {
     name: 'Адаптивная броня',
     rarity: 'epic',
     slot: 'mod_hardshell',
     type: 'mod',
-    stats: { evasion: 0.003, regen: 0.1 },
+    stats: { evasion: 0.002, regen: 0.1 },
   },
   {
     name: 'Энергетическая накладка',
     rarity: 'epic',
     slot: 'mod_hardshell',
     type: 'mod',
-    stats: { evasion: 0.003, maxHp: 35 },
+    stats: { evasion: 0.002, maxHp: 35 },
   },
   {
     name: 'Титановая накладка',
@@ -1320,7 +1320,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     slot: 'mod_patch',
     type: 'mod',
-    stats: { evasion: 0.004, armor: 0.5 },
+    stats: { evasion: 0.003, armor: 0.5 },
   },
   {
     name: 'Модульный каркас',
@@ -1385,7 +1385,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
   { name: 'Секира', rarity: 'epic', slot: 'weapon1', stats: { damage: 13, speed: -0.02, armor: 1 }, mods: {}, set: 'Монолит' },
   { name: 'Цепь с шипами', rarity: 'epic', slot: 'weapon1', stats: { damage: 8, vampir: 0.01, speed: 0.01 }, set: 'Бандиты' },
   { name: 'Танто', rarity: 'superepic', slot: 'weapon1', stats: { damage: 10, crit: 0.06, speed: 0.01 } },
-  { name: 'Нунчаки', rarity: 'superepic', slot: 'weapon1', stats: { damage: 8, evasion: 0.01, speed: 0.02 } },
+  { name: 'Нунчаки', rarity: 'superepic', slot: 'weapon1', stats: { damage: 8, evasion: 0.008, speed: 0.02 } },
   { name: 'Коса', rarity: 'superepic', slot: 'weapon1', stats: { damage: 16, speed: -0.02, armor: 1 }, mods: {}, set: 'Кости мутантов' },
   { name: 'Плазменный клинок', rarity: 'superepic', slot: 'weapon1', stats: { damage: 20, dpsEmi: 5, block: 0.01 }, mods: {}, set: 'Эхо' },
   { name: 'Молот Торнадо', rarity: 'superepic', slot: 'weapon1', stats: { damage: 22, speed: -0.03, armor: 2 }, mods: {}, set: 'Феникс' },
@@ -1393,11 +1393,11 @@ export const GAME_ITEMS: ItemDefinition[] = [
 
 
   // === СЕТ «СТАЛКЕР» (epic) ===
-  { name: 'Шлем сталкера', rarity: 'epic', slot: 'head', stats: { armor: 6, evasion: 0.02, health: 150 }, set: 'Сталкер' },
-  { name: 'Броня сталкера', rarity: 'epic', slot: 'armor', stats: { armor: 8, evasion: 0.025, health: 200 }, set: 'Сталкер' },
-  { name: 'Перчатки сталкера', rarity: 'epic', slot: 'gloves', stats: { armor: 2, evasion: 0.02, regen: 0.1 }, set: 'Сталкер' },
-  { name: 'Сапоги сталкера', rarity: 'epic', slot: 'boots', stats: { armor: 3, evasion: 0.025, stamina: 0.03 }, set: 'Сталкер' },
-  { name: 'Пояс сталкера', rarity: 'epic', slot: 'ammo', stats: { regen: 0.1, health: 85, evasion: 0.02 }, set: 'Сталкер', abilityId: 'evasion' },
+  { name: 'Шлем сталкера', rarity: 'epic', slot: 'head', stats: { armor: 6, evasion: 0.016, health: 150 }, set: 'Сталкер' },
+  { name: 'Броня сталкера', rarity: 'epic', slot: 'armor', stats: { armor: 8, evasion: 0.02, health: 200 }, set: 'Сталкер' },
+  { name: 'Перчатки сталкера', rarity: 'epic', slot: 'gloves', stats: { armor: 2, evasion: 0.016, regen: 0.1 }, set: 'Сталкер' },
+  { name: 'Сапоги сталкера', rarity: 'epic', slot: 'boots', stats: { armor: 3, evasion: 0.02, stamina: 0.03 }, set: 'Сталкер' },
+  { name: 'Пояс сталкера', rarity: 'epic', slot: 'ammo', stats: { regen: 0.1, health: 85, evasion: 0.016 }, set: 'Сталкер', abilityId: 'evasion' },
 
   // === СЕТ «НАЁМНИК» (epic) ===
   { name: 'Шлем наёмника', rarity: 'epic', slot: 'head', stats: { armor: 5, damage: 3, accuracy: 0.01 }, set: 'Наёмник' },
@@ -1407,11 +1407,11 @@ export const GAME_ITEMS: ItemDefinition[] = [
   { name: 'Жетон наёмника', rarity: 'epic', slot: 'ammo', stats: { damage: 4, crit: 0.02, health: 72 }, set: 'Наёмник', abilityId: 'adrenaline' },
 
   // === СЕТ «ПРИЗРАК» (superepic) ===
-  { name: 'Маска призрака', rarity: 'superepic', slot: 'head', stats: { armor: 2, evasion: 0.04, accuracy: 0.02 }, set: 'Призрак' },
-  { name: 'Плащ призрака', rarity: 'superepic', slot: 'armor', stats: { armor: 3, evasion: 0.05, speed: 0.02 }, set: 'Призрак' },
-  { name: 'Наручи призрака', rarity: 'superepic', slot: 'gloves', stats: { accuracy: 0.03, crit: 0.02, evasion: 0.02 }, set: 'Призрак' },
-  { name: 'Башмаки призрака', rarity: 'superepic', slot: 'boots', stats: { evasion: 0.04, speed: 0.03, stamina: 0.02 }, set: 'Призрак' },
-  { name: 'Амулет призрака', rarity: 'superepic', slot: 'ammo', stats: { evasion: 0.03, accuracy: 0.03, health: 135 }, set: 'Призрак', abilityId: 'invisibility' },
+  { name: 'Маска призрака', rarity: 'superepic', slot: 'head', stats: { armor: 2, evasion: 0.032, accuracy: 0.02 }, set: 'Призрак' },
+  { name: 'Плащ призрака', rarity: 'superepic', slot: 'armor', stats: { armor: 3, evasion: 0.04, speed: 0.02 }, set: 'Призрак' },
+  { name: 'Наручи призрака', rarity: 'superepic', slot: 'gloves', stats: { accuracy: 0.03, crit: 0.02, evasion: 0.016 }, set: 'Призрак' },
+  { name: 'Башмаки призрака', rarity: 'superepic', slot: 'boots', stats: { evasion: 0.032, speed: 0.03, stamina: 0.02 }, set: 'Призрак' },
+  { name: 'Амулет призрака', rarity: 'superepic', slot: 'ammo', stats: { evasion: 0.024, accuracy: 0.03, health: 135 }, set: 'Призрак', abilityId: 'invisibility' },
 
 
   // === ДОПОЛНЕНИЕ «МОНОЛИТ» (epic) ===
@@ -1419,28 +1419,28 @@ export const GAME_ITEMS: ItemDefinition[] = [
   { name: 'Нагрудник монолита', rarity: 'epic', slot: 'armor', stats: { armor: 12, block: 0.015, health: 250 }, set: 'Монолит' },
   { name: 'Перчатки монолита', rarity: 'epic', slot: 'gloves', stats: { armor: 4, block: 0.008, damage: 3 }, set: 'Монолит' },
   { name: 'Походные сапоги монолита', rarity: 'epic', slot: 'boots', stats: { armor: 5, block: 0.008, stamina: 0.02 }, set: 'Монолит' },
-  { name: 'Символ монолита', rarity: 'epic', slot: 'ammo', stats: { armor: 6, block: 0.015, health: 135 }, set: 'Монолит', abilityId: 'barrier' },
+  { name: 'Символ монолита', rarity: 'epic', slot: 'ammo', stats: { armor: 3, block: 0.015, health: 135 }, set: 'Монолит', abilityId: 'barrier' },
 
   // === ДОПОЛНЕНИЕ «БАНДИТЫ» (epic) ===
-  { name: 'Бандана бандита', rarity: 'epic', slot: 'head', stats: { armor: 3, evasion: 0.02, crit: 0.01 }, set: 'Бандиты' },
-  { name: 'Кожаный жилет бандита', rarity: 'epic', slot: 'armor', stats: { armor: 6, evasion: 0.025, health: 120 }, set: 'Бандиты' },
-  { name: 'Перчатки с шипами', rarity: 'epic', slot: 'gloves', stats: { damage: 4, evasion: 0.01, punching: 0.01 }, set: 'Бандиты' },
-  { name: 'Ковбойские сапоги', rarity: 'epic', slot: 'boots', stats: { armor: 2, evasion: 0.02, speed: 0.015 }, set: 'Бандиты' },
+  { name: 'Бандана бандита', rarity: 'epic', slot: 'head', stats: { armor: 3, evasion: 0.016, crit: 0.01 }, set: 'Бандиты' },
+  { name: 'Кожаный жилет бандита', rarity: 'epic', slot: 'armor', stats: { armor: 6, evasion: 0.02, health: 120 }, set: 'Бандиты' },
+  { name: 'Перчатки с шипами', rarity: 'epic', slot: 'gloves', stats: { damage: 4, evasion: 0.008, punching: 0.01 }, set: 'Бандиты' },
+  { name: 'Ковбойские сапоги', rarity: 'epic', slot: 'boots', stats: { armor: 2, evasion: 0.016, speed: 0.015 }, set: 'Бандиты' },
   { name: 'Трофей бандита', rarity: 'epic', slot: 'ammo', stats: { damage: 5, crit: 0.02, health: 72 }, set: 'Бандиты', abilityId: 'rage' },
 
   // === STANDALONE (epic, без сета) ===
   { name: 'Шлем пустынника', rarity: 'epic', slot: 'head', stats: { armor: 6, regen: 0.05, health: 120 } },
   { name: 'Роба отшельника', rarity: 'epic', slot: 'armor', stats: { armor: 8, regen: 0.1, health: 200 } },
   { name: 'Рукавицы кузнеца', rarity: 'epic', slot: 'gloves', stats: { armor: 4, damage: 4, block: 0.005 } },
-  { name: 'Сапоги скорохода', rarity: 'epic', slot: 'boots', stats: { armor: 2, speed: 0.04, evasion: 0.01 } },
-  { name: 'Оберег пустоши', rarity: 'epic', slot: 'ammo', stats: { regen: 0.1, health: 135, armor: 4 }, abilityId: 'shield' },
+  { name: 'Сапоги скорохода', rarity: 'epic', slot: 'boots', stats: { armor: 2, speed: 0.04, evasion: 0.008 } },
+  { name: 'Оберег пустоши', rarity: 'epic', slot: 'ammo', stats: { regen: 0.1, health: 135, armor: 2 }, abilityId: 'shield' },
 
   // === STANDALONE (superepic, без сета) ===
   { name: 'Корона безумца', rarity: 'superepic', slot: 'head', stats: { armor: 5, crit: 0.04, damage: 5, health: 100 } },
   { name: 'Панцирь мутанта', rarity: 'superepic', slot: 'armor', stats: { armor: 18, health: 400, regen: 0.1 } },
   { name: 'Лапы химеры', rarity: 'superepic', slot: 'gloves', stats: { armor: 3, damage: 8, vampir: 0.02, crit: 0.02 } },
   { name: 'Копыта демона', rarity: 'superepic', slot: 'boots', stats: { armor: 5, speed: 0.02, block: 0.01, stamina: 0.03 } },
-  { name: 'Сердце тьмы', rarity: 'superepic', slot: 'ammo', stats: { damage: 8, armor: 5, health: 180, vampir: 0.02 }, abilityId: 'vampiric' },
+  { name: 'Сердце тьмы', rarity: 'superepic', slot: 'ammo', stats: { damage: 8, armor: 2, health: 180, vampir: 0.02 }, abilityId: 'vampiric' },
 
   // ════════════════════════════════════════════════════════
   // 50 NEW AMMO ITEMS
@@ -1453,29 +1453,29 @@ export const GAME_ITEMS: ItemDefinition[] = [
   { name: 'Транквилизатор', rarity: 'superepic', slot: 'ammo', stats: { dpsToxis: 4 }, damage: 'toxis', set: 'Эхо', abilityId: 'ammo_toxis' },
 
   // --- 5.2 Защитные (10) ---
-  { name: 'Керамическая пластина лёгкая', rarity: 'epic', slot: 'ammo', stats: { armor: 12 }, set: 'Монолит', abilityId: 'fortify' },
-  { name: 'Керамическая пластина тяжёлая', rarity: 'superepic', slot: 'ammo', stats: { armor: 22 }, set: 'Монолит', abilityId: 'barrier' },
-  { name: 'Композитный щиток', rarity: 'epic', slot: 'ammo', stats: { armor: 8, block: 0.02 }, set: 'Монолит', abilityId: 'shield' },
-  { name: 'Баллистическая ткань', rarity: 'epic', slot: 'ammo', stats: { armor: 5, evasion: 0.02 }, abilityId: 'evasion' },
-  { name: 'Термоизоляция', rarity: 'epic', slot: 'ammo', stats: { armor: 3, regen: 0.1 }, abilityId: 'fortify' },
-  { name: 'Энергетический отражатель', rarity: 'superepic', slot: 'ammo', stats: { armor: 5, block: 0.01, dpsEmi: 5 }, set: 'Эхо', abilityId: 'barrier' },
-  { name: 'Осколочный жилет', rarity: 'epic', slot: 'ammo', stats: { armor: 10, block: 0.01 }, set: 'Бандиты', abilityId: 'fortify' },
-  { name: 'Наколенники с шипами', rarity: 'epic', slot: 'ammo', stats: { armor: 4, punching: 0.02 }, set: 'Бандиты', abilityId: 'ram' },
-  { name: 'Противогаз', rarity: 'epic', slot: 'ammo', stats: { armor: 3, accuracy: 0.02 }, set: 'Монолит', abilityId: 'fortify' },
-  { name: 'Пончо пустынника', rarity: 'normal', slot: 'ammo', stats: { armor: 2, evasion: 0.01, regen: 0.05 }, abilityId: 'evasion' },
+  { name: 'Керамическая пластина лёгкая', rarity: 'epic', slot: 'ammo', stats: { armor: 6 }, set: 'Монолит', abilityId: 'fortify' },
+  { name: 'Керамическая пластина тяжёлая', rarity: 'superepic', slot: 'ammo', stats: { armor: 11 }, set: 'Монолит', abilityId: 'barrier' },
+  { name: 'Композитный щиток', rarity: 'epic', slot: 'ammo', stats: { armor: 4, block: 0.02 }, set: 'Монолит', abilityId: 'shield' },
+  { name: 'Баллистическая ткань', rarity: 'epic', slot: 'ammo', stats: { armor: 5, evasion: 0.016 }, abilityId: 'evasion' },
+  { name: 'Термоизоляция', rarity: 'epic', slot: 'ammo', stats: { armor: 2, regen: 0.1 }, abilityId: 'fortify' },
+  { name: 'Энергетический отражатель', rarity: 'superepic', slot: 'ammo', stats: { armor: 2, block: 0.01, dpsEmi: 5 }, set: 'Эхо', abilityId: 'barrier' },
+  { name: 'Осколочный жилет', rarity: 'epic', slot: 'ammo', stats: { armor: 5, block: 0.01 }, set: 'Бандиты', abilityId: 'fortify' },
+  { name: 'Наколенники с шипами', rarity: 'epic', slot: 'ammo', stats: { armor: 2, punching: 0.02 }, set: 'Бандиты', abilityId: 'ram' },
+  { name: 'Противогаз', rarity: 'epic', slot: 'ammo', stats: { armor: 2, accuracy: 0.02 }, set: 'Монолит', abilityId: 'fortify' },
+  { name: 'Пончо пустынника', rarity: 'normal', slot: 'ammo', stats: { armor: 2, evasion: 0.008, regen: 0.05 }, abilityId: 'evasion' },
 
   // --- 5.3 Медицинские (6) ---
   { name: 'Антидот универсальный', rarity: 'epic', slot: 'ammo', stats: { health: 72, regen: 0.1 }, abilityId: 'medkit' },
   { name: 'Стимулятор мозговой активности', rarity: 'superepic', slot: 'ammo', stats: { accuracy: 0.03, crit: 0.02 }, set: 'Феникс', abilityId: 'aimshot' },
   { name: 'Адреналиновая инъекция', rarity: 'superepic', slot: 'ammo', stats: { speed: 0.04, damage: 6 }, set: 'Феникс', abilityId: 'adrenaline' },
   { name: 'Боевой коктейль', rarity: 'epic', slot: 'ammo', stats: { damage: 5, accuracy: -0.02, regen: 0.1 }, set: 'Бандиты', abilityId: 'rage' },
-  { name: 'Регенеративный гель', rarity: 'epic', slot: 'ammo', stats: { regen: 0.1, armor: 3 }, set: 'Эхо', abilityId: 'regen' },
+  { name: 'Регенеративный гель', rarity: 'epic', slot: 'ammo', stats: { regen: 0.1, armor: 2 }, set: 'Эхо', abilityId: 'regen' },
   { name: 'Портативный дефибриллятор', rarity: 'superepic', slot: 'ammo', stats: { health: 180 }, abilityId: 'medkit' },
 
   // --- 5.4 Гранаты/взрывчатка (8) ---
   { name: 'Осколочная граната', rarity: 'epic', slot: 'ammo', stats: { damage: 9 }, set: 'Бандиты', abilityId: 'grenade' },
   { name: 'Светошумовая граната', rarity: 'epic', slot: 'ammo', stats: { accuracy: -0.02 }, abilityId: 'stun' },
-  { name: 'Дымовая граната', rarity: 'epic', slot: 'ammo', stats: { evasion: 0.03 }, abilityId: 'invisibility' },
+  { name: 'Дымовая граната', rarity: 'epic', slot: 'ammo', stats: { evasion: 0.024 }, abilityId: 'invisibility' },
   { name: 'Зажигательная смесь', rarity: 'superepic', slot: 'ammo', stats: { dpsFire: 9 }, set: 'Феникс', abilityId: 'shock' },
   { name: 'ЭМИ-граната', rarity: 'superepic', slot: 'ammo', stats: { dpsEmi: 9 }, set: 'Эхо', abilityId: 'shock' },
   { name: 'Липкая взрывчатка', rarity: 'epic', slot: 'ammo', stats: { damage: 14 }, set: 'Бандиты', abilityId: 'mine' },
@@ -1489,9 +1489,9 @@ export const GAME_ITEMS: ItemDefinition[] = [
   { name: 'Банка-глушитель «Тихушник»', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.02, speed: -0.01 }, abilityId: 'armor_shred' },
   { name: 'Тактическая разгрузка', rarity: 'epic', slot: 'ammo', stats: { speed: 0.02, stamina: 0.02 }, set: 'Монолит', abilityId: 'stimulant' },
   { name: 'Магазинный ускоритель «Шустрик»', rarity: 'epic', slot: 'ammo', stats: { speed: 0.03 }, abilityId: 'wind_speed' },
-  { name: '«Голос пустоши»', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.01, evasion: 0.01 }, abilityId: 'teleport' },
+  { name: '«Голос пустоши»', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.01, evasion: 0.008 }, abilityId: 'teleport' },
   { name: '«Зенница»', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.02, crit: 0.01 }, abilityId: 'acid' },
-  { name: 'Ночное видение', rarity: 'superepic', slot: 'ammo', stats: { accuracy: 0.03, evasion: 0.02 }, set: 'Эхо', abilityId: 'invisibility' },
+  { name: 'Ночное видение', rarity: 'superepic', slot: 'ammo', stats: { accuracy: 0.03, evasion: 0.016 }, set: 'Эхо', abilityId: 'invisibility' },
   { name: 'Распорка «Крепыш»', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.04, speed: -0.02, damage: 2 }, set: 'Монолит', abilityId: 'block_stance' },
 
   // --- 5.6 Техно-модули (6) ---
@@ -1499,13 +1499,13 @@ export const GAME_ITEMS: ItemDefinition[] = [
   { name: 'Гиперускоритель', rarity: 'superepic', slot: 'ammo', stats: { speed: 0.05, stamina: 0.04 }, set: 'Феникс', abilityId: 'rush' },
   { name: 'Стабилизатор прицела', rarity: 'epic', slot: 'ammo', stats: { accuracy: 0.03, damage: 2 }, abilityId: 'armor_shred' },
   { name: 'Конвертер энергии', rarity: 'superepic', slot: 'ammo', stats: { dpsEmi: 8, dpsFire: 8 }, set: 'Эхо', abilityId: 'ammo_emi' },
-  { name: 'Молекулярный ремонтник', rarity: 'superepic', slot: 'ammo', stats: { armor: 6, regen: 0.1 }, set: 'Феникс', abilityId: 'medkit' },
-  { name: 'Силовой модуль', rarity: 'superepic', slot: 'ammo', stats: { damage: 9, armor: 5 }, set: 'Феникс', abilityId: 'adrenaline' },
+  { name: 'Молекулярный ремонтник', rarity: 'superepic', slot: 'ammo', stats: { armor: 3, regen: 0.1 }, set: 'Феникс', abilityId: 'medkit' },
+  { name: 'Силовой модуль', rarity: 'superepic', slot: 'ammo', stats: { damage: 9, armor: 2 }, set: 'Феникс', abilityId: 'adrenaline' },
 
   // --- 5.7 Standalone (4) ---
-  { name: 'Талисман удачи', rarity: 'epic', slot: 'ammo', stats: { crit: 0.03, evasion: 0.02 }, abilityId: 'evasion' },
-  { name: 'Знак выжившего', rarity: 'epic', slot: 'ammo', stats: { armor: 4, health: 85, regen: 0.1 }, abilityId: 'shield' },
+  { name: 'Талисман удачи', rarity: 'epic', slot: 'ammo', stats: { crit: 0.03, evasion: 0.016 }, abilityId: 'evasion' },
+  { name: 'Знак выжившего', rarity: 'epic', slot: 'ammo', stats: { armor: 2, health: 85, regen: 0.1 }, abilityId: 'shield' },
   { name: 'Осколок аномалии', rarity: 'superepic', slot: 'ammo', stats: { dpsEmi: 5, dpsToxis: 5, dpsFire: 5 }, abilityId: 'ammo_emi' },
-  { name: 'Кристалл равновесия', rarity: 'superepic', slot: 'ammo', stats: { damage: 4, armor: 5, health: 85 }, abilityId: 'fortify' },
+  { name: 'Кристалл равновесия', rarity: 'superepic', slot: 'ammo', stats: { damage: 4, armor: 2, health: 85 }, abilityId: 'fortify' },
 ];
 
