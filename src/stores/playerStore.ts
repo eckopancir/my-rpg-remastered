@@ -114,6 +114,7 @@ interface PlayerStore {
   clearLogs: () => void;
   addExp: (amount: number) => void;
   addChips: (amount: number) => void;
+  resetLevel: () => void;
   spendChips: (amount: number) => boolean;
   recalcStats: () => void;
   recalcAbilities: () => void;
@@ -318,6 +319,11 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       addChips: (amount) => set((s) => ({ dataChips: s.dataChips + amount })),
+      resetLevel: () => {
+        set({ level: 1, currentExp: 0, expToNext: 100, skillPoints: 0, skills: {} });
+        get().addLog('🔄 Уровень сброшен до 1.', 'warning');
+        get().recalcStats();
+      },
       spendChips: (amount) => {
         const s = get();
         if (s.dataChips < amount) return false;

@@ -382,6 +382,7 @@ export const Dashboard = () => {
             <Button size="sm" variant="ghost" onClick={() => debugAddMods(5)} style={{ fontSize: 9 }}>+5 модификаций</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddAmmo(4)} style={{ fontSize: 9 }}>+4 амуниции 🎒</Button>
             <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 9 }}>🗑️ Очистить инвентарь</Button>
+            <Button size="sm" variant="danger" onClick={() => usePlayerStore.getState().resetLevel()} style={{ fontSize: 9 }}>⬇️ Сброс уровня</Button>
           </div>
         </WapPanel>
       </div>
