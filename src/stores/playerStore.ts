@@ -42,6 +42,20 @@ interface TravelState {
   total: number;
 }
 
+export interface SkillUtilityEffects {
+  buyDiscount: number;
+  sellBonus: number;
+  extraShopSlots: number;
+  refreshDiscount: number;
+  chipMultiplier: number;
+  xpMultiplier: number;
+  extraLootChance: number;
+  extraResourcePct: number;
+  doubleLootChance: number;
+  lootQualityBonus: number;
+  utilityMultiplier: number;
+}
+
 export interface PlayerStats {
   maxHp: number; currentHp: number; maxStamina: number; stamina: number;
   damage: number; crit: number; armor: number; regen: number;
@@ -132,6 +146,7 @@ interface PlayerStore {
   cancelSkills: () => void;
   resetSkills: () => void;
   skillBonuses: () => PlayerStats;
+  skillUtility: () => SkillUtilityEffects;
 
   useConsumable: (item: Item) => void;
   addEffect: (effect: ActiveEffect) => void;
@@ -628,48 +643,48 @@ export const usePlayerStore = create<PlayerStore>()(
         const total: PlayerStats = { ...EMPTY_STATS };
         const lvl = (id: string) => skills[id] || 0;
 
-        // Soldier
-        total.maxHp += lvl('soldier_toughened') * 10;
-        total.damage += lvl('soldier_heavy_hand') * 1;
+        // Soldier (DMG ×2, HP ×10)
+        total.maxHp += lvl('soldier_toughened') * 100;
+        total.damage += lvl('soldier_heavy_hand') * 2;
         total.crit += lvl('soldier_fighting_spirit') * 0.015;
         total.armor += lvl('soldier_iron_skin') * 2;
         total.speed += lvl('soldier_rage') * 0.015;
         total.crit += lvl('soldier_rage') * 0.015;
-        total.damage += lvl('soldier_retaliation') * 2;
+        total.damage += lvl('soldier_retaliation') * 4;
         total.block += lvl('soldier_unstoppable') * 0.015;
-        total.maxHp += lvl('soldier_unstoppable') * 10;
+        total.maxHp += lvl('soldier_unstoppable') * 100;
         total.armor += lvl('soldier_juggernaut') * 3;
         total.evasion += lvl('soldier_juggernaut') * 0.015;
         if (lvl('soldier_capstone') > 0) {
-          total.maxHp += 50; total.block += 0.05; total.speed += 0.03;
+          total.maxHp += 500; total.block += 0.05; total.speed += 0.03;
         }
 
-        // Demolitionist
-        total.damage += lvl('demo_explosives') * 1;
+        // Demolitionist (DMG ×2)
+        total.damage += lvl('demo_explosives') * 2;
         total.dpsFire += lvl('demo_explosives') * 1;
         total.speed += lvl('demo_swift_hand') * 0.01;
         total.dpsFire += lvl('demo_burning') * 3;
         total.crit += lvl('demo_shrapnel') * 0.015;
         total.dpsFire += lvl('demo_fugas') * 3;
         total.punching += lvl('demo_fugas') * 0.015;
-        total.damage += lvl('demo_molotov') * 2;
+        total.damage += lvl('demo_molotov') * 4;
         total.accuracy += lvl('demo_molotov') * 0.01;
         total.dpsFire += lvl('demo_thermo') * 5;
         total.crit += lvl('demo_thermo') * 0.015;
         total.speed += lvl('demo_fireworks') * 0.015;
-        total.damage += lvl('demo_fireworks') * 2;
+        total.damage += lvl('demo_fireworks') * 4;
         if (lvl('demo_capstone') > 0) {
-          total.dpsFire += 20; total.crit += 0.05; total.damage += 5;
+          total.dpsFire += 20; total.crit += 0.05; total.damage += 10;
         }
 
-        // Nightblade
+        // Nightblade (DMG ×2)
         total.speed += lvl('night_shadow_step') * 0.015;
         total.crit += lvl('night_sharp_blades') * 0.015;
-        total.damage += lvl('night_sharp_blades') * 1;
+        total.damage += lvl('night_sharp_blades') * 2;
         total.evasion += lvl('night_dodge') * 0.015;
         total.accuracy += lvl('night_precise') * 0.015;
         total.vampir += lvl('night_poison') * 0.015;
-        total.damage += lvl('night_poison') * 2;
+        total.damage += lvl('night_poison') * 4;
         total.crit += lvl('night_bleeding') * 0.02;
         total.speed += lvl('night_bleeding') * 0.015;
         total.evasion += lvl('night_dark_mist') * 0.025;
@@ -677,24 +692,24 @@ export const usePlayerStore = create<PlayerStore>()(
         total.speed += lvl('night_death_dance') * 0.02;
         total.crit += lvl('night_death_dance') * 0.02;
         if (lvl('night_capstone') > 0) {
-          total.crit += 0.1; total.evasion += 0.08; total.damage += 10;
+          total.crit += 0.1; total.evasion += 0.08; total.damage += 20;
         }
 
-        // Arcanist
+        // Arcanist (HP ×10)
         total.armor += lvl('arcanist_shield') * 2;
         total.accuracy += lvl('arcanist_focus') * 0.015;
         total.regen += lvl('arcanist_regen') * 1;
         total.block += lvl('arcanist_barrier') * 0.015;
-        total.maxHp += lvl('arcanist_life_force') * 10;
+        total.maxHp += lvl('arcanist_life_force') * 100;
         total.regen += lvl('arcanist_life_force') * 0.5;
         total.evasion += lvl('arcanist_distortion') * 0.015;
         total.block += lvl('arcanist_distortion') * 0.015;
         total.armor += lvl('arcanist_aura') * 3;
         total.regen += lvl('arcanist_aura') * 1;
-        total.maxHp += lvl('arcanist_restoration') * 15;
+        total.maxHp += lvl('arcanist_restoration') * 150;
         total.regen += lvl('arcanist_restoration') * 2;
         if (lvl('arcanist_capstone') > 0) {
-          total.maxHp += 50; total.regen += 10; total.block += 0.05;
+          total.maxHp += 500; total.regen += 10; total.block += 0.05;
         }
 
         // Occultist
@@ -704,7 +719,7 @@ export const usePlayerStore = create<PlayerStore>()(
         total.dpsExtro += lvl('occult_curse') * 2;
         total.vampir += lvl('occult_curse') * 0.01;
         total.crit += lvl('occult_ritual') * 0.015;
-        total.damage += lvl('occult_ritual') * 1;
+        total.damage += lvl('occult_ritual') * 2;
         total.dpsEmi += lvl('occult_corruption') * 2;
         total.dpsToxis += lvl('occult_corruption') * 2;
         total.dpsExtro += lvl('occult_corruption') * 2;
@@ -727,66 +742,66 @@ export const usePlayerStore = create<PlayerStore>()(
           total.vampir += 0.08; total.crit += 0.05;
         }
 
-        // Berserker
-        total.damage += lvl('berserker_frenzy') * 1;
+        // Berserker (DMG ×2)
+        total.damage += lvl('berserker_frenzy') * 2;
         total.speed += lvl('berserker_frenzy') * 0.01;
         total.vampir += lvl('berserker_bloodlust') * 0.015;
-        total.damage += lvl('berserker_warcry') * 2;
+        total.damage += lvl('berserker_warcry') * 4;
         total.punching += lvl('berserker_warcry') * 0.015;
         total.crit += lvl('berserker_brutal') * 0.015;
-        total.damage += lvl('berserker_brutal') * 1;
+        total.damage += lvl('berserker_brutal') * 2;
         total.speed += lvl('berserker_adrenaline') * 0.015;
         total.evasion += lvl('berserker_adrenaline') * 0.015;
-        total.damage += lvl('berserker_berserk') * 2;
+        total.damage += lvl('berserker_berserk') * 4;
         total.crit += lvl('berserker_berserk') * 0.015;
         total.armor += lvl('berserker_unleashed') * 3;
-        total.damage += lvl('berserker_unleashed') * 2;
+        total.damage += lvl('berserker_unleashed') * 4;
         total.speed += lvl('berserker_eternal_rage') * 0.02;
         total.vampir += lvl('berserker_eternal_rage') * 0.02;
         if (lvl('berserker_capstone') > 0) {
-          total.damage += 20; total.crit += 0.10; total.vampir += 0.05;
+          total.damage += 40; total.crit += 0.10; total.vampir += 0.05;
         }
 
-        // Tank
+        // Tank (DMG ×2, HP ×10)
         total.armor += lvl('tank_hardened') * 2;
-        total.maxHp += lvl('tank_vitality') * 15;
+        total.maxHp += lvl('tank_vitality') * 150;
         total.block += lvl('tank_shield_bash') * 0.015;
-        total.damage += lvl('tank_shield_bash') * 1;
+        total.damage += lvl('tank_shield_bash') * 2;
         total.armor += lvl('tank_iron_will') * 2;
         total.regen += lvl('tank_iron_will') * 0.5;
-        total.maxHp += lvl('tank_fortress') * 15;
+        total.maxHp += lvl('tank_fortress') * 150;
         total.armor += lvl('tank_fortress') * 2;
         total.block += lvl('tank_reflect') * 0.015;
-        total.damage += lvl('tank_reflect') * 1;
-        total.maxHp += lvl('tank_immortal') * 20;
+        total.damage += lvl('tank_reflect') * 2;
+        total.maxHp += lvl('tank_immortal') * 200;
         total.regen += lvl('tank_immortal') * 1;
         total.armor += lvl('tank_paladin') * 3;
         total.vampir += lvl('tank_paladin') * 0.015;
         if (lvl('tank_capstone') > 0) {
-          total.maxHp += 100; total.armor += 15; total.block += 0.05;
+          total.maxHp += 1000; total.armor += 15; total.block += 0.05;
         }
 
-        // Sniper
+        // Sniper (DMG ×2)
         total.accuracy += lvl('sniper_focus') * 0.015;
         total.crit += lvl('sniper_precision') * 0.015;
-        total.damage += lvl('sniper_long_shot') * 1;
+        total.damage += lvl('sniper_long_shot') * 2;
         total.accuracy += lvl('sniper_long_shot') * 0.015;
         total.crit += lvl('sniper_deadly_aim') * 0.015;
-        total.damage += lvl('sniper_deadly_aim') * 2;
+        total.damage += lvl('sniper_deadly_aim') * 4;
         total.dpsExtro += lvl('sniper_kill_zone') * 2;
         total.dpsFire += lvl('sniper_kill_zone') * 2;
-        total.damage += lvl('sniper_executioner') * 3;
+        total.damage += lvl('sniper_executioner') * 6;
         total.crit += lvl('sniper_executioner') * 0.015;
         total.punching += lvl('sniper_armor_piercing') * 0.02;
-        total.damage += lvl('sniper_armor_piercing') * 2;
+        total.damage += lvl('sniper_armor_piercing') * 4;
         total.accuracy += lvl('sniper_nerves_steel') * 0.02;
         total.speed += lvl('sniper_nerves_steel') * 0.015;
         if (lvl('sniper_capstone') > 0) {
-          total.damage += 15; total.crit += 0.10; total.accuracy += 0.10;
+          total.damage += 30; total.crit += 0.10; total.accuracy += 0.10;
         }
 
-        // Survivor
-        total.maxHp += lvl('survivor_toughness') * 10;
+        // Survivor (HP ×10)
+        total.maxHp += lvl('survivor_toughness') * 100;
         total.evasion += lvl('survivor_dodge') * 0.015;
         total.regen += lvl('survivor_field_medic') * 1;
         total.armor += lvl('survivor_scavenger') * 2;
@@ -798,18 +813,18 @@ export const usePlayerStore = create<PlayerStore>()(
         total.speed += lvl('survivor_windrunner') * 0.02;
         total.evasion += lvl('survivor_windrunner') * 0.02;
         total.regen += lvl('survivor_revitalize') * 2;
-        total.maxHp += lvl('survivor_revitalize') * 15;
+        total.maxHp += lvl('survivor_revitalize') * 150;
         if (lvl('survivor_capstone') > 0) {
-          total.maxHp += 50; total.evasion += 0.10; total.regen += 10;
+          total.maxHp += 500; total.evasion += 0.10; total.regen += 10;
         }
 
-        // Merchant
+        // Old merchant (DMG ×2, HP ×10)
         total.accuracy += lvl('merchant_diplomacy') * 0.015;
-        total.damage += lvl('merchant_coin_throw') * 1;
+        total.damage += lvl('merchant_coin_throw') * 2;
         total.crit += lvl('merchant_insider') * 0.015;
         total.vampir += lvl('merchant_black_market') * 0.015;
         total.armor += lvl('merchant_protection') * 2;
-        total.maxHp += lvl('merchant_protection') * 10;
+        total.maxHp += lvl('merchant_protection') * 100;
         total.speed += lvl('merchant_money_talk') * 0.015;
         total.accuracy += lvl('merchant_money_talk') * 0.015;
         total.armor += lvl('merchant_armored_transport') * 3;
@@ -817,10 +832,52 @@ export const usePlayerStore = create<PlayerStore>()(
         total.evasion += lvl('merchant_lucky') * 0.02;
         total.crit += lvl('merchant_lucky') * 0.02;
         if (lvl('merchant_capstone') > 0) {
-          total.maxHp += 50; total.crit += 0.10; total.damage += 5; total.accuracy += 0.10;
+          total.maxHp += 500; total.crit += 0.10; total.damage += 10; total.accuracy += 0.10;
         }
 
         return total;
+      },
+
+      skillUtility: () => {
+        const s = get();
+        const lvl = (id: string) => s.skills[id] || 0;
+
+        const buyDiscount = lvl('trader_haggle') * 0.03 + lvl('trader_network') * 0.02 + lvl('trader_bulk') * 0.02;
+        const sellBonus = lvl('trader_connections') * 0.03 + lvl('trader_network') * 0.02 + lvl('trader_bulk') * 0.02;
+        const extraShopSlots = Math.floor(lvl('trader_shelves') / 2) * 1;
+        const refreshDiscount = lvl('trader_discount') * 0.05 + lvl('trader_bulk') * 0.02;
+        const chipBonus = lvl('trader_deal') * 0.05 + lvl('trader_bulk') * 0.02;
+        const lootQualityBonus = lvl('trader_premium') * 0.03 + lvl('trader_bulk') * 0.02;
+
+        const extraLootChance = lvl('stalker_lucky') * 0.05 + lvl('stalker_mastery') * 0.03;
+        const chipFromStalker = lvl('stalker_bounty') * 0.05 + lvl('stalker_mastery') * 0.03;
+        const xpFromStalker = lvl('stalker_scout') * 0.05 + lvl('stalker_experience') * 0.05 + lvl('stalker_mastery') * 0.03;
+        const extraResourcePct = lvl('stalker_harvest') * 0.05 + lvl('stalker_mastery') * 0.03;
+        const doubleLootChance = lvl('stalker_double') * 0.03 + lvl('stalker_mastery') * 0.03;
+        const lootQualityFromStalker = lvl('stalker_quality') * 0.03 + lvl('stalker_mastery') * 0.03;
+
+        const traderCapMulti = lvl('trader_capstone') > 0 ? 0.15 : 0;
+        const stalkerCapMulti = lvl('stalker_capstone') > 0 ? 0.20 : 0;
+        const stalkerCapLoot = lvl('stalker_capstone') > 0 ? 0.30 : 0;
+        const stalkerCapDouble = lvl('stalker_capstone') > 0 ? 0.05 : 0;
+        const traderCapSlots = lvl('trader_capstone') > 0 ? 2 : 0;
+
+        const capChipBonus = lvl('stalker_capstone') > 0 ? 0.20 : 0;
+        const capXpBonus = lvl('stalker_capstone') > 0 ? 0.20 : 0;
+
+        return {
+          buyDiscount: Math.min(0.9, buyDiscount * (1 + traderCapMulti)),
+          sellBonus: sellBonus * (1 + traderCapMulti),
+          extraShopSlots: extraShopSlots + traderCapSlots,
+          refreshDiscount: Math.min(0.9, refreshDiscount * (1 + traderCapMulti)),
+          chipMultiplier: 1 + chipBonus * (1 + traderCapMulti) + chipFromStalker * (1 + stalkerCapMulti) + capChipBonus,
+          xpMultiplier: 1 + xpFromStalker * (1 + stalkerCapMulti) + capXpBonus,
+          extraLootChance: extraLootChance * (1 + stalkerCapMulti) + stalkerCapLoot,
+          extraResourcePct: extraResourcePct * (1 + stalkerCapMulti),
+          doubleLootChance: Math.min(0.9, doubleLootChance * (1 + stalkerCapMulti) + stalkerCapDouble),
+          lootQualityBonus: lootQualityBonus * (1 + traderCapMulti) + lootQualityFromStalker * (1 + stalkerCapMulti),
+          utilityMultiplier: 1,
+        };
       },
 
       useConsumable: (item) => {
@@ -1003,15 +1060,21 @@ export const usePlayerStore = create<PlayerStore>()(
       endCombat: (playerWon, enemyWon) => {
         const s = get();
         if (playerWon) {
-          const expReward = Math.floor(s.combat.enemyExpReward * (1 + s.level * 0.1));
-          const chipReward = s.combat.enemyChipReward;
+          const util = get().skillUtility();
+          const expReward = Math.floor(s.combat.enemyExpReward * (1 + s.level * 0.1) * util.xpMultiplier);
+          const chipReward = Math.floor(s.combat.enemyChipReward * util.chipMultiplier);
           get().addLog(`🏆 ПОБЕДА! +${expReward} опыта, +${chipReward} чипов`, 'loot');
           get().addExp(expReward);
           get().addChips(chipReward);
           // Stamina cost: 10% of max
           set((state) => ({ stats: { ...state.stats, stamina: Math.max(0, state.stats.stamina - state.stats.maxStamina * 0.1) } }));
 
-          const lootItems = generateLoot(GAME_ITEMS, s.level);
+          const lootItems = generateLoot(GAME_ITEMS, s.level, {
+            bonusQuality: util.lootQualityBonus,
+            extraItemChance: util.extraLootChance,
+            extraResourcePct: util.extraResourcePct,
+            doubleLootChance: util.doubleLootChance,
+          });
           if (lootItems.length > 0) {
             get().addLog(`🎒 Добыто ${lootItems.length} предмет(ов): ${lootItems.map((li) => li.displayName).join(', ')}`, 'loot');
             lootItems.forEach((li) => useInventoryStore.getState().addItem(li));

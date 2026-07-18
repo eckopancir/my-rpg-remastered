@@ -123,13 +123,16 @@ export const Bazaar = () => {
   const addItem = useInventoryStore((s) => s.addItem);
   const inventoryItems = useInventoryStore((s) => s.items);
   const removeItem = useInventoryStore((s) => s.removeItem);
+  const getUtil = () => usePlayerStore.getState().skillUtility();
+  const applyBuyDiscount = (price: number) => Math.floor(price * (1 - getUtil().buyDiscount));
+  const applySellBonus = (price: number) => Math.floor(price * (1 + getUtil().sellBonus));
   const [tab, setTab] = useState<'buy' | 'sell'>('buy');
   const [shopTab, setShopTab] = useState<'all' | 'weapons' | 'armor' | 'consumables' | 'mods' | 'resources'>('all');
   const [sortKey, setSortKey] = useState<SortKey>('price');
   const [sortAsc, setSortAsc] = useState(false);
 
   // Sell slots
-  const [sellSlots, setSellSlots] = useState<(Item | null)[]>(() => Array(SELL_SLOT_COUNT).fill(null));
+  const [sellSlots, setSellSlots] = useState<(Item | null)[]>(() => Array(SELL_SLOT_COUNT + getUtil().extraShopSlots).fill(null));
 
   const SHOP_VERSION = 2;
   const [shopItems, setShopItems] = useState<ShopItem[]>(() => {
@@ -197,7 +200,8 @@ export const Bazaar = () => {
   }, [sortedShop, shopTab]);
 
   const handleBuy = (shopItem: ShopItem) => {
-    if (!spendChips(shopItem.price)) {
+    const buyPrice = applyBuyDiscount(shopItem.price);
+    if (!spendChips(buyPrice)) {
       addLog(`❌ Недостаточно чипов для покупки ${shopItem.name} (${shopItem.price} 💾)`, 'warning');
       return;
     }
@@ -228,7 +232,8 @@ export const Bazaar = () => {
         type: shopItem.type,
       });
     }
-    addLog(`🛒 Куплено: ${shopItem.displayName || shopItem.name} за ${shopItem.price} 💾`, 'loot');
+    const buyPrice = applyBuyDiscount(shopItem.price);
+    addLog(`🛒 Куплено: ${shopItem.displayName || shopItem.name} за ${buyPrice} 💾`, 'loot');
     setShopItems((prev) => prev.filter((i) => i.id !== shopItem.id));
   };
 
@@ -260,7 +265,8 @@ export const Bazaar = () => {
   };
 
   const totalSellValue = useMemo(() => {
-    return sellSlots.reduce((sum, item) => sum + (item ? getSellPrice(item) : 0), 0);
+    const bonus = getUtil().sellBonus;
+    return sellSlots.reduce((sum, item) => sum + (item ? Math.floor(getSellPrice(item) * (1 + bonus)) : 0), 0);
   }, [sellSlots]);
 
   const [hoveredShopItem, setHoveredShopItem] = useState<ShopItem | null>(null);
@@ -273,7 +279,7 @@ export const Bazaar = () => {
     if (total <= 0) return;
     addChips(total);
     addLog(`💰 Продано ${sellSlots.filter(Boolean).length} предмет(ов) за ${total} 💾`, 'loot');
-    setSellSlots(Array(SELL_SLOT_COUNT).fill(null));
+    setSellSlots(Array(SELL_SLOT_COUNT + getUtil().extraShopSlots).fill(null));
   };
 
   return (
@@ -294,7 +300,8 @@ export const Bazaar = () => {
               {Math.floor(refreshTimer / 60)}:{(refreshTimer % 60).toString().padStart(2, '0')}
             </span>
             <Button size="sm" variant="ghost" onClick={() => {
-              const cost = 50 + playerLevel * 10;
+              const baseCost = 50 + playerLevel * 10;
+              const cost = Math.floor(baseCost * (1 - getUtil().refreshDiscount));
               if (!spendChips(cost)) {
                 addLog(`❌ Недостаточно 💾 для обновления. Нужно ${cost} 💾`, 'warning');
                 return;
@@ -306,7 +313,7 @@ export const Bazaar = () => {
               localStorage.setItem(SHOP_REFRESH_KEY, String(Date.now()));
               addLog(`🔄 Базар обновлён за ${cost} 💾`, 'info');
             }}>
-              🔄 {50 + playerLevel * 10}💾
+              🔄 {Math.floor((50 + playerLevel * 10) * (1 - getUtil().refreshDiscount))}💾
             </Button>
           </div>
         </div>
@@ -393,10 +400,10 @@ export const Bazaar = () => {
                     variant="primary"
                     size="sm"
                     onClick={() => handleBuy(item)}
-                    disabled={dataChips < item.price}
+                    disabled={dataChips < applyBuyDiscount(item.price)}
                     style={{ width: '100%', fontSize: 10, padding: '3px 6px' }}
                   >
-                    {item.price} 💾
+                    {applyBuyDiscount(item.price)} 💾
                   </Button>
                 </div>
               ))}

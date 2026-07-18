@@ -4,6 +4,8 @@ import { Button } from '../components/ui/Button';
 import { usePlayerStore } from '../stores/playerStore';
 import { SKILL_CLASSES, type SkillDef } from '../data/skills';
 
+const HALF = Math.ceil(SKILL_CLASSES.length / 2);
+
 const formatCumulative = (stats: string[], level: number): string => {
   return stats.map((s) => {
     const m = s.match(/^([+-]\d+(?:\.\d+)?)(.*)$/);
@@ -67,7 +69,7 @@ export const Skills = () => {
         }}>
           {/* Row 1: classes 0-4 */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {SKILL_CLASSES.slice(0, 5).map((cls) => {
+            {SKILL_CLASSES.slice(0, HALF).map((cls) => {
             const combined = { ...skills };
             for (const sk of cls.skills) {
               const p = pendingSkills[sk.id] || 0;
@@ -168,7 +170,7 @@ export const Skills = () => {
             </div>
             {/* Row 2: classes 5-9 */}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {SKILL_CLASSES.slice(5, 10).map((cls) => {
+              {SKILL_CLASSES.slice(HALF).map((cls) => {
                 const combined = { ...skills };
                 for (const sk of cls.skills) {
                   const p = pendingSkills[sk.id] || 0;

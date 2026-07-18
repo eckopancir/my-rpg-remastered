@@ -1,10 +1,17 @@
 import { generateItem, type ItemDefinition } from './items';
 import { GAME_RESOURCES } from '../data/GameItems';
 
+export interface LootOptions {
+  bonusQuality?: number;
+  extraItemChance?: number;
+  extraResourcePct?: number;
+  doubleLootChance?: number;
+}
+
 export const generateLoot = (
   itemPool: ItemDefinition[],
   enemyLevel: number,
-  bonusQuality = 0.5,
+  options?: LootOptions,
 ): Array<{
   id: string;
   name: string;
@@ -18,8 +25,17 @@ export const generateLoot = (
   type?: string;
   quantity?: number;
 }> => {
+  const {
+    bonusQuality = 0.5,
+    extraItemChance = 0,
+    extraResourcePct = 0,
+    doubleLootChance = 0,
+  } = options ?? {};
+
   const items: Array<any> = [];
-  const count = Math.floor(Math.random() * 3) + 1;
+  let count = Math.floor(Math.random() * 3) + 1;
+  if (Math.random() < extraItemChance) count += 1;
+  if (Math.random() < extraItemChance && Math.random() < doubleLootChance) count += 1;
 
   for (let i = 0; i < count; i++) {
     const drop = generateItem(itemPool, enemyLevel);
@@ -27,10 +43,12 @@ export const generateLoot = (
   }
 
   // Resource drops
-  const resourceCount = Math.floor(Math.random() * 3) + 1;
+  let resourceCount = Math.floor(Math.random() * 3) + 1;
+  resourceCount += Math.floor(resourceCount * extraResourcePct);
   for (let i = 0; i < resourceCount; i++) {
     const def = GAME_RESOURCES[Math.floor(Math.random() * GAME_RESOURCES.length)];
-    const quantity = Math.floor(Math.random() * 5) + 1;
+    let quantity = Math.floor(Math.random() * 5) + 1;
+    quantity += Math.floor(quantity * extraResourcePct);
     const existing = items.find((it) => it.name === def.name && it.type === 'material');
     if (existing) {
       existing.quantity = (existing.quantity || 1) + quantity;

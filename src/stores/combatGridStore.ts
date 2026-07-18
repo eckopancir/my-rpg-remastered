@@ -700,7 +700,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
       let enemyLoot: any[] = [];
       try {
-        enemyLoot = generateLoot(GAME_ITEMS, player.level).map((item) => ({ ...item, parentEnemyId: i }));
+        const lu = usePlayerStore.getState().skillUtility();
+        enemyLoot = generateLoot(GAME_ITEMS, player.level, {
+          bonusQuality: lu.lootQualityBonus,
+          extraItemChance: lu.extraLootChance,
+          extraResourcePct: lu.extraResourcePct,
+          doubleLootChance: lu.doubleLootChance,
+        }).map((item) => ({ ...item, parentEnemyId: i }));
       } catch (e) { /* ignore */ }
 
       enemies.push({
@@ -1616,7 +1622,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
         let freshLoot: any[] = [];
         try {
-          freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level);
+          const lu = usePlayerStore.getState().skillUtility();
+          freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+            bonusQuality: lu.lootQualityBonus,
+            extraItemChance: lu.extraLootChance,
+            extraResourcePct: lu.extraResourcePct,
+            doubleLootChance: lu.doubleLootChance,
+          });
         } catch (e) { /* ignore */ }
         const screamIdx = Math.floor(Math.random() * 5) + 1;
         playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
@@ -1652,8 +1664,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   finishBattle: () => {
     const state = get();
     const playerStore = usePlayerStore.getState();
-    const expReward = Math.floor(playerStore.combat.enemyExpReward * (1 + playerStore.level * 0.1));
-    const chipReward = playerStore.combat.enemyChipReward;
+    const lu = playerStore.skillUtility();
+    const expReward = Math.floor(playerStore.combat.enemyExpReward * (1 + playerStore.level * 0.1) * lu.xpMultiplier);
+    const chipReward = Math.floor(playerStore.combat.enemyChipReward * lu.chipMultiplier);
     playerStore.addExp(expReward);
     playerStore.addChips(chipReward);
     playerStore.addLog(`🏆 Победа! +${expReward} опыта, +${chipReward} чипов`, 'loot');
