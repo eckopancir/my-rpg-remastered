@@ -812,7 +812,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     slot: 'mod_magazine',
     type: 'mod',
-    stats: { ammoCapacity: 5 },
+    stats: { speed: 0.01 },
   },
   { name: 'Пламегаситель', rarity: 'epic', slot: 'mod_muzzle', type: 'mod', stats: { damage: 1 } },
   {
@@ -1039,7 +1039,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     slot: 'mod_magazine',
     type: 'mod',
-    stats: { ammoCapacity: 10, speed: -0.002 },
+    stats: { speed: 0.02 },
   },
   {
     name: 'Бронебойная обойма',
@@ -1053,7 +1053,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     slot: 'mod_magazine',
     type: 'mod',
-    stats: { ammoCapacity: 15, speed: -0.005, evasion: -0.004 },
+    stats: { speed: 0.03, evasion: -0.004 },
   },
   {
     name: 'Компенсатор',

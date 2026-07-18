@@ -644,14 +644,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     const player = usePlayerStore.getState();
 
-    // Read weapon ammo capacity from equipped weapon2 + mods
+    // Read weapon ammo capacity from equipped weapon2
     const weapon2 = player.equipment.weapon2;
     let ammoCap = weapon2?.ammoCapacity || 30;
-    if (weapon2?.mods) {
-      for (const mod of Object.values(weapon2.mods)) {
-        if (mod?.stats?.ammoCapacity) ammoCap += mod.stats.ammoCapacity;
-      }
-    }
 
     // Override rewards with card values when in card mode
     if (cardRewards) {
@@ -1499,6 +1494,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     if (player.stats.stamina < 0.1 * player.stats.maxStamina) effectiveDps *= 0.5;
 
+    // +30% damage for low-capacity weapons (1-3 rounds)
+    const weapon2 = player.equipment.weapon2;
+    if (weapon2?.ammoCapacity && weapon2.ammoCapacity <= 3) {
+      effectiveDps *= 1.3;
+    }
+
     const attackerStats = {
       dps: effectiveDps,
       crit: player.stats.crit,
@@ -1558,6 +1559,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           effDps = Math.max(effDps, pStats.dpsExtro || 0, pStats.dpsFire || 0);
         }
         if (pStats.stamina < 0.1 * pStats.maxStamina) effDps *= 0.5;
+
+        // +30% damage for low-capacity weapons (1-3 rounds)
+        const pState = usePlayerStore.getState();
+        const w2 = pState.equipment.weapon2;
+        if (w2?.ammoCapacity && w2.ammoCapacity <= 3) {
+          effDps *= 1.3;
+        }
 
         const atkStat = { dps: effDps, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
         const tgtStat = { armor: en.armor, evasion: en.evasion, block: en.block };
@@ -1784,9 +1792,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   reload: () => {
     const state = get();
     if (state.turn !== 'player') return;
-    if (state.ap < 3) { get().addMessage('❌ Нужно 3 AP для перезарядки'); return; }
+    if (state.ap < 2) { get().addMessage('❌ Нужно 2 AP для перезарядки'); return; }
     if (state.ammo >= state.maxAmmo) { get().addMessage('✅ Патроны полны'); return; }
-    set((s) => ({ ap: s.ap - 3, ammo: s.maxAmmo, message: '🔁 Перезарядился (AP -3)' }));
+    set((s) => ({ ap: s.ap - 2, ammo: s.maxAmmo, message: '🔁 Перезарядился (AP -2)' }));
     get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
   },
 

@@ -268,15 +268,15 @@ export const Battle = () => {
               <div
                 onClick={() => { playClick(); playSound('reload'); reload(); }}
                 style={{
-                  padding: '9px', border: `1px solid ${turn !== 'player' || ap < 3 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)'}`,
+                  padding: '9px', border: `1px solid ${turn !== 'player' || ap < 2 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)'}`,
                   background: 'rgba(255,255,255,0.03)',
-                  color: turn !== 'player' || ap < 3 ? 'rgba(255,255,255,0.2)' : '#aaa',
-                  cursor: turn !== 'player' || ap < 3 ? 'not-allowed' : 'pointer',
+                  color: turn !== 'player' || ap < 2 ? 'rgba(255,255,255,0.2)' : '#aaa',
+                  cursor: turn !== 'player' || ap < 2 ? 'not-allowed' : 'pointer',
                   fontSize: 14, textAlign: 'center', textTransform: 'uppercase',
-                  opacity: turn !== 'player' || ap < 3 ? 0.4 : 1,
+                  opacity: turn !== 'player' || ap < 2 ? 0.4 : 1,
                 }}
               >
-                🔁 ПЕРЕЗАРЯДКА (3 AP) [R]
+                🔁 ПЕРЕЗАРЯДКА (2 AP) [R]
               </div>
 
               <div
@@ -675,7 +675,7 @@ export const Battle = () => {
                 const player = usePlayerStore.getState();
                 player.addLog('💀 Поражение... Возвращение на базу.', 'warning');
                 usePlayerStore.setState((st: any) => ({
-                  stats: { ...st.stats, currentHp: Math.floor(st.stats.maxHp * 0.3) },
+                  stats: { ...st.stats, currentHp: 1 },
                   combat: { ...st.combat, isFighting: false },
                 }));
                 useCombatGridStore.getState().cleanup();
