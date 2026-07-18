@@ -23,26 +23,26 @@ interface ModSlotPos {
 const SCALE = 0.78;
 
 const FIREARM_SLOT_POSITIONS: ModSlotPos[] = [
-  { id: 'mod_scope', name: 'Прицел', top: Math.round(13 * SCALE), left: Math.round(153 * SCALE) },
-  { id: 'mod_barrel', name: 'Ствол', top: Math.round(50 * SCALE), left: Math.round(300 * SCALE) },
-  { id: 'mod_receiver', name: 'Ресивер', top: Math.round(90 * SCALE), left: Math.round(200 * SCALE) },
-  { id: 'mod_muzzle', name: 'Дуло', top: Math.round(33 * SCALE), left: Math.round(399 * SCALE) },
-  { id: 'mod_magazine', name: 'Магазин', top: Math.round(170 * SCALE), left: Math.round(90 * SCALE) },
-  { id: 'mod_stock', name: 'Приклад', top: Math.round(88 * SCALE), left: Math.round(90 * SCALE) },
+  { id: 'mod_scope', name: 'Прицел', top: Math.round(93 * SCALE), left: Math.round(193 * SCALE) },
+  { id: 'mod_barrel', name: 'Ствол', top: Math.round(130 * SCALE), left: Math.round(340 * SCALE) },
+  { id: 'mod_receiver', name: 'Ресивер', top: Math.round(170 * SCALE), left: Math.round(240 * SCALE) },
+  { id: 'mod_muzzle', name: 'Дуло', top: Math.round(113 * SCALE), left: Math.round(439 * SCALE) },
+  { id: 'mod_magazine', name: 'Магазин', top: Math.round(250 * SCALE), left: Math.round(130 * SCALE) },
+  { id: 'mod_stock', name: 'Приклад', top: Math.round(168 * SCALE), left: Math.round(130 * SCALE) },
 ];
 
 const COLD_WEAPON_SLOT_POSITIONS: ModSlotPos[] = [
-  { id: 'mod_blade', name: 'Лезвие', top: Math.round(50 * SCALE), left: Math.round(100 * SCALE) },
-  { id: 'mod_handle', name: 'Рукоять', top: Math.round(150 * SCALE), left: Math.round(350 * SCALE) },
-  { id: 'mod_pommel', name: 'Обух', top: Math.round(150 * SCALE), left: Math.round(150 * SCALE) },
-  { id: 'mod_harness', name: 'Крепление', top: Math.round(50 * SCALE), left: Math.round(350 * SCALE) },
+  { id: 'mod_blade', name: 'Лезвие', top: Math.round(130 * SCALE), left: Math.round(140 * SCALE) },
+  { id: 'mod_handle', name: 'Рукоять', top: Math.round(230 * SCALE), left: Math.round(390 * SCALE) },
+  { id: 'mod_pommel', name: 'Обух', top: Math.round(230 * SCALE), left: Math.round(190 * SCALE) },
+  { id: 'mod_harness', name: 'Крепление', top: Math.round(130 * SCALE), left: Math.round(390 * SCALE) },
 ];
 
 const ARMOR_MOD_SLOTS: ModSlotPos[] = [
-  { id: 'mod_lining', name: 'Подкладка', top: Math.round(50 * SCALE), left: Math.round(100 * SCALE) },
-  { id: 'mod_hardshell', name: 'Накладка', top: Math.round(50 * SCALE), left: Math.round(350 * SCALE) },
-  { id: 'mod_utility', name: 'Система', top: Math.round(150 * SCALE), left: Math.round(150 * SCALE) },
-  { id: 'mod_patch', name: 'Усиление', top: Math.round(150 * SCALE), left: Math.round(350 * SCALE) },
+  { id: 'mod_lining', name: 'Подкладка', top: Math.round(130 * SCALE), left: Math.round(140 * SCALE) },
+  { id: 'mod_hardshell', name: 'Накладка', top: Math.round(130 * SCALE), left: Math.round(390 * SCALE) },
+  { id: 'mod_utility', name: 'Система', top: Math.round(230 * SCALE), left: Math.round(190 * SCALE) },
+  { id: 'mod_patch', name: 'Усиление', top: Math.round(230 * SCALE), left: Math.round(390 * SCALE) },
 ];
 
 const STAT_LABELS: Record<string, string> = {

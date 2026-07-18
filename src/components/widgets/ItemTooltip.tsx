@@ -21,7 +21,7 @@ const STAT_LABELS: Record<string, string> = {
 };
 
 const SLOT_LABELS: Record<string, string> = {
-  weapon1: 'Оружие (холодное)', weapon2: 'Оружие (огнестрельное)',
+  weapon1: 'Ближний бой', weapon2: 'Огнестрел',
   head: 'Шлем', armor: 'Броня', gloves: 'Перчатки', boots: 'Ботинки',
   ammo1: 'Патроны 1', ammo2: 'Патроны 2', ammo3: 'Патроны 3', ammo4: 'Патроны 4',
   any: 'Универсально',
@@ -29,6 +29,15 @@ const SLOT_LABELS: Record<string, string> = {
   mod_muzzle: 'Дуло', mod_magazine: 'Магазин', mod_stock: 'Приклад',
   mod_blade: 'Лезвие', mod_handle: 'Рукоять', mod_pommel: 'Обух', mod_harness: 'Крепление',
   mod_lining: 'Подкладка', mod_hardshell: 'Накладка', mod_utility: 'Система', mod_patch: 'Усиление',
+};
+
+const MOD_SLOTS_MAP: Record<string, string[]> = {
+  weapon1: ['mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness'],
+  weapon2: ['mod_scope', 'mod_barrel', 'mod_receiver', 'mod_muzzle', 'mod_magazine', 'mod_stock'],
+  head: ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
+  armor: ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
+  gloves: ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
+  boots: ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
 };
 
 const QUALITY_STARS: Record<string, number> = {
@@ -96,6 +105,9 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
         <span>Lv.{item.level || 1}</span>
         {item.slot && (
           <span>• Слот: {SLOT_LABELS[item.slot] || item.slot}</span>
+        )}
+        {item.slot && MOD_SLOTS_MAP[item.slot] && (
+          <span>• ⚙️{item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>
         )}
       </div>
 
