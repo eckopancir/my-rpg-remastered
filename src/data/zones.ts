@@ -21,7 +21,7 @@ export const ZONES: Zone[] = [
     travelTime: 1, minLevel: 1, rewards: ['Обычные патроны', 'Бинт'],
   },
   {
-    name: 'Военная база', difficulty: 15, className: 'zone-factory',
+    name: 'Заброшенная военная база и окрестности', difficulty: 15, className: 'zone-factory',
     allowedFactions: ['Военные'], description: 'Заброшенная военная база.',
     travelTime: 1, minLevel: 3, rewards: ['Оружие', 'Броня', 'Моды'],
   },

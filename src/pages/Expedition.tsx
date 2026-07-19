@@ -31,7 +31,7 @@ const ENEMY_LABELS: Record<EnemyShortName, string> = {
 export const Expedition = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const zoneName = searchParams.get('zone') || 'Военная база';
+  const zoneName = searchParams.get('zone') || 'Заброшенная военная база и окрестности';
   const addLog = usePlayerStore((s) => s.addLog);
   const addToQueue = useUiStore((s) => s.addToQueue);
   const addToast = useUiStore((s) => s.addToast);

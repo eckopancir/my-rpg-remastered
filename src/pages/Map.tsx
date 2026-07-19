@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
 import { ZONES, type Zone } from '../data/zones';
 import { usePlayerStore } from '../stores/playerStore';
+import { useExplorationStore } from '../stores/explorationStore';
 import militaryBg from '../assets/images/map/military.png';
 
 const LOCKED_ZONES = new Set([
@@ -71,7 +72,12 @@ export const Map = () => {
         >
           {ZONES.filter((z) => z.name !== 'Наша база' && z.name !== 'Базар').map((zone) => {
             const isLocked = LOCKED_ZONES.has(zone.name);
-            const isMilitary = zone.name === 'Военная база';
+            const isMilitary = zone.name === 'Заброшенная военная база и окрестности';
+            const handleAutoExplore = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              useExplorationStore.getState().startExploration(zone.name, zone.difficulty, zone.allowedFactions);
+              navigate(`/explore?zone=${encodeURIComponent(zone.name)}`);
+            };
             return (
               <motion.div
                 key={zone.name}
@@ -140,6 +146,27 @@ export const Map = () => {
                       {f}
                     </span>
                   ))}
+                  {!isLocked && (
+                    <span
+                      onClick={handleAutoExplore}
+                      style={{
+                        padding: '2px 10px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        background: 'rgba(34, 197, 94, 0.15)',
+                        color: '#22c55e',
+                        cursor: 'pointer',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        transition: 'all 150ms ease',
+                        fontFamily: 'var(--wa-font-terminal)',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34, 197, 94, 0.25)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34, 197, 94, 0.15)'; }}
+                    >
+                      🔍 Авто
+                    </span>
+                  )}
                 </div>
               </motion.div>
             );

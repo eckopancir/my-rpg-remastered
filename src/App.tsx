@@ -11,6 +11,8 @@ import { Battle } from './pages/Battle';
 import { Settings } from './pages/Settings';
 import { Skills } from './pages/Skills';
 import { Expedition } from './pages/Expedition';
+import { AutoExploration } from './pages/AutoExploration';
+import { Adventures } from './pages/Adventures';
 import { MusicPlayer } from './components/widgets/MusicPlayer';
 import { InventoryOverlay } from './components/widgets/InventoryOverlay';
 import { useGameLoop } from './hooks/useGameLoop';
@@ -63,7 +65,9 @@ const AppContent = () => {
             <Route path="/" element={<Dashboard />} />
             <Route path="/skills" element={<Skills />} />
           <Route path="/map" element={<Map />} />
+            <Route path="/adventure" element={<Adventures />} />
             <Route path="/expedition" element={<Expedition />} />
+            <Route path="/explore" element={<AutoExploration />} />
             <Route path="/base" element={<Base />} />
             <Route path="/bazaar" element={<Bazaar />} />
             <Route path="/craft" element={<Craft />} />

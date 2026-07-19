@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
+import { useExplorationStore } from '../stores/explorationStore';
 
 export const useGameLoop = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -37,7 +38,13 @@ export const useGameLoop = () => {
         freshUi.processQueue();
       }
 
-      // 4. Rest tick
+      // 4. Exploration tick
+      const exploration = useExplorationStore.getState();
+      if (exploration.isExploring) {
+        exploration.explorationTick();
+      }
+
+      // 5. Rest tick
       if (ui.isResting) {
         const done = player.restTick();
         if (done) {
@@ -46,7 +53,7 @@ export const useGameLoop = () => {
         }
       }
 
-      // 5. Passive regen — faster at base, slower outside
+      // 6. Passive regen — faster at base, slower outside
       if (!player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
         const s = player.stats;
         if (s.currentHp < s.maxHp || s.stamina < s.maxStamina) {
@@ -61,15 +68,15 @@ export const useGameLoop = () => {
         }
       }
 
-      // 6. Active effects tick (skip during combat — ticked per turn in endTurn)
+      // 7. Active effects tick (skip during combat — ticked per turn in endTurn)
       if (player.activeEffects.length > 0 && !player.combat.isFighting) {
         player.tickEffects();
       }
 
-      // 7. Base upgrade tick (works even if Base page is not mounted)
+      // 8. Base upgrade tick (works even if Base page is not mounted)
       player.baseUpgradeTick();
 
-      // 8. Timed items decay — only while not traveling
+      // 9. Timed items decay — only while not traveling
       if (!player.travel.isTraveling && !player.travel.isReturning) {
       const eq = player.equipment;
       for (const slot of ['head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots']) {

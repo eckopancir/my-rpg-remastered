@@ -10,6 +10,7 @@ const navItems = [
   { to: '/', label: '📊 Dashboard' },
   { to: '/skills', label: '⭐ Skills' },
   { to: '/map', label: '🗺️ Map' },
+  { to: '/adventure', label: '🔍 Travel' },
   { to: '/base', label: '🏢 Base' },
   { to: '/bazaar', label: '🏪 Bazaar' },
   { to: '/craft', label: '🔧 CRAFT' },

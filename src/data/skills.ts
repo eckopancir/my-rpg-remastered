@@ -28,7 +28,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'soldier_retaliation', name: 'Возмездие', icon: '⚡', desc: 'Доп. урон', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+4 DMG'] },
       { id: 'soldier_unstoppable', name: 'Неудержимый', icon: '🧱', desc: 'Блок + HP', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+1.5% BLOCK', '+100 HP'] },
       { id: 'soldier_juggernaut', name: 'Танк', icon: '🏰', desc: 'Броня + уклонение', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3 ARM', '+1.5% EVADE'] },
-      { id: 'soldier_capstone', name: 'Герой Пустоши', icon: '👑', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+500 HP', '+5% BLOCK', '+3% SPEED'] },
+      { id: 'soldier_capstone', name: 'Герой Пустоши', icon: '👑', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+500 HP', '+5% BLOCK', '+3% SPEED'] },
     ],
   },
   {
@@ -42,7 +42,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'demo_molotov', name: 'Коктейль', icon: '🧪', desc: 'Урон + точность', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+4 DMG', '+1% ACC'] },
       { id: 'demo_thermo', name: 'Термоядерный', icon: '☢️', desc: 'Огонь + крит', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+5 FIRE', '+1.5% CRIT'] },
       { id: 'demo_fireworks', name: 'Фейерверк', icon: '🎆', desc: 'Скорость + урон', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+1.5% SPEED', '+4 DMG'] },
-      { id: 'demo_capstone', name: 'Апокалипсис', icon: '💀', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+20 FIRE', '+5% CRIT', '+10 DMG'] },
+      { id: 'demo_capstone', name: 'Апокалипсис', icon: '💀', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+20 FIRE', '+5% CRIT', '+10 DMG'] },
     ],
   },
   {
@@ -56,7 +56,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'night_bleeding', name: 'Кровотечение', icon: '🩸', desc: 'Крит + скорость', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+2% CRIT', '+1.5% SPEED'] },
       { id: 'night_dark_mist', name: 'Тёмный туман', icon: '🌫️', desc: 'Уклонение + точность', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2.5% EVADE', '+1.5% ACC'] },
       { id: 'night_death_dance', name: 'Танец смерти', icon: '💃', desc: 'Скорость + крит', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% SPEED', '+2% CRIT'] },
-      { id: 'night_capstone', name: 'Убийца', icon: '🗡️', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+10% CRIT', '+8% EVADE', '+40 DMG'] },
+      { id: 'night_capstone', name: 'Убийца', icon: '🗡️', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+10% CRIT', '+8% EVADE', '+40 DMG'] },
     ],
   },
   {
@@ -70,7 +70,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'arcanist_distortion', name: 'Искажение', icon: '🌀', desc: 'Уклонение + блок', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+1.5% EVADE', '+1.5% BLOCK'] },
       { id: 'arcanist_aura', name: 'Защитная аура', icon: '✨', desc: 'Броня + реген', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3 ARM', '+1 REGEN'] },
       { id: 'arcanist_restoration', name: 'Восстановление', icon: '💖', desc: 'HP + реген', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+150 HP', '+2 REGEN'] },
-      { id: 'arcanist_capstone', name: 'Бессмертный', icon: '♾️', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+500 HP', '+10 REGEN', '+5% BLOCK'] },
+      { id: 'arcanist_capstone', name: 'Бессмертный', icon: '♾️', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+500 HP', '+10 REGEN', '+5% BLOCK'] },
     ],
   },
   {
@@ -84,7 +84,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'occult_necromancy', name: 'Некромантия', icon: '🧟', desc: 'Реген + вампиризм', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+1 REGEN', '+1.5% VAMP'] },
       { id: 'occult_sacrifice', name: 'Жертвоприношение', icon: '🔥', desc: 'Все стихии + крит', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3 всех стихий', '+2% CRIT'] },
       { id: 'occult_demonic', name: 'Демон. сила', icon: '👿', desc: 'Все стихии + вампиризм', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2 всех стихий', '+2% VAMP'] },
-      { id: 'occult_capstone', name: 'Владыка тьмы', icon: '🌑', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+10 всех стихий', '+8% VAMP', '+5% CRIT'] },
+      { id: 'occult_capstone', name: 'Владыка тьмы', icon: '🌑', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+10 всех стихий', '+8% VAMP', '+5% CRIT'] },
     ],
   },
   {
@@ -98,7 +98,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'berserker_berserk', name: 'Берсерк', icon: '😡', desc: 'Урон + крит', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+4 DMG', '+1.5% CRIT'] },
       { id: 'berserker_unleashed', name: 'Необузданность', icon: '💥', desc: 'Броня + урон', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3 ARM', '+4 DMG'] },
       { id: 'berserker_eternal_rage', name: 'Вечная ярость', icon: '☄️', desc: 'Скорость + вампиризм', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% SPD', '+2% VAMP'] },
-      { id: 'berserker_capstone', name: 'Бог войны', icon: '⚔️', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+40 DMG', '+10% CRIT', '+5% VAMP'] },
+      { id: 'berserker_capstone', name: 'Бог войны', icon: '⚔️', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+40 DMG', '+10% CRIT', '+5% VAMP'] },
     ],
   },
   {
@@ -112,7 +112,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'tank_reflect', name: 'Отражение', icon: '🔁', desc: 'Блок + урон', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+1.5% BLOCK', '+2 DMG'] },
       { id: 'tank_immortal', name: 'Бессмертный', icon: '♾️', desc: 'HP + реген', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+200 HP', '+1 REGEN'] },
       { id: 'tank_paladin', name: 'Паладин', icon: '✝️', desc: 'Броня + вампиризм', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3 ARM', '+1.5% VAMP'] },
-      { id: 'tank_capstone', name: 'Колосс', icon: '🗿', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+1000 HP', '+15 ARM', '+5% BLOCK'] },
+      { id: 'tank_capstone', name: 'Колосс', icon: '🗿', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+1000 HP', '+15 ARM', '+5% BLOCK'] },
     ],
   },
   {
@@ -126,7 +126,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'sniper_executioner', name: 'Палач', icon: '🔪', desc: 'Урон + крит', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+6 DMG', '+1.5% CRIT'] },
       { id: 'sniper_armor_piercing', name: 'Бронебойность', icon: '💠', desc: 'Пробитие + урон', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% PUNCH', '+4 DMG'] },
       { id: 'sniper_nerves_steel', name: 'Стальные нервы', icon: '🧊', desc: 'Меткость + скорость', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% ACC', '+1.5% SPD'] },
-      { id: 'sniper_capstone', name: 'Легенд. стрелок', icon: '🏆', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+30 DMG', '+10% CRIT', '+10% ACC'] },
+      { id: 'sniper_capstone', name: 'Легенд. стрелок', icon: '🏆', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+30 DMG', '+10% CRIT', '+10% ACC'] },
     ],
   },
   {
@@ -140,7 +140,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'survivor_camouflage', name: 'Камуфляж', icon: '🌿', desc: 'Уклонение + меткость', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+2% EVADE', '+1.5% ACC'] },
       { id: 'survivor_windrunner', name: 'Быстроногий', icon: '💨', desc: 'Скорость + уклонение', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% SPD', '+2% EVADE'] },
       { id: 'survivor_revitalize', name: 'Восстановление', icon: '💚', desc: 'Реген + HP', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2 REGEN', '+150 HP'] },
-      { id: 'survivor_capstone', name: 'Мастер выживания', icon: '🌟', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+500 HP', '+10% EVADE', '+10 REGEN'] },
+      { id: 'survivor_capstone', name: 'Мастер выживания', icon: '🌟', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+500 HP', '+10% EVADE', '+10 REGEN'] },
     ],
   },
   {
@@ -154,7 +154,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'merchant_money_talk', name: 'Деньги решают', icon: '💵', desc: 'Скорость + меткость', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+1.5% SPD', '+1.5% ACC'] },
       { id: 'merchant_armored_transport', name: 'Бронетранспорт', icon: '🚛', desc: 'Броня + блок', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3 ARM', '+1.5% BLOCK'] },
       { id: 'merchant_lucky', name: 'Фартовый', icon: '🍀', desc: 'Уклонение + крит', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% EVADE', '+2% CRIT'] },
-      { id: 'merchant_capstone', name: 'Магнат', icon: '👑', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+500 HP', '+10% CRIT', '+10 DMG', '+10% ACC'] },
+      { id: 'merchant_capstone', name: 'Магнат', icon: '👑', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+500 HP', '+10% CRIT', '+10 DMG', '+10% ACC'] },
     ],
   },
   {
@@ -168,7 +168,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'trader_network', name: 'Торговая сеть', icon: '🌐', desc: 'Улучшает скидки и наценки', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+2% ко всем скидкам/наценкам'] },
       { id: 'trader_premium', name: 'Премиум', icon: '⭐', desc: 'Качество добытого лута', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3% качество лута'] },
       { id: 'trader_bulk', name: 'Оптовик', icon: '📦', desc: 'Усиливает все бонусы купца', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% ко всем бонусам'] },
-      { id: 'trader_capstone', name: 'Магнат', icon: '👑', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+15% ко всем бонусам', '+2 слота'] },
+      { id: 'trader_capstone', name: 'Магнат', icon: '👑', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+15% ко всем бонусам', '+2 слота'] },
     ],
   },
   {
@@ -182,7 +182,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'stalker_experience', name: 'Опыт', icon: '📈', desc: 'Больше опыта со всех боёв', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+5% XP'] },
       { id: 'stalker_quality', name: 'Качество', icon: '💎', desc: 'Качество добытого лута', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3% качество'] },
       { id: 'stalker_mastery', name: 'Мастерство', icon: '🏆', desc: 'Усиливает все бонусы сталкера', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+3% ко всем бонусам'] },
-      { id: 'stalker_capstone', name: 'Легенда', icon: '🌟', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 15, statsPerPoint: ['+30% лут', '+20% XP/чипы', '+5% шанс двойного'] },
+      { id: 'stalker_capstone', name: 'Легенда', icon: '🌟', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+30% лут', '+20% XP/чипы', '+5% шанс двойного'] },
     ],
   },
 ];

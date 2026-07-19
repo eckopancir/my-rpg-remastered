@@ -1,5 +1,6 @@
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useExplorationStore } from '../../stores/explorationStore';
 import { ProgressBar } from '../ui/ProgressBar';
 import styles from './Sidebar.module.css';
 
@@ -68,7 +69,6 @@ export const Sidebar = () => {
               </div>
             ))
           )}
-        </div>
       </div>
 
       <div className={styles.section}>
@@ -92,6 +92,81 @@ export const Sidebar = () => {
           ))
         )}
       </div>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>📡 Экспедиция</div>
+      </div>
+      <ExplorationMiniLog />
     </aside>
   );
+};
+
+const ExplorationMiniLog = () => {
+  const isExploring = useExplorationStore((s) => s.isExploring);
+  const phase = useExplorationStore((s) => s.phase);
+  const eventLog = useExplorationStore((s) => s.eventLog);
+  const zoneName = useExplorationStore((s) => s.zoneName);
+  const timeLeft = useExplorationStore((s) => s.timeLeft);
+
+  if (!isExploring && eventLog.length === 0) {
+    return (
+      <div className={styles.logs}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>
+          Нет активных исследований
+        </div>
+      </div>
+    );
+  }
+
+  const phaseIcon = phase === 'travel_out' ? '🚀' : phase === 'exploring' ? '🔍' : phase === 'travel_back' ? '🏠' : '✅';
+  const recentLogs = eventLog.slice(-5);
+
+  return (
+    <div className={styles.logs}>
+      {zoneName && (
+        <div style={{ fontSize: 11, color: 'var(--accent-primary)', marginBottom: 4, fontWeight: 600 }}>
+          {phaseIcon} {zoneName} — {timeLeft}с
+        </div>
+      )}
+      {recentLogs.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>
+          В пути...
+        </div>
+      ) : (
+        [...recentLogs].reverse().map((log) => (
+          <div
+            key={log.id}
+            style={{
+              fontSize: 11,
+              color: 'var(--text-secondary)',
+              padding: '2px 0',
+              lineHeight: 1.4,
+              borderLeft: `2px solid ${getExplorationColor(log.type)}`,
+              paddingLeft: 6,
+              marginBottom: 2,
+            }}
+          >
+            {log.text.length > 80 ? log.text.slice(0, 80) + '...' : log.text}
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+
+const getExplorationColor = (type: string): string => {
+  switch (type) {
+    case 'combat': return '#f87171';
+    case 'loot': return '#fb923c';
+    case 'damage': return '#ef4444';
+    case 'heal': return '#4ade80';
+    case 'chips': return '#fbbf24';
+    case 'xp': return '#818cf8';
+    case 'trade': return '#34d399';
+    case 'story': return '#60a5fa';
+    case 'discovery': return '#a78bfa';
+    case 'danger': return '#f97316';
+    default: return '#94a3b8';
+  }
 };

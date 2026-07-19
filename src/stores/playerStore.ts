@@ -125,6 +125,7 @@ interface PlayerStore {
   travel: TravelState; combat: CombatState;
   logs: LogEntry[]; logIdCounter: number;
   powerBreakdown: PowerBreakdown;
+  explorationDeathTimestamp: number;
 
   addLog: (msg: string, type?: LogEntry['type']) => void;
   clearLogs: () => void;
@@ -160,7 +161,7 @@ interface PlayerStore {
   startReturnHome: () => void;
   returnHomeTick: () => void;
 
-  startCombat: (zoneDifficulty: number) => void;
+  startCombat: (zoneDifficulty: number, silent?: boolean) => void;
   combatTick: () => { enemyDefeated: boolean; playerDefeated: boolean };
   endCombat: (playerWon: boolean, enemyWon: boolean) => void;
   rest: () => void;
@@ -313,6 +314,7 @@ export const usePlayerStore = create<PlayerStore>()(
       logIdCounter: 1,
       accessoryAbilities: [],
       powerBreakdown: { offensiveScore: 0, defensiveScore: 0, abilityItems: [], itemPowers: [] },
+      explorationDeathTimestamp: 0,
 
       addLog: (msg, type = 'info') => set((s) => ({
         logs: pruneLogs([...s.logs, { id: s.logIdCounter, message: msg, type, ts: Date.now() }]).slice(-LOG_MAX_IN_MEMORY),
@@ -986,7 +988,7 @@ export const usePlayerStore = create<PlayerStore>()(
         }
       },
 
-      startCombat: (zoneDifficulty) => {
+      startCombat: (zoneDifficulty, silent) => {
         const playerLevel = get().level;
         const enemyData = generateEnemy(playerLevel, zoneDifficulty);
         const enemyName = ('name' in enemyData ? (enemyData as any).name : 'Враг') || 'Враг';
@@ -1010,7 +1012,7 @@ export const usePlayerStore = create<PlayerStore>()(
             turnCount: 0,
           },
         });
-        get().addLog(`⚔️ ВСТРЕЧА! ${enemyName} (фракция: ${enemyData.faction || 'Неизвестно'})`, 'damage');
+        if (!silent) get().addLog(`⚔️ ВСТРЕЧА! ${enemyName} (фракция: ${enemyData.faction || 'Неизвестно'})`, 'damage');
       },
 
       combatTick: () => {
@@ -1135,6 +1137,7 @@ export const usePlayerStore = create<PlayerStore>()(
         baseUpgrades: state.baseUpgrades,
         skillPoints: state.skillPoints, skills: state.skills, pendingSkills: state.pendingSkills,
         logs: pruneLogs(state.logs).slice(-LOG_MAX_SAVED), logIdCounter: state.logIdCounter,
+        explorationDeathTimestamp: state.explorationDeathTimestamp,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) state.recalcStats();

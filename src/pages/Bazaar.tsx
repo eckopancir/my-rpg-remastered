@@ -232,7 +232,6 @@ export const Bazaar = () => {
         type: shopItem.type,
       });
     }
-    const buyPrice = applyBuyDiscount(shopItem.price);
     addLog(`🛒 Куплено: ${shopItem.displayName || shopItem.name} за ${buyPrice} 💾`, 'loot');
     setShopItems((prev) => prev.filter((i) => i.id !== shopItem.id));
   };
