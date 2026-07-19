@@ -2081,7 +2081,6 @@ const renderEffects = (effects: EventEffects): string => {
   if (effects.damagePercent && effects.damagePercent > 0) parts.push(`💥-${Math.round(effects.damagePercent * 100)}%`);
   if (effects.heal && effects.heal > 0) parts.push(`💚+${effects.heal}`);
   if (effects.healPercent && effects.healPercent > 0) parts.push(`💚+${Math.round(effects.healPercent * 100)}%`);
-  if (effects.itemCount && effects.itemCount > 0) parts.push(`📦+${effects.itemCount}`);
   if (effects.combat) parts.push('⚔️');
   return parts.length > 0 ? `\n${parts.join(' ')}` : '';
 };

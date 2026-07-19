@@ -33,6 +33,8 @@ export const AutoExploration = () => {
   const totalChips = useExplorationStore((s) => s.totalChipsGained);
   const totalExp = useExplorationStore((s) => s.totalExpGained);
   const totalItems = useExplorationStore((s) => s.totalItemsGained);
+  const isInfinite = useExplorationStore((s) => s.isInfinite);
+  const tickCounter = useExplorationStore((s) => s.expeditionTickCounter);
   const cancelExploration = useExplorationStore((s) => s.cancelExploration);
   const addLog = usePlayerStore((s) => s.addLog);
 
@@ -43,23 +45,29 @@ export const AutoExploration = () => {
     return null;
   }
 
-  const totalTrip = travelTime * 2;
-  const progress = phase === 'travel_out'
-    ? ((travelTime - timeLeft) / totalTrip) * 100
-    : phase === 'exploring'
-      ? (travelTime / totalTrip) * 100 + ((travelTime - timeLeft) / totalTrip) * 100
-      : phase === 'travel_back'
-        ? ((travelTime * 2 - timeLeft) / totalTrip) * 100
-        : 100;
+  // Display: countdown for travel phases, elapsed for infinite exploring
+  const exploringElapsed = tickCounter - travelTime; // seconds since exploring started
+  const displayTime = isInfinite && phase === 'exploring' ? exploringElapsed : timeLeft;
+  const timeLabel = isInfinite && phase === 'exploring' ? 'прошло' : 'осталось';
+
+  const showProgress = !isInfinite || phase !== 'exploring';
+  const totalTrip = travelTime * 3;
+  const progress = !showProgress ? 0
+    : phase === 'travel_out'
+      ? ((travelTime - timeLeft) / totalTrip) * 100
+      : phase === 'exploring'
+        ? (travelTime / totalTrip) * 100 + ((travelTime - timeLeft) / totalTrip) * 100
+        : phase === 'travel_back'
+          ? ((travelTime * 3 - timeLeft) / totalTrip) * 100
+          : 100;
 
   const handleCancel = () => {
     cancelExploration();
+    const nextPhase = useExplorationStore.getState().phase;
     addLog('🛑 Возвращение на базу досрочно.', 'warning');
-    navigate('/map');
-  };
-
-  const handleFinish = () => {
-    navigate('/map');
+    if (nextPhase !== 'travel_back') {
+      navigate('/map');
+    }
   };
 
   // Time formatting
@@ -98,14 +106,16 @@ export const AutoExploration = () => {
           </div>
         </div>
 
-        <ProgressBar
-          value={Math.round(progress)}
-          max={100}
-          variant="accent"
-        />
+        {showProgress ? (
+          <ProgressBar value={Math.round(progress)} max={100} variant="accent" />
+        ) : (
+          <div style={{ height: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: '100%', background: 'linear-gradient(90deg, rgba(20,184,166,0.3), rgba(20,184,166,0.1))', borderRadius: 6, animation: 'pulse 2s ease-in-out infinite' }} />
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-          <span>⏱ {timeLeft} сек</span>
+          <span>⏱ {timeLabel} {displayTime}с</span>
           <span>💾 +{totalChips}</span>
           <span>⚡ +{totalExp}</span>
           {totalItems > 0 && <span>📦 +{totalItems}</span>}
@@ -153,42 +163,22 @@ export const AutoExploration = () => {
         )}
 
         <div style={{ display: 'flex', gap: 12, marginTop: 12, justifyContent: 'flex-end' }}>
-          {phase !== 'complete' && (
-            <button
-              onClick={handleCancel}
-              style={{
-                padding: '8px 24px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--accent-danger)',
-                background: 'transparent',
-                color: 'var(--accent-danger)',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 500,
-                fontFamily: 'var(--wa-font-terminal)',
-              }}
-            >
-              🔴 Отмена
-            </button>
-          )}
-          {phase === 'complete' && (
-            <button
-              onClick={handleFinish}
-              style={{
-                padding: '8px 24px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--accent-success)',
-                background: 'transparent',
-                color: 'var(--accent-success)',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 500,
-                fontFamily: 'var(--wa-font-terminal)',
-              }}
-            >
-              ✅ На карту
-            </button>
-          )}
+          <button
+            onClick={handleCancel}
+            style={{
+              padding: '8px 24px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--accent-danger)',
+              background: 'transparent',
+              color: 'var(--accent-danger)',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 500,
+              fontFamily: 'var(--wa-font-terminal)',
+            }}
+          >
+            🔴 Отмена
+          </button>
         </div>
       </WapPanel>
     </motion.div>

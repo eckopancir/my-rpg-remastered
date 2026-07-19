@@ -146,7 +146,7 @@ export const Map = () => {
                       {f}
                     </span>
                   ))}
-                  {!isLocked && (
+                  {!isLocked && !isMilitary && (
                     <span
                       onClick={handleAutoExplore}
                       style={{

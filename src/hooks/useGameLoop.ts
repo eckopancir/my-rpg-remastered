@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
-import { useExplorationStore } from '../stores/explorationStore';
+import { useExplorationStore, catchUpExploration } from '../stores/explorationStore';
 
 export const useGameLoop = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    catchUpExploration();
+
     intervalRef.current = setInterval(() => {
       const player = usePlayerStore.getState();
       const ui = useUiStore.getState();

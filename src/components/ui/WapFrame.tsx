@@ -19,7 +19,7 @@ export const WapFrame = ({
   style,
 }: WapFrameProps) => (
   <div
-    className={`${styles.frame} ${styles[`border-${border}`]} ${styles[`corners-${corners}`]} ${styles[`glow-${glow}`]} ${className}`}
+    className={`${styles.frame} ${styles[`border-${border}`]} ${corners !== 'none' ? styles[`corners-${corners}`] : ''} ${glow !== 'none' ? styles[`glow-${glow}`] : ''} ${className}`}
     style={style}
   >
     <div className={styles.cornerTL} />

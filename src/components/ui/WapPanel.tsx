@@ -19,7 +19,7 @@ export const WapPanel = ({
   style,
 }: WapPanelProps) => (
   <div
-    className={`${styles.panel} ${styles[variant]} ${styles[`glow-${glow}`]} ${styles[`pad-${padding}`]} ${className}`}
+    className={`${styles.panel} ${styles[variant]} ${glow !== 'none' ? styles[`glow-${glow}`] : ''} ${styles[`pad-${padding}`]} ${className}`}
     style={style}
   >
     {children}

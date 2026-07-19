@@ -27,6 +27,17 @@ export const Sidebar = () => {
   const craftingTimer = useUiStore((s) => s.craftingTimer);
   const craftingType = useUiStore((s) => s.craftingType);
   const craftingLabel = useUiStore((s) => s.craftingLabel);
+  const isExploring = useExplorationStore((s) => s.isExploring);
+  const expZoneName = useExplorationStore((s) => s.zoneName);
+  const phase = useExplorationStore((s) => s.phase);
+  const isInfinite = useExplorationStore((s) => s.isInfinite);
+  const tickCounter = useExplorationStore((s) => s.expeditionTickCounter);
+  const travelTime = useExplorationStore((s) => s.travelTime);
+  const expTimeLeft = useExplorationStore((s) => s.timeLeft);
+  const expChips = useExplorationStore((s) => s.totalChipsGained);
+  const expExp = useExplorationStore((s) => s.totalExpGained);
+  const expItems = useExplorationStore((s) => s.totalItemsGained);
+
 
   const craftingMax = craftingType === 'merge' ? 10 : craftingType === 'create' ? 5 : craftingType === 'upgrade' ? 60 : 0;
   const craftingIcon = craftingType === 'merge' ? '⬆️' : craftingType === 'create' ? '⚙️' : craftingType === 'upgrade' ? '🏢' : '';
@@ -34,9 +45,29 @@ export const Sidebar = () => {
 
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>Журнал заданий ({queue.length + (craftingTimer > 0 ? 1 : 0)})</div>
+      <div className={styles.section} style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div className={styles.sectionTitle}>Журнал заданий ({queue.length + (craftingTimer > 0 ? 1 : 0) + (isExploring ? 1 : 0)})</div>
         <div className={styles.queue}>
+          {isExploring && (
+            <div className={`${styles.queueItem} ${styles.queueItemActive}`}>
+              <div style={{ fontWeight: 600, color: 'var(--accent-primary)', fontSize: 12 }}>
+                📡 {expZoneName}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)', marginBottom: 2 }}>
+                {isInfinite && phase === 'exploring' ? `⏱ прошло ${tickCounter - travelTime}с` : `⏱ осталось ${expTimeLeft}с`} · {phase === 'travel_out' ? 'выезд' : phase === 'exploring' ? 'в зоне' : phase === 'travel_back' ? 'возврат' : 'завершено'}
+              </div>
+              {expChips + expExp + expItems > 0 && (
+                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>
+                  {expChips > 0 && `💾+${expChips} `}{expExp > 0 && `⚡+${expExp} `}{expItems > 0 && `📦+${expItems}`}
+                </div>
+              )}
+              <ProgressBar
+                value={expChips + expExp + expItems > 0 ? Math.min(100, (expChips + expExp + expItems) % 100) : 0}
+                max={100}
+                variant="accent"
+              />
+            </div>
+          )}
           {craftingTimer > 0 && (
             <div className={`${styles.queueItem} ${styles.queueItemActive}`}>
               <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12 }}>
@@ -52,7 +83,7 @@ export const Sidebar = () => {
               />
             </div>
           )}
-          {queue.length === 0 && craftingTimer === 0 ? (
+          {!isExploring && queue.length === 0 && craftingTimer === 0 ? (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '2px 0', fontFamily: 'var(--wa-font-terminal)' }}>
               Нет активных заданий
             </div>
@@ -93,80 +124,6 @@ export const Sidebar = () => {
         )}
       </div>
       </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>📡 Экспедиция</div>
-      </div>
-      <ExplorationMiniLog />
     </aside>
   );
-};
-
-const ExplorationMiniLog = () => {
-  const isExploring = useExplorationStore((s) => s.isExploring);
-  const phase = useExplorationStore((s) => s.phase);
-  const eventLog = useExplorationStore((s) => s.eventLog);
-  const zoneName = useExplorationStore((s) => s.zoneName);
-  const timeLeft = useExplorationStore((s) => s.timeLeft);
-
-  if (!isExploring && eventLog.length === 0) {
-    return (
-      <div className={styles.logs}>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>
-          Нет активных исследований
-        </div>
-      </div>
-    );
-  }
-
-  const phaseIcon = phase === 'travel_out' ? '🚀' : phase === 'exploring' ? '🔍' : phase === 'travel_back' ? '🏠' : '✅';
-  const recentLogs = eventLog.slice(-5);
-
-  return (
-    <div className={styles.logs}>
-      {zoneName && (
-        <div style={{ fontSize: 11, color: 'var(--accent-primary)', marginBottom: 4, fontWeight: 600 }}>
-          {phaseIcon} {zoneName} — {timeLeft}с
-        </div>
-      )}
-      {recentLogs.length === 0 ? (
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>
-          В пути...
-        </div>
-      ) : (
-        [...recentLogs].reverse().map((log) => (
-          <div
-            key={log.id}
-            style={{
-              fontSize: 11,
-              color: 'var(--text-secondary)',
-              padding: '2px 0',
-              lineHeight: 1.4,
-              borderLeft: `2px solid ${getExplorationColor(log.type)}`,
-              paddingLeft: 6,
-              marginBottom: 2,
-            }}
-          >
-            {log.text.length > 80 ? log.text.slice(0, 80) + '...' : log.text}
-          </div>
-        ))
-      )}
-    </div>
-  );
-};
-
-const getExplorationColor = (type: string): string => {
-  switch (type) {
-    case 'combat': return '#f87171';
-    case 'loot': return '#fb923c';
-    case 'damage': return '#ef4444';
-    case 'heal': return '#4ade80';
-    case 'chips': return '#fbbf24';
-    case 'xp': return '#818cf8';
-    case 'trade': return '#34d399';
-    case 'story': return '#60a5fa';
-    case 'discovery': return '#a78bfa';
-    case 'danger': return '#f97316';
-    default: return '#94a3b8';
-  }
 };

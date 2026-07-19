@@ -5,6 +5,7 @@ import { usePlayerStore } from '../stores/playerStore';
 
 import { useUiStore } from '../stores/uiStore';
 import { useInventoryStore } from '../stores/inventoryStore';
+import { useExplorationStore } from '../stores/explorationStore';
 import { useSound } from '../hooks/useSound';
 import { WapPanel } from '../components/ui/WapPanel';
 import { WapFrame } from '../components/ui/WapFrame';
@@ -384,6 +385,7 @@ export const Dashboard = () => {
             <Button size="sm" variant="success" onClick={() => usePlayerStore.setState((s) => ({ stats: { ...s.stats, currentHp: s.stats.maxHp } }))} style={{ fontSize: 9 }}>❤️ Полное исцеление</Button>
             <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 9 }}>🗑️ Очистить инвентарь</Button>
             <Button size="sm" variant="danger" onClick={() => usePlayerStore.getState().resetLevel()} style={{ fontSize: 9 }}>⬇️ Сброс уровня</Button>
+            <Button size="sm" variant="danger" onClick={() => { useExplorationStore.getState().resetExploration(); usePlayerStore.getState().addLog('🔄 Экспедиция сброшена', 'system'); }} style={{ fontSize: 9 }}>🔄 Сброс экспедиции</Button>
           </div>
         </WapPanel>
       </div>

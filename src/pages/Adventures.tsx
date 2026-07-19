@@ -14,6 +14,12 @@ const LOCKED_ZONES = new Set([
 export const Adventures = () => {
   const navigate = useNavigate();
   const isExploring = useExplorationStore((s) => s.isExploring);
+  const phase = useExplorationStore((s) => s.phase);
+  const zoneName = useExplorationStore((s) => s.zoneName);
+  const timeLeft = useExplorationStore((s) => s.timeLeft);
+  const isInfinite = useExplorationStore((s) => s.isInfinite);
+  const expeditionTickCounter = useExplorationStore((s) => s.expeditionTickCounter);
+  const travelTime = useExplorationStore((s) => s.travelTime);
   const isTraveling = usePlayerStore((s) => s.travel.isTraveling);
   const isReturning = usePlayerStore((s) => s.travel.isReturning);
   const isFighting = usePlayerStore((s) => s.combat.isFighting);
@@ -44,8 +50,39 @@ export const Adventures = () => {
             ⏳ Ты уже в пути или в бою. Дождись завершения.
           </div>
         ) : isExploring ? (
-          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
-            🔍 Исследование уже запущено. Открой карту или страницу исследования.
+          <div
+            style={{
+              textAlign: 'center', padding: 40, color: 'var(--text-secondary)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+            }}
+          >
+            <div style={{ fontSize: 24 }}>🔍</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
+              Исследование активно
+            </div>
+            <div style={{ fontSize: 13 }}>Зона: <b>{zoneName}</b> · Фаза: <b>{phase}</b>{isInfinite && phase === 'exploring'
+              ? ` · Прошло: ${(expeditionTickCounter || 0) - (travelTime || 0)}с`
+              : ` · Осталось: ${timeLeft} сек`}</div>
+            <button
+              onClick={() => navigate('/explore')}
+              style={{
+                marginTop: 8,
+                padding: '10px 28px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--accent-info)',
+                background: 'rgba(96,165,250,0.15)',
+                color: 'var(--accent-info)',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
+                fontFamily: 'var(--wa-font-terminal)',
+                transition: 'all 150ms ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(96,165,250,0.25)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(96,165,250,0.15)'; }}
+            >
+              📋 Перейти к логу экспедиции
+            </button>
           </div>
         ) : (
           <div

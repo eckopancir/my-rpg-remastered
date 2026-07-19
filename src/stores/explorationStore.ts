@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { usePlayerStore } from './playerStore';
 import { useInventoryStore } from './inventoryStore';
 import {
@@ -19,6 +20,7 @@ export interface LegendaryState {
 
 interface ExplorationStore {
   isExploring: boolean;
+  isInfinite: boolean;
   zoneName: string | null;
   zoneDifficulty: number;
   zoneFactions: string[];
@@ -36,9 +38,13 @@ interface ExplorationStore {
 
   legendary: LegendaryState | null;
   hasTriggeredLegendary: boolean;
+  lastTickTimestamp: number;
+  expeditionTickCounter: number;
+  expeditionStartTimestamp: number;
 
   handleExplorationDeath: () => void;
 
+  resetExploration: () => void;
   startExploration: (zoneName: string, difficulty: number, factions: string[]) => void;
   cancelExploration: () => void;
   explorationTick: () => void;
@@ -50,7 +56,7 @@ interface ExplorationStore {
 const TEST_HOUR = 60;
 const TRAVEL_HOURS = 3;
 export const TRAVEL_TIME = TEST_HOUR * TRAVEL_HOURS;
-const TOTAL_TIME = TRAVEL_TIME * 2;
+const TOTAL_TIME = TRAVEL_TIME * 3;
 const EVENT_COOLDOWN_MIN = 12;
 const EVENT_COOLDOWN_MAX = 25;
 const MICRO_COOLDOWN_MIN = 5;
@@ -98,8 +104,11 @@ const applyEffects = (
   return { chipsGained, expGained, totalDamage, totalHeal, damagePercent: effects.damagePercent, healPercent: effects.healPercent };
 };
 
-export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
+export const useExplorationStore = create<ExplorationStore>()(
+  persist(
+    (set, get) => ({
   isExploring: false,
+  isInfinite: false,
   zoneName: null,
   zoneDifficulty: 0,
   zoneFactions: [],
@@ -117,6 +126,9 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
 
   legendary: null,
   hasTriggeredLegendary: false,
+  lastTickTimestamp: 0,
+  expeditionTickCounter: 0,
+  expeditionStartTimestamp: 0,
 
   startExploration: (zoneName, difficulty, factions) => {
     const player = usePlayerStore.getState();
@@ -130,8 +142,10 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
       player.addLog(`💀 Герой ещё не оправился после смерти. Подожди ${remaining} мин.`, 'warning');
       return;
     }
+    const isInfinite = zoneName === 'Заброшенная военная база и окрестности';
     set({
       isExploring: true,
+      isInfinite,
       zoneName,
       zoneDifficulty: difficulty,
       zoneFactions: factions,
@@ -147,20 +161,65 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
       sessionItemIds: [],
       legendary: null,
       hasTriggeredLegendary: false,
+      lastTickTimestamp: Date.now(),
+      expeditionStartTimestamp: Date.now(),
+      expeditionTickCounter: 0,
     });
-    player.addLog(`🚀 Отправляемся в авто-исследование зоны "${zoneName}". Ориентировочное время: ${TOTAL_TIME} сек.`, 'info');
+    const timeMsg = isInfinite ? 'бесконечное (отмена — 30 сек до базы)' : `${TOTAL_TIME} сек`;
+    player.addLog(`🚀 Отправляемся в авто-исследование зоны "${zoneName}". ${timeMsg}.`, 'info');
+  },
+
+  resetExploration: () => {
+    const player = usePlayerStore.getState();
+    if (player.combat.isFighting) {
+      usePlayerStore.setState({ combat: { ...player.combat, isFighting: false } });
+    }
+    set({
+      isExploring: false,
+      isInfinite: false,
+      zoneName: null,
+      zoneDifficulty: 0,
+      zoneFactions: [],
+      phase: 'idle',
+      timeLeft: 0,
+      totalTime: 0,
+      eventLog: [],
+      eventCooldown: 0,
+      microEventCooldown: 0,
+      totalChipsGained: 0,
+      totalExpGained: 0,
+      totalItemsGained: 0,
+      sessionItemIds: [],
+      legendary: null,
+      hasTriggeredLegendary: false,
+      lastTickTimestamp: 0,
+      expeditionTickCounter: 0,
+      expeditionStartTimestamp: 0,
+    });
   },
 
   cancelExploration: () => {
     const player = usePlayerStore.getState();
     const state = get();
+    if (state.isInfinite) {
+      if (player.combat.isFighting) {
+        usePlayerStore.setState({ combat: { ...player.combat, isFighting: false } });
+      }
+      player.addLog(`🛑 Возвращение на базу... 30 сек. Добыто: ${state.totalChipsGained}💾, ${state.totalExpGained}⚡.`, 'warning');
+      set({ phase: 'travel_back', timeLeft: 30, lastTickTimestamp: Date.now() });
+      return;
+    }
     let rewardText = '';
     if (state.totalChipsGained > 0 || state.totalExpGained > 0) {
       rewardText = ` Добыто: ${state.totalChipsGained}💾, ${state.totalExpGained}⚡.`;
     }
     player.addLog(`🛑 Авто-исследование прервано. Возврат на базу.${rewardText}`, 'warning');
+    if (player.combat.isFighting) {
+      usePlayerStore.setState({ combat: { ...player.combat, isFighting: false } });
+    }
     set({
       isExploring: false,
+      isInfinite: false,
       zoneName: null,
       phase: 'idle',
       timeLeft: 0,
@@ -176,7 +235,7 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
 
     // --- 1. Save time first, regardless of what happens next ---
     const newTimeLeft = state.timeLeft - 1;
-    set({ timeLeft: newTimeLeft });
+    set({ timeLeft: newTimeLeft, lastTickTimestamp: Date.now(), expeditionTickCounter: state.expeditionTickCounter + 1 });
 
     // --- 2. Phase transitions ---
     if (state.phase === 'travel_out' && newTimeLeft <= 0) {
@@ -184,11 +243,16 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
         phase: 'exploring',
         timeLeft: TRAVEL_TIME,
         eventCooldown: 0,
+        lastTickTimestamp: Date.now(),
       });
       return;
     }
     if (state.phase === 'exploring' && newTimeLeft <= 0) {
-      set({ phase: 'travel_back', timeLeft: TRAVEL_TIME });
+      if (state.isInfinite) {
+        set({ timeLeft: TRAVEL_TIME, lastTickTimestamp: Date.now() });
+        return;
+      }
+      set({ phase: 'travel_back', timeLeft: TRAVEL_TIME, lastTickTimestamp: Date.now() });
       return;
     }
     if (state.phase === 'travel_back' && newTimeLeft <= 0) {
@@ -234,7 +298,7 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
           id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           text: micro.text,
           type: micro.type,
-          ts: Date.now(),
+          ts: get().expeditionStartTimestamp + get().expeditionTickCounter * 1000,
           chips: micro.effects.chips,
           exp: micro.effects.exp,
           damage: r.totalDamage || micro.effects.damage,
@@ -296,7 +360,7 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
           text: event.text,
           type: event.type,
-          ts: Date.now(),
+          ts: get().expeditionStartTimestamp + get().expeditionTickCounter * 1000,
           chips: event.effects.chips,
           exp: event.effects.exp,
           damage: r2.totalDamage || event.effects.damage,
@@ -309,12 +373,9 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
         };
 
         if (eventItems.length > 0) itemsGained += eventItems.length;
-        if (event.effects.combat) {
-          player.startCombat(fresh.zoneDifficulty, true);
-        }
 
         set({
-          eventLog: [...fresh.eventLog, logEntry],
+          eventLog: [...get().eventLog, logEntry],
           eventCooldown: randCooldown(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX),
           totalChipsGained: chipsGained,
           totalExpGained: expGained,
@@ -350,10 +411,15 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
       `🏁 Авто-исследование "${state.zoneName}" завершено! +${totalExp}⚡ +${totalChips}💾${itemsText}`,
       'loot',
     );
+    if (player.combat.isFighting) {
+      usePlayerStore.setState({ combat: { ...player.combat, isFighting: false } });
+    }
     set({
       isExploring: false,
+      isInfinite: false,
       phase: 'complete',
       timeLeft: 0,
+      lastTickTimestamp: Date.now(),
     });
   },
 
@@ -362,7 +428,7 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
       id: `leg_${Date.now()}`,
       text: event.description,
       type: 'legendary',
-      ts: Date.now(),
+      ts: get().expeditionStartTimestamp + get().expeditionTickCounter * 1000,
       isLegendary: true,
       legendaryTitle: event.title,
       legendaryStage: 0,
@@ -372,7 +438,7 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
         event,
         stageIndex: 0,
         rewards: {},
-        autoResolveAfter: 3, // 3 seconds to read description, then auto-resolve
+        autoResolveAfter: 3,
       },
       eventLog: [...get().eventLog, logEntry],
     });
@@ -426,7 +492,7 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
             id: `leg_fin_${Date.now()}`,
             text: `${event.title} — этап ${stageIndex + 1}/${event.stages.length} ✓\n${stage.successText}\n\n${event.finalRewardText}`,
             type: 'legendary',
-            ts: Date.now(),
+            ts: get().expeditionStartTimestamp + get().expeditionTickCounter * 1000,
             chips: finalRewards.chips,
             exp: finalRewards.exp,
             heal: r.totalHeal || finalRewards.heal,
@@ -444,7 +510,7 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
           id: `leg_stage_${Date.now()}`,
           text: `${event.title} — этап ${stageIndex + 1}/${event.stages.length} ✓\n${stage.successText}`,
           type: 'legendary',
-          ts: Date.now(),
+          ts: get().expeditionStartTimestamp + get().expeditionTickCounter * 1000,
           chips: stageRewards.chips,
           exp: stageRewards.exp,
           heal: stageRewards.heal,
@@ -458,7 +524,7 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
             ...state.legendary,
             stageIndex: stageIndex + 1,
             rewards: newRewards,
-            autoResolveAfter: 3, // 3 seconds to read, then next roll
+            autoResolveAfter: 3,
           },
           eventLog: [...get().eventLog, logEntry],
         });
@@ -476,10 +542,10 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
         totalChipsGained: r.chipsGained,
         totalExpGained: r.expGained,
         eventLog: [...get().eventLog, {
-          id: `leg_fail_${Date.now()}`,
-          text: `${event.title} — провал на этапе ${stageIndex + 1}/${event.stages.length} ✗\n${stage.failText}`,
-          type: 'legendary',
-          ts: Date.now(),
+            id: `leg_fail_${Date.now()}`,
+            text: `${event.title} — провал на этапе ${stageIndex + 1}/${event.stages.length} ✗\n${stage.failText}`,
+            type: 'legendary',
+            ts: get().expeditionStartTimestamp + get().expeditionTickCounter * 1000,
           chips: rewards.chips,
           exp: rewards.exp,
           heal: r.totalHeal || rewards.heal,
@@ -513,8 +579,12 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
 
     player.addLog('💀 Герой потерял сознание от ран. Экспедиция провалена. Весь лут и чипы потеряны.', 'damage');
 
+    if (player.combat.isFighting) {
+      usePlayerStore.setState({ combat: { ...player.combat, isFighting: false } });
+    }
     set({
       isExploring: false,
+      isInfinite: false,
       phase: 'idle',
       timeLeft: 0,
       eventLog: [],
@@ -525,6 +595,82 @@ export const useExplorationStore = create<ExplorationStore>()((set, get) => ({
       totalExpGained: 0,
       totalItemsGained: 0,
       sessionItemIds: [],
+      lastTickTimestamp: Date.now(),
     });
   },
-}));
+    }),
+    {
+      name: 'remastered_exploration',
+      version: 1,
+      partialize: (state) => ({
+        isExploring: state.isExploring,
+        isInfinite: state.isInfinite,
+        zoneName: state.zoneName,
+        zoneDifficulty: state.zoneDifficulty,
+        zoneFactions: state.zoneFactions,
+        phase: state.phase,
+        timeLeft: state.timeLeft,
+        totalTime: state.totalTime,
+        eventCooldown: state.eventCooldown,
+        microEventCooldown: state.microEventCooldown,
+        totalChipsGained: state.totalChipsGained,
+        totalExpGained: state.totalExpGained,
+        totalItemsGained: state.totalItemsGained,
+        sessionItemIds: state.sessionItemIds,
+        eventLog: state.eventLog.slice(-200),
+        legendary: state.legendary,
+        hasTriggeredLegendary: state.hasTriggeredLegendary,
+        lastTickTimestamp: state.lastTickTimestamp,
+        expeditionTickCounter: state.expeditionTickCounter,
+        expeditionStartTimestamp: state.expeditionStartTimestamp,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.isExploring && state.lastTickTimestamp > 0) {
+          setTimeout(() => catchUpExploration(), 0);
+        }
+      },
+    },
+  ),
+);
+
+export function catchUpExploration() {
+  const store = useExplorationStore.getState();
+  if (!store.isExploring || store.phase === 'complete' || store.phase === 'idle') return;
+  if (store.lastTickTimestamp <= 0) return;
+
+  const elapsed = Math.floor((Date.now() - store.lastTickTimestamp) / 1000);
+  if (elapsed <= 0) return;
+
+  const maxTicks = Math.min(elapsed, store.totalTime + 60);
+  const prevChips = store.totalChipsGained;
+  const prevExp = store.totalExpGained;
+  const prevItems = store.totalItemsGained;
+
+  for (let i = 0; i < maxTicks; i++) {
+    const s = useExplorationStore.getState();
+    if (!s.isExploring) break;
+    s.explorationTick();
+  }
+
+  const final = useExplorationStore.getState();
+  const player = usePlayerStore.getState();
+  const chipDiff = final.totalChipsGained - prevChips;
+  const expDiff = final.totalExpGained - prevExp;
+  const itemDiff = final.totalItemsGained - prevItems;
+
+  let msg = `⏰ Возвращение из фона: прошло ${elapsed} сек.`;
+  if (!final.isExploring) {
+    if (player.stats.currentHp <= 0) {
+      msg += ' Герой погиб.';
+    } else if (final.phase === 'complete') {
+      msg += ' Экспедиция завершена.';
+    }
+  } else {
+    msg += ` Экспедиция продолжается (${final.phase}).`;
+  }
+  if (chipDiff > 0) msg += ` +${chipDiff}💾`;
+  if (chipDiff < 0) msg += ` ${chipDiff}💾`;
+  if (expDiff > 0) msg += ` +${expDiff}⚡`;
+  if (itemDiff > 0) msg += `, найдено ${itemDiff} предметов`;
+  player.addLog(msg, 'system');
+}
