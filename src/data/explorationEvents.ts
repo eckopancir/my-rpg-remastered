@@ -221,9 +221,9 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Находка в целости — всё, что здесь было, достаётся нам.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Благодаря [${r[0]}] добираемся до тайника первыми — лут x3.`, noResourceText: `Без [${r[0]}] упаковка не вскрыта — часть пропала.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 3) }), noResourceEffects: () => ({ chips: NC(level, 0) }) },
+        { text: `Находка в целости — всё, что здесь было, достаётся нам.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Благодаря [${r[0]}] добираемся до тайника первыми — лут x3.`, noResourceText: `Без [${r[0]}] упаковка не вскрыта — часть пропала.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 3) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: `Помимо основного, замечаем скрытый тайник в ${zoneLabel}.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3), itemCount: RANGE(1, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] помогают вскрыть тайник без шума — находка x2.`, noResourceText: `Без [${r[1]}] тайник взломан силой — часть испорчена.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: () => ({ itemCount: -1 }) },
-        { text: `Находим ценные сведения — карты, записи, координаты других схронов.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }), resourceCost: r[2], resourceText: `[${r[2]}] пригодились — контейнер распакован. Находка x3.`, noResourceText: `Без [${r[2]}] контейнер взломан — часть испорчена.`, resourceEffects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), noResourceEffects: () => ({ chips: NC(level, 2) }) },
+        { text: `Находим ценные сведения — карты, записи, координаты других схронов.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }), resourceCost: r[2], resourceText: `[${r[2]}] пригодились — контейнер распакован. Находка x3.`, noResourceText: `Без [${r[2]}] контейнер взломан — часть испорчена.`, resourceEffects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 2) }) },
         { text: `Ловушка! Кто-то подстраховал находку. Получаем урон и теряем часть снаряжения.`, weight: 20, effects: (_, level) => ({ damagePercent: 0.08, chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] обезвредили ловушку — урон минимален.`, noResourceText: `[${r[3]}] нет — ловушка сработала в полную силу.`, resourceEffects: () => ({ damagePercent: -0.04 }), noResourceEffects: () => ({ damagePercent: 0.08 }) },
         { text: `Забираем ценное, но приходится уходить под обстрелом.`, weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), chips: C(level, 3) }), resourceCost: r[4], resourceText: `Прикрываясь [${r[4]}] уходим без царапины.`, noResourceText: `Приходится уходить под обстрелом без прикрытия — [${r[4]}] нет, урон полный.`, resourceEffects: () => ({ damagePercent: -0.03 }), noResourceEffects: () => ({ damagePercent: RF(0.02, 0.04) }) },
       ],
@@ -247,7 +247,7 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Предлагаем помощь — нас благодарят и щедро вознаграждают.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[0], resourceText: `Используем [${r[0]}] чтобы помочь — благодарность x3.`, noResourceText: `Нечем помочь — [${r[0]}] нет. Награда скромнее.`, resourceEffects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(1, 2) }), noResourceEffects: () => ({ chips: NC(level, 1) }) },
+        { text: `Предлагаем помощь — нас благодарят и щедро вознаграждают.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[0], resourceText: `Используем [${r[0]}] чтобы помочь — благодарность x3.`, noResourceText: `Нечем помочь — [${r[0]}] нет. Награда скромнее.`, resourceEffects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 1) }) },
         { text: `Рассказываем свою историю. Местные вдохновляются и делятся припасами.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.06), exp: E(level, 4) }), resourceCost: r[1], resourceText: `[${r[1]}] как дар скрепляет дружбу — местные открывают запасы.`, noResourceText: `Без [${r[1]}] история тронула, но припасов не дали.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 3) }), noResourceEffects: () => ({}) },
         { text: `Помогаем в обмен на услугу. Взаимовыручка в ${zoneLabel}.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(1, 2) }), resourceCost: r[2], resourceText: `Оставляем [${r[2]}] в залог — услуга оплачена вдвойне.`, noResourceText: `Без [${r[2]}] услуга без благодарности.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
         { text: `Проявляем наивность — нас обманывают и обкрадывают.`, weight: 20, effects: (_, level) => ({ damagePercent: RF(0.08, 0.12), chips: NC(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] помогли сохранить часть припасов. Потери -50%.`, noResourceText: `Нас обманывают, [${r[3]}] нет — потеряли всё.`, resourceEffects: () => ({ chips: NC(0, 0) }), noResourceEffects: (_, level) => ({ chips: NC(level, 2) }) },
@@ -264,7 +264,7 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
         { text: `Находим способ обезвредить угрозу — сообразительность спасает положение.`, weight: 20, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 4) }), resourceCost: r[1], resourceText: `[${r[1]}] — идеальный инструмент для обезвреживания. Награда x2.`, noResourceText: `Без [${r[1]}] обезвреживаем подручными средствами.`, resourceEffects: (_, level) => ({ chips: C(level, 4), itemCount: 1 }), noResourceEffects: () => ({}) },
         { text: `Опасность закаляет дух. Выходим из передряги сильнее.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.05), exp: E(level, 4) }), resourceCost: r[2], resourceText: `[${r[2]}] укрепляют позиции — меньше урона, больше опыта.`, noResourceText: `Без [${r[2]}] выходим потрёпанными.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), noResourceEffects: () => ({ damagePercent: RF(0.01, 0.03) }) },
         { text: `Опасность оказалась сильнее. Получаем травмы и теряем часть снаряжения.`, weight: 20, effects: (_, level) => ({ damagePercent: 0.12, chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] спасают от худшего — травмы лёгкие.`, noResourceText: `Опасность сильнее, [${r[3]}] нет — урон x2, потери серьёзные.`, resourceEffects: () => ({ damagePercent: -0.06 }), noResourceEffects: () => ({ damagePercent: 0.12 }) },
-        { text: `Выбрались с трудом. Потрёпаны, но с добычей.`, weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), chips: C(level, 3) }), resourceCost: r[4], resourceText: `[${r[4]}] помогли сохранить добычу — ценное уцелело.`, noResourceText: `Без [${r[4]}] добыча рассыпалась — подобрали половину.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({ chips: NC(level, 0) }) },
+        { text: `Выбрались с трудом. Потрёпаны, но с добычей.`, weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), chips: C(level, 3) }), resourceCost: r[4], resourceText: `[${r[4]}] помогли сохранить добычу — ценное уцелело.`, noResourceText: `Без [${r[4]}] добыча рассыпалась — подобрали половину.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
       ],
     };
   }
@@ -522,116 +522,226 @@ const tradeTemplates: EventTemplate[] = [
 // 3. STORY_HELP — good encounters (25 templates)
 // ---------------------------------------------------------------------------
 const helpTemplates: EventTemplate[] = [
-  {
+  // 0
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'На дороге сидит старик. Нога перевязана грязной тряпкой. «Сынок, помоги дойти до посёлка. Отблагодарю, чем смогу». Помогаешь ему дойти — в благодарность он отдаёт старый, но рабочий пистолет и горсть чипов.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3), itemCount: 1 }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Провожаешь старика до посёлка — он сдержал слово, отдал пистолет и чипы.`, weight: 20, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 3) }), resourceCost: r[0], resourceText: `Благодаря [${r[0]}] находим по пути тайник старика — трофеи x3.`, noResourceText: `Без [${r[0]}] ничего лишнего — только то, что обещал.`, resourceEffects: (_, level) => ({ chips: C(level, 3), exp: E(level, 1) }), noResourceEffects: () => ({}) },
+      { text: `По пути старик рассказывает о заброшенном схроне военных — координаты пригодятся.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), itemCount: 1 }), resourceCost: r[1], resourceText: `[${r[1]}] помогают открыть заржавевший люк схрона — лут x2.`, noResourceText: `[${r[1]}] нет — запоминаешь координаты на будущее.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Перевязываешь ногу старика свежим бинтом — рана неглубокая, заживёт быстро.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[2], resourceText: `Накладываешь повязку с [${r[2]}] — старик щедро делится чипами.`, noResourceText: `Бинтов нет — старик терпит, зато советует безопасный маршрут.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
+      { text: `Старик малость прихрамывает — дорога заняла больше времени, чем думали. Устал, но дошёл.`, weight: 20, effects: (_, level) => ({ chips: C(level, 2), exp: E(level, 1) }), resourceCost: r[3], resourceText: `[${r[3]}] подсластили путь — старик в благодарность даёт ещё и оберег.`, noResourceText: `Без [${r[3]}] просто идешь молча — старик экономит силы на разговоры.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `У околицы нас встречают родственники старика. «Спасибо, добрый человек!» — угощают ужином.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] пришёлся к столу — ужин знатный, сил прибавилось.`, noResourceText: `[${r[4]}] нет — угощение скудное, но тёплый приём греет душу.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 1
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Женщина с ребёнком на руках прячется в подвале разрушенного дома. «Муж ушёл за водой и не вернулся…» Ты делишься с ней припасами. В ответ она отдаёт тебе шкатулку с редкими микросхемами.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Оставляешь женщине консервы и воду. Она со слезами благодарит и отдаёт шкатулку с микросхемами.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] пригодился женщине для обмена — она в ответ отдаёт редкую деталь.`, noResourceText: `Без [${r[0]}] она просто берёт припасы — микросхемы твои.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Ребёнок перестаёт плакать, когда даёшь ему галету. Женщина улыбается и даёт тёплое одеяло.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] греет малыша — женщина в благодарность чинит твою куртку.`, noResourceText: `Без [${r[1]}] ребёнок всё равно рад галете — одеяло берёшь с собой.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Женщина рассказывает об окрестностях — указывает на дом, где можно найти припасы.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] помогают открыть запертую дверь в том доме — внутри ценный хабар.`, noResourceText: `Без [${r[2]}] просто запоминаешь координаты на будущее.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
+        { text: `Ребёнок рисует тебе картинку — под ней женщина пишет координаты схрона мужа.`, weight: 20, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] помог разобрать каракули — схрон найден, внутри припасы.`, noResourceText: `Без [${r[3]}] карта схрона остаётся загадкой.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+      { text: `Появляются подозрительные люди — женщина прячется, ты прикрываешь вход. Уходят.`, weight: 15, effects: (_, level) => ({ exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] замаскировал вход — незваные гости прошли мимо.`, noResourceText: `Без [${r[4]}] пришлось прятаться в темноте — отделался испугом.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 2
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Молодой парень копается в двигателе старого грузовика. «Не заведётся, чтоб его!». Помогаешь ему починить — он в благодарность даёт тебе топливо и указывает безопасный путь через болота.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3), healPercent: RF(0.03, 0.05) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Вдвоём чините грузовик — замена свечей и проводки делает своё дело. Двигатель заводится!`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] как раз подошёл для замены — грузовик рычит как зверь! Трофеи x2.`, noResourceText: `Без [${r[0]}] чиним подручными средствами — завелся, но чихает.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
+      { text: `Парень щедро делится топливом из грузовика и рисует карту безопасного пути.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2) }), resourceCost: r[1], resourceText: `С [${r[1]}] канистра полнее — путь через болота короче.`, noResourceText: `Без [${r[1]}] топлива в обрез — путь длиннее, но безопасный.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `В кузове грузовика находишь ящик с консервами и инструментами — парень машет рукой: «Бери, мне не жалко!».`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), itemCount: 1 }), resourceCost: r[2], resourceText: `[${r[2]}] открывает ящик без шума — внутри редкие запчасти.`, noResourceText: `Без [${r[2]}] просто забираешь консервы — тоже неплохо.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Парень оказывается болтливым — рассказывает о бандитской засаде на южной дороге.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[3], resourceText: `[${r[3]}] задобрил парня — он выкладывает все секреты окрестностей.`, noResourceText: `Без [${r[3]}] информация скупая, но полезная.`, resourceEffects: (_, level) => ({ exp: E(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Под капотом оказывается больше проблем, чем думали. Чините кое-как — парень даёт сколько может.`, weight: 15, effects: (_, level) => ({ chips: C(level, 2), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] помог протянуть время — нашли ещё пару банок тушёнки в заначке.`, noResourceText: `Без [${r[4]}] ремонт на скорую руку — парень извиняется за скудную благодарность.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 3
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Маленький мальчик сидит на обочине и плачет. «Я потерялся…» Ты провожаешь его до ближайшего поселения. Родители в благодарность угощают тебя обедом и дают чипы.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), chips: C(level, 4), exp: E(level, 2) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Мальчик показывает дорогу к посёлку — родители вне себя от радости. Сытный обед и чипы.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[0], resourceText: `[${r[0]}] радует мальчика — родители в благодарность дают вдвое больше чипов.`, noResourceText: `Без [${r[0]}] обед простой, но искренний — чипы как договаривались.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `По пути учишь мальчика отличать съедобные ягоды от ядовитых. Он внимательно слушает.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2), healPercent: RF(0.01, 0.03) }), resourceCost: r[1], resourceText: `[${r[1]}] пригодился для сбора ягод — набрали целую миску.`, noResourceText: `Без [${r[1]}] просто урок ботаники — польза позже.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+      { text: `Отец мальчика — местный охотник — даёт тебе запас патронов и карту охотничьих троп.`, weight: 20, effects: (_, level) => ({ itemCount: 1, chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] пришёлся ко двору — охотник добавляет нож в придачу.`, noResourceText: `Без [${r[2]}] просто патроны — тоже сойдёт.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Оказывается, мальчик не просто потерялся — он убежал из дома. Родители просят присмотреть.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] скрепляет договор — родители доверяют тебе ценный предмет.`, noResourceText: `Без [${r[3]}] просто кивают — «спасибо, добрый человек».`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `В посёлке праздник — кто-то родил, кто-то нашёл воду. Тебя угощают и зовут остаться.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] украшает стол — старейшина поднимает тост за тебя.`, noResourceText: `Без [${r[4]}] вечер душевный, но без излишеств.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 4
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Пожилая пара пытается перетащить телегу через завал. Ты помогаешь расчистить путь. Женщина угощает тебя домашним хлебом (настоящим, не синтетическим!), а мужчина даёт несколько чипов.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.04, 0.08), chips: C(level, 4) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Расчищаешь завал за час — телега проезжает, старики благодарят от души. Хлеб тёплый, чипы звенят.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[0], resourceText: `[${r[0]}] помог разбить крупный валун — путь свободен! Награда x2.`, noResourceText: `Без [${r[0]}] камни вручную — дольше, но справились.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
+      { text: `Женщина даёт не только хлеб, но и баночку варенья из одуванчиков. Настоящая роскошь!`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), chips: C(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] в обмен на варенье — старушка довольна, даёт ещё и травяной сбор.`, noResourceText: `Без [${r[1]}] варенье просто так — вкусно, но без добавки.`, resourceEffects: (_, level) => ({ healPercent: RF(0.01, 0.02) }), noResourceEffects: () => ({}) },
+      { text: `Мужчина рассказывает, что они держат путь к сыну в большой посёлок. Просит передать весточку.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] в качестве оплаты за услугу — мужчина щедро приплачивает.`, noResourceText: `Без [${r[2]}] обещает заплатить позже — чипы пока свои.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Под завалом находишь полезные вещи — старый лом и кусок брезента. Старики разрешают забрать.`, weight: 20, effects: (_, level) => ({ itemCount: 1, exp: E(level, 2) }), resourceCost: r[3], resourceText: `С [${r[3]}] разобрал завал быстрее — нашел под ним ящик с гвоздями.`, noResourceText: `Без [${r[3]}] просто лом и брезент — мелочь, а приятно.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Завал оказывается больше, чем казался. Провозились дотемна, но старики зовут переночевать.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] согревает ночью — старуха даёт шерстяное одеяло в дорогу.`, noResourceText: `Без [${r[4]}] ночь холодная, но утро встречаешь с чистой совестью.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 5
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Раненый сталкер сидит у костра и пытается сам себе перевязать плечо. «Помоги, брат. Напоролся на арматуру в тёмном подвале». Ты помогаешь ему с перевязкой. Он даёт тебе флягу с водой и ценный совет.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 4), chips: C(level, 3) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Перевязываешь рану — кровь остановлена. Сталкер жмёт руку: «Спасибо, брат!».`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 3), chips: C(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] пошёл на перевязку — сталкер отдаёт флягу и редкий артефакт.`, noResourceText: `Без [${r[0]}] просто бинтуем тряпками — сталкер благодарен, но скромно.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Сталкер рассказывает про подвал, где напоролся — там остался ящик с патронами и чипами.`, weight: 20, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 3) }), resourceCost: r[1], resourceText: `[${r[1]}] пригодился, чтобы вскрыть ящик — внутри целый арсенал!`, noResourceText: `Без [${r[1]}] ящик не вскрыть — запоминаешь место на будущее.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
+      { text: `Сталкер знает местные тропы как свои пять пальцев. Рисует карту с пометками аномалий.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[2], resourceText: `[${r[2]}] в подарок сталкеру — он чертит подробную карту со всеми тайниками.`, noResourceText: `Без [${r[2]}] карта схематичная, но опасные места помечены.`, resourceEffects: (_, level) => ({ exp: E(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `У сталкера во фляге не вода, а самогон. «Полечим раны по-нашему!» — прикладывается к фляге.`, weight: 20, effects: (_, level) => ({ chips: C(level, 2), healPercent: RF(0.01, 0.02) }), resourceCost: r[3], resourceText: `[${r[3]}] под закуску — сталкер доволен, открывает тайник с ништяками.`, noResourceText: `Без [${r[3]}] просто самогон — разговор душевный, ништяков нет.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `К костру подходят ещё двое сталкеров — знакомые раненого. Вместе веселее, делятся припасами.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.01, 0.03), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] растопил лёд — сталкеры угощают тушёнкой и патронами.`, noResourceText: `Без [${r[4]}] просто знакомство — пару баек и спать.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 6
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Собака выбегает из кустов, поджав хвост. У неё — царапина и ошейник с запиской: «Приюти, кто может». Забираешь её с собой — она становится твоим компаньоном. В ошейнике припрятаны чипы.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3), healPercent: RF(0.02, 0.04) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Собака доверчиво виляет хвостом. Забираешь её — в ошейнике чипы и записка с координатами дома.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2), healPercent: RF(0.01, 0.03) }), resourceCost: r[0], resourceText: `[${r[0]}] манит собаку — она приводит к тайнику бывшего хозяина.`, noResourceText: `Без [${r[0]}] собака просто идёт за тобой — компаньон и чипы.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
+      { text: `По дороге собака облаивает кусты — там спрятан рюкзак с припасами. Умный пёс!`, weight: 20, effects: (_, level) => ({ itemCount: 1, chips: C(level, 3) }), resourceCost: r[1], resourceText: `[${r[1]}] в рюкзаке — собака радуется, прыгает вокруг.`, noResourceText: `Без [${r[1]}] просто припасы — собака уже отрабатывает хлеб.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Собака оказывается обученной — знает команды «сидеть», «лежать», «голос». Ценный компаньон!`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[2], resourceText: `[${r[2]}] как игрушка для пса — он в восторге, слушается беспрекословно.`, noResourceText: `Без [${r[2]}] пёс просто умный — команды знает, но без фокусов.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Встречаешь бывшего хозяина по записке — он просит присмотреть за собакой, даёт чипы за услугу.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] в доказательство заботы — хозяин доверяет тебе пса насовсем.`, noResourceText: `Без [${r[3]}] хозяин просто рад, что пёс в хороших руках.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Собака приводит к могиле старого сталкера — рядом оставлены его вещи. Последняя воля.`, weight: 15, effects: (_, level) => ({ itemCount: 1, exp: E(level, 3) }), resourceCost: r[4], resourceText: `[${r[4]}] помог открыть ржавый ящик — внутри инструменты и патроны.`, noResourceText: `Без [${r[4]}] забираешь вещи как есть — пёс грустит у могилы.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 7
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Юноша сидит на корточках у капкана, в который попался его друг. «Отцепи его, прошу!». Ты помогаешь освободить ногу парня. Спасённый достаёт из рюкзака банку тушёнки и несколько чипов.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.03, 0.06), chips: C(level, 4), exp: E(level, 3) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Освобождаешь ногу из капкана — рана неглубокая. Парень в благодарность делится тушёнкой и чипами.`, weight: 20, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 3), healPercent: RF(0.02, 0.04) }), resourceCost: r[0], resourceText: `[${r[0]}] дезинфицирует рану — парень даёт двойную порцию чипов.`, noResourceText: `Без [${r[0]}] просто бинтуем — парень благодарен, но скромно.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Осматриваешь капкан — ручная работа, можно разобрать на запчасти. Парни не против.`, weight: 20, effects: (_, level) => ({ itemCount: 1, exp: E(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] помог разобрать механизм — ценные детали!`, noResourceText: `Без [${r[1]}] капкан просто железо — тоже пригодится.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Парни рассказывают, что капканы расставили бандиты — они предупреждают об опасной зоне.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[2], resourceText: `[${r[2]}] пригодился для обмена — парни выкладывают все секреты района.`, noResourceText: `Без [${r[2]}] просто слушаешь — информация полезная, но без деталей.`, resourceEffects: (_, level) => ({ exp: E(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Оказывается, они выслеживали мутанта и сами попали в свой же капкан. Помогаешь закончить охоту.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 2) }), resourceCost: r[3], resourceText: `С [${r[3]}] охота удалась — мясо мутанта делим поровну.`, noResourceText: `Без [${r[3]}] мутант ушёл — парни извиняются, делятся последним.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Появляются сталкеры, которые проверяют капканы. Объясняешь ситуацию — расходятся мирно.`, weight: 15, effects: (_, level) => ({ exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] сглаживает конфликт — сталкеры угощают папиросой и уходят.`, noResourceText: `Без [${r[4]}} пришлось объяснять на пальцах — обошлось.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 8
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Девушка в запылённой куртке чинит солнечную панель на крыше сарая. «Подай мне ключ на 10!» Работаешь с ней часом. Она даёт тебе запасную батарею и чипы за помощь.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Подаёшь инструменты — панель починена, свет есть! Девушка довольно улыбается и даёт батарею.`, weight: 20, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] понадобился для пайки — девушка даёт две батареи вместо одной.`, noResourceText: `Без [${r[0]}] просто ключи — батарея одна, но рабочая.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `В сарае находишь старый генератор и запчасти. Девушка разрешает взять что нужно.`, weight: 20, effects: (_, level) => ({ itemCount: 1, chips: C(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] помогает открутить генератор — внутри медная обмотка, ценный лут.`, noResourceText: `Без [${r[1]}] запчасти на вес — пригодятся для крафта.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Девушка рассказывает, что живёт здесь одна, сама всё чинит. Уважение — чистая выживаемость.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), healPercent: RF(0.01, 0.02) }), resourceCost: r[2], resourceText: `[${r[2]}] в обмен на советы по выживанию — знания бесценны.`, noResourceText: `Без [${r[2]}] просто болтовня за работой — пара лайфхаков.`, resourceEffects: (_, level) => ({ exp: E(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Пока чините панель, замечаешь вдалеке дым. Девушка объясняет, что это лагерь торговцев.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] как пропуск в лагерь — торговцы дают скидку.`, noResourceText: `Без [${r[3]}] просто знаешь, где торговать — без скидки.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Работа подходит к концу, но начинает темнеть. Девушка предлагает чай и ночлег в сарае.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] к чаю — вечер тёплый, сил прибавилось.`, noResourceText: `Без [${r[4]}] просто чай и сено — отдохнул, и ладно.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 9
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Трое детей играют в «войнушку» возле сгоревшего бронетранспортёра. Они не видели чужаков с рождения. Ты даёшь им сладости и рассказываешь старую сказку. Их мать приглашает тебя на ужин и даёт припасы в дорогу.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.06, 0.12), chips: C(level, 3), exp: E(level, 2) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Дети в восторге от сладостей — облепили тебя со всех сторон. Мать зовёт ужинать.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[0], resourceText: `[${r[0]}] в придачу к сладостям — мать даёт вдвое больше припасов.`, noResourceText: `Без [${r[0]}] просто сладости — дети счастливы, мать рада.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Рассказываешь сказку про храброго рыцаря. Дети слушают, раскрыв рты. Мать улыбается.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), healPercent: RF(0.01, 0.03) }), resourceCost: r[1], resourceText: `[${r[1]}] как реквизит для сказки — дети в восторге, мать дарит книгу.`, noResourceText: `Без [${r[1]}] просто слова — сказка запомнится детям надолго.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Осматриваешь бронетранспортёр — внутри уцелел ящик с инструментами и картами.`, weight: 20, effects: (_, level) => ({ itemCount: 1, chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] открывает заклинивший люк — внутри целый склад!`, noResourceText: `Без [${r[2]}] люк не открыть — запоминаешь на будущее.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Мать рассказывает, что их отец ушёл в рейд и не вернулся. Просит узнать о нём у торговцев.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[3], resourceText: `[${r[3]}] в залог обещания — мать даёт ценный предмет из приданого.`, noResourceText: `Без [${r[3]}] обещаешь узнать — мать кивает, надежда в глазах.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Появляется мужчина с ружьём — оказывается, отец семейства вернулся! Радость, объятия, ужин.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 3), chips: C(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] к столу — отец достаёт флягу, празднуем встречу.`, noResourceText: `Без [${r[4]}] просто радость встречи — семья благодарит от души.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 10
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Из ямы кричит мужчина: «Помогите! Сорвался, ногу подвернул!». Ты спускаешь ему верёвку и вытаскиваешь. Он механик: в благодарность чинит одну из твоих вещей и делится чипами.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Вытаскиваешь мужика — он механик от Бога. Чинит тебе вещь и даёт чипы. Ценный знакомый.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] для ремонта — механик делает вещь лучше новой! Награда x2.`, noResourceText: `Без [${r[0]}] ремонт на коленке — вещь рабочая, но неидеально.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `В яме оказывается не только он, но и ящик с запчастями, который он нёс. Делится находкой.`, weight: 20, effects: (_, level) => ({ itemCount: 1, chips: C(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] помог поднять ящик — внутри редкие шестерни и провода.`, noResourceText: `Без [${r[1]}] ящик поднимаем вдвоём — запчасти пополам.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Механик рассказывает, что шёл к старому убежищу, где хранит инструменты. Даёт координаты.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[2], resourceText: `[${r[2]}] для открытия убежища — внутри верстак и материалы.`, noResourceText: `Без [${r[2]}] просто координаты — пригодятся в следующий раз.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Нога опухла — механик не может идти. Придётся нести его на себе до ближайшего жилья.`, weight: 20, effects: (_, level) => ({ damagePercent: RF(0.01, 0.03), exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] облегчает ношу — механик компенсирует труды чипами.`, noResourceText: `Без [${r[3]}] тащишь на горбу — тяжко, но он старается не ныть.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `На шум прибегают знакомые механика — помогают донести его до мастерской. Там тебя ждёт угощение.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] к столу в мастерской — механик дарит походный набор инструментов.`, noResourceText: `Без [${r[4]}] просто ужин и ночлег — тоже неплохо.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 11
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Бродячий кот трется о ноги. У него — ошейник с биркой «Рыжий, особь ценная». Кот ведёт тебя к заброшенному дому, где в подполе лежит ящик с инструментами и чипами.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), itemCount: 1, exp: E(level, 3) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Кот уверенно ведёт тебя к дому. В подполе — ящик с инструментами и чипами. Умный котейка!`, weight: 20, effects: (_, level) => ({ itemCount: 1, chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] из подпола — кот трётся о ноги, мол, я старался. Лут x2.`, noResourceText: `Без [${r[0]}] просто ящик — инструменты и чипы, кот довольно мурчит.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `В доме, кроме подпола, есть кухня с запасом консервов. Кот одобрительно мяукает.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), chips: C(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] на ужин коту — он довольно жмурится, ведёт к ещё одному тайнику.`, noResourceText: `Без [${r[1]}] кот просто рад компании — консервы твои.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Кот приводит на чердак — там гнездо птиц и старая шкатулка с украшениями.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 3) }), resourceCost: r[2], resourceText: `[${r[2]}] для шкатулки — внутри довоенные монеты, ценная находка.`, noResourceText: `Без [${r[2]}] шкатулка не открывается — запоминаешь место.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Кот шипит и фыркает в углу — там змея. Благодаря коту замечаешь опасность вовремя.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] отпугивает змею — кот довольно умывается, опасность миновала.`, noResourceText: `Без [${r[3]}] убиваешь змею ножом — кот смотрит с уважением.`, resourceEffects: (_, level) => ({ exp: E(level, 1) }), noResourceEffects: () => ({}) },
+      { text: `Кот приводит к соседнему дому — там живёт старушка, которая ищет своего Рыжего.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.05), exp: E(level, 2), chips: C(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] обрадовал старушку — она угощает пирогом и даёт чипы за заботу о коте.`, noResourceText: `Без [${r[4]}] просто возвращаешь кота — старушка благодарит от души.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 12
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Древняя старуха сидит на крыльце и плетёт сеть из проволоки и пластиковых лент. «Помоги натянуть, старая уже, сил нет». Помогаешь — она угощает травяным чаем и даёт оберег из костей птиц.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), exp: E(level, 3) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Натягиваешь сеть — старуха довольно кивает. Чай пахнет мятой и чабрецом, оберег тёплый на ощупь.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2) }), resourceCost: r[0], resourceText: `[${r[0]}] укрепляет сеть — старуха даёт второй оберег, «на счастье».`, noResourceText: `Без [${r[0]}] сеть держится на честном слове — старуха довольно улыбается.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Старуха рассказывает, что видела во сне «железных людей». «Они идут с севера, берегись».`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[1], resourceText: `[${r[1]}] в руках старухи — она шепчет заговор, давая тебе удачу.`, noResourceText: `Без [${r[1]}] просто слушаешь старуху — информация к размышлению.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `В доме старухи — сушёные травы, коренья и банки с настойками. Она разрешает взять немного.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), itemCount: 1 }), resourceCost: r[2], resourceText: `[${r[2]}] в обмен на травы — старуха даёт редкий рецепт настойки.`, noResourceText: `Без [${r[2]}] травы просто так — пригодятся для лечения.`, resourceEffects: (_, level) => ({ healPercent: RF(0.01, 0.02) }), noResourceEffects: () => ({}) },
+      { text: `Старуха оказывается знахаркой. Осматривает твои раны и даёт мазь из глины и прополиса.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] для мази — старуха колдует, раны затягиваются на глазах.`, noResourceText: `Без [${r[3]}] мазь простая, но помогает — спасибо и на том.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+      { text: `К старухе приходят соседи за травами. Знакомишься с местными — они делятся новостями.`, weight: 15, effects: (_, level) => ({ exp: E(level, 2), chips: C(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] на общем столе — соседи угощают тебя ужином и делятся припасами.`, noResourceText: `Без [${r[4]}] просто знакомство — новости узнал, и ладно.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 13
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Семья переселенцев остановилась у ручья. Отец чинит телегу, мать кормит детей. «Не подкинешь бензина? Своим кончился». Делишься топливом — они дают тебе старую карту местности с пометками тайников.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Делишься топливом — отец довольно хлопает по плечу. Карта с тайниками — отличная награда.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] в придачу к топливу — отец отмечает на карте ещё пару схронов.`, noResourceText: `Без [${r[0]}] просто топливо — карта и так с пометками.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Мать угощает тебя горячей похлёбкой — настоящая еда, а не синтетика. Силы возвращаются.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] к обеду — мать даёт с собой свёрток с едой.`, noResourceText: `Без [${r[1]}] похлёбка простая, но сытная — сил прибавилось.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+      { text: `Дети играют у ручья — находишь в воде старый нож. Отец говорит: «Возьми, нам ни к чему».`, weight: 20, effects: (_, level) => ({ itemCount: 1, exp: E(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] наточил нож до остроты бритвы — отец одобрительно свистит.`, noResourceText: `Без [${r[2]}] нож ржавый, но сгодится — лучше, чем ничего.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Телега сломана серьёзнее, чем думали. Помогаешь с ремонтом — отец даёт ещё и инструменты.`, weight: 20, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 3) }), resourceCost: r[3], resourceText: `[${r[3]}] для ремонта — телега как новая, отец щедро делится припасами.`, noResourceText: `Без [${r[3]}] ремонт на соплях — телега доедет, но скрипит.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Отец рассказывает о большом посёлке в двух днях пути. «Там есть рынок и доктор. Скажи, от меня».`, weight: 15, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[4], resourceText: `[${r[4]}] как пропуск — в посёлке тебя встречают как своего.`, noResourceText: `Без [${r[4]}] просто имя отца — пропуск словесный, но работает.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 14
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Двое сталкеров спорят, куда идти. Один говорит: «Налево — к базе, направо — к смерти». Второй: «Да пошёл ты!». Ты указываешь им безопасный путь. В благодарность делятся патронами.',
-    type: 'story',
-    effects: (_, level) => ({ itemCount: 1, chips: C(level, 4), exp: E(level, 3) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Разнимаешь спорщиков. Один из них признаёт твою правоту. Делятся патронами и картой.`, weight: 20, effects: (_, level) => ({ itemCount: 1, chips: C(level, 3), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] в качестве благодарности — сталкеры дают вдвое больше патронов.`, noResourceText: `Без [${r[0]}] просто патроны — спорщики расходятся довольные.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Выясняешь, что они спорят о дороге к старому НИИ. Ты знаешь этот район — рисуешь им маршрут.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] за информацию — сталкеры рассказывают, что нашли в НИИ.`, noResourceText: `Без [${r[1]}] просто рисуешь карту — сталкеры благодарят на словах.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Один из сталкеров узнаёт в тебе легендарного {nick}. «Тот самый!» — жмёт руку, делится трофеями.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[2], resourceText: `[${r[2]}] от чистого сердца — сталкер отдаёт редкий артефакт на память.`, noResourceText: `Без [${r[2]}] просто рукопожатие и трофеи — слава работает.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Спор переходит в драку. Разнимаешь их — получаешь пару тумаков, но мирите парней.`, weight: 20, effects: (_, level) => ({ damagePercent: RF(0.01, 0.03), exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] успокаивает драчунов — мировая, сталкеры делятся тушёнкой.`, noResourceText: `Без [${r[3]}] разнимаешь голыми руками — пара синяков, но совесть чиста.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `К компании присоединяется третий сталкер — он знает короткий путь. Идёте вместе.`, weight: 15, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] скрепляет союз — сталкеры зовут тебя в совместный рейд.`, noResourceText: `Без [${r[4]}] просто идёте вместе — безопасность в числе.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 15
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Освобождаешь пленного, привязанного к столбу. «Спасибо, брат. Я инженер с Водоканала. Должен теперь тебе». Он даёт тебе жетон, по которому на его станции дадут бесплатный запас воды.',
-    type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Перерезаешь верёвки — инженер свободен. Жетон на воду — отличная награда.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] в сейфе у инженера — он открывает тайник с чипами.`, noResourceText: `Без [${r[0]}] просто жетон — вода будет бесплатной.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
+      { text: `Инженер рассказывает, что его взяли в плен бандиты. Он знает, где их лагерь — ведёт тебя туда.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 3) }), resourceCost: r[1], resourceText: `С [${r[1]}] проникаешь в лагерь — забираешь припасы бандитов.`, noResourceText: `Без [${r[1]}] осторожно обходишь лагерь — добыча скромнее.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Инженер чинит твой инструмент в благодарность. Золотые руки — теперь вещь как новая.`, weight: 20, effects: (_, level) => ({ itemCount: 1, exp: E(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] для починки — инженер делает вещь лучше прежнего.`, noResourceText: `Без [${r[2]}] ремонт на скорую руку — вещь рабочая, но хлипкая.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `На шум прибегают бандиты, которые его сторожили. Приходится отбиваться от них вместе.`, weight: 20, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), exp: E(level, 3), combat: true }), resourceCost: r[3], resourceText: `[${r[3]}] в бою — инженер держится молодцом, вдвоём отбились.`, noResourceText: `Без [${r[3]}] отбиваешься один — инженер прячется, но потом благодарит.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Инженер приглашает на станцию Водоканала — там тебя ждёт горячий душ и настоящий обед.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] в хозяйстве станции — инженер даёт редкую деталь для фильтра.`, noResourceText: `Без [${r[4]}] просто душ и обед — рай после пустоши.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 16
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Учитель в развалинах школы проводит урок для горстки детей. Он рассказывает о физике и истории. «Хочешь, посиди, послушай. Знания — сила». Полчаса лекции — и ты чувствуешь себя умнее.',
-    type: 'story',
-    effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Садишься на парту. Учитель объясняет закон Ома и тактику Ганнибала. Мозг кипит, но приятно.`, weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.01, 0.02) }), resourceCost: r[0], resourceText: `[${r[0]}] для урока — учитель показывает действующую модель генератора.`, noResourceText: `Без [${r[0]}] просто лекция — знания откладываются в голове.`, resourceEffects: (_, level) => ({ exp: E(level, 1) }), noResourceEffects: () => ({}) },
+      { text: `Учитель просит рассказать о внешнем мире. Дети слушают, раскрыв рты. Ты — живая легенда.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] в подарок школе — учитель даёт редкую книгу с картами.`, noResourceText: `Без [${r[1]}] просто рассказ — дети в восторге, учитель благодарен.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Помогаешь учителю починить парты и доску. Заодно находишь в подсобке старый глобус.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2), itemCount: 1 }), resourceCost: r[2], resourceText: `[${r[2]}] для мастерской — учитель даёт набор чертёжных инструментов.`, noResourceText: `Без [${r[2]}] просто мебель чинишь — глобус забираешь как сувенир.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Учитель жалуется на нехватку учебников. Обещаешь поискать в рейдах — дети радостно галдят.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] в залог обещания — учитель даёт обед и карту окрестностей.`, noResourceText: `Без [${r[3]}] просто обещание — учитель верит, дети машут вслед.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `После урока учитель угощает чаем из трав. Разговор о жизни — простой и мудрый старик.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 3) }), resourceCost: r[4], resourceText: `[${r[4]}] к чаю — учитель достаёт книгу стихов, читает вслух.`, noResourceText: `Без [${r[4]}] чай и разговор — душа отдыхает.`, resourceEffects: (_, level) => ({ exp: E(level, 1) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 17
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'У монаха в оранжевой робе закончилась вода. Он медитирует под палящим солнцем. Ты даёшь ему флягу. «Будда хранит тебя, странник». Он дарит тебе чётки из обожжённой глины — они странно тёплые на ощупь.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), exp: E(level, 4) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Монах принимает воду с благодарностью. Чётки действительно тёплые — может, Будда хранит?`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] во фляге — монах читает молитву, благословляя тебя. Силы прибывают.`, noResourceText: `Без [${r[0]}] просто вода — монах благодарит, дарит чётки.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+      { text: `Монах рассказывает о своём пути — он идёт к священному озеру. «Вода там лечит раны».`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[1], resourceText: `[${r[1]}] монаху в дорогу — он в ответ даёт карту с отмеченным озером.`, noResourceText: `Без [${r[1]}] просто координаты — может, пригодится.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Монах медитирует с чётками — ты чувствуешь странное тепло. Кажется, раны затягиваются.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] усиливает медитацию — монах говорит, что ты «чист душой».`, noResourceText: `Без [${r[2]}] чётки просто греют — эффект плацебо или нет?`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+      { text: `К монаху подходят местные жители за советом. Он представляет тебя как «спасителя». Честь.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2), chips: C(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] местным от тебя — они в ответ угощают обедом.`, noResourceText: `Без [${r[3]}] просто знакомство — местные приветливы, но без подарков.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Монах приглашает разделить с ним скромную трапезу. Рис, вода и молитва — простота лечит.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] к трапезе — монах достаёт редкий фрукт, делится пополам.`, noResourceText: `Без [${r[4]}] рис пресный, но сытный — и это дар в Пустоши.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 18
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Слепой ветеран сидит у могильного креста. «Сын здесь лежит. Не уберёг…» Ты молча сидишь рядом. Ветеран достаёт флягу, наливает по сто грамм. Горькая, но крепкая встреча.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.02, 0.05), exp: E(level, 4), chips: C(level, 3) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Сидишь с ветераном молча. Он ценит компанию. Достаёт сверток — патроны и чипы. «Держи, сынок».`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] греет руки — ветеран рассказывает о сыне, становится легче.`, noResourceText: `Без [${r[0]}] просто сидите молча — ветеран ценит тишину.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Ветеран оказывается бывшим снайпером. Учит тебя правильно дышать при стрельбе.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] для упражнений — ветеран даёт оптический прицел.`, noResourceText: `Без [${r[1]}] просто урок дыхания — навык на всю жизнь.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Ветеран рассказывает, где его сын нашёл свой последний тайник. Даёт координаты.`, weight: 20, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[2], resourceText: `С [${r[2]}] вскрываешь тайник — внутри вещи сына, ценные и памятные.`, noResourceText: `Без [${r[2]}] тайник не открыть — запоминаешь место.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
+      { text: `Появляются мародёры. Ветеран, несмотря на слепоту, достаёт обрез. Отбиваетесь вместе.`, weight: 20, effects: (_, level) => ({ damagePercent: RF(0.02, 0.05), exp: E(level, 3), combat: true }), resourceCost: r[3], resourceText: `[${r[3]}] для обреза — ветеран стреляет как бог, мародёры бегут.`, noResourceText: `Без [${r[3]}] отбиваешься один — ветеран прикрывает, как может.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Ветеран провожает тебя до околицы. «Заходи, если что. Солдату солдата понять легче».`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.05), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] на прощание — ветеран даёт армейский жетон, «на удачу».`, noResourceText: `Без [${r[4]}] просто рукопожатие — крепкое, мужское.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 19
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Молодая пара строит дом из обломков. «Не армия, не банда — просто хотим жить по-человечески». Они приглашают тебя помочь забить пару гвоздей. За работу кормят ужином и дают чипы.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), chips: C(level, 4), exp: E(level, 2) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Забиваешь гвозди, пилишь доски. Дом растёт на глазах. Пара довольно, ужин — от души.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[0], resourceText: `[${r[0]}] для стройки — парень даёт лишнюю пачку гвоздей.`, noResourceText: `Без [${r[0]}] стройка идёт медленнее, но ужин заслужил.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Девушка готовит ужин на костре. Настоящий борщ из консервов и дикого лука — объедение!`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), chips: C(level, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] к борщу — девушка даёт баночку солений на дорогу.`, noResourceText: `Без [${r[1]}] борщ без хлеба, но горячий и наваристый.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+      { text: `Парень — бывший строитель. Показываешь ему чертёж, он подсказывает, как укрепить конструкцию.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[2], resourceText: `[${r[2]}] для чертежа — парень даёт инженерный справочник.`, noResourceText: `Без [${r[2]}] просто советы — опыт бесценен.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Находят старый ящик с инструментами в развалинах. Ты помогаешь его поднять — внутри запчасти.`, weight: 20, effects: (_, level) => ({ itemCount: 1, exp: E(level, 2) }), resourceCost: r[3], resourceText: `С [${r[3]}] ящик открывается без проблем — внутри редкий набор свёрл.`, noResourceText: `Без [${r[3]}] ящик пришлось взламывать — запчасти частично испорчены.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Соседи приносят стройматериалы в благодарность за то, что пара строит общий колодец.`, weight: 15, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] на новоселье — соседи накрывают стол, тебя зовут как почётного гостя.`, noResourceText: `Без [${r[4]}] просто знакомство с соседями — полезные связи.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 20
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Гонец на велосипеде чуть не сбивает тебя. «Прости, брат, спешу! В посёлке эпидемия!». У него порвана цепь. Ты помогаешь починить — он мчится дальше, крикнув на прощание: «Проверь фильтр для воды, если есть!».',
-    type: 'story',
-    effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }),
-  },
-  {
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Чинишь цепь за минуту — гонец жмёт газ (педали) и улетает. Ценная информация.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3), healPercent: RF(0.01, 0.02) }), resourceCost: r[0], resourceText: `[${r[0]}] для цепи — гонец даёт флягу с чистой водой «за скорость».`, noResourceText: `Без [${r[0]}] цепь на скорую руку — гонец благодарит на ходу.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Гонец рассказывает об эпидемии — тиф, грязная вода. Предупреждён — вооружён.`, weight: 20, effects: (_, level) => ({ exp: E(level, 3) }), resourceCost: r[1], resourceText: `[${r[1]}] для фильтрации — гонец даёт запасные фильтры.`, noResourceText: `Без [${r[1]}] просто знаешь — будешь кипятить воду.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `У гонца в рюкзаке — пакет с лекарствами для посёлка. Он просит передать, если сам не доберётся.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2), chips: C(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] для лекарств — гонец доверяет тебе часть груза.`, noResourceText: `Без [${r[2]}] просто обещаешь помочь — груз пока при нём.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Велосипед разваливается на части — цепь порвана, колесо спущено, тормозов нет. Полный караул.`, weight: 20, effects: (_, level) => ({ damagePercent: RF(0.01, 0.03), exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] для колеса — катим велик до посёлка вместе, гонец делится припасами.`, noResourceText: `Без [${r[3]}] ремонт бесполезен — провожаешь гонца пешком.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `У гонца есть дубликат карты с отмеченными безопасными источниками воды. Делится.`, weight: 15, effects: (_, level) => ({ exp: E(level, 3), itemCount: 1 }), resourceCost: r[4], resourceText: `[${r[4]}] за карту — гонец просит передать привет в посёлке от него.`, noResourceText: `Без [${r[4]}] карта так, на клочке — но источники отмечены.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
+  // 21
+  (() => { const r = [0,1,2,3,4].map(() => nextResource()); return {
     text: 'Маленький щенок выбегает из кустов, весь в репьях. За ним никто не идёт. Ты даёшь ему галету — он лижет руку и бежит за тобой. Компаньон на ближайший час поднимает настроение.',
-    type: 'story',
-    effects: (_, level) => ({ healPercent: RF(0.04, 0.08), exp: E(level, 2) }),
-  },
+    type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
+      { text: `Щенок жуёт галету и виляет хвостом. Идёт за тобой — настроение на высоте, мир кажется добрее.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2) }), resourceCost: r[0], resourceText: `[${r[0]}] щенку — он радостно тявкает, ведёт к старому дому.`, noResourceText: `Без [${r[0]}] щенок просто бежит рядом — компания греет душу.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Щенок находит гнездо с яйцами — приносит в зубах, не разбив. Умный малыш!`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.01, 0.03), itemCount: 1 }), resourceCost: r[1], resourceText: `[${r[1]}] в обмен на яйца — щенок довольно жмурится.`, noResourceText: `Без [${r[1]}] яйца просто так — завтрак обеспечен.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `Щенок лает на кусты — там спрятан рюкзак путника с припасами. Нюх не обманет!`, weight: 20, effects: (_, level) => ({ itemCount: 1, chips: C(level, 2), exp: E(level, 2) }), resourceCost: r[2], resourceText: `[${r[2]}] в рюкзаке — щенок гордо виляет хвостом, мол, я красавчик.`, noResourceText: `Без [${r[2]}] просто рюкзак — консервы и карта.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+      { text: `Щенок отказывается идти дальше — скулит и смотрит в сторону леса. Там может быть его дом.`, weight: 20, effects: (_, level) => ({ exp: E(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] манит щенка — он бежит к старой будке, там ошейник с адресом.`, noResourceText: `Без [${r[3]}] щенок грустит — провожаешь его до опушки.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
+      { text: `К вечеру щенок устаёт. Засыпает у тебя на коленях. Тепло и уютно даже в Пустоши.`, weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.05), exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] щенку на подстилку — он сладко спит, сил прибавляется и у тебя.`, noResourceText: `Без [${r[4]}] спишь, обняв щенка — тепло и спокойно.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.03) }), noResourceEffects: () => ({}) },
+    ]}}; })(),
 ];
 
 // ---------------------------------------------------------------------------
@@ -1198,27 +1308,127 @@ const restTemplates: EventTemplate[] = [
   {
     text: 'Старый фургон на обочине. Дверца открыта, внутри — спальник и газовая горелка. Кто-то явно живёт здесь время от времени. Оставляешь записку с благодарностью и используешь приют.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RF(0.08, 0.14), exp: E(level, 2) }),
+    noAutoBranch: true,
+    branch: {
+      prompt: '',
+      outcomes: [
+        { text: 'Внутри фургона — консервы, сухой паёк и чистая вода. Настоящая находка!', weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2), chips: C(level, 2) }), resourceCost: nextResource(), resourceText: `Внутри фургона — консервы, сухой паёк и чистая вода. Настоящая находка!
+[Благодаря Консервы — результат x2!]`, noResourceText: `Внутри фургона — консервы, сухой паёк и чистая вода. Настоящая находка!
+[Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ chips: C(level, 2), healPercent: RF(0.02, 0.04) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+        { text: 'В ящике под сиденьем находим набор инструментов — можно починить кое-какое снаряжение.', weight: 20, effects: (_, level) => ({ itemCount: 1, exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `В ящике под сиденьем находим набор инструментов — можно починить кое-какое снаряжение.
+[Благодаря Инструменты — результат x2!]`, noResourceText: `В ящике под сиденьем находим набор инструментов — можно починить кое-какое снаряжение.
+[Инструменты нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: 1, chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+        { text: 'В фургоне тепло и уютно — спальник мягкий, газовая горелка греет. Отличный ночлег восстанавливает силы.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `В фургоне тепло и уютно — спальник мягкий, газовая горелка греет. Отличный ночлег восстанавливает силы.
+[Благодаря Топливо — результат x2!]`, noResourceText: `В фургоне тепло и уютно — спальник мягкий, газовая горелка греет. Отличный ночлег восстанавливает силы.
+[Топливо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ healPercent: RF(0.03, 0.05) }), noResourceEffects: (_, level) => ({}) },
+        { text: 'В фургоне кто-то уже ночевал до нас — оставил мусор и разлил бензин. Вонь невыносимая, дышать тяжело.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), chips: NC(level, 0) }), resourceCost: nextResource(), resourceText: `В фургоне кто-то уже ночевал до нас — оставил мусор и разлил бензин. Вонь невыносимая, дышать тяжело.
+[С Пластмасса урон смягчён — потери -50%.]`, noResourceText: `В фургоне кто-то уже ночевал до нас — оставил мусор и разлил бензин. Вонь невыносимая, дышать тяжело.
+[Без Пластмасса — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.03 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
+        { text: 'Ночью к фургону подходят бандиты — прячемся в спальнике, затаив дыхание. Они обыскивают кабину и уходят, забрав немного бензина.', weight: 15, effects: (_, level) => ({ chips: NC(level, 1), healPercent: RF(0.01, 0.02) }), resourceCost: nextResource(), resourceText: `Ночью к фургону подходят бандиты — прячемся в спальнике, затаив дыхание. Они обыскивают кабину и уходят, забрав немного бензина.
+[Батарейки помог выжать максимум из ситуации.]`, noResourceText: `Ночью к фургону подходят бандиты — прячемся в спальнике, затаив дыхание. Они обыскивают кабину и уходят, забрав немного бензина.
+[Без Батарейки — увы, могло быть лучше.]`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+      ],
+    },
   },
   {
     text: 'Баня! Настоящая русская баня посреди пустоши. Топит её дед Матвей. «Заходи, попарься, грех не воспользоваться!» Паришься веником, ныряешь в ледяную реку. Выходишь заново рождённым.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RF(0.12, 0.24), exp: E(level, 4) }),
+    noAutoBranch: true,
+    branch: {
+      prompt: '',
+      outcomes: [
+        { text: 'Дед Матвей топит баню по-чёрному — жар стоит столбом, веники дубовые парят до костей. Выходишь обновлённым.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Дед Матвей топит баню по-чёрному — жар стоит столбом, веники дубовые парят до костей. Выходишь обновлённым.
+[Благодаря Дерево — результат x2!]`, noResourceText: `Дед Матвей топит баню по-чёрному — жар стоит столбом, веники дубовые парят до костей. Выходишь обновлённым.
+[Дерево нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ healPercent: RF(0.04, 0.06), exp: E(level, 2) }), noResourceEffects: (_, level) => ({}) },
+        { text: 'После парной ныряешь в ледяную реку — дух захватывает! Кровь бежит быстрее, тело гудит от энергии.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `После парной ныряешь в ледяную реку — дух захватывает! Кровь бежит быстрее, тело гудит от энергии.
+[Благодаря Вода — результат x2!]`, noResourceText: `После парной ныряешь в ледяную реку — дух захватывает! Кровь бежит быстрее, тело гудит от энергии.
+[Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ healPercent: RF(0.03, 0.05) }), noResourceEffects: (_, level) => ({}) },
+        { text: 'Дед Матвей угощает травяным чаем с диким мёдом. Силы возвращаются, настроение поднимается.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2), chips: C(level, 2) }), resourceCost: nextResource(), resourceText: `Дед Матвей угощает травяным чаем с диким мёдом. Силы возвращаются, настроение поднимается.
+[Благодаря Консервы — результат x2!]`, noResourceText: `Дед Матвей угощает травяным чаем с диким мёдом. Силы возвращаются, настроение поднимается.
+[Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+        { text: 'В бане жарко до угара — дед Матвей перестарался. Кружится голова, тошнит. Едва выползаешь на свежий воздух.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.04, 0.08) }), resourceCost: nextResource(), resourceText: `В бане жарко до угара — дед Матвей перестарался. Кружится голова, тошнит. Едва выползаешь на свежий воздух.
+[С Лекарства урон смягчён — потери -50%.]`, noResourceText: `В бане жарко до угара — дед Матвей перестарался. Кружится голова, тошнит. Едва выползаешь на свежий воздух.
+[Без Лекарства — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
+        { text: 'Баня занята — местные мужики уже парятся. «Будь по-соседски, {male}, подожди». Садишься на крыльце, ждёшь очереди, мёрзнешь.', weight: 15, effects: (_, level) => ({ healPercent: RF(0.01, 0.02), exp: E(level, 1) }), resourceCost: nextResource(), resourceText: `Баня занята — местные мужики уже парятся. «Будь по-соседски, {male}, подожди». Садишься на крыльце, ждёшь очереди, мёрзнешь.
+[Изолента помог выжать максимум из ситуации.]`, noResourceText: `Баня занята — местные мужики уже парятся. «Будь по-соседски, {male}, подожди». Садишься на крыльце, ждёшь очереди, мёрзнешь.
+[Без Изолента — увы, могло быть лучше.]`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+      ],
+    },
   },
   {
     text: 'Геотермальный источник. Вода горячая, пар поднимается клубами. Вокруг — дикий виноград и ежевика. Идеальное место для отдыха. Лежишь в тёплой воде, глядя на звёзды.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RF(0.10, 0.18), exp: E(level, 3) }),
+    noAutoBranch: true,
+    branch: {
+      prompt: '',
+      outcomes: [
+        { text: 'Вода идеальной температуры — лежишь, расслабляешься, забываешь о Пустоши. Полное восстановление сил.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Вода идеальной температуры — лежишь, расслабляешься, забываешь о Пустоши. Полное восстановление сил.
+[Благодаря Вода — результат x2!]`, noResourceText: `Вода идеальной температуры — лежишь, расслабляешься, забываешь о Пустоши. Полное восстановление сил.
+[Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ healPercent: RF(0.04, 0.06) }), noResourceEffects: (_, level) => ({}) },
+        { text: 'Собираешь дикий виноград и ежевику вокруг источника — ягоды сочные, сладкие. Отличное подкрепление.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.01, 0.03), chips: C(level, 2), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Собираешь дикий виноград и ежевику вокруг источника — ягоды сочные, сладкие. Отличное подкрепление.
+[Благодаря Консервы — результат x2!]`, noResourceText: `Собираешь дикий виноград и ежевику вокруг источника — ягоды сочные, сладкие. Отличное подкрепление.
+[Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ chips: C(level, 2), itemCount: 1 }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+        { text: 'В горячей воде замечаешь полезные минеральные отложения — они снимают боль в суставах и заживляют раны.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `В горячей воде замечаешь полезные минеральные отложения — они снимают боль в суставах и заживляют раны.
+[Благодаря Лекарства — результат x2!]`, noResourceText: `В горячей воде замечаешь полезные минеральные отложения — они снимают боль в суставах и заживляют раны.
+[Лекарства нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ healPercent: RF(0.03, 0.05) }), noResourceEffects: (_, level) => ({}) },
+        { text: 'Вода оказывается кислой — химическое загрязнение. Кожа зудит и краснеет. Быстро выскакиваешь на берег.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06) }), resourceCost: nextResource(), resourceText: `Вода оказывается кислой — химическое загрязнение. Кожа зудит и краснеет. Быстро выскакиваешь на берег.
+[С Пластмасса урон смягчён — потери -50%.]`, noResourceText: `Вода оказывается кислой — химическое загрязнение. Кожа зудит и краснеет. Быстро выскакиваешь на берег.
+[Без Пластмасса — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.03 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
+        { text: 'У источника сидит {female} — местная отшельница. Молча кивает и продолжает пить чай. Рядом — котелок с горячим бульоном, делится.', weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `У источника сидит {female} — местная отшельница. Молча кивает и продолжает пить чай. Рядом — котелок с горячим бульоном, делится.
+[Инструменты помог выжать максимум из ситуации.]`, noResourceText: `У источника сидит {female} — местная отшельница. Молча кивает и продолжает пить чай. Рядом — котелок с горячим бульоном, делится.
+[Без Инструменты — увы, могло быть лучше.]`, resourceEffects: (_, level) => ({ chips: C(level, 2), exp: E(level, 1) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+      ],
+    },
   },
   {
     text: 'Старый кинотеатр. Уцелел проектор и пара бобин с плёнкой. Крутишь старый советский фильм про войну. Смотришь в одиночестве, жуя галеты. Диковинное чувство — киносеанс в пустоши.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RF(0.04, 0.08), exp: E(level, 4) }),
+    noAutoBranch: true,
+    branch: {
+      prompt: '',
+      outcomes: [
+        { text: 'Проектор работает! Картинка дрожит, но фильм идёт. Тёплый свет, треск плёнки — как в старом мире. Отдыхаешь душой.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Проектор работает! Картинка дрожит, но фильм идёт. Тёплый свет, треск плёнки — как в старом мире. Отдыхаешь душой.
+[Благодаря Батарейки — результат x2!]`, noResourceText: `Проектор работает! Картинка дрожит, но фильм идёт. Тёплый свет, треск плёнки — как в старом мире. Отдыхаешь душой.
+[Батарейки нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2) }), noResourceEffects: (_, level) => ({}) },
+        { text: 'В буфете находишь забытые консервы и банку с растворимым кофе. Роскошный ужин в тёплом зале.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), chips: C(level, 2) }), resourceCost: nextResource(), resourceText: `В буфете находишь забытые консервы и банку с растворимым кофе. Роскошный ужин в тёплом зале.
+[Благодаря Консервы — результат x2!]`, noResourceText: `В буфете находишь забытые консервы и банку с растворимым кофе. Роскошный ужин в тёплом зале.
+[Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ chips: C(level, 2), itemCount: 1 }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+        { text: 'В подсобке находишь старые афиши, киноплёнки и стопку журналов. Клад для коллекционера!', weight: 20, effects: (_, level) => ({ itemCount: 1, exp: E(level, 3), chips: C(level, 2) }), resourceCost: nextResource(), resourceText: `В подсобке находишь старые афиши, киноплёнки и стопку журналов. Клад для коллекционера!
+[Благодаря Инструменты — результат x2!]`, noResourceText: `В подсобке находишь старые афиши, киноплёнки и стопку журналов. Клад для коллекционера!
+[Инструменты нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+        { text: 'Плёнка рвётся, проектор дымит, помещение заполняется едким дымом. Приходится тушить огонь подручными средствами.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06) }), resourceCost: nextResource(), resourceText: `Плёнка рвётся, проектор дымит, помещение заполняется едким дымом. Приходится тушить огонь подручными средствами.
+[С Гвозди урон смягчён — потери -50%.]`, noResourceText: `Плёнка рвётся, проектор дымит, помещение заполняется едким дымом. Приходится тушить огонь подручными средствами.
+[Без Гвозди — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.03 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
+        { text: 'Кинотеатр обрушился — от удара стихии крыша не выдержала. Едва успеваешь выбежать, присыпанный пылью и щебнем.', weight: 15, effects: (_, level) => ({ damagePercent: RF(0.02, 0.05), exp: E(level, 1) }), resourceCost: nextResource(), resourceText: `Кинотеатр обрушился — от удара стихии крыша не выдержала. Едва успеваешь выбежать, присыпанный пылью и щебнем.
+[Пластмасса помог выжать максимум из ситуации.]`, noResourceText: `Кинотеатр обрушился — от удара стихии крыша не выдержала. Едва успеваешь выбежать, присыпанный пылью и щебнем.
+[Без Пластмасса — увы, могло быть лучше.]`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+      ],
+    },
   },
   {
     text: 'Палаточный лагерь Красного Креста. Волонтёры раздают еду и медикаменты. Бесплатно. «Человек человеку — друг, не забывай». Получаешь порцию каши, бинты и пару чипов на дорогу.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RF(0.08, 0.14), itemCount: 1, exp: E(level, 3) }),
+    noAutoBranch: true,
+    branch: {
+      prompt: '',
+      outcomes: [
+        { text: 'Волонтёры проводят полный медосмотр — обрабатывают раны, делают перевязку, выдают антибиотики. Профессиональная помощь.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 2), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Волонтёры проводят полный медосмотр — обрабатывают раны, делают перевязку, выдают антибиотики. Профессиональная помощь.
+[Благодаря Лекарства — результат x2!]`, noResourceText: `Волонтёры проводят полный медосмотр — обрабатывают раны, делают перевязку, выдают антибиотики. Профессиональная помощь.
+[Лекарства нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ healPercent: RF(0.03, 0.05), itemCount: 1 }), noResourceEffects: (_, level) => ({}) },
+        { text: 'Получаешь полный паёк — горячая каша, хлеб, чай и сухпаёк в дорогу. Давно так сытно не ел.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2), chips: C(level, 2) }), resourceCost: nextResource(), resourceText: `Получаешь полный паёк — горячая каша, хлеб, чай и сухпаёк в дорогу. Давно так сытно не ел.
+[Благодаря Консервы — результат x2!]`, noResourceText: `Получаешь полный паёк — горячая каша, хлеб, чай и сухпаёк в дорогу. Давно так сытно не ел.
+[Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ chips: C(level, 2), healPercent: RF(0.02, 0.04) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+        { text: 'Волонтёры проверяют воду и уровень радиации на твоём снаряжении. Дают фильтры для воды и йод — пригодится.', weight: 20, effects: (_, level) => ({ exp: E(level, 2), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Волонтёры проверяют воду и уровень радиации на твоём снаряжении. Дают фильтры для воды и йод — пригодится.
+[Благодаря Вода — результат x2!]`, noResourceText: `Волонтёры проверяют воду и уровень радиации на твоём снаряжении. Дают фильтры для воды и йод — пригодится.
+[Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: 1, chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+        { text: 'В лагере вспышка инфекции — волонтёры сами больны. Мест для здоровых нет. Торопливо забираешь пару банок консервов и уходишь.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06) }), resourceCost: nextResource(), resourceText: `В лагере вспышка инфекции — волонтёры сами больны. Мест для здоровых нет. Торопливо забираешь пару банок консервов и уходишь.
+[С Изолента урон смягчён — потери -50%.]`, noResourceText: `В лагере вспышка инфекции — волонтёры сами больны. Мест для здоровых нет. Торопливо забираешь пару банок консервов и уходишь.
+[Без Изолента — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.03 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
+        { text: 'Волонтёр {male} узнаёт в тебе сталкера из старых рейдов. «{nick}, живой!» — обнимает, делится личными припасами и новостями из центра.', weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 3), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Волонтёр {male} узнаёт в тебе сталкера из старых рейдов. «{nick}, живой!» — обнимает, делится личными припасами и новостями из центра.
+[Инструменты помог выжать максимум из ситуации.]`, noResourceText: `Волонтёр {male} узнаёт в тебе сталкера из старых рейдов. «{nick}, живой!» — обнимает, делится личными припасами и новостями из центра.
+[Без Инструменты — увы, могло быть лучше.]`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
+      ],
+    },
   },
 ];
 
@@ -2373,11 +2583,26 @@ export const generateExplorationEvent = (
       if (v) (baseEffects as any)[k] = ((baseEffects as any)[k] || 0) + (v as number);
     }
 
+    // Cap heal/damage: без ресурса → 5%/30%, с ресурсом → 15%/15%
+    const hadResource = branchResult.resourceHad;
+    if (baseEffects.healPercent && baseEffects.healPercent > 0) {
+      baseEffects.healPercent = Math.min(baseEffects.healPercent, hadResource ? 0.15 : 0.05);
+    }
+    if (baseEffects.damagePercent && baseEffects.damagePercent > 0) {
+      baseEffects.damagePercent = Math.min(baseEffects.damagePercent, hadResource ? 0.15 : 0.30);
+    }
+
     const fullText = `${baseText} → ${branchText}`;
     return { text: fullText, type: template.type, effects: baseEffects, decision, resourceCost: branchResult.resourceCost, resourceHad: branchResult.resourceHad };
   }
 
   const fullText = baseText;
+  if (baseEffects.healPercent && baseEffects.healPercent > 0) {
+    baseEffects.healPercent = Math.min(baseEffects.healPercent, 0.05);
+  }
+  if (baseEffects.damagePercent && baseEffects.damagePercent > 0) {
+    baseEffects.damagePercent = Math.min(baseEffects.damagePercent, 0.30);
+  }
   return { text: fullText, type: template.type, effects: baseEffects, decision };
 };
 

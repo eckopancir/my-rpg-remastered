@@ -158,7 +158,7 @@ export const useExplorationStore = create<ExplorationStore>()(
       eventLog: state.eventLog.slice(-50),
       endedAt: Date.now(),
     };
-    set({ history: [entry, ...state.history].slice(0, 5) });
+    set({ history: [entry, ...state.history].slice(0, 20) });
   },
 
   startExploration: (zoneName, difficulty, factions) => {
