@@ -402,6 +402,8 @@ export const useExplorationStore = create<ExplorationStore>()(
           combat: event.effects.combat,
           items: eventItems.length > 0 ? eventItems : undefined,
           decision: event.decision,
+          resourceCost: event.resourceCost,
+          resourceHad: event.resourceHad,
         };
 
         if (eventItems.length > 0) itemsGained += eventItems.length;
