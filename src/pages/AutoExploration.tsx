@@ -263,12 +263,11 @@ const EventCard = ({ entry, formatTime, onItemHover, onItemMove, onItemLeave }: 
         )}
         {/* Text — split on \n for reward summary, resource names are interactive */}
         {entry.text.split('\n').map((line: string, i: number) => {
-          let matchedRes: string | null = null;
-          for (const res of GAME_RESOURCES) {
-            if (line.includes(res.name)) { matchedRes = res.name; break; }
+          if (!entry.resourceCost || !line.includes(entry.resourceCost)) {
+            return <div key={i}>{line || '\u00A0'}</div>;
           }
-          if (!matchedRes) return <div key={i}>{line || '\u00A0'}</div>;
-          const parts = line.split(matchedRes);
+          const parts = line.split(entry.resourceCost);
+          const resColor = entry.resourceHad ? '#4ade80' : '#f87171';
           return (
             <div key={i}>
               {parts.map((part, j) => (
@@ -277,7 +276,7 @@ const EventCard = ({ entry, formatTime, onItemHover, onItemMove, onItemLeave }: 
                   {j < parts.length - 1 && (
                     <span
                       onMouseEnter={(e) => {
-                        const def = GAME_RESOURCES.find((r) => r.name === matchedRes);
+                        const def = GAME_RESOURCES.find((r) => r.name === entry.resourceCost);
                         if (def) {
                           onItemHover({
                             id: `res_${def.name}`,
@@ -287,15 +286,15 @@ const EventCard = ({ entry, formatTime, onItemHover, onItemMove, onItemLeave }: 
                             slot: def.slot,
                             rarity: def.rarity,
                             stats: {},
-                            qualityColor: entry.resourceCost === def.name && !entry.resourceHad ? '#f87171' : '#4ade80',
+                            qualityColor: resColor,
                           }, e);
                         }
                       }}
                       onMouseMove={onItemMove}
                       onMouseLeave={onItemLeave}
-                      style={{ cursor: 'pointer', borderBottom: '1px dashed rgba(255,255,255,0.25)' }}
+                      style={{ cursor: 'pointer', color: resColor, borderBottom: `1px dashed ${resColor}44` }}
                     >
-                      {matchedRes}
+                      {entry.resourceCost}
                     </span>
                   )}
                 </span>
@@ -339,42 +338,6 @@ const EventCard = ({ entry, formatTime, onItemHover, onItemMove, onItemLeave }: 
           >
             → {entry.decision}
           </div>
-        )}
-
-        {/* Resource cost badge */}
-        {entry.resourceCost && (
-          <span
-            onMouseEnter={(e) => {
-              const def = GAME_RESOURCES.find((r) => r.name === entry.resourceCost);
-              if (def) {
-                onItemHover({
-                  id: `res_${def.name}`,
-                  name: def.name,
-                  displayName: def.name,
-                  type: def.type,
-                  slot: def.slot,
-                  rarity: def.rarity,
-                  stats: {},
-                  qualityColor: entry.resourceHad ? '#4ade80' : '#f87171',
-                }, e);
-              }
-            }}
-            onMouseMove={onItemMove}
-            onMouseLeave={onItemLeave}
-            style={{
-              display: 'inline-block',
-              marginTop: 3,
-              fontSize: 11,
-              padding: '1px 6px',
-              borderRadius: 4,
-              fontFamily: 'var(--font-mono)',
-              cursor: 'pointer',
-              background: entry.resourceHad ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
-              color: entry.resourceHad ? '#4ade80' : '#f87171',
-            }}
-          >
-            [{entry.resourceHad ? '' : '!'}{entry.resourceCost}]
-          </span>
         )}
 
         {/* Legendary result badge */}

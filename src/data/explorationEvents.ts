@@ -119,6 +119,7 @@ const LOOT_ROOMS = [
 // ---------------------------------------------------------------------------
 const PICK = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 const RANGE = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;
+const RF = (min: number, max: number): number => min + Math.random() * (max - min);
 
 // Level-scaled chip/exp helpers
 const C = (level: number, _tier?: number): number => RANGE(1, 5) + (level - 1) * 2;
@@ -207,11 +208,11 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Даём бой и выходим победителями из схватки у ${zoneLabel}.`, weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[0], resourceText: `Используя [${r[0]}] ремонтируем оружие в бою — трофеи x3.`, noResourceText: `Без [${r[0]}] ствол заклинило — обычная награда.`, resourceEffects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), noResourceEffects: () => ({}) },
-        { text: `Тактически отступаем, уводя противника в ловушку. Ворачиваемся за трофеем.`, weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[1], resourceText: `[${r[1]}] помогли замаскировать ловушку — лут x2.`, noResourceText: `Без [${r[1]}] ловушка слабая — часть добычи потеряна.`, resourceEffects: (_, level) => ({ chips: C(level, 3), exp: E(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 1) }) },
-        { text: `Вовремя подоспевшая помощь — патруль союзников разгоняет врагов.`, weight: 20, effects: (_, level) => ({ healPercent: RANGE(0.02, 0.06), exp: E(level, 4), chips: C(level, 3) }), resourceCost: r[2], resourceText: `Отблагодарили патруль [${r[2]}] — союзники поделились боеприпасами. Награда x2.`, noResourceText: `Нечем отблагодарить — [${r[2]}] нет. Разошлись сухо.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), exp: E(level, 3) }), noResourceEffects: () => ({}) },
-        { text: `Противник оказывается сильнее. Получаем серьёзные ранения в бою.`, weight: 15, effects: (_, level) => ({ damagePercent: 0.10, chips: NC(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] смягчили удар — ранения лёгкие.`, noResourceText: `Нет [${r[3]}] — урон удвоен.`, resourceEffects: () => ({ damagePercent: -0.05 }), noResourceEffects: () => ({ damagePercent: 0.10 }) },
-        { text: `Прорываемся с боем, теряем часть припасов, но приобретаем боевой опыт.`, weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.02, 0.05), exp: E(level, 4) }), resourceCost: r[4], resourceText: `Повезло, [${r[4]}] поймало пулю — урон -50%.`, noResourceText: `Отсутствует [${r[4]}] — дополнительный урон x2.`, resourceEffects: () => ({ damagePercent: -RANGE(0.01, 0.02) }), noResourceEffects: (_, level) => ({ damagePercent: RANGE(0.02, 0.05) }) },
+        { text: `Даём бой и выходим победителями из схватки у ${zoneLabel}.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[0], resourceText: `Используя [${r[0]}] ремонтируем оружие в бою — трофеи x3.`, noResourceText: `Без [${r[0]}] ствол заклинило — обычная награда.`, resourceEffects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), noResourceEffects: () => ({}) },
+        { text: `Тактически отступаем, уводя противника в ловушку. Ворачиваемся за трофеем.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[1], resourceText: `[${r[1]}] помогли замаскировать ловушку — лут x2.`, noResourceText: `Без [${r[1]}] ловушка слабая — часть добычи потеряна.`, resourceEffects: (_, level) => ({ chips: C(level, 3), exp: E(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 1) }) },
+        { text: `Вовремя подоспевшая помощь — патруль союзников разгоняет врагов.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.06), exp: E(level, 4), chips: C(level, 3) }), resourceCost: r[2], resourceText: `Отблагодарили патруль [${r[2]}] — союзники поделились боеприпасами. Награда x2.`, noResourceText: `Нечем отблагодарить — [${r[2]}] нет. Разошлись сухо.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), exp: E(level, 3) }), noResourceEffects: () => ({}) },
+        { text: `Противник оказывается сильнее. Получаем серьёзные ранения в бою.`, weight: 20, effects: (_, level) => ({ damagePercent: 0.10, chips: NC(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] смягчили удар — ранения лёгкие.`, noResourceText: `Нет [${r[3]}] — урон удвоен.`, resourceEffects: () => ({ damagePercent: -0.05 }), noResourceEffects: () => ({ damagePercent: 0.10 }) },
+        { text: `Прорываемся с боем, теряем часть припасов, но приобретаем боевой опыт.`, weight: 15, effects: (_, level) => ({ damagePercent: RF(0.02, 0.05), exp: E(level, 4) }), resourceCost: r[4], resourceText: `Повезло, [${r[4]}] поймало пулю — урон -50%.`, noResourceText: `Отсутствует [${r[4]}] — дополнительный урон x2.`, resourceEffects: () => ({ damagePercent: -RF(0.01, 0.02) }), noResourceEffects: (_, level) => ({ damagePercent: RF(0.02, 0.05) }) },
       ],
     };
   }
@@ -220,11 +221,11 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Находка в целости — всё, что здесь было, достаётся нам.`, weight: 25, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Благодаря [${r[0]}] добираемся до тайника первыми — лут x3.`, noResourceText: `Без [${r[0]}] упаковка не вскрыта — часть пропала.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 3) }), noResourceEffects: () => ({ chips: NC(level, 0) }) },
-        { text: `Помимо основного, замечаем скрытый тайник в ${zoneLabel}.`, weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3), itemCount: RANGE(1, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] помогают вскрыть тайник без шума — находка x2.`, noResourceText: `Без [${r[1]}] тайник взломан силой — часть испорчена.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: () => ({ itemCount: -1 }) },
+        { text: `Находка в целости — всё, что здесь было, достаётся нам.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Благодаря [${r[0]}] добираемся до тайника первыми — лут x3.`, noResourceText: `Без [${r[0]}] упаковка не вскрыта — часть пропала.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 3) }), noResourceEffects: () => ({ chips: NC(level, 0) }) },
+        { text: `Помимо основного, замечаем скрытый тайник в ${zoneLabel}.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3), itemCount: RANGE(1, 2) }), resourceCost: r[1], resourceText: `[${r[1]}] помогают вскрыть тайник без шума — находка x2.`, noResourceText: `Без [${r[1]}] тайник взломан силой — часть испорчена.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: () => ({ itemCount: -1 }) },
         { text: `Находим ценные сведения — карты, записи, координаты других схронов.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }), resourceCost: r[2], resourceText: `[${r[2]}] пригодились — контейнер распакован. Находка x3.`, noResourceText: `Без [${r[2]}] контейнер взломан — часть испорчена.`, resourceEffects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), noResourceEffects: () => ({ chips: NC(level, 2) }) },
-        { text: `Ловушка! Кто-то подстраховал находку. Получаем урон и теряем часть снаряжения.`, weight: 15, effects: (_, level) => ({ damagePercent: 0.08, chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] обезвредили ловушку — урон минимален.`, noResourceText: `[${r[3]}] нет — ловушка сработала в полную силу.`, resourceEffects: () => ({ damagePercent: -0.04 }), noResourceEffects: () => ({ damagePercent: 0.08 }) },
-        { text: `Забираем ценное, но приходится уходить под обстрелом.`, weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), chips: C(level, 3) }), resourceCost: r[4], resourceText: `Прикрываясь [${r[4]}] уходим без царапины.`, noResourceText: `Нет [${r[4]}] — полный урон.`, resourceEffects: () => ({ damagePercent: -0.03 }), noResourceEffects: () => ({ damagePercent: RANGE(0.02, 0.04) }) },
+        { text: `Ловушка! Кто-то подстраховал находку. Получаем урон и теряем часть снаряжения.`, weight: 20, effects: (_, level) => ({ damagePercent: 0.08, chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] обезвредили ловушку — урон минимален.`, noResourceText: `[${r[3]}] нет — ловушка сработала в полную силу.`, resourceEffects: () => ({ damagePercent: -0.04 }), noResourceEffects: () => ({ damagePercent: 0.08 }) },
+        { text: `Забираем ценное, но приходится уходить под обстрелом.`, weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), chips: C(level, 3) }), resourceCost: r[4], resourceText: `Прикрываясь [${r[4]}] уходим без царапины.`, noResourceText: `Нет [${r[4]}] — полный урон.`, resourceEffects: () => ({ damagePercent: -0.03 }), noResourceEffects: () => ({ damagePercent: RF(0.02, 0.04) }) },
       ],
     };
   }
@@ -233,10 +234,10 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Удаётся сторговаться по выгодной цене. Продавец доволен, мы при деньгах.`, weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Предложили [${r[0]}] как оплату — продавец дал скидку. Прибыль x2.`, noResourceText: `Нет [${r[0]}] для бартера — цена стандартная.`, resourceEffects: (_, level) => ({ chips: C(level, 5) }), noResourceEffects: () => ({}) },
-        { text: `Продавец оказывается щедрым — добавляет бонус к сделке.`, weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[1], resourceText: `Обменяли [${r[1]}] на редкий товар — бонус x2.`, noResourceText: `Без [${r[1]}] бонус скромнее.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
-        { text: `Обмениваемся знаниями и информацией о ${zoneLabel}.`, weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.05) }), resourceCost: r[2], resourceText: `Поделились [${r[2]}] — попутчики раскрыли секретные маршруты. Опыт x2.`, noResourceText: `Нечем поделиться — [${r[2]}] нет. Поговорили и разошлись.`, resourceEffects: (_, level) => ({ exp: E(level, 4) }), noResourceEffects: () => ({}) },
-        { text: `Обман! Продавец подсовывает бракованный товар и скрывается с нашими чипами.`, weight: 15, effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RANGE(0.08, 0.12) }), resourceCost: r[3], resourceText: `Вовремя заметили подмену — [${r[3]}] спасли от обмана. Потери минимальны.`, noResourceText: `[${r[3]}] нет — попались на удочку. Потери x2.`, resourceEffects: () => ({ chips: 0 }), noResourceEffects: (_, level) => ({ chips: NC(level, 2) }) },
+        { text: `Удаётся сторговаться по выгодной цене. Продавец доволен, мы при деньгах.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Предложили [${r[0]}] как оплату — продавец дал скидку. Прибыль x2.`, noResourceText: `Нет [${r[0]}] для бартера — цена стандартная.`, resourceEffects: (_, level) => ({ chips: C(level, 5) }), noResourceEffects: () => ({}) },
+        { text: `Продавец оказывается щедрым — добавляет бонус к сделке.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[1], resourceText: `Обменяли [${r[1]}] на редкий товар — бонус x2.`, noResourceText: `Без [${r[1]}] бонус скромнее.`, resourceEffects: (_, level) => ({ itemCount: 1 }), noResourceEffects: () => ({}) },
+        { text: `Обмениваемся знаниями и информацией о ${zoneLabel}.`, weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.05) }), resourceCost: r[2], resourceText: `Поделились [${r[2]}] — попутчики раскрыли секретные маршруты. Опыт x2.`, noResourceText: `Нечем поделиться — [${r[2]}] нет. Поговорили и разошлись.`, resourceEffects: (_, level) => ({ exp: E(level, 4) }), noResourceEffects: () => ({}) },
+        { text: `Обман! Продавец подсовывает бракованный товар и скрывается с нашими чипами.`, weight: 20, effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RF(0.08, 0.12) }), resourceCost: r[3], resourceText: `Вовремя заметили подмену — [${r[3]}] спасли от обмана. Потери минимальны.`, noResourceText: `[${r[3]}] нет — попались на удочку. Потери x2.`, resourceEffects: () => ({ chips: 0 }), noResourceEffects: (_, level) => ({ chips: NC(level, 2) }) },
         { text: `Сделка проходит нейтрально — без прибыли, но и без потерь.`, weight: 15, effects: (_, level) => ({ chips: C(level, 2), exp: E(level, 1) }), resourceCost: r[4], resourceText: `[${r[4]}] подсластили сделку — выбили бонус.`, noResourceText: `Без [${r[4]}] — ровно, как договорились.`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: () => ({}) },
       ],
     };
@@ -246,11 +247,11 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Предлагаем помощь — нас благодарят и щедро вознаграждают.`, weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[0], resourceText: `Используем [${r[0]}] чтобы помочь — благодарность x3.`, noResourceText: `Нечем помочь — [${r[0]}] нет. Награда скромнее.`, resourceEffects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(1, 2) }), noResourceEffects: () => ({ chips: NC(level, 1) }) },
-        { text: `Рассказываем свою историю. Местные вдохновляются и делятся припасами.`, weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.02, 0.06), exp: E(level, 4) }), resourceCost: r[1], resourceText: `[${r[1]}] как дар скрепляет дружбу — местные открывают запасы.`, noResourceText: `Без [${r[1]}] история тронула, но припасов не дали.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 3) }), noResourceEffects: () => ({}) },
+        { text: `Предлагаем помощь — нас благодарят и щедро вознаграждают.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3) }), resourceCost: r[0], resourceText: `Используем [${r[0]}] чтобы помочь — благодарность x3.`, noResourceText: `Нечем помочь — [${r[0]}] нет. Награда скромнее.`, resourceEffects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(1, 2) }), noResourceEffects: () => ({ chips: NC(level, 1) }) },
+        { text: `Рассказываем свою историю. Местные вдохновляются и делятся припасами.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.06), exp: E(level, 4) }), resourceCost: r[1], resourceText: `[${r[1]}] как дар скрепляет дружбу — местные открывают запасы.`, noResourceText: `Без [${r[1]}] история тронула, но припасов не дали.`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 3) }), noResourceEffects: () => ({}) },
         { text: `Помогаем в обмен на услугу. Взаимовыручка в ${zoneLabel}.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(1, 2) }), resourceCost: r[2], resourceText: `Оставляем [${r[2]}] в залог — услуга оплачена вдвойне.`, noResourceText: `Без [${r[2]}] услуга без благодарности.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({}) },
-        { text: `Проявляем наивность — нас обманывают и обкрадывают.`, weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.12), chips: NC(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] помогли сохранить часть припасов. Потери -50%.`, noResourceText: `Нет [${r[3]}] — потеряли всё.`, resourceEffects: () => ({ chips: NC(0, 0) }), noResourceEffects: (_, level) => ({ chips: NC(level, 2) }) },
-        { text: `Помочь не вышло — ситуация обернулась против нас, но получили ценный урок.`, weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.02, 0.04), exp: E(level, 4) }), resourceCost: r[4], resourceText: `[${r[4]}] смягчили падение — легко отделались.`, noResourceText: `Нет [${r[4]}] — урон вдвое сильнее.`, resourceEffects: () => ({ damagePercent: -RANGE(0.01, 0.02) }), noResourceEffects: (_, level) => ({ damagePercent: RANGE(0.02, 0.04) }) },
+        { text: `Проявляем наивность — нас обманывают и обкрадывают.`, weight: 20, effects: (_, level) => ({ damagePercent: RF(0.08, 0.12), chips: NC(level, 2) }), resourceCost: r[3], resourceText: `[${r[3]}] помогли сохранить часть припасов. Потери -50%.`, noResourceText: `Нет [${r[3]}] — потеряли всё.`, resourceEffects: () => ({ chips: NC(0, 0) }), noResourceEffects: (_, level) => ({ chips: NC(level, 2) }) },
+        { text: `Помочь не вышло — ситуация обернулась против нас, но получили ценный урок.`, weight: 15, effects: (_, level) => ({ damagePercent: RF(0.02, 0.04), exp: E(level, 4) }), resourceCost: r[4], resourceText: `[${r[4]}] смягчили падение — легко отделались.`, noResourceText: `Нет [${r[4]}] — урон вдвое сильнее.`, resourceEffects: () => ({ damagePercent: -RF(0.01, 0.02) }), noResourceEffects: (_, level) => ({ damagePercent: RF(0.02, 0.04) }) },
       ],
     };
   }
@@ -259,11 +260,11 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Удача на нашей стороне — проходим опасный участок ${zoneLabel} без потерь.`, weight: 25, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] помогают преодолеть препятствие — проходим с комфортом.`, noResourceText: `Без [${r[0]}] идём на риск — проходим, но потрёпанные.`, resourceEffects: (_, level) => ({ healPercent: RANGE(0.02, 0.04) }), noResourceEffects: (_, level) => ({ damagePercent: RANGE(0.01, 0.03) }) },
-        { text: `Находим способ обезвредить угрозу — сообразительность спасает положение.`, weight: 25, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 4) }), resourceCost: r[1], resourceText: `[${r[1]}] — идеальный инструмент для обезвреживания. Награда x2.`, noResourceText: `Без [${r[1]}] обезвреживаем подручными средствами.`, resourceEffects: (_, level) => ({ chips: C(level, 4), itemCount: 1 }), noResourceEffects: () => ({}) },
-        { text: `Опасность закаляет дух. Выходим из передряги сильнее.`, weight: 20, effects: (_, level) => ({ healPercent: RANGE(0.02, 0.05), exp: E(level, 4) }), resourceCost: r[2], resourceText: `[${r[2]}] укрепляют позиции — меньше урона, больше опыта.`, noResourceText: `Без [${r[2]}] выходим потрёпанными.`, resourceEffects: (_, level) => ({ healPercent: RANGE(0.02, 0.04), exp: E(level, 2) }), noResourceEffects: () => ({ damagePercent: RANGE(0.01, 0.03) }) },
-        { text: `Опасность оказалась сильнее. Получаем травмы и теряем часть снаряжения.`, weight: 15, effects: (_, level) => ({ damagePercent: 0.12, chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] спасают от худшего — травмы лёгкие.`, noResourceText: `Нет [${r[3]}] — урон x2, потери серьёзные.`, resourceEffects: () => ({ damagePercent: -0.06 }), noResourceEffects: () => ({ damagePercent: 0.12 }) },
-        { text: `Выбрались с трудом. Потрёпаны, но с добычей.`, weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), chips: C(level, 3) }), resourceCost: r[4], resourceText: `[${r[4]}] помогли сохранить добычу — ценное уцелело.`, noResourceText: `Без [${r[4]}] добыча рассыпалась — подобрали половину.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({ chips: NC(level, 0) }) },
+        { text: `Удача на нашей стороне — проходим опасный участок ${zoneLabel} без потерь.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3) }), resourceCost: r[0], resourceText: `[${r[0]}] помогают преодолеть препятствие — проходим с комфортом.`, noResourceText: `Без [${r[0]}] идём на риск — проходим, но потрёпанные.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.04) }), noResourceEffects: (_, level) => ({ damagePercent: RF(0.01, 0.03) }) },
+        { text: `Находим способ обезвредить угрозу — сообразительность спасает положение.`, weight: 20, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 4) }), resourceCost: r[1], resourceText: `[${r[1]}] — идеальный инструмент для обезвреживания. Награда x2.`, noResourceText: `Без [${r[1]}] обезвреживаем подручными средствами.`, resourceEffects: (_, level) => ({ chips: C(level, 4), itemCount: 1 }), noResourceEffects: () => ({}) },
+        { text: `Опасность закаляет дух. Выходим из передряги сильнее.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.02, 0.05), exp: E(level, 4) }), resourceCost: r[2], resourceText: `[${r[2]}] укрепляют позиции — меньше урона, больше опыта.`, noResourceText: `Без [${r[2]}] выходим потрёпанными.`, resourceEffects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 2) }), noResourceEffects: () => ({ damagePercent: RF(0.01, 0.03) }) },
+        { text: `Опасность оказалась сильнее. Получаем травмы и теряем часть снаряжения.`, weight: 20, effects: (_, level) => ({ damagePercent: 0.12, chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] спасают от худшего — травмы лёгкие.`, noResourceText: `Нет [${r[3]}] — урон x2, потери серьёзные.`, resourceEffects: () => ({ damagePercent: -0.06 }), noResourceEffects: () => ({ damagePercent: 0.12 }) },
+        { text: `Выбрались с трудом. Потрёпаны, но с добычей.`, weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), chips: C(level, 3) }), resourceCost: r[4], resourceText: `[${r[4]}] помогли сохранить добычу — ценное уцелело.`, noResourceText: `Без [${r[4]}] добыча рассыпалась — подобрали половину.`, resourceEffects: (_, level) => ({ chips: C(level, 3) }), noResourceEffects: () => ({ chips: NC(level, 0) }) },
       ],
     };
   }
@@ -272,11 +273,11 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Отличное место для отдыха. Восстанавливаем силы и дух.`, weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.04, 0.08), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Разводим костёр с помощью [${r[0]}] — отдых полноценный. Восстановление x2.`, noResourceText: `Без [${r[0]}] отдых неполный.`, resourceEffects: (_, level) => ({ healPercent: RANGE(0.04, 0.06) }), noResourceEffects: () => ({ healPercent: -RANGE(0.02, 0.04) }) },
-        { text: `Встречаем попутного лекаря. Он делится медикаментами и советами.`, weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.03, 0.07), exp: E(level, 3), chips: C(level, 3) }), resourceCost: r[1], resourceText: `Даём лекарю [${r[1]}] — он делится лучшими препаратами. Лечение x3.`, noResourceText: `Нет [${r[1]}] для обмена — помощь бесплатная, но скупая.`, resourceEffects: (_, level) => ({ healPercent: RANGE(0.04, 0.06) }), noResourceEffects: () => ({}) },
-        { text: `Обнаруживаем природный источник чистой воды и съедобные растения.`, weight: 20, effects: () => ({ healPercent: RANGE(0.02, 0.05), itemCount: RANGE(1, 2) }), resourceCost: r[2], resourceText: `С помощью [${r[2]}] очищаем воду — запас пополнен.`, noResourceText: `Без [${r[2]}] пьём как есть — риск заражения.`, resourceEffects: () => ({ healPercent: RANGE(0.02, 0.04) }), noResourceEffects: () => ({ damagePercent: RANGE(0.01, 0.03) }) },
-        { text: `Место оказалось заражённым. Вместо отдыха получаем отравление.`, weight: 15, effects: (_, level) => ({ damagePercent: 0.08, chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] нейтрализует яд — урон -50%.`, noResourceText: `Нет [${r[3]}] — отравление в полную силу.`, resourceEffects: () => ({ damagePercent: -0.04 }), noResourceEffects: () => ({ damagePercent: 0.08 }) },
-        { text: `Короткий привал — успеваем передохнуть, но в спешке срываем спину.`, weight: 15, effects: () => ({ healPercent: RANGE(0.01, 0.03) }), resourceCost: r[4], resourceText: `[${r[4]}] подкладываем под спину — отдых комфортный.`, noResourceText: `Без [${r[4]}] спим на земле — спина болит.`, resourceEffects: () => ({ healPercent: RANGE(0.02, 0.04) }), noResourceEffects: () => ({ damagePercent: RANGE(0.01, 0.02) }) },
+        { text: `Отличное место для отдыха. Восстанавливаем силы и дух.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.04, 0.08), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Разводим костёр с помощью [${r[0]}] — отдых полноценный. Восстановление x2.`, noResourceText: `Без [${r[0]}] отдых неполный.`, resourceEffects: (_, level) => ({ healPercent: RF(0.04, 0.06) }), noResourceEffects: () => ({ healPercent: -RF(0.02, 0.04) }) },
+        { text: `Встречаем попутного лекаря. Он делится медикаментами и советами.`, weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.07), exp: E(level, 3), chips: C(level, 3) }), resourceCost: r[1], resourceText: `Даём лекарю [${r[1]}] — он делится лучшими препаратами. Лечение x3.`, noResourceText: `Нет [${r[1]}] для обмена — помощь бесплатная, но скупая.`, resourceEffects: (_, level) => ({ healPercent: RF(0.04, 0.06) }), noResourceEffects: () => ({}) },
+        { text: `Обнаруживаем природный источник чистой воды и съедобные растения.`, weight: 20, effects: () => ({ healPercent: RF(0.02, 0.05), itemCount: RANGE(1, 2) }), resourceCost: r[2], resourceText: `С помощью [${r[2]}] очищаем воду — запас пополнен.`, noResourceText: `Без [${r[2]}] пьём как есть — риск заражения.`, resourceEffects: () => ({ healPercent: RF(0.02, 0.04) }), noResourceEffects: () => ({ damagePercent: RF(0.01, 0.03) }) },
+        { text: `Место оказалось заражённым. Вместо отдыха получаем отравление.`, weight: 20, effects: (_, level) => ({ damagePercent: 0.08, chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] нейтрализует яд — урон -50%.`, noResourceText: `Нет [${r[3]}] — отравление в полную силу.`, resourceEffects: () => ({ damagePercent: -0.04 }), noResourceEffects: () => ({ damagePercent: 0.08 }) },
+        { text: `Короткий привал — успеваем передохнуть, но в спешке срываем спину.`, weight: 15, effects: () => ({ healPercent: RF(0.01, 0.03) }), resourceCost: r[4], resourceText: `[${r[4]}] подкладываем под спину — отдых комфортный.`, noResourceText: `Без [${r[4]}] спим на земле — спина болит.`, resourceEffects: () => ({ healPercent: RF(0.02, 0.04) }), noResourceEffects: () => ({ damagePercent: RF(0.01, 0.02) }) },
       ],
     };
   }
@@ -285,10 +286,10 @@ const getAutoBranch = (template: EventTemplate, zone: string): EventBranch | nul
     return {
       prompt: '',
       outcomes: [
-        { text: `Приятное знакомство у ${zoneLabel}. Новый друг — ценный союзник.`, weight: 25, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Угощаем друга [${r[0]}] — союзник делится припасами. Дружба x2.`, noResourceText: `Нечем угостить — [${r[0]}] нет. Друг без подарков.`, resourceEffects: (_, level) => ({ itemCount: 1, chips: C(level, 2) }), noResourceEffects: () => ({}) },
-        { text: `Интересный собеседник делится ценной информацией о ${zoneLabel}.`, weight: 25, effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }), resourceCost: r[1], resourceText: `Платим [${r[1]}] за информацию — данные подробнее и ценнее.`, noResourceText: `Без [${r[1]}] информация общая, без деталей.`, resourceEffects: (_, level) => ({ exp: E(level, 4), chips: C(level, 3) }), noResourceEffects: () => ({}) },
+        { text: `Приятное знакомство у ${zoneLabel}. Новый друг — ценный союзник.`, weight: 20, effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 2) }), resourceCost: r[0], resourceText: `Угощаем друга [${r[0]}] — союзник делится припасами. Дружба x2.`, noResourceText: `Нечем угостить — [${r[0]}] нет. Друг без подарков.`, resourceEffects: (_, level) => ({ itemCount: 1, chips: C(level, 2) }), noResourceEffects: () => ({}) },
+        { text: `Интересный собеседник делится ценной информацией о ${zoneLabel}.`, weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }), resourceCost: r[1], resourceText: `Платим [${r[1]}] за информацию — данные подробнее и ценнее.`, noResourceText: `Без [${r[1]}] информация общая, без деталей.`, resourceEffects: (_, level) => ({ exp: E(level, 4), chips: C(level, 3) }), noResourceEffects: () => ({}) },
         { text: `Обмениваемся любезностями и подарками.`, weight: 20, effects: (_, level) => ({ chips: C(level, 5), itemCount: 1 }), resourceCost: r[2], resourceText: `Дарим [${r[2]}] — взаимный обмен щедрый. Подарки x2.`, noResourceText: `Без [${r[2]}] обмен скромный.`, resourceEffects: (_, level) => ({ chips: C(level, 3), itemCount: 1 }), noResourceEffects: () => ({}) },
-        { text: `Незнакомец оказывается агрессивным. Приходится защищаться.`, weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.12), chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] используем как щит — урон -50%.`, noResourceText: `Нет [${r[3]}] — урон полный.`, resourceEffects: () => ({ damagePercent: -RANGE(0.04, 0.06) }), noResourceEffects: () => ({ damagePercent: RANGE(0.04, 0.06) }) },
+        { text: `Незнакомец оказывается агрессивным. Приходится защищаться.`, weight: 20, effects: (_, level) => ({ damagePercent: RF(0.08, 0.12), chips: NC(level, 0) }), resourceCost: r[3], resourceText: `[${r[3]}] используем как щит — урон -50%.`, noResourceText: `Нет [${r[3]}] — урон полный.`, resourceEffects: () => ({ damagePercent: -RF(0.04, 0.06) }), noResourceEffects: () => ({ damagePercent: RF(0.04, 0.06) }) },
         { text: `Нейтральное общение — ни тепло, ни холодно.`, weight: 15, effects: (_, level) => ({ exp: E(level, 2) }), resourceCost: r[4], resourceText: `[${r[4]}] как тема разговора — стало интереснее. Бонус.`, noResourceText: `[${r[4]}] нет — разговор ни о чём.`, resourceEffects: (_, level) => ({ exp: E(level, 2), chips: C(level, 2) }), noResourceEffects: () => ({}) },
       ],
     };
@@ -428,7 +429,7 @@ const tradeTemplates: EventTemplate[] = [
   {
     text: 'Хрупкая девушка {female} сидит на перевёрнутом ящике. Перед ней разложены самодельные бинты и склянки с мутной жидкостью. «Медицина нужна? Недорого». Она отдаёт тебе часть своих запасов.',
     type: 'trade',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.10), chips: C(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.10), chips: C(level, 2) }),
   },
   {
     text: 'Двое торговцев спорят о ценах на металл. Увидев тебя, один из них, бородач в промасленной куртке, манит рукой: «Помоги разобраться с товаром — получишь долю». Помогаешь разгрузить ящики и получаешь плату.',
@@ -443,7 +444,7 @@ const tradeTemplates: EventTemplate[] = [
   {
     text: 'Молчаливый мужчина в чёрном плаще сидит у костра. Рядом — открытый чемодан с инструментами: ключи, отвёртки, микросхемы. «Механика — наше всё», — бросает он. Он чинит твоё снаряжение за символическую плату.',
     type: 'trade',
-    effects: (_, level) => ({ healPercent: RANGE(0.03, 0.08), chips: NC(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.03, 0.08), chips: NC(level, 2) }),
   },
   {
     text: 'На дереве висит самодельная вывеска «Лавка дядюшки Грыма». Под ней — землянка, битком набитая хламом и сокровищами. Хозяин, сухой старик со стеклянным глазом, подзывает тебя: «Гляди, что есть!»',
@@ -458,7 +459,7 @@ const tradeTemplates: EventTemplate[] = [
   {
     text: 'Цыганский табор расположился у высохшего русла. Женщина с бусами зовёт погадать на «чипы будущего». За горсть чипов она предсказывает тебе удачу (или просто кормит обедом).',
     type: 'trade',
-    effects: (_, level) => ({ chips: C(level, 5), healPercent: RANGE(0.03, 0.05) }),
+    effects: (_, level) => ({ chips: C(level, 5), healPercent: RF(0.03, 0.05) }),
   },
   {
     text: 'Скупщик металлолома копается в груде ржавых запчастей. «Есть что продать? Или купить? Всё найду!» Он находит для тебя кое-что ценное среди мусора и отдаёт почти задаром.',
@@ -473,17 +474,17 @@ const tradeTemplates: EventTemplate[] = [
   {
     text: 'Девчонка лет четырнадцати бегает между торговцами с подносом пирожков. «Горячие! С тушёнкой!» Пирожки на удивление съедобные, и ты чувствуешь прилив сил.',
     type: 'trade',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.11), chips: NC(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.11), chips: NC(level, 2) }),
   },
   {
     text: 'Странствующий аптекарь. Он разложил на пледе пузырьки с яркими жидкостями: «Адреналин, антирад, боевой коктейль!». Покупаешь универсальный стимулятор.',
     type: 'trade',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), chips: NC(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.12), chips: NC(level, 2) }),
   },
   {
     text: 'Группа кочевников разбила юрты. Старейшина приглашает тебя на чай. Оказывается, они знают этот регион как свои пять пальцев. За рассказы ты получаешь ценные сведения и подарки.',
     type: 'trade',
-    effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 4), healPercent: RANGE(0.03, 0.05) }),
+    effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 4), healPercent: RF(0.03, 0.05) }),
   },
   {
     text: 'Боевой инженер на ходу чистит пулемёт. «Запчасти нужны? Есть родные, не китайские». Он выменивает у тебя старый хлам на несколько обойм патронов.',
@@ -493,7 +494,7 @@ const tradeTemplates: EventTemplate[] = [
   {
     text: 'Худой человек в грязном халате продаёт «лекарство от всех болезней». На пузырьке — этикетка «Радиация: 0% гарантии». Ты отказываешься, но он суёт тебе пузырёк бесплатно. Выбрасывать жалко — оставляешь.',
     type: 'trade',
-    effects: () => ({ healPercent: RANGE(0.02, 0.04) }),
+    effects: () => ({ healPercent: RF(0.02, 0.04) }),
   },
   {
     text: 'Подозрительный тип в застёгнутом плаще шарит в багажнике мертвого сталкера. Выносить не выносит, но и не бросает. Выкидывает что-то отвлекающее и пропадает в руинах.',
@@ -503,7 +504,7 @@ const tradeTemplates: EventTemplate[] = [
   {
     text: 'Девочка лет семи продаёт цветы, растущие среди обломков: «Настоящие! Поливаю каждый день!». Цветы маленькие, но живые. Символ надежды. Ты покупаешь букет и получаешь заряд бодрости.',
     type: 'trade',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.08), chips: NC(level, 0), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.08), chips: NC(level, 0), exp: E(level, 2) }),
   },
   {
     text: 'Авторазборка. Мужик в мазуте копается в двигателе. «Можешь покопаться в той куче — 5 чипов за вход». Находишь редкую микросхему, продаёшь её тут же дороже.',
@@ -534,32 +535,32 @@ const helpTemplates: EventTemplate[] = [
   {
     text: 'Молодой парень копается в двигателе старого грузовика. «Не заведётся, чтоб его!». Помогаешь ему починить — он в благодарность даёт тебе топливо и указывает безопасный путь через болота.',
     type: 'story',
-    effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3), healPercent: RANGE(0.03, 0.05) }),
+    effects: (_, level) => ({ chips: C(level, 4), exp: E(level, 3), healPercent: RF(0.03, 0.05) }),
   },
   {
     text: 'Маленький мальчик сидит на обочине и плачет. «Я потерялся…» Ты провожаешь его до ближайшего поселения. Родители в благодарность угощают тебя обедом и дают чипы.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), chips: C(level, 4), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), chips: C(level, 4), exp: E(level, 2) }),
   },
   {
     text: 'Пожилая пара пытается перетащить телегу через завал. Ты помогаешь расчистить путь. Женщина угощает тебя домашним хлебом (настоящим, не синтетическим!), а мужчина даёт несколько чипов.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.08), chips: C(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.08), chips: C(level, 4) }),
   },
   {
     text: 'Раненый сталкер сидит у костра и пытается сам себе перевязать плечо. «Помоги, брат. Напоролся на арматуру в тёмном подвале». Ты помогаешь ему с перевязкой. Он даёт тебе флягу с водой и ценный совет.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.02, 0.04), exp: E(level, 4), chips: C(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.02, 0.04), exp: E(level, 4), chips: C(level, 3) }),
   },
   {
     text: 'Собака выбегает из кустов, поджав хвост. У неё — царапина и ошейник с запиской: «Приюти, кто может». Забираешь её с собой — она становится твоим компаньоном. В ошейнике припрятаны чипы.',
     type: 'story',
-    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3), healPercent: RANGE(0.02, 0.04) }),
+    effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 3), healPercent: RF(0.02, 0.04) }),
   },
   {
     text: 'Юноша сидит на корточках у капкана, в который попался его друг. «Отцепи его, прошу!». Ты помогаешь освободить ногу парня. Спасённый достаёт из рюкзака банку тушёнки и несколько чипов.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.03, 0.06), chips: C(level, 4), exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.03, 0.06), chips: C(level, 4), exp: E(level, 3) }),
   },
   {
     text: 'Девушка в запылённой куртке чинит солнечную панель на крыше сарая. «Подай мне ключ на 10!» Работаешь с ней часом. Она даёт тебе запасную батарею и чипы за помощь.',
@@ -569,7 +570,7 @@ const helpTemplates: EventTemplate[] = [
   {
     text: 'Трое детей играют в «войнушку» возле сгоревшего бронетранспортёра. Они не видели чужаков с рождения. Ты даёшь им сладости и рассказываешь старую сказку. Их мать приглашает тебя на ужин и даёт припасы в дорогу.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), chips: C(level, 3), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.12), chips: C(level, 3), exp: E(level, 2) }),
   },
   {
     text: 'Из ямы кричит мужчина: «Помогите! Сорвался, ногу подвернул!». Ты спускаешь ему верёвку и вытаскиваешь. Он механик: в благодарность чинит одну из твоих вещей и делится чипами.',
@@ -584,7 +585,7 @@ const helpTemplates: EventTemplate[] = [
   {
     text: 'Древняя старуха сидит на крыльце и плетёт сеть из проволоки и пластиковых лент. «Помоги натянуть, старая уже, сил нет». Помогаешь — она угощает травяным чаем и даёт оберег из костей птиц.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), exp: E(level, 3) }),
   },
   {
     text: 'Семья переселенцев остановилась у ручья. Отец чинит телегу, мать кормит детей. «Не подкинешь бензина? Своим кончился». Делишься топливом — они дают тебе старую карту местности с пометками тайников.',
@@ -604,32 +605,32 @@ const helpTemplates: EventTemplate[] = [
   {
     text: 'Учитель в развалинах школы проводит урок для горстки детей. Он рассказывает о физике и истории. «Хочешь, посиди, послушай. Знания — сила». Полчаса лекции — и ты чувствуешь себя умнее.',
     type: 'story',
-    effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }),
+    effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }),
   },
   {
     text: 'У монаха в оранжевой робе закончилась вода. Он медитирует под палящим солнцем. Ты даёшь ему флягу. «Будда хранит тебя, странник». Он дарит тебе чётки из обожжённой глины — они странно тёплые на ощупь.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), exp: E(level, 4) }),
   },
   {
     text: 'Слепой ветеран сидит у могильного креста. «Сын здесь лежит. Не уберёг…» Ты молча сидишь рядом. Ветеран достаёт флягу, наливает по сто грамм. Горькая, но крепкая встреча.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.02, 0.05), exp: E(level, 4), chips: C(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.02, 0.05), exp: E(level, 4), chips: C(level, 3) }),
   },
   {
     text: 'Молодая пара строит дом из обломков. «Не армия, не банда — просто хотим жить по-человечески». Они приглашают тебя помочь забить пару гвоздей. За работу кормят ужином и дают чипы.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), chips: C(level, 4), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), chips: C(level, 4), exp: E(level, 2) }),
   },
   {
     text: 'Гонец на велосипеде чуть не сбивает тебя. «Прости, брат, спешу! В посёлке эпидемия!». У него порвана цепь. Ты помогаешь починить — он мчится дальше, крикнув на прощание: «Проверь фильтр для воды, если есть!».',
     type: 'story',
-    effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }),
+    effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }),
   },
   {
     text: 'Маленький щенок выбегает из кустов, весь в репьях. За ним никто не идёт. Ты даёшь ему галету — он лижет руку и бежит за тобой. Компаньон на ближайший час поднимает настроение.',
     type: 'story',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.08), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.08), exp: E(level, 2) }),
   },
 ];
 
@@ -640,77 +641,77 @@ const trapTemplates: EventTemplate[] = [
   {
     text: 'Мужчина с перевязанным глазом машет тебе: «Помоги, брат, друзей в засаде бросили!» Ведёт тебя прямиком в ловушку — трое бандитов встречают тебя дубинами. Еле отбиваешься и теряешь часть припасов.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.15), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.08, 0.15), chips: NC(level, 2) }),
   },
   {
     text: 'Девушка с заплаканным лицом просит воды. Ты протягиваешь флягу — она выбивает её у тебя из рук, и тут же из кустов выбегают её сообщники. «Шмонай его!» Потеряно часть чипов.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.04, 0.10), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.04, 0.10), chips: NC(level, 2) }),
   },
   {
     text: 'Запах дыма и жареного мяса. За столом сидит компания, машет: «Садись, путник, угощайся!» Мясо оказывается отравленным. Ты теряешь сознание и просыпаешься без части вещей.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.10, 0.18), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.10, 0.18), chips: NC(level, 2) }),
   },
   {
     text: 'Яркая тряпка на ветке — якобы указатель к «Бесплатному складу». Там — растяжка с гранатой. Чудом остаёшься жив, но контужен и зол.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.12, 0.25), chips: NC(level, 0) }),
+    effects: (_, level) => ({ damagePercent: RF(0.12, 0.25), chips: NC(level, 0) }),
   },
   {
     text: '«Эй, чувак, хочешь дешёвый ствол?» — парень в капюшоне достаёт пистолет. Пистолет — муляж, а пока ты смотришь, его подельник обчищает твой рюкзак.',
     type: 'danger',
-    effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RANGE(0.02, 0.05) }),
+    effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RF(0.02, 0.05) }),
   },
   {
     text: 'Из темноты — крик о помощи. Ты бежишь на звук и проваливаешься в яму-ловушку, прикрытую ветками. На дне — старые кости и вонь. Выбираешься, но ранен и выпачкан в грязи.',
     type: 'danger',
-    effects: () => ({ damagePercent: RANGE(0.06, 0.12) }),
+    effects: () => ({ damagePercent: RF(0.06, 0.12) }),
   },
   {
     text: '«Меня зовут {male}, я бывший военный. Вступи в наш отряд — у нас еда, оружие, бабы!» В отряде оказывается секта каннибалов. С боем прорываешься наружу.',
     type: 'danger',
-    effects: () => ({ damagePercent: RANGE(0.12, 0.22), combat: true }),
+    effects: () => ({ damagePercent: RF(0.12, 0.22), combat: true }),
   },
   {
     text: 'Красивая женщина в чистой одежде стоит на пороге брошенного магазина. «Заходи, я одна, мне страшно». Внутри — ловушка: двое с ножами. Едва уносишь ноги.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.14), chips: NC(level, 0) }),
+    effects: (_, level) => ({ damagePercent: RF(0.08, 0.14), chips: NC(level, 0) }),
   },
   {
     text: 'Странник предлагает сыграть в кости: «Удвою твои чипы, если выиграешь!» Кости краплёные. Проигрываешь всё, что поставил.',
     type: 'danger',
-    effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RANGE(0.01, 0.03) }),
+    effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RF(0.01, 0.03) }),
   },
   {
     text: 'Дорогу перегородил «дорожный сборщик» — вооружённый тип с ржавым автоматом. «Плати за проход». Платишь, но в последний момент он пытается забрать всё. Отбиваешься, но чипы уже потеряны.',
     type: 'danger',
-    effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RANGE(0.04, 0.08) }),
+    effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RF(0.04, 0.08) }),
   },
   {
     text: '«Помоги откопать колодец!» — кричит мужик из ямы. Ты наклоняешься — он хватает тебя за шкирку и стаскивает вниз. Под землёй — старая штольня. Выбираешься через затопленный тоннель.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.10, 0.18), exp: E(level, 4) }),
+    effects: (_, level) => ({ damagePercent: RF(0.10, 0.18), exp: E(level, 4) }),
   },
   {
     text: 'Лже-сталкер продаёт тебе карту «сокровищ». Он ведёт тебя к муляжу, где вместо сундука — взрывпакет. Теряешь часть снаряжения.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.15), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.08, 0.15), chips: NC(level, 2) }),
   },
   {
     text: 'Женщина с ребёнком стоит на дороге, голосует. Ты останавливаешься — «ребёнок» оказывается муляжом, а из кустов выбегают грабители. «Кошелёк или жизнь!» Отбиваешься с трудом.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.06, 0.12), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.06, 0.12), chips: NC(level, 2) }),
   },
   {
     text: 'Странный аппарат посреди дороги — «автомат желаний». Надпись: «Брось 10 чипов и загадай». Бросаешь — аппарат выплёвывает ржавую банку с газом. Газ едкий, глаза слезятся.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), chips: NC(level, 2) }),
   },
   {
     text: 'Шериф самопровозглашённый на въезде в посёлок: «Пошлина на вход — 20 чипов с рыла». Платишь — он пропускает. В посёлке ни души — это ловушка. Из домов выходят люди с оружием.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.15), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.08, 0.15), chips: NC(level, 2) }),
   },
   {
     text: '«Сыграем на интерес?» — предлагает парень в дорогой куртке. Он вытаскивает колоду карт. Карты меченые — ты проигрываешь все чипы, что были в кармане.',
@@ -720,22 +721,22 @@ const trapTemplates: EventTemplate[] = [
   {
     text: 'Девушка в рваной одежде просит убежища на ночь. Ты соглашаешься — ночью она пытается перерезать твой рюкзак. Бдительность спасает, но в борьбе получаешь удар ножом.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.10, 0.18), chips: NC(level, 0) }),
+    effects: (_, level) => ({ damagePercent: RF(0.10, 0.18), chips: NC(level, 0) }),
   },
   {
     text: '«Помоги выбраться!» — человек наполовину влез в узкую трубу и застрял. Ты тянешь его — он оказывается легче пера, но из трубы вылетает рой мутировавших насекомых. Кусают больно.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.06, 0.12), exp: E(level, 3) }),
+    effects: (_, level) => ({ damagePercent: RF(0.06, 0.12), exp: E(level, 3) }),
   },
   {
     text: 'Привал у красивого озера. Вода прозрачная — слишком прозрачная. Со дна поднимаются пузыри. Вода начинает кипеть — озеро радиоактивное. Получаешь ожоги, быстро ретируясь.',
     type: 'danger',
-    effects: () => ({ damagePercent: RANGE(0.08, 0.14) }),
+    effects: () => ({ damagePercent: RF(0.08, 0.14) }),
   },
   {
     text: 'Двое играют в «русскую рулетку» с трёхзарядным револьвером. Пьяный хохот. «А вот и третий! Садись, не бойся!» Отказываешься — они обижаются и открывают стрельбу.',
     type: 'danger',
-    effects: () => ({ damagePercent: RANGE(0.06, 0.10), combat: true }),
+    effects: () => ({ damagePercent: RF(0.06, 0.10), combat: true }),
   },
   {
     text: '«Место силы» — табличка у дерева. Под деревом — «жертвенный алтарь» с запиской: «Оставь дань, получишь удачу». Оставляешь чипы — ничего не происходит. Чипы пропали.',
@@ -745,12 +746,12 @@ const trapTemplates: EventTemplate[] = [
   {
     text: 'Пьяный водитель на древнем мотоцикле чуть не сбивает тебя. Он слезает и начинает агрессивно выяснять отношения. За его спиной появляются трое друзей.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.06, 0.12), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.06, 0.12), chips: NC(level, 2) }),
   },
   {
     text: 'В заброшенном доме слышен детский плач. Ты заходишь — и дверь захлопывается. Ловушка: дом подготовлен для отлова «живого товара» работорговцами. Пробиваешь стену и сбегаешь.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.10, 0.18), exp: E(level, 4) }),
+    effects: (_, level) => ({ damagePercent: RF(0.10, 0.18), exp: E(level, 4) }),
   },
 ];
 
@@ -766,7 +767,7 @@ const lootTemplates: EventTemplate[] = [
   {
     text: 'Брошенная машина скорой помощи. Внутри — медицинские шкафчики. Часть разграблена, но в одном ящике находишь бинты и препараты.',
     type: 'loot',
-    effects: () => ({ healPercent: RANGE(0.05, 0.12), itemCount: 1 }),
+    effects: () => ({ healPercent: RF(0.05, 0.12), itemCount: 1 }),
   },
   {
     text: 'Старый рюкзак висит на ветке. Хозяин не вернулся. Внутри — запаянный контейнер с продовольствием и карта местности с пометками.',
@@ -796,7 +797,7 @@ const lootTemplates: EventTemplate[] = [
   {
     text: 'Старый торговый автомат, перекошенный набок. Пара монет внутри — и он выдаёт банку газировки, пролежавшую там лет двадцать. На удивление, пить можно.',
     type: 'loot',
-    effects: (_, level) => ({ healPercent: RANGE(0.03, 0.05), chips: C(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.03, 0.05), chips: C(level, 3) }),
   },
   {
     text: 'Мастерская оружейника. Хозяин давно мёртв, инструменты проржавели, но в тайнике под верстаком лежат запчасти для оружия и патроны.',
@@ -826,7 +827,7 @@ const lootTemplates: EventTemplate[] = [
   {
     text: 'Контейнер, сброшенный с дрона-снабженца. Частично разбит, но внутри — вакуумные упаковки с армейским пайком и сухой паёк.',
     type: 'loot',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), itemCount: 1, chips: C(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.12), itemCount: 1, chips: C(level, 3) }),
   },
   {
     text: 'Рыболовная сеть, застрявшая в корягах. В ней — дохлая рыба и мусор, но среди грязи блестит металл: старый нож и несколько монет.',
@@ -851,7 +852,7 @@ const lootTemplates: EventTemplate[] = [
   {
     text: 'Логово браконьеров. Временное, судя по всему — брошено в спешке. В ящике — разделанная туша кабана и мешок с травами. Мясо можно приготовить, травы целебные.',
     type: 'loot',
-    effects: () => ({ healPercent: RANGE(0.08, 0.14), itemCount: 1 }),
+    effects: () => ({ healPercent: RF(0.08, 0.14), itemCount: 1 }),
   },
   {
     text: 'Почтовый вагон, сошедший с рельсов. Горы полуистлевших писем и посылок. В одной посылке — {item}, упакованные в пузырчатую плёнку. Целы и невредимы.',
@@ -872,7 +873,7 @@ const discoveryTemplates: EventTemplate[] = [
   {
     text: 'Сквозь листву виднеются руины старой церкви. Купол обрушился, но стены ещё крепки. Внутри — алтарь с позеленевшими подсвечниками и тишина. В подвале — склад припасов.',
     type: 'discovery',
-    effects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 5), healPercent: RANGE(0.03, 0.05) }),
+    effects: (_, level) => ({ itemCount: RANGE(1, 2), chips: C(level, 5), healPercent: RF(0.03, 0.05) }),
   },
   {
     text: 'Подземный гараж на два уровня. Машины сгнили, но в мастерской — полный набор инструментов и несколько канистр с топливом.',
@@ -882,12 +883,12 @@ const discoveryTemplates: EventTemplate[] = [
   {
     text: 'Тёплая пещера с подземным озером. Вода чистая и прозрачная. На берегу — следы стоянки: остатки костра и забытая фляга. Отличное место для привала.',
     type: 'discovery',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.14), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.14), exp: E(level, 2) }),
   },
   {
     text: 'Поляна, усыпанная дикими ягодами. Среди кустов — одичавшие пчёлы. Мёд в дупле дерева. Собираешь ягоды и мёд — вкусно и питательно.',
     type: 'discovery',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), exp: E(level, 1) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), exp: E(level, 1) }),
   },
   {
     text: 'Маленькая библиотека в подвале жилого дома. Книги отсырели, но часть уцелела. Находишь дневник инженера — в нём схемы и пароли от старого терминала.',
@@ -897,7 +898,7 @@ const discoveryTemplates: EventTemplate[] = [
   {
     text: 'Водонапорная башня. Наверху — гнездо птиц и отличный обзор на километры вокруг. Ты замечаешь вдалеке столб дыма — возможно, там люди. Записываешь координаты.',
     type: 'discovery',
-    effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }),
+    effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }),
   },
   {
     text: 'Старое кладбище. Могилы разрыты мародёрами, но одна семейная усыпальница уцелела. Внутри — пустые гробы и забытая шкатулка с драгоценностями.',
@@ -917,7 +918,7 @@ const discoveryTemplates: EventTemplate[] = [
   {
     text: 'Теплица с разбитой крышей. Внутри — буйная растительность. Среди сорняков — кусты помидоров и огурцов, одичавших, но плодоносящих. Собираешь урожай.',
     type: 'discovery',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.12), exp: E(level, 2) }),
   },
   {
     text: 'Старый заправочный комплекс. Резервуары пусты, но под полом — аварийный запас: канистра с бензином и масло для двигателя. Ценная находка.',
@@ -932,17 +933,17 @@ const discoveryTemplates: EventTemplate[] = [
   {
     text: 'Подземный командный бункер. Дверь герметичная, система жизнеобеспечения работает. Внутри — запасы консервов, воды и оружия. Кто-то подготовился к концу света основательно.',
     type: 'discovery',
-    effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), healPercent: RANGE(0.05, 0.10) }),
+    effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), healPercent: RF(0.05, 0.10) }),
   },
   {
     text: 'Лаборатория генной инженерии. Пробирки разбиты, образцы уничтожены. Но в морозильной камере уцелела партия сыворотки «Р-7». Надпись: «Усилитель регенерации».',
     type: 'discovery',
-    effects: (_, level) => ({ healPercent: RANGE(0.10, 0.20), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.10, 0.20), exp: E(level, 4) }),
   },
   {
     text: 'Верёвочный мост через ущелье. Доски прогнили, но переправа возможна. На той стороне — сторожка лесника, полная припасов и книг. Живописное место для отдыха.',
     type: 'discovery',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), exp: E(level, 4), itemCount: 1 }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.12), exp: E(level, 4), itemCount: 1 }),
   },
   {
     text: 'Затопленный карьер. На дне виднеются очертания грузовика. Вода чистая, но холодная. Ныряешь — в кабине труп водителя и ящик с боеприпасами. Забираешь, сколько можешь унести.',
@@ -983,64 +984,64 @@ const anomalyTemplates: EventTemplate[] = [
   {
     text: 'Волосы встают дыбом, воздух потрескивает. Аномалия «Электра» — сгусток атмосферного электричества. Она притягивает металл. Бросаешь болт — разряд бьёт в землю. Огибаешь опасное место, но получаешь небольшую дозу облучения.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.05, 0.10), exp: E(level, 3) }),
+    effects: (_, level) => ({ damagePercent: RF(0.05, 0.10), exp: E(level, 3) }),
   },
   {
     text: 'Земля под ногами начинает пульсировать. «Жижа» — аномалия, превращающая почву в зыбучий кисель. Проваливаешься по пояс, с трудом выбираешься. Обувь безнадёжно испорчена.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.06, 0.12), chips: NC(level, 0) }),
+    effects: (_, level) => ({ damagePercent: RF(0.06, 0.12), chips: NC(level, 0) }),
   },
   {
     text: 'Температура резко падает. Из ниоткуда появляется морозная дымка. «Ледяное дыхание». Кожу щиплет, дыхание сбивается. Находишь убежище и отогреваешься у костра.',
     type: 'danger',
-        effects: () => ({ damagePercent: RANGE(0.04, 0.08) }),
+        effects: () => ({ damagePercent: RF(0.04, 0.08) }),
   },
 
 
   {
     text: 'Гравитационная аномалия. Камни вокруг левитируют. В центре — спрессованный ком земли размером с дом. Бросаешь гайку — она с ускорением улетает в эпицентр. Лучше держаться подальше.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.02, 0.05), exp: E(level, 4) }),
+    effects: (_, level) => ({ damagePercent: RF(0.02, 0.05), exp: E(level, 4) }),
   },
   {
     text: 'Запах озона и гари. Воздух дрожит — «Жар-птица». Вспышки пламени вылетают из ниоткуда и исчезают. Одна прожигает твой рюкзак. Быстро уходишь из зоны.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.14), chips: NC(level, 2) }),
+    effects: (_, level) => ({ damagePercent: RF(0.08, 0.14), chips: NC(level, 2) }),
   },
   {
     text: 'Тишина, какой не бывает в природе. Ни звука, ни ветра, ни насекомых. «Мёртвая петля» — поле абсолютной тишины. Психика давит — с трудом пересиливаешь панику.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), exp: E(level, 4) }),
+    effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), exp: E(level, 4) }),
   },
   {
     text: 'Из земли торчат трубы, из которых сочится маслянистая жидкость. Она светится в темноте. Один вдох — и начинает кружиться голова. Надеваешь респиратор и обходишь.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.06, 0.10), chips: C(level, 3) }),
+    effects: (_, level) => ({ damagePercent: RF(0.06, 0.10), chips: C(level, 3) }),
   },
   {
     text: 'Песок под ногами странно тёплый. Рыхлый грунт проваливается — ты скатываешься в овраг, на дне которого горячий источник. Получаешь ожоги, но источник целебный.',
     type: 'danger',
-    effects: () => ({ damagePercent: RANGE(0.04, 0.08), healPercent: RANGE(0.05, 0.10) }),
+    effects: () => ({ damagePercent: RF(0.04, 0.08), healPercent: RF(0.05, 0.10) }),
   },
   {
     text: 'Гул, от которого вибрируют зубы. Из земли торчит странная конструкция — «Колокол». Он издаёт инфразвук. Внутри всё переворачивается. Быстро ретируешься, но тошнота остаётся.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.05, 0.09), exp: E(level, 4) }),
+    effects: (_, level) => ({ damagePercent: RF(0.05, 0.09), exp: E(level, 4) }),
   },
   {
     text: 'Радужная плёнка на луже. Вода переливается всеми цветами. Красиво, но смертельно — «Радуга», химическая аномалия. Один вдох испарений — и кашель с кровью. Надеваешь респиратор и обходишь.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.06, 0.11), exp: E(level, 3) }),
+    effects: (_, level) => ({ damagePercent: RF(0.06, 0.11), exp: E(level, 3) }),
   },
   {
     text: 'Пространство искажается — «Кривое зеркало». Деревья кажутся ближе, камни — дальше. Компас сходит с ума. Бредёшь вслепую полчаса, пока не выходишь из зоны. Сильно устаёшь.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), exp: E(level, 4) }),
+    effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), exp: E(level, 4) }),
   },
   {
     text: 'Из глухой бетонной стены торчит рука. Она шевелится. «Помоги…». Рука принадлежит мутанту, замурованному в стену. Он просит воды и еды. Ты бросаешь ему банку консервов — он хватает и затихает. Жутко.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.02, 0.05), exp: E(level, 4) }),
+    effects: (_, level) => ({ damagePercent: RF(0.02, 0.05), exp: E(level, 4) }),
   },
 ];
 
@@ -1056,12 +1057,12 @@ const npcTemplates: EventTemplate[] = [
   {
     text: 'Женщина {female} в военной форме без знаков различия марширует вдоль дороги. Она не разговаривает, только жестикулирует. Кажется, контузия. Ты оставляешь ей немного еды.',
     type: 'neutral',
-    effects: (_, level) => ({ chips: C(level, 2), healPercent: RANGE(0.03, 0.05) }),
+    effects: (_, level) => ({ chips: C(level, 2), healPercent: RF(0.03, 0.05) }),
   },
   {
     text: 'Монах в тёмной рясе идёт босиком по камням. «Испытание плоти очищает душу, сын мой». Он благословляет тебя и даёт нательный крест, сплетённый из проволоки.',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), exp: E(level, 4) }),
   },
   {
     text: 'Художник рисует углём на стене разрушенного дома. Пустоши, люди, монстры — его полотна пугают и завораживают. «Красота в разрушении», — шепчет он. Дарит тебе один рисунок.',
@@ -1071,7 +1072,7 @@ const npcTemplates: EventTemplate[] = [
   {
     text: 'Пьяный в стельку мужик валяется у входа в бар (заведение работает вопреки всему). «Заходи, там {male} угощает!» В баре играет музыка на грязной пластинке. Местные делятся историями и чипами.',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.06), chips: C(level, 4), exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.06), chips: C(level, 4), exp: E(level, 3) }),
   },
   {
     text: 'Сапёр с металлоискателем копается на пустыре. «Тут мины?» — «Были. Теперь — цветной металл». Он даёт тебе пару найденных безделушек и совет обходить овраги.',
@@ -1081,7 +1082,7 @@ const npcTemplates: EventTemplate[] = [
   {
     text: 'Девушка {female} сидит на крыше броневика и играет на губной гармошке. Мелодия грустная, но красивая. Она заканчивает, улыбается и кидает тебе яблоко — «сладкое, как до войны».',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.07), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.07), exp: E(level, 2) }),
   },
   {
     text: 'Мальчишки стреляют из самодельных луков по консервным банкам. Меткий стрелок, мелкий сорванец, вызывается провести тебя через опасный участок за пару чипов. Он знает каждую тропинку.',
@@ -1091,7 +1092,7 @@ const npcTemplates: EventTemplate[] = [
   {
     text: 'Группа людей в противогазах копает огород на бывшей бензоколонке. «Земля ещё родит, если удобрять пеплом». Они делятся с тобой репой и морковью — странными, но съедобными.',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.08), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.08), exp: E(level, 2) }),
   },
   {
     text: 'Слепой старец сидит с табличкой: «Подайте на пропитание бывшему программисту». В плошке — несколько чипов. Ты добавляешь чипов. Он шепчет: «Когда-нибудь интернет восстановят...».',
@@ -1106,12 +1107,12 @@ const npcTemplates: EventTemplate[] = [
   {
     text: 'Двое парней толкают телегу с аккумулятором. «Сдохла тачка за поворотом. Одолжишь рывок?» Помогаешь завести их грузовик. Шофёр кидает тебе ящик с консервами и машет рукой.',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.03, 0.06), chips: C(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.03, 0.06), chips: C(level, 3) }),
   },
   {
     text: 'Старая женщина развешивает бельё во дворе многоэтажки. «Выжили как-то, — говорит она. — Вода есть, электричество от генератора». Она приглашает тебя на чай из трав. Отдыхаешь и набираешься сил.',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.12), exp: E(level, 3) }),
   },
   {
     text: 'Парень на самодельном электроскутере обгоняет тебя. «Эй, брат, не видал заправку? Аккумулятор садится!». У тебя есть запасной — отдаёшь. В ответ он даёт наводку на клад под мостом.',
@@ -1131,7 +1132,7 @@ const npcTemplates: EventTemplate[] = [
   {
     text: 'Мужик с бородой сидит на бревне и играет на электрогитаре. Звук идёт через портативную колонку. Поёт блюз про конец света. Ты кидаешь несколько чипов в чехол. Он кивает — «Спасибо, бро».',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.03, 0.06), chips: NC(level, 0) }),
+    effects: (_, level) => ({ healPercent: RF(0.03, 0.06), chips: NC(level, 0) }),
   },
   {
     text: 'Группа туристов (туристов! в этом аду!) фотографирует руины. Они из Внутреннего Кольца: чистая одежда, дорогое снаряжение. «О, местный! Сфоткай нас на фоне того остова!». Платят чипами за услугу.',
@@ -1141,7 +1142,7 @@ const npcTemplates: EventTemplate[] = [
   {
     text: 'Эвакуатор тащит ржавую легковушку. Водитель предлагает подбросить до развилки за пару чипов. Едешь с ветерком, болтаешь о жизни. Высаживает у заправки, где можно разжиться припасами.',
     type: 'neutral',
-    effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 3), healPercent: RANGE(0.02, 0.04) }),
+    effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 3), healPercent: RF(0.02, 0.04) }),
   },
   {
     text: 'Молчаливый копатель долбит мёрзлую землю. Ищет цветной металл. Находит старый телефон. Экран разбит, но SIM-карта цела. «На память о прошлом», — дарит тебе.',
@@ -1151,12 +1152,12 @@ const npcTemplates: EventTemplate[] = [
   {
     text: 'Боевой вертолёт пролетает на низкой высоте. Ты ложишься на землю — он делает круг и улетает. В десантном отсеке что-то выпало — ящик с сухпайком и бинтами.',
     type: 'neutral',
-    effects: () => ({ healPercent: RANGE(0.04, 0.08), itemCount: 1 }),
+    effects: () => ({ healPercent: RF(0.04, 0.08), itemCount: 1 }),
   },
   {
     text: 'Индюк перебегает дорогу. За ним бежит фермер с ружьём. «Помоги поймать, ужин убегает!». Загоняете птицу вдвоём. Фермер приглашает к столу — свежая индейка, печёная картошка, компот.',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.09, 0.16), exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.09, 0.16), exp: E(level, 3) }),
   },
 ];
 
@@ -1167,57 +1168,57 @@ const restTemplates: EventTemplate[] = [
   {
     text: 'Живописная поляна у ручья. Вода прозрачная и холодная. Разбиваешь лагерь, моешься, стираешь вещи. Восстанавливаешь силы за вечер у костра.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.08, 0.16), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.08, 0.16), exp: E(level, 2) }),
   },
   {
     text: 'Охотничий домик. Внутри — печка, топчан, банка круп и соль. Кто-то поддерживает это место для таких же скитальцев. Топишь печь, варишь кашу. Силы возвращаются.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.14), exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.14), exp: E(level, 3) }),
   },
   {
     text: 'Пещера с наскальными рисунками. Древние люди жили здесь тысячи лет назад. Странное чувство единения с прошлым. Ночь проходит спокойно.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.11), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.11), exp: E(level, 4) }),
   },
   {
     text: 'Брошенная церковь. Крыша местами провалилась, но алтарная часть сухая. Зажигаешь свечу (нашёл в ящике). Тишина и покой успокаивают израненную душу.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.06, 0.12), exp: E(level, 4) }),
   },
   {
     text: 'Тёплый чердак жилого дома. На чердаке сухо, есть старый матрас и ящик с книгами. Читаешь закат, забываясь от реальности. Утром чувствуешь себя отдохнувшим.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), exp: E(level, 3) }),
   },
   {
     text: 'Остановка общественного транспорта. Скамейка уцелела, есть навес от дождя. Рядом — работающий автомат с водой (кто-то его обслуживает). Ночь проходит спокойно.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.09), exp: E(level, 1) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.09), exp: E(level, 1) }),
   },
   {
     text: 'Старый фургон на обочине. Дверца открыта, внутри — спальник и газовая горелка. Кто-то явно живёт здесь время от времени. Оставляешь записку с благодарностью и используешь приют.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.08, 0.14), exp: E(level, 2) }),
+    effects: (_, level) => ({ healPercent: RF(0.08, 0.14), exp: E(level, 2) }),
   },
   {
     text: 'Баня! Настоящая русская баня посреди пустоши. Топит её дед Матвей. «Заходи, попарься, грех не воспользоваться!» Паришься веником, ныряешь в ледяную реку. Выходишь заново рождённым.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.12, 0.24), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.12, 0.24), exp: E(level, 4) }),
   },
   {
     text: 'Геотермальный источник. Вода горячая, пар поднимается клубами. Вокруг — дикий виноград и ежевика. Идеальное место для отдыха. Лежишь в тёплой воде, глядя на звёзды.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.10, 0.18), exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.10, 0.18), exp: E(level, 3) }),
   },
   {
     text: 'Старый кинотеатр. Уцелел проектор и пара бобин с плёнкой. Крутишь старый советский фильм про войну. Смотришь в одиночестве, жуя галеты. Диковинное чувство — киносеанс в пустоши.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.04, 0.08), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.04, 0.08), exp: E(level, 4) }),
   },
   {
     text: 'Палаточный лагерь Красного Креста. Волонтёры раздают еду и медикаменты. Бесплатно. «Человек человеку — друг, не забывай». Получаешь порцию каши, бинты и пару чипов на дорогу.',
     type: 'heal',
-    effects: (_, level) => ({ healPercent: RANGE(0.08, 0.14), itemCount: 1, exp: E(level, 3) }),
+    effects: (_, level) => ({ healPercent: RF(0.08, 0.14), itemCount: 1, exp: E(level, 3) }),
   },
 ];
 
@@ -1238,7 +1239,7 @@ const specialTemplates: EventTemplate[] = [
   {
     text: 'Подземный город! Целый этаж торгового центра уцелел: стеклянный купол, деревья в кадках, фонтан (не работает). Люди живут здесь уже десять лет. Тебя встречают хлебом-солью. Отдых и торговля.',
     type: 'discovery',
-    effects: (_, level) => ({ healPercent: RANGE(0.12, 0.24), chips: C(level, 5), exp: E(level, 4), itemCount: 2 }),
+    effects: (_, level) => ({ healPercent: RF(0.12, 0.24), chips: C(level, 5), exp: E(level, 4), itemCount: 2 }),
   },
   {
     text: '«Бешеный» медведь-мутант выходит на поляну. Он встаёт на дыбы — три метра ростом. Сердце уходит в пятки. Медведь фыркает, разворачивается и уходит. Ты остаёшься стоять, не дыша. Удача.',
@@ -1263,22 +1264,22 @@ const specialTemplates: EventTemplate[] = [
   {
     text: 'Зеркальный пруд: гладь воды абсолютно неподвижна, как стекло. В отражении ты видишь не себя, а свою версию из «хорошего» мира — чистого, сытого, безоружного. Смотришь долго. Выходишь задумчивым.',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.05, 0.10), exp: E(level, 4) }),
   },
   {
     text: 'Радиоактивный дождь начинается внезапно. Ты укрываешься в машине. Капли стучат по крыше, счётчик Гейгера зашкаливает. Дождь проходит через час. Выйдя, находишь на земле светящиеся капли — «звёздная пыль».',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.14), chips: C(level, 5) }),
+    effects: (_, level) => ({ damagePercent: RF(0.08, 0.14), chips: C(level, 5) }),
   },
   {
     text: 'На перекрёстке стоит указатель. Но на табличках — не названия городов, а имена людей и даты. «Артём — 2034», «Мария — 2037». Кто-то помнит погибших. Ты добавляешь своё имя? Добавляешь отпечаток пальца.',
     type: 'neutral',
-    effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }),
+    effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }),
   },
   {
     text: 'Слышишь детский смех. Он доносится из разрушенного парка аттракционов. Карусель крутится сама по себе, хотя электричества нет. На карусели — куклы. Волосы шевелятся. Уходишь быстрым шагом.',
     type: 'danger',
-    effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), exp: E(level, 4) }),
+    effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), exp: E(level, 4) }),
   },
   {
     text: 'Из-под обломков доносится стук. Ты разбираешь завал и находишь… сейф с детскими рисунками и свадебным альбомом. И пачку чипов. Чья-то память и сбережения.',
@@ -1288,22 +1289,22 @@ const specialTemplates: EventTemplate[] = [
   {
     text: 'В ночном небе — северное сияние. Яркое, зелёное, пульсирующее. В пустоши это редкость. Ты сидишь на камне и смотришь в небо. В такие моменты понимаешь, что жизнь продолжается.',
     type: 'neutral',
-    effects: (_, level) => ({ healPercent: RANGE(0.08, 0.14), exp: E(level, 4) }),
+    effects: (_, level) => ({ healPercent: RF(0.08, 0.14), exp: E(level, 4) }),
   },
   {
     text: 'На дороге стоит чёрный кот. Он смотрит на тебя, не моргая. Ты обходишь его стороной — и через минуту слышишь за спиной взрыв. Там, где ты должен был пройти, взорвался газовый баллон.',
     type: 'neutral',
-    effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 4), healPercent: RANGE(0.03, 0.05) }),
+    effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 4), healPercent: RF(0.03, 0.05) }),
   },
   {
     text: 'Страус бежит по пустоши. За ним — стая собак. Страус отбивается ногами и улетает (да, страусы не летают, но этот летит). Очередное безумие мутировавшего мира.',
     type: 'neutral',
-    effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }),
+    effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }),
   },
   {
     text: 'Колодец желаний. В нём видно дно, усеянное монетами. Ты бросаешь чип — и слышишь эхо, не похожее на обычное. Чип звякает… или это звякнуло где-то в другом мире?',
     type: 'neutral',
-    effects: (_, level) => ({ chips: NC(level, 0), exp: E(level, 4), healPercent: RANGE(0.04, 0.08) }),
+    effects: (_, level) => ({ chips: NC(level, 0), exp: E(level, 4), healPercent: RF(0.04, 0.08) }),
   },
 ];
 
@@ -1354,7 +1355,7 @@ const factionSpecific: EventTemplate[] = [
   {
     text: 'Техника {faction} застряла в болоте. Водитель матерится и пытается вытащить грузовик лебёдкой. «Помоги — заплачу». Помогаешь толкать. Он даёт чипы и банку тушёнки.',
     type: 'trade',
-    effects: (_, level) => ({ chips: C(level, 5), healPercent: RANGE(0.03, 0.05) }),
+    effects: (_, level) => ({ chips: C(level, 5), healPercent: RF(0.03, 0.05) }),
   },
   {
     text: 'Пленный {faction} сидит в яме со связанными руками. «Вытащи — отблагодарю». Вытаскиваешь — он убегает, бросив кошелёк с чипами. Честно? Воровато оглядываешься и забираешь.',
@@ -1388,9 +1389,9 @@ const factionSpecific: EventTemplate[] = [
 // ---------------------------------------------------------------------------
 // Factory helpers for compact micro-event definitions
 const M = (t: string, x?: number): EventTemplate => ({ text: t, type: 'neutral', effects: () => x ? ({ exp: RANGE(1, x) }) : ({}), noAutoBranch: true });
-const H = (t: string, _x?: number): EventTemplate => ({ text: t, type: 'heal', effects: () => ({ healPercent: RANGE(0.01, 0.02) }), noAutoBranch: true });
+const H = (t: string, _x?: number): EventTemplate => ({ text: t, type: 'heal', effects: () => ({ healPercent: RF(0.01, 0.02) }), noAutoBranch: true });
 const L = (t: string): EventTemplate => ({ text: t, type: 'loot', effects: () => ({ itemCount: 1 }), noAutoBranch: true });
-const D = (t: string, d?: number): EventTemplate => ({ text: t, type: 'danger', effects: () => d ? ({ damagePercent: RANGE(0.01, 0.02) }) : ({}), noAutoBranch: true });
+const D = (t: string, d?: number): EventTemplate => ({ text: t, type: 'danger', effects: () => d ? ({ damagePercent: RF(0.01, 0.02) }) : ({}), noAutoBranch: true });
 
 const microEventTemplates: EventTemplate[] = [
   // --- Ruins & buildings (40) ---
@@ -1790,7 +1791,7 @@ const generateMicroVariant = (): ExplorationEventResult => {
     const dir = PICK(MICRO_DIRECTIONS);
     const r = PICK(MICRO_REACTIONS);
     const text = `Слышен ${sd} ${dir}. ${r}`;
-    return { text, type: Math.random() > 0.7 ? 'danger' : 'neutral', effects: Math.random() > 0.7 ? { damagePercent: RANGE(0.01, 0.02) } : {} };
+    return { text, type: Math.random() > 0.7 ? 'danger' : 'neutral', effects: Math.random() > 0.7 ? { damagePercent: RF(0.01, 0.02) } : {} };
   } else if (roll < 0.75) {
     // Footing + observation
     const f = PICK(MICRO_FOOTING);
@@ -1829,19 +1830,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Укрываемся в подвале дома — он сухой и тёплый. Пережидаем дождь без потерь, находим старый ящик с консервами, оставленный {male}-сталкером.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.03, 0.05), exp: E(level, 3), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Укрываемся в подвале дома — он сухой и тёплый. Пережидаем дождь без потерь, находим старый ящик с консервами, оставленный {male}-сталкером.
+        { text: 'Укрываемся в подвале дома — он сухой и тёплый. Пережидаем дождь без потерь, находим старый ящик с консервами, оставленный {male}-сталкером.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.03, 0.05), exp: E(level, 3), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Укрываемся в подвале дома — он сухой и тёплый. Пережидаем дождь без потерь, находим старый ящик с консервами, оставленный {male}-сталкером.
 [Благодаря Вода — результат x2!]`, noResourceText: `Укрываемся в подвале дома — он сухой и тёплый. Пережидаем дождь без потерь, находим старый ящик с консервами, оставленный {male}-сталкером.
 [Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'В подвале сидит {female} — пожилая женщина с добрыми глазами. «Тоже прячешься? Садись к огоньку». Она делится горячим чаем и травами, восстанавливая силы.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.05, 0.09), exp: E(level, 4), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `В подвале сидит {female} — пожилая женщина с добрыми глазами. «Тоже прячешься? Садись к огоньку». Она делится горячим чаем и травами, восстанавливая силы.
+        { text: 'В подвале сидит {female} — пожилая женщина с добрыми глазами. «Тоже прячешься? Садись к огоньку». Она делится горячим чаем и травами, восстанавливая силы.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.05, 0.09), exp: E(level, 4), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `В подвале сидит {female} — пожилая женщина с добрыми глазами. «Тоже прячешься? Садись к огоньку». Она делится горячим чаем и травами, восстанавливая силы.
 [Благодаря Изолента — результат x2!]`, noResourceText: `В подвале сидит {female} — пожилая женщина с добрыми глазами. «Тоже прячешься? Садись к огоньку». Она делится горячим чаем и травами, восстанавливая силы.
 [Изолента нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'Надеваем защитный плащ и маску — подготовка окупается. Дождь практически не вредит, а под обломками находим ценные микросхемы.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 5) }), resourceCost: nextResource(), resourceText: `Надеваем защитный плащ и маску — подготовка окупается. Дождь практически не вредит, а под обломками находим ценные микросхемы.
 [Благодаря Железо — результат x2!]`, noResourceText: `Надеваем защитный плащ и маску — подготовка окупается. Дождь практически не вредит, а под обломками находим ценные микросхемы.
 [Железо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'В подвал просачивается вода с растворёнными химикатами — кожа горит, лёгкие обжигает едким паром. Выбираемся на поверхность, получив серьёзные ожоги.', weight: 15, effects: () => ({ damagePercent: 0.10 }), resourceCost: nextResource(), resourceText: `В подвал просачивается вода с растворёнными химикатами — кожа горит, лёгкие обжигает едким паром. Выбираемся на поверхность, получив серьёзные ожоги.
+        { text: 'В подвал просачивается вода с растворёнными химикатами — кожа горит, лёгкие обжигает едким паром. Выбираемся на поверхность, получив серьёзные ожоги.', weight: 20, effects: () => ({ damagePercent: 0.10 }), resourceCost: nextResource(), resourceText: `В подвал просачивается вода с растворёнными химикатами — кожа горит, лёгкие обжигает едким паром. Выбираемся на поверхность, получив серьёзные ожоги.
 [С Дерево урон смягчён — потери -50%.]`, noResourceText: `В подвал просачивается вода с растворёнными химикатами — кожа горит, лёгкие обжигает едким паром. Выбираемся на поверхность, получив серьёзные ожоги.
 [Без Дерево — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Продолжаем путь под дождём — находим труп сталкера {nick}, сбитый машиной. В рюкзаке припасы, но дождь успевает навредить, пока мы возимся.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), itemCount: RANGE(1, 3), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `Продолжаем путь под дождём — находим труп сталкера {nick}, сбитый машиной. В рюкзаке припасы, но дождь успевает навредить, пока мы возимся.
+        { text: 'Продолжаем путь под дождём — находим труп сталкера {nick}, сбитый машиной. В рюкзаке припасы, но дождь успевает навредить, пока мы возимся.', weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), itemCount: RANGE(1, 3), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `Продолжаем путь под дождём — находим труп сталкера {nick}, сбитый машиной. В рюкзаке припасы, но дождь успевает навредить, пока мы возимся.
 [С Инструменты урон смягчён — потери -50%.]`, noResourceText: `Продолжаем путь под дождём — находим труп сталкера {nick}, сбитый машиной. В рюкзаке припасы, но дождь успевает навредить, пока мы возимся.
 [Без Инструменты — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -1855,19 +1856,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'В центре аномалии находим светящийся кристалл — «Перо Жар-птицы». Он пульсирует теплом и стоит целое состояние. «Жар-птица» окупилась сторицей!', weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `В центре аномалии находим светящийся кристалл — «Перо Жар-птицы». Он пульсирует теплом и стоит целое состояние. «Жар-птица» окупилась сторицей!
+        { text: 'В центре аномалии находим светящийся кристалл — «Перо Жар-птицы». Он пульсирует теплом и стоит целое состояние. «Жар-птица» окупилась сторицей!', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `В центре аномалии находим светящийся кристалл — «Перо Жар-птицы». Он пульсирует теплом и стоит целое состояние. «Жар-птица» окупилась сторицей!
 [Благодаря Гвозди — результат x2!]`, noResourceText: `В центре аномалии находим светящийся кристалл — «Перо Жар-птицы». Он пульсирует теплом и стоит целое состояние. «Жар-птица» окупилась сторицей!
 [Гвозди нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Кидаем камень, чтобы проверить реакцию — аномалия выстреливает плазмой, обнажая безопасный подход с другой стороны. Забираем мелкие артефакты на краю.', weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Кидаем камень, чтобы проверить реакцию — аномалия выстреливает плазмой, обнажая безопасный подход с другой стороны. Забираем мелкие артефакты на краю.
+        { text: 'Кидаем камень, чтобы проверить реакцию — аномалия выстреливает плазмой, обнажая безопасный подход с другой стороны. Забираем мелкие артефакты на краю.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Кидаем камень, чтобы проверить реакцию — аномалия выстреливает плазмой, обнажая безопасный подход с другой стороны. Забираем мелкие артефакты на краю.
 [Благодаря Пластмасса — результат x2!]`, noResourceText: `Кидаем камень, чтобы проверить реакцию — аномалия выстреливает плазмой, обнажая безопасный подход с другой стороны. Забираем мелкие артефакты на краю.
 [Пластмасса нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Используем болты и верёвку, чтобы вытянуть артефакт дистанционно. Плазма бьёт мимо, но мы успеваем выхватить ценный образец.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), damagePercent: RANGE(0.01, 0.03) }), resourceCost: nextResource(), resourceText: `Используем болты и верёвку, чтобы вытянуть артефакт дистанционно. Плазма бьёт мимо, но мы успеваем выхватить ценный образец.
+        { text: 'Используем болты и верёвку, чтобы вытянуть артефакт дистанционно. Плазма бьёт мимо, но мы успеваем выхватить ценный образец.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), damagePercent: RF(0.01, 0.03) }), resourceCost: nextResource(), resourceText: `Используем болты и верёвку, чтобы вытянуть артефакт дистанционно. Плазма бьёт мимо, но мы успеваем выхватить ценный образец.
 [Благодаря Топливо — результат x2!]`, noResourceText: `Используем болты и верёвку, чтобы вытянуть артефакт дистанционно. Плазма бьёт мимо, но мы успеваем выхватить ценный образец.
 [Топливо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Аномалия срабатывает спонтанно, выбрасывая поток плазмы. Сильные ожоги покрывают руки и лицо. Едва уползаем к ручью охладить раны.', weight: 15, effects: () => ({ damagePercent: 0.12 }), resourceCost: nextResource(), resourceText: `Аномалия срабатывает спонтанно, выбрасывая поток плазмы. Сильные ожоги покрывают руки и лицо. Едва уползаем к ручью охладить раны.
+        { text: 'Аномалия срабатывает спонтанно, выбрасывая поток плазмы. Сильные ожоги покрывают руки и лицо. Едва уползаем к ручью охладить раны.', weight: 20, effects: () => ({ damagePercent: 0.12 }), resourceCost: nextResource(), resourceText: `Аномалия срабатывает спонтанно, выбрасывая поток плазмы. Сильные ожоги покрывают руки и лицо. Едва уползаем к ручью охладить раны.
 [С Батарейки урон смягчён — потери -50%.]`, noResourceText: `Аномалия срабатывает спонтанно, выбрасывая поток плазмы. Сильные ожоги покрывают руки и лицо. Едва уползаем к ручью охладить раны.
 [Без Батарейки — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Из аномалии выходит мутировавшая тварь, питающаяся энергией. В бою получаем ожоги от её касаний, но тварь издохает, оставляя после себя светящуюся пыльцу.', weight: 15, effects: (_, level) => ({ combat: true, damagePercent: RANGE(0.08, 0.12), chips: C(level, 5) }), resourceCost: nextResource(), resourceText: `Из аномалии выходит мутировавшая тварь, питающаяся энергией. В бою получаем ожоги от её касаний, но тварь издохает, оставляя после себя светящуюся пыльцу.
+        { text: 'Из аномалии выходит мутировавшая тварь, питающаяся энергией. В бою получаем ожоги от её касаний, но тварь издохает, оставляя после себя светящуюся пыльцу.', weight: 15, effects: (_, level) => ({ combat: true, damagePercent: RF(0.08, 0.12), chips: C(level, 5) }), resourceCost: nextResource(), resourceText: `Из аномалии выходит мутировавшая тварь, питающаяся энергией. В бою получаем ожоги от её касаний, но тварь издохает, оставляя после себя светящуюся пыльцу.
 [С Консервы урон смягчён — потери -50%.]`, noResourceText: `Из аномалии выходит мутировавшая тварь, питающаяся энергией. В бою получаем ожоги от её касаний, но тварь издохает, оставляя после себя светящуюся пыльцу.
 [Без Консервы — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -1881,16 +1882,16 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Бункер не тронут! Герметичные стеллажи полны консервов, патронов и медикаментов. Дизель-генератор заправлен. Настоящая база для выживания — отличная находка!', weight: 25, effects: (_, level) => ({ itemCount: RANGE(3, 6), chips: C(level, 5), healPercent: RANGE(0.05, 0.10), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Бункер не тронут! Герметичные стеллажи полны консервов, патронов и медикаментов. Дизель-генератор заправлен. Настоящая база для выживания — отличная находка!
+        { text: 'Бункер не тронут! Герметичные стеллажи полны консервов, патронов и медикаментов. Дизель-генератор заправлен. Настоящая база для выживания — отличная находка!', weight: 20, effects: (_, level) => ({ itemCount: RANGE(3, 6), chips: C(level, 5), healPercent: RF(0.05, 0.10), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Бункер не тронут! Герметичные стеллажи полны консервов, патронов и медикаментов. Дизель-генератор заправлен. Настоящая база для выживания — отличная находка!
 [Благодаря Лекарства — результат x2!]`, noResourceText: `Бункер не тронут! Герметичные стеллажи полны консервов, патронов и медикаментов. Дизель-генератор заправлен. Настоящая база для выживания — отличная находка!
 [Лекарства нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Внутри — трупы прежних обитателей и запах разложения. Кто-то открыл дверь не тем. Проветриваем и собираем уцелевшее снаряжение с трупов.', weight: 25, effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Внутри — трупы прежних обитателей и запах разложения. Кто-то открыл дверь не тем. Проветриваем и собираем уцелевшее снаряжение с трупов.
+        { text: 'Внутри — трупы прежних обитателей и запах разложения. Кто-то открыл дверь не тем. Проветриваем и собираем уцелевшее снаряжение с трупов.', weight: 20, effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Внутри — трупы прежних обитателей и запах разложения. Кто-то открыл дверь не тем. Проветриваем и собираем уцелевшее снаряжение с трупов.
 [Благодаря Вода — результат x2!]`, noResourceText: `Внутри — трупы прежних обитателей и запах разложения. Кто-то открыл дверь не тем. Проветриваем и собираем уцелевшее снаряжение с трупов.
 [Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'Находим командирский сейф с кодовым замком. Взламываем — внутри пачки чипов, карты с координатами других бункеров и личное оружие офицера.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Находим командирский сейф с кодовым замком. Взламываем — внутри пачки чипов, карты с координатами других бункеров и личное оружие офицера.
 [Благодаря Изолента — результат x2!]`, noResourceText: `Находим командирский сейф с кодовым замком. Взламываем — внутри пачки чипов, карты с координатами других бункеров и личное оружие офицера.
 [Изолента нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Бункер служит логовом для мутировавшей твари с щупальцами. Едва уносим ноги, потеряв часть припасов в панике. Тварь преследует до самого выхода.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.14), chips: NC(level, 2), combat: true }), resourceCost: nextResource(), resourceText: `Бункер служит логовом для мутировавшей твари с щупальцами. Едва уносим ноги, потеряв часть припасов в панике. Тварь преследует до самого выхода.
+        { text: 'Бункер служит логовом для мутировавшей твари с щупальцами. Едва уносим ноги, потеряв часть припасов в панике. Тварь преследует до самого выхода.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.08, 0.14), chips: NC(level, 2), combat: true }), resourceCost: nextResource(), resourceText: `Бункер служит логовом для мутировавшей твари с щупальцами. Едва уносим ноги, потеряв часть припасов в панике. Тварь преследует до самого выхода.
 [С Железо урон смягчён — потери -50%.]`, noResourceText: `Бункер служит логовом для мутировавшей твари с щупальцами. Едва уносим ноги, потеряв часть припасов в панике. Тварь преследует до самого выхода.
 [Без Железо — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
         { text: 'Система вентиляции оказывается повреждена — внутри скопился радиоактивный газ. Получаем дозу облучения, но успеваем забрать несколько ценных предметов.', weight: 15, effects: (_, level) => ({ damagePercent: 0.08, itemCount: RANGE(1, 3), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Система вентиляции оказывается повреждена — внутри скопился радиоактивный газ. Получаем дозу облучения, но успеваем забрать несколько ценных предметов.
@@ -1907,16 +1908,16 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'У торговца редкий товар — чипы данных с довоенными картами, немецкие медикаменты и ящик патронов. Сделка выгодная, расходимся довольные.', weight: 25, effects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(2, 4), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `У торговца редкий товар — чипы данных с довоенными картами, немецкие медикаменты и ящик патронов. Сделка выгодная, расходимся довольные.
+        { text: 'У торговца редкий товар — чипы данных с довоенными картами, немецкие медикаменты и ящик патронов. Сделка выгодная, расходимся довольные.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(2, 4), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `У торговца редкий товар — чипы данных с довоенными картами, немецкие медикаменты и ящик патронов. Сделка выгодная, расходимся довольные.
 [Благодаря Инструменты — результат x2!]`, noResourceText: `У торговца редкий товар — чипы данных с довоенными картами, немецкие медикаменты и ящик патронов. Сделка выгодная, расходимся довольные.
 [Инструменты нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Главарь узнаёт в нас сталкера из старых рейдов. «{nick}, ты ли это?» — он даёт скидку и делится информацией о безопасном маршруте через топи.', weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), healPercent: RANGE(0.03, 0.05) }), resourceCost: nextResource(), resourceText: `Главарь узнаёт в нас сталкера из старых рейдов. «{nick}, ты ли это?» — он даёт скидку и делится информацией о безопасном маршруте через топи.
+        { text: 'Главарь узнаёт в нас сталкера из старых рейдов. «{nick}, ты ли это?» — он даёт скидку и делится информацией о безопасном маршруте через топи.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), healPercent: RF(0.03, 0.05) }), resourceCost: nextResource(), resourceText: `Главарь узнаёт в нас сталкера из старых рейдов. «{nick}, ты ли это?» — он даёт скидку и делится информацией о безопасном маршруте через топи.
 [Благодаря Гвозди — результат x2!]`, noResourceText: `Главарь узнаёт в нас сталкера из старых рейдов. «{nick}, ты ли это?» — он даёт скидку и делится информацией о безопасном маршруте через топи.
 [Гвозди нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'Помогаем охране отбиться от стаи мутантов, напавших на караван. Главарь в благодарность открывает личный тайник с лучшим товаром.', weight: 20, effects: (_, level) => ({ combat: true, chips: C(level, 5), itemCount: RANGE(2, 3), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Помогаем охране отбиться от стаи мутантов, напавших на караван. Главарь в благодарность открывает личный тайник с лучшим товаром.
 [Благодаря Пластмасса — результат x2!]`, noResourceText: `Помогаем охране отбиться от стаи мутантов, напавших на караван. Главарь в благодарность открывает личный тайник с лучшим товаром.
 [Пластмасса нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Охрана требует «налог на проход» и обыскивает нас. «Здесь мои земли, чучело». Отбирают часть чипов и прогоняют с предупреждением.', weight: 15, effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RANGE(0.01, 0.03) }), resourceCost: nextResource(), resourceText: `Охрана требует «налог на проход» и обыскивает нас. «Здесь мои земли, чучело». Отбирают часть чипов и прогоняют с предупреждением.
+        { text: 'Охрана требует «налог на проход» и обыскивает нас. «Здесь мои земли, чучело». Отбирают часть чипов и прогоняют с предупреждением.', weight: 20, effects: (_, level) => ({ chips: NC(level, 2), damagePercent: RF(0.01, 0.03) }), resourceCost: nextResource(), resourceText: `Охрана требует «налог на проход» и обыскивает нас. «Здесь мои земли, чучело». Отбирают часть чипов и прогоняют с предупреждением.
 [С Топливо урон смягчён — потери -50%.]`, noResourceText: `Охрана требует «налог на проход» и обыскивает нас. «Здесь мои земли, чучело». Отбирают часть чипов и прогоняют с предупреждением.
 [Без Топливо — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
         { text: 'Торгуемся, но цены взвинчены. Покупаем кое-что по мелочи и узнаём новости региона. Без особой выгоды, но и без потерь.', weight: 15, effects: (_, level) => ({ chips: C(level, 3), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Торгуемся, но цены взвинчены. Покупаем кое-что по мелочи и узнаём новости региона. Без особой выгоды, но и без потерь.
@@ -1933,19 +1934,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Вместе с женщиной одолеваем бандитов. Спасённая представляется {female} — она военный врач. «Я твой должник, {nick}» — даёт редкие медикаменты и карты.', weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 3), healPercent: RANGE(0.03, 0.05) }), resourceCost: nextResource(), resourceText: `Вместе с женщиной одолеваем бандитов. Спасённая представляется {female} — она военный врач. «Я твой должник, {nick}» — даёт редкие медикаменты и карты.
+        { text: 'Вместе с женщиной одолеваем бандитов. Спасённая представляется {female} — она военный врач. «Я твой должник, {nick}» — даёт редкие медикаменты и карты.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 3), healPercent: RF(0.03, 0.05) }), resourceCost: nextResource(), resourceText: `Вместе с женщиной одолеваем бандитов. Спасённая представляется {female} — она военный врач. «Я твой должник, {nick}» — даёт редкие медикаменты и карты.
 [Благодаря Консервы — результат x2!]`, noResourceText: `Вместе с женщиной одолеваем бандитов. Спасённая представляется {female} — она военный врач. «Я твой должник, {nick}» — даёт редкие медикаменты и карты.
 [Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Кидаем бандитам чипы и припасы — они подбирают и отпускают всех. Женщина шепчет «спасибо» и убегает. Совесть чиста, а главное — живы.', weight: 25, effects: (_, level) => ({ chips: NC(level, 2), exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }), resourceCost: nextResource(), resourceText: `Кидаем бандитам чипы и припасы — они подбирают и отпускают всех. Женщина шепчет «спасибо» и убегает. Совесть чиста, а главное — живы.
+        { text: 'Кидаем бандитам чипы и припасы — они подбирают и отпускают всех. Женщина шепчет «спасибо» и убегает. Совесть чиста, а главное — живы.', weight: 20, effects: (_, level) => ({ chips: NC(level, 2), exp: E(level, 4), healPercent: RF(0.02, 0.04) }), resourceCost: nextResource(), resourceText: `Кидаем бандитам чипы и припасы — они подбирают и отпускают всех. Женщина шепчет «спасибо» и убегает. Совесть чиста, а главное — живы.
 [Благодаря Лекарства — результат x2!]`, noResourceText: `Кидаем бандитам чипы и припасы — они подбирают и отпускают всех. Женщина шепчет «спасибо» и убегает. Совесть чиста, а главное — живы.
 [Лекарства нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'Устраиваем засаду — заходим с фланга и снимаем бандитов одного за другим. Женщина хватает оружие убитого и помогает. Идеальная тактика!', weight: 20, effects: (_, level) => ({ combat: true, chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Устраиваем засаду — заходим с фланга и снимаем бандитов одного за другим. Женщина хватает оружие убитого и помогает. Идеальная тактика!
 [Благодаря Вода — результат x2!]`, noResourceText: `Устраиваем засаду — заходим с фланга и снимаем бандитов одного за другим. Женщина хватает оружие убитого и помогает. Идеальная тактика!
 [Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Бандиты сильнее, чем казалось. В бою получаем тяжёлое ранение, теряем припасы. Женщина успевает скрыться, но мы едва живы.', weight: 15, effects: (_, level) => ({ damagePercent: 0.12, chips: NC(level, 2), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Бандиты сильнее, чем казалось. В бою получаем тяжёлое ранение, теряем припасы. Женщина успевает скрыться, но мы едва живы.
+        { text: 'Бандиты сильнее, чем казалось. В бою получаем тяжёлое ранение, теряем припасы. Женщина успевает скрыться, но мы едва живы.', weight: 20, effects: (_, level) => ({ damagePercent: 0.12, chips: NC(level, 2), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Бандиты сильнее, чем казалось. В бою получаем тяжёлое ранение, теряем припасы. Женщина успевает скрыться, но мы едва живы.
 [С Изолента урон смягчён — потери -50%.]`, noResourceText: `Бандиты сильнее, чем казалось. В бою получаем тяжёлое ранение, теряем припасы. Женщина успевает скрыться, но мы едва живы.
 [Без Изолента — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Бандиты берут чипы и отпускают, но один замечает у нас дорогую вещь и нападает исподтишка. Отбиваемся, теряем часть снаряжения, но откупаемся.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.05), chips: NC(level, 0), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Бандиты берут чипы и отпускают, но один замечает у нас дорогую вещь и нападает исподтишка. Отбиваемся, теряем часть снаряжения, но откупаемся.
+        { text: 'Бандиты берут чипы и отпускают, но один замечает у нас дорогую вещь и нападает исподтишка. Отбиваемся, теряем часть снаряжения, но откупаемся.', weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.05), chips: NC(level, 0), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Бандиты берут чипы и отпускают, но один замечает у нас дорогую вещь и нападает исподтишка. Отбиваемся, теряем часть снаряжения, но откупаемся.
 [С Железо урон смягчён — потери -50%.]`, noResourceText: `Бандиты берут чипы и отпускают, но один замечает у нас дорогую вещь и нападает исподтишка. Отбиваемся, теряем часть снаряжения, но откупаемся.
 [Без Железо — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -1959,19 +1960,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Тяжёлый бой, но медведь повержен. Из шкуры можно сделать отличную броню, а в берлоге находим останки прежних жертв с ценными вещами.', weight: 25, effects: (_, level) => ({ exp: E(level, 4), itemCount: RANGE(2, 4), chips: C(level, 5) }), resourceCost: nextResource(), resourceText: `Тяжёлый бой, но медведь повержен. Из шкуры можно сделать отличную броню, а в берлоге находим останки прежних жертв с ценными вещами.
+        { text: 'Тяжёлый бой, но медведь повержен. Из шкуры можно сделать отличную броню, а в берлоге находим останки прежних жертв с ценными вещами.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), itemCount: RANGE(2, 4), chips: C(level, 5) }), resourceCost: nextResource(), resourceText: `Тяжёлый бой, но медведь повержен. Из шкуры можно сделать отличную броню, а в берлоге находим останки прежних жертв с ценными вещами.
 [Благодаря Дерево — результат x2!]`, noResourceText: `Тяжёлый бой, но медведь повержен. Из шкуры можно сделать отличную броню, а в берлоге находим останки прежних жертв с ценными вещами.
 [Дерево нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Граната пугает зверя — он убегает в туман. В берлоге находим детёныша мутанта и ценные артефакты, которые мать собирала для гнезда.', weight: 25, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 5), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Граната пугает зверя — он убегает в туман. В берлоге находим детёныша мутанта и ценные артефакты, которые мать собирала для гнезда.
+        { text: 'Граната пугает зверя — он убегает в туман. В берлоге находим детёныша мутанта и ценные артефакты, которые мать собирала для гнезда.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 5), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Граната пугает зверя — он убегает в туман. В берлоге находим детёныша мутанта и ценные артефакты, которые мать собирала для гнезда.
 [Благодаря Инструменты — результат x2!]`, noResourceText: `Граната пугает зверя — он убегает в туман. В берлоге находим детёныша мутанта и ценные артефакты, которые мать собирала для гнезда.
 [Инструменты нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'Замираем и прячемся — медведь проходит мимо, фыркает и скрывается. Подбираем сброшенный им клок шерсти с костяной пластиной — ценный материал.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 5) }), resourceCost: nextResource(), resourceText: `Замираем и прячемся — медведь проходит мимо, фыркает и скрывается. Подбираем сброшенный им клок шерсти с костяной пластиной — ценный материал.
 [Благодаря Гвозди — результат x2!]`, noResourceText: `Замираем и прячемся — медведь проходит мимо, фыркает и скрывается. Подбираем сброшенный им клок шерсти с костяной пластиной — ценный материал.
 [Гвозди нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Медведь слишком силён — едва уносим ноги, получив глубокие раны когтями. Кровь течёт, рюкзак порван, часть припасов выпала на бегу.', weight: 15, effects: (_, level) => ({ damagePercent: 0.15, chips: NC(level, 0) }), resourceCost: nextResource(), resourceText: `Медведь слишком силён — едва уносим ноги, получив глубокие раны когтями. Кровь течёт, рюкзак порван, часть припасов выпала на бегу.
+        { text: 'Медведь слишком силён — едва уносим ноги, получив глубокие раны когтями. Кровь течёт, рюкзак порван, часть припасов выпала на бегу.', weight: 20, effects: (_, level) => ({ damagePercent: 0.15, chips: NC(level, 0) }), resourceCost: nextResource(), resourceText: `Медведь слишком силён — едва уносим ноги, получив глубокие раны когтями. Кровь течёт, рюкзак порван, часть припасов выпала на бегу.
 [С Пластмасса урон смягчён — потери -50%.]`, noResourceText: `Медведь слишком силён — едва уносим ноги, получив глубокие раны когтями. Кровь течёт, рюкзак порван, часть припасов выпала на бегу.
 [Без Пластмасса — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Отступаем в болото, медведь не рискует лезть. Трясина засасывает, едва выбираемся, грязные и мокрые, но находим ценный артефакт среди коряг.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Отступаем в болото, медведь не рискует лезть. Трясина засасывает, едва выбираемся, грязные и мокрые, но находим ценный артефакт среди коряг.
+        { text: 'Отступаем в болото, медведь не рискует лезть. Трясина засасывает, едва выбираемся, грязные и мокрые, но находим ценный артефакт среди коряг.', weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Отступаем в болото, медведь не рискует лезть. Трясина засасывает, едва выбираемся, грязные и мокрые, но находим ценный артефакт среди коряг.
 [С Топливо урон смягчён — потери -50%.]`, noResourceText: `Отступаем в болото, медведь не рискует лезть. Трясина засасывает, едва выбираемся, грязные и мокрые, но находим ценный артефакт среди коряг.
 [Без Топливо — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -1980,19 +1981,19 @@ const branchingTemplates: EventTemplate[] = [
   // 7. Survivor settlement (story)
   {
     text: 'Натыкаемся на небольшое поселение на берегу высохшей реки. Дома сколочены из обломков и сайдинга, между ними — огороды с чахлыми кустами помидоров и картошки. Дети бегают босиком по пыльной улице, гоняют мяч из тряпок. Из трубы кузницы идёт дым, пахнет хлебом и металлом. Жизнь теплится вопреки всему. Староста — седой мужчина с нашивками старой армии — выходит навстречу.', type: 'story', noAutoBranch: true, branch: { prompt: '', outcomes: [
-        { text: 'Нас принимают тепло — староста угощает обедом, даёт припасы в дорогу и чинит снаряжение. «Добрые люди всегда нужны Пустоши».', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.10, 0.18), chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Нас принимают тепло — староста угощает обедом, даёт припасы в дорогу и чинит снаряжение. «Добрые люди всегда нужны Пустоши».
+        { text: 'Нас принимают тепло — староста угощает обедом, даёт припасы в дорогу и чинит снаряжение. «Добрые люди всегда нужны Пустоши».', weight: 20, effects: (_, level) => ({ healPercent: RF(0.10, 0.18), chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Нас принимают тепло — староста угощает обедом, даёт припасы в дорогу и чинит снаряжение. «Добрые люди всегда нужны Пустоши».
 [Благодаря Батарейки — результат x2!]`, noResourceText: `Нас принимают тепло — староста угощает обедом, даёт припасы в дорогу и чинит снаряжение. «Добрые люди всегда нужны Пустоши».
 [Батарейки нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Помогаем жителям починить водяной насос и генератор. В благодарность нас кормят и дают запас топлива и фильтры для воды.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Помогаем жителям починить водяной насос и генератор. В благодарность нас кормят и дают запас топлива и фильтры для воды.
+        { text: 'Помогаем жителям починить водяной насос и генератор. В благодарность нас кормят и дают запас топлива и фильтры для воды.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.06, 0.12), chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Помогаем жителям починить водяной насос и генератор. В благодарность нас кормят и дают запас топлива и фильтры для воды.
 [Благодаря Консервы — результат x2!]`, noResourceText: `Помогаем жителям починить водяной насос и генератор. В благодарность нас кормят и дают запас топлива и фильтры для воды.
 [Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Староста {male} — бывший военный медик. Он лечит наши раны и рассказывает о безопасных маршрутах через радиоактивные болота к северу.', weight: 20, effects: (_, level) => ({ healPercent: RANGE(0.08, 0.14), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Староста {male} — бывший военный медик. Он лечит наши раны и рассказывает о безопасных маршрутах через радиоактивные болота к северу.
+        { text: 'Староста {male} — бывший военный медик. Он лечит наши раны и рассказывает о безопасных маршрутах через радиоактивные болота к северу.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.08, 0.14), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Староста {male} — бывший военный медик. Он лечит наши раны и рассказывает о безопасных маршрутах через радиоактивные болота к северу.
 [Благодаря Лекарства — результат x2!]`, noResourceText: `Староста {male} — бывший военный медик. Он лечит наши раны и рассказывает о безопасных маршрутах через радиоактивные болота к северу.
 [Лекарства нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'В поселении вспышка заразы. Нас не пускают за ограду — «Уходи! Здесь смерть!» — но кричат координаты другого убежища в обмен на обещание привести помощь.', weight: 15, effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }), resourceCost: nextResource(), resourceText: `В поселении вспышка заразы. Нас не пускают за ограду — «Уходи! Здесь смерть!» — но кричат координаты другого убежища в обмен на обещание привести помощь.
+        { text: 'В поселении вспышка заразы. Нас не пускают за ограду — «Уходи! Здесь смерть!» — но кричат координаты другого убежища в обмен на обещание привести помощь.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }), resourceCost: nextResource(), resourceText: `В поселении вспышка заразы. Нас не пускают за ограду — «Уходи! Здесь смерть!» — но кричат координаты другого убежища в обмен на обещание привести помощь.
 [Вода помог выжать максимум из ситуации.]`, noResourceText: `В поселении вспышка заразы. Нас не пускают за ограду — «Уходи! Здесь смерть!» — но кричат координаты другого убежища в обмен на обещание привести помощь.
 [Без Вода — увы, могло быть лучше.]`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Поселение закрытое — чужаков не любят. Сторожевые провожают до околицы с ружьями наперевес, но на прощание кидают банку тушёнки. «Не возвращайся».', weight: 15, effects: (_, level) => ({ healPercent: RANGE(0.02, 0.05), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Поселение закрытое — чужаков не любят. Сторожевые провожают до околицы с ружьями наперевес, но на прощание кидают банку тушёнки. «Не возвращайся».
+        { text: 'Поселение закрытое — чужаков не любят. Сторожевые провожают до околицы с ружьями наперевес, но на прощание кидают банку тушёнки. «Не возвращайся».', weight: 15, effects: (_, level) => ({ healPercent: RF(0.02, 0.05), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Поселение закрытое — чужаков не любят. Сторожевые провожают до околицы с ружьями наперевес, но на прощание кидают банку тушёнки. «Не возвращайся».
 [Изолента помог выжать максимум из ситуации.]`, noResourceText: `Поселение закрытое — чужаков не любят. Сторожевые провожают до околицы с ружьями наперевес, но на прощание кидают банку тушёнки. «Не возвращайся».
 [Без Изолента — увы, могло быть лучше.]`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
       ] } },
@@ -2004,16 +2005,16 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Отгоняем собаку и начинаем копать — закопанный ящик с оружием: два автомата, патроны и масло для чистки. Вековая находка в отличном состоянии!', weight: 25, effects: (_, level) => ({ itemCount: RANGE(3, 5), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Отгоняем собаку и начинаем копать — закопанный ящик с оружием: два автомата, патроны и масло для чистки. Вековая находка в отличном состоянии!
+        { text: 'Отгоняем собаку и начинаем копать — закопанный ящик с оружием: два автомата, патроны и масло для чистки. Вековая находка в отличном состоянии!', weight: 20, effects: (_, level) => ({ itemCount: RANGE(3, 5), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Отгоняем собаку и начинаем копать — закопанный ящик с оружием: два автомата, патроны и масло для чистки. Вековая находка в отличном состоянии!
 [Благодаря Железо — результат x2!]`, noResourceText: `Отгоняем собаку и начинаем копать — закопанный ящик с оружием: два автомата, патроны и масло для чистки. Вековая находка в отличном состоянии!
 [Железо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Делаем ящик рывком — внутри консервы, сухпайки и аптечка. Делимся с собакой галетой, она виляет хвостом и уходит, оставляя нам всё остальное.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.05, 0.10), itemCount: RANGE(2, 4), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `Делаем ящик рывком — внутри консервы, сухпайки и аптечка. Делимся с собакой галетой, она виляет хвостом и уходит, оставляя нам всё остальное.
+        { text: 'Делаем ящик рывком — внутри консервы, сухпайки и аптечка. Делимся с собакой галетой, она виляет хвостом и уходит, оставляя нам всё остальное.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.05, 0.10), itemCount: RANGE(2, 4), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `Делаем ящик рывком — внутри консервы, сухпайки и аптечка. Делимся с собакой галетой, она виляет хвостом и уходит, оставляя нам всё остальное.
 [Благодаря Дерево — результат x2!]`, noResourceText: `Делаем ящик рывком — внутри консервы, сухпайки и аптечка. Делимся с собакой галетой, она виляет хвостом и уходит, оставляя нам всё остальное.
 [Дерево нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'В яме — не только ящик, но и запечатанный контейнер с чипами данных. Кто-то хорошо подготовился к концу света. Содержимое контейнера — карты и коды.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `В яме — не только ящик, но и запечатанный контейнер с чипами данных. Кто-то хорошо подготовился к концу света. Содержимое контейнера — карты и коды.
 [Благодаря Инструменты — результат x2!]`, noResourceText: `В яме — не только ящик, но и запечатанный контейнер с чипами данных. Кто-то хорошо подготовился к концу света. Содержимое контейнера — карты и коды.
 [Инструменты нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Собака кусает за руку, пока мы копаем — рана глубокая, может быть заражение. Бросаем затею, отступаем, перевязываем руку. Ящик остаётся неоткрытым.', weight: 15, effects: () => ({ damagePercent: RANGE(0.05, 0.09) }), resourceCost: nextResource(), resourceText: `Собака кусает за руку, пока мы копаем — рана глубокая, может быть заражение. Бросаем затею, отступаем, перевязываем руку. Ящик остаётся неоткрытым.
+        { text: 'Собака кусает за руку, пока мы копаем — рана глубокая, может быть заражение. Бросаем затею, отступаем, перевязываем руку. Ящик остаётся неоткрытым.', weight: 20, effects: () => ({ damagePercent: RF(0.05, 0.09) }), resourceCost: nextResource(), resourceText: `Собака кусает за руку, пока мы копаем — рана глубокая, может быть заражение. Бросаем затею, отступаем, перевязываем руку. Ящик остаётся неоткрытым.
 [С Гвозди урон смягчён — потери -50%.]`, noResourceText: `Собака кусает за руку, пока мы копаем — рана глубокая, может быть заражение. Бросаем затею, отступаем, перевязываем руку. Ящик остаётся неоткрытым.
 [Без Гвозди — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
         { text: 'В яме — человеческие кости и ржавый нож. Забираем нож — хоть какое-то оружие — и несколько старых монет. Не густо, но на безрыбье и шука — чип.', weight: 15, effects: (_, level) => ({ itemCount: 1, chips: C(level, 4), exp: E(level, 1) }), resourceCost: nextResource(), resourceText: `В яме — человеческие кости и ржавый нож. Забираем нож — хоть какое-то оружие — и несколько старых монет. Не густо, но на безрыбье и шука — чип.
@@ -2030,19 +2031,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Останавливаемся, прислушиваемся, готовим оружие. Из тумана выходят путники — обычные сталкеры, тоже заблудились. Идём вместе, находим дорогу.', weight: 25, effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.03, 0.05), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Останавливаемся, прислушиваемся, готовим оружие. Из тумана выходят путники — обычные сталкеры, тоже заблудились. Идём вместе, находим дорогу.
+        { text: 'Останавливаемся, прислушиваемся, готовим оружие. Из тумана выходят путники — обычные сталкеры, тоже заблудились. Идём вместе, находим дорогу.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.03, 0.05), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Останавливаемся, прислушиваемся, готовим оружие. Из тумана выходят путники — обычные сталкеры, тоже заблудились. Идём вместе, находим дорогу.
 [Благодаря Топливо — результат x2!]`, noResourceText: `Останавливаемся, прислушиваемся, готовим оружие. Из тумана выходят путники — обычные сталкеры, тоже заблудились. Идём вместе, находим дорогу.
 [Топливо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Разводим сигнальный костёр — туман редеет, становятся видны тропы. Выходим к старой ферме, где можно отдохнуть и собрать припасы.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.04, 0.08), exp: E(level, 4), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `Разводим сигнальный костёр — туман редеет, становятся видны тропы. Выходим к старой ферме, где можно отдохнуть и собрать припасы.
+        { text: 'Разводим сигнальный костёр — туман редеет, становятся видны тропы. Выходим к старой ферме, где можно отдохнуть и собрать припасы.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.04, 0.08), exp: E(level, 4), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `Разводим сигнальный костёр — туман редеет, становятся видны тропы. Выходим к старой ферме, где можно отдохнуть и собрать припасы.
 [Благодаря Батарейки — результат x2!]`, noResourceText: `Разводим сигнальный костёр — туман редеет, становятся видны тропы. Выходим к старой ферме, где можно отдохнуть и собрать припасы.
 [Батарейки нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Идём на звук воды — выходим к ручью. Вода чистая, рядом — поляна без тумана. Устраиваем привал, восстанавливаем силы.', weight: 20, effects: (_, level) => ({ healPercent: RANGE(0.06, 0.11), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Идём на звук воды — выходим к ручью. Вода чистая, рядом — поляна без тумана. Устраиваем привал, восстанавливаем силы.
+        { text: 'Идём на звук воды — выходим к ручью. Вода чистая, рядом — поляна без тумана. Устраиваем привал, восстанавливаем силы.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.06, 0.11), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Идём на звук воды — выходим к ручью. Вода чистая, рядом — поляна без тумана. Устраиваем привал, восстанавливаем силы.
 [Благодаря Консервы — результат x2!]`, noResourceText: `Идём на звук воды — выходим к ручью. Вода чистая, рядом — поляна без тумана. Устраиваем привал, восстанавливаем силы.
 [Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Шаги приближаются — это бандитская засада. Начинается перестрелка в молоке, получаем ранение, но прорываемся. Патроны потрачены, аптечки израсходованы.', weight: 15, effects: (_, level) => ({ combat: true, damagePercent: RANGE(0.04, 0.08), chips: NC(level, 2) }), resourceCost: nextResource(), resourceText: `Шаги приближаются — это бандитская засада. Начинается перестрелка в молоке, получаем ранение, но прорываемся. Патроны потрачены, аптечки израсходованы.
+        { text: 'Шаги приближаются — это бандитская засада. Начинается перестрелка в молоке, получаем ранение, но прорываемся. Патроны потрачены, аптечки израсходованы.', weight: 20, effects: (_, level) => ({ combat: true, damagePercent: RF(0.04, 0.08), chips: NC(level, 2) }), resourceCost: nextResource(), resourceText: `Шаги приближаются — это бандитская засада. Начинается перестрелка в молоке, получаем ранение, но прорываемся. Патроны потрачены, аптечки израсходованы.
 [С Лекарства урон смягчён — потери -50%.]`, noResourceText: `Шаги приближаются — это бандитская засада. Начинается перестрелка в молоке, получаем ранение, но прорываемся. Патроны потрачены, аптечки израсходованы.
 [Без Лекарства — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Проваливаемся в овраг, скрытый туманом. Падение болезненное, но выбираемся. Внизу находим труп неудачливого сталкера с парой ценных вещей.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.03, 0.06), itemCount: RANGE(1, 2), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Проваливаемся в овраг, скрытый туманом. Падение болезненное, но выбираемся. Внизу находим труп неудачливого сталкера с парой ценных вещей.
+        { text: 'Проваливаемся в овраг, скрытый туманом. Падение болезненное, но выбираемся. Внизу находим труп неудачливого сталкера с парой ценных вещей.', weight: 15, effects: (_, level) => ({ damagePercent: RF(0.03, 0.06), itemCount: RANGE(1, 2), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Проваливаемся в овраг, скрытый туманом. Падение болезненное, но выбираемся. Внизу находим труп неудачливого сталкера с парой ценных вещей.
 [С Вода урон смягчён — потери -50%.]`, noResourceText: `Проваливаемся в овраг, скрытый туманом. Падение болезненное, но выбираемся. Внизу находим труп неудачливого сталкера с парой ценных вещей.
 [Без Вода — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -2056,16 +2057,16 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Лаборатория законсервирована идеально. В морозильниках — опытные образцы сывороток регенерации и карты генома. Настоящее сокровище для учёных!', weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(2, 5), healPercent: RANGE(0.05, 0.10) }), resourceCost: nextResource(), resourceText: `Лаборатория законсервирована идеально. В морозильниках — опытные образцы сывороток регенерации и карты генома. Настоящее сокровище для учёных!
+        { text: 'Лаборатория законсервирована идеально. В морозильниках — опытные образцы сывороток регенерации и карты генома. Настоящее сокровище для учёных!', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(2, 5), healPercent: RF(0.05, 0.10) }), resourceCost: nextResource(), resourceText: `Лаборатория законсервирована идеально. В морозильниках — опытные образцы сывороток регенерации и карты генома. Настоящее сокровище для учёных!
 [Благодаря Изолента — результат x2!]`, noResourceText: `Лаборатория законсервирована идеально. В морозильниках — опытные образцы сывороток регенерации и карты генома. Настоящее сокровище для учёных!
 [Изолента нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'В кабинете завлаба находим сейф с документами и чипами данных. Терминал ещё работает. Скачиваем исследования, продаём торговцам информацией.', weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `В кабинете завлаба находим сейф с документами и чипами данных. Терминал ещё работает. Скачиваем исследования, продаём торговцам информацией.
+        { text: 'В кабинете завлаба находим сейф с документами и чипами данных. Терминал ещё работает. Скачиваем исследования, продаём торговцам информацией.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `В кабинете завлаба находим сейф с документами и чипами данных. Терминал ещё работает. Скачиваем исследования, продаём торговцам информацией.
 [Благодаря Железо — результат x2!]`, noResourceText: `В кабинете завлаба находим сейф с документами и чипами данных. Терминал ещё работает. Скачиваем исследования, продаём торговцам информацией.
 [Железо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Находим склад готовой продукции — ящики с антирадином, стимуляторами и бинтами. Берём сколько унесём, снаряжение пополнено на годы вперёд.', weight: 20, effects: (_, level) => ({ healPercent: RANGE(0.10, 0.18), itemCount: RANGE(3, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Находим склад готовой продукции — ящики с антирадином, стимуляторами и бинтами. Берём сколько унесём, снаряжение пополнено на годы вперёд.
+        { text: 'Находим склад готовой продукции — ящики с антирадином, стимуляторами и бинтами. Берём сколько унесём, снаряжение пополнено на годы вперёд.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.10, 0.18), itemCount: RANGE(3, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Находим склад готовой продукции — ящики с антирадином, стимуляторами и бинтами. Берём сколько унесём, снаряжение пополнено на годы вперёд.
 [Благодаря Дерево — результат x2!]`, noResourceText: `Находим склад готовой продукции — ящики с антирадином, стимуляторами и бинтами. Берём сколько унесём, снаряжение пополнено на годы вперёд.
 [Дерево нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Срабатывает охранная система — автоматические турели открывают огонь. Укрываемся за стеллажами, получаем царапины от рикошетов, но теряем часть припасов.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.14), combat: true, chips: NC(level, 2) }), resourceCost: nextResource(), resourceText: `Срабатывает охранная система — автоматические турели открывают огонь. Укрываемся за стеллажами, получаем царапины от рикошетов, но теряем часть припасов.
+        { text: 'Срабатывает охранная система — автоматические турели открывают огонь. Укрываемся за стеллажами, получаем царапины от рикошетов, но теряем часть припасов.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.08, 0.14), combat: true, chips: NC(level, 2) }), resourceCost: nextResource(), resourceText: `Срабатывает охранная система — автоматические турели открывают огонь. Укрываемся за стеллажами, получаем царапины от рикошетов, но теряем часть припасов.
 [С Инструменты урон смягчён — потери -50%.]`, noResourceText: `Срабатывает охранная система — автоматические турели открывают огонь. Укрываемся за стеллажами, получаем царапины от рикошетов, но теряем часть припасов.
 [Без Инструменты — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
         { text: 'Внутри — утечка газа из разбитых контейнеров. Едва успеваем надеть противогазы. Травимся, но успеваем забрать ценное оборудование из ламинарного шкафа.', weight: 15, effects: (_, level) => ({ damagePercent: 0.08, chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Внутри — утечка газа из разбитых контейнеров. Едва успеваем надеть противогазы. Травимся, но успеваем забрать ценное оборудование из ламинарного шкафа.
@@ -2077,19 +2078,19 @@ const branchingTemplates: EventTemplate[] = [
   // 11. Nomad camp (neutral)
   {
     text: 'Шатры и кибитки из цветной парусины раскинулись на равнине — стоянка кочевников. Горят костры, на вертелах жарится мясо, пахнет дымом и специями. Женщины в длинных юбках хлопочут у котлов, мужчины в высоких шапках сидят кружком, играют на варганах и самодельных барабанах. Дети бегают между шатрами, поднимая пыль. Старший — старик с длинной седой бородой — поднимает голову и смотрит на нас.', type: 'neutral', noAutoBranch: true, branch: { prompt: '', outcomes: [
-        { text: 'Старейшина рассказывает легенды Пустоши — о городах-призраках, подземных реках и летающих людях. В благодарность дарит амулет из кости и припасы.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Старейшина рассказывает легенды Пустоши — о городах-призраках, подземных реках и летающих людях. В благодарность дарит амулет из кости и припасы.
+        { text: 'Старейшина рассказывает легенды Пустоши — о городах-призраках, подземных реках и летающих людях. В благодарность дарит амулет из кости и припасы.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.06, 0.12), chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Старейшина рассказывает легенды Пустоши — о городах-призраках, подземных реках и летающих людях. В благодарность дарит амулет из кости и припасы.
 [Благодаря Пластмасса — результат x2!]`, noResourceText: `Старейшина рассказывает легенды Пустоши — о городах-призраках, подземных реках и летающих людях. В благодарность дарит амулет из кости и припасы.
 [Пластмасса нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'В лагере торгуют — свежее мясо, кожа, шкуры мутантов и информация о дорогах. Покупаем провизию и узнаём о бандитской засаде южнее.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.04, 0.08), exp: E(level, 4), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `В лагере торгуют — свежее мясо, кожа, шкуры мутантов и информация о дорогах. Покупаем провизию и узнаём о бандитской засаде южнее.
+        { text: 'В лагере торгуют — свежее мясо, кожа, шкуры мутантов и информация о дорогах. Покупаем провизию и узнаём о бандитской засаде южнее.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.04, 0.08), exp: E(level, 4), chips: C(level, 4) }), resourceCost: nextResource(), resourceText: `В лагере торгуют — свежее мясо, кожа, шкуры мутантов и информация о дорогах. Покупаем провизию и узнаём о бандитской засаде южнее.
 [Благодаря Топливо — результат x2!]`, noResourceText: `В лагере торгуют — свежее мясо, кожа, шкуры мутантов и информация о дорогах. Покупаем провизию и узнаём о бандитской засаде южнее.
 [Топливо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Знакомимся с местной знахаркой {female}. Она лечит наши раны травяными отварами и даёт мешочек целебных кореньев. «Пусть земля тебя хранит, странник».', weight: 20, effects: (_, level) => ({ healPercent: RANGE(0.08, 0.14), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Знакомимся с местной знахаркой {female}. Она лечит наши раны травяными отварами и даёт мешочек целебных кореньев. «Пусть земля тебя хранит, странник».
+        { text: 'Знакомимся с местной знахаркой {female}. Она лечит наши раны травяными отварами и даёт мешочек целебных кореньев. «Пусть земля тебя хранит, странник».', weight: 20, effects: (_, level) => ({ healPercent: RF(0.08, 0.14), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Знакомимся с местной знахаркой {female}. Она лечит наши раны травяными отварами и даёт мешочек целебных кореньев. «Пусть земля тебя хранит, странник».
 [Благодаря Батарейки — результат x2!]`, noResourceText: `Знакомимся с местной знахаркой {female}. Она лечит наши раны травяными отварами и даёт мешочек целебных кореньев. «Пусть земля тебя хранит, странник».
 [Батарейки нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Кочевники принимают нас за лазутчика бандитов. «Ты пахнешь железом и кровью!». Приходится уходить без лишних вопросов, под градом камней и проклятий.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.02, 0.04), exp: E(level, 1) }), resourceCost: nextResource(), resourceText: `Кочевники принимают нас за лазутчика бандитов. «Ты пахнешь железом и кровью!». Приходится уходить без лишних вопросов, под градом камней и проклятий.
+        { text: 'Кочевники принимают нас за лазутчика бандитов. «Ты пахнешь железом и кровью!». Приходится уходить без лишних вопросов, под градом камней и проклятий.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.02, 0.04), exp: E(level, 1) }), resourceCost: nextResource(), resourceText: `Кочевники принимают нас за лазутчика бандитов. «Ты пахнешь железом и кровью!». Приходится уходить без лишних вопросов, под градом камней и проклятий.
 [С Консервы урон смягчён — потери -50%.]`, noResourceText: `Кочевники принимают нас за лазутчика бандитов. «Ты пахнешь железом и кровью!». Приходится уходить без лишних вопросов, под градом камней и проклятий.
 [Без Консервы — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Участвуем в вечернем круге — песни, пляски, угощение. Отдыхаем душой и телом, но наутро просыпаемся с лёгкой головной болью от кумыса.', weight: 15, effects: (_, level) => ({ healPercent: RANGE(0.05, 0.09), exp: E(level, 3), chips: C(level, 1) }), resourceCost: nextResource(), resourceText: `Участвуем в вечернем круге — песни, пляски, угощение. Отдыхаем душой и телом, но наутро просыпаемся с лёгкой головной болью от кумыса.
+        { text: 'Участвуем в вечернем круге — песни, пляски, угощение. Отдыхаем душой и телом, но наутро просыпаемся с лёгкой головной болью от кумыса.', weight: 15, effects: (_, level) => ({ healPercent: RF(0.05, 0.09), exp: E(level, 3), chips: C(level, 1) }), resourceCost: nextResource(), resourceText: `Участвуем в вечернем круге — песни, пляски, угощение. Отдыхаем душой и телом, но наутро просыпаемся с лёгкой головной болью от кумыса.
 [Лекарства помог выжать максимум из ситуации.]`, noResourceText: `Участвуем в вечернем круге — песни, пляски, угощение. Отдыхаем душой и телом, но наутро просыпаемся с лёгкой головной болью от кумыса.
 [Без Лекарства — увы, могло быть лучше.]`, resourceEffects: (_, level) => ({ chips: C(level, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
       ] } },
@@ -2101,16 +2102,16 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Машины сгнили, но в мастерской — полный набор инструментов, сварочный аппарат и канистры с топливом. Всё это можно продать или использовать.', weight: 25, effects: (_, level) => ({ itemCount: RANGE(3, 5), chips: C(level, 5), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Машины сгнили, но в мастерской — полный набор инструментов, сварочный аппарат и канистры с топливом. Всё это можно продать или использовать.
+        { text: 'Машины сгнили, но в мастерской — полный набор инструментов, сварочный аппарат и канистры с топливом. Всё это можно продать или использовать.', weight: 20, effects: (_, level) => ({ itemCount: RANGE(3, 5), chips: C(level, 5), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Машины сгнили, но в мастерской — полный набор инструментов, сварочный аппарат и канистры с топливом. Всё это можно продать или использовать.
 [Благодаря Вода — результат x2!]`, noResourceText: `Машины сгнили, но в мастерской — полный набор инструментов, сварочный аппарат и канистры с топливом. Всё это можно продать или использовать.
 [Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Находим мотоцикл в рабочем состоянии. Ключей нет, но можно замкнуть провода. До утра чиним его — теперь у нас есть транспорт.', weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Находим мотоцикл в рабочем состоянии. Ключей нет, но можно замкнуть провода. До утра чиним его — теперь у нас есть транспорт.
+        { text: 'Находим мотоцикл в рабочем состоянии. Ключей нет, но можно замкнуть провода. До утра чиним его — теперь у нас есть транспорт.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Находим мотоцикл в рабочем состоянии. Ключей нет, но можно замкнуть провода. До утра чиним его — теперь у нас есть транспорт.
 [Благодаря Изолента — результат x2!]`, noResourceText: `Находим мотоцикл в рабочем состоянии. Ключей нет, но можно замкнуть провода. До утра чиним его — теперь у нас есть транспорт.
 [Изолента нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'В контейнере — ящики с автозапчастями и аккумуляторами. Среди хлама находим редкий спутниковый навигатор с картами региона.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `В контейнере — ящики с автозапчастями и аккумуляторами. Среди хлама находим редкий спутниковый навигатор с картами региона.
 [Благодаря Железо — результат x2!]`, noResourceText: `В контейнере — ящики с автозапчастями и аккумуляторами. Среди хлама находим редкий спутниковый навигатор с картами региона.
 [Железо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'В гараже живёт семейство крысиных мутантов и одно крупное — вожак. Приходится уносить ноги, потеряв часть припасов в суматохе. Укусы болят.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.06, 0.12), chips: NC(level, 0), combat: true }), resourceCost: nextResource(), resourceText: `В гараже живёт семейство крысиных мутантов и одно крупное — вожак. Приходится уносить ноги, потеряв часть припасов в суматохе. Укусы болят.
+        { text: 'В гараже живёт семейство крысиных мутантов и одно крупное — вожак. Приходится уносить ноги, потеряв часть припасов в суматохе. Укусы болят.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.06, 0.12), chips: NC(level, 0), combat: true }), resourceCost: nextResource(), resourceText: `В гараже живёт семейство крысиных мутантов и одно крупное — вожак. Приходится уносить ноги, потеряв часть припасов в суматохе. Укусы болят.
 [С Дерево урон смягчён — потери -50%.]`, noResourceText: `В гараже живёт семейство крысиных мутантов и одно крупное — вожак. Приходится уносить ноги, потеряв часть припасов в суматохе. Укусы болят.
 [Без Дерево — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
         { text: 'Обшариваем старую легковушку — в багажнике чемодан с одеждой и личными вещами. В подкладке пиджака зашита пачка чипов. Мелочь, а приятно.', weight: 15, effects: (_, level) => ({ chips: C(level, 5), itemCount: 1, exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Обшариваем старую легковушку — в багажнике чемодан с одеждой и личными вещами. В подкладке пиджака зашита пачка чипов. Мелочь, а приятно.
@@ -2127,19 +2128,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Прячем электронику в экранированный бокс и укрываемся в бетонном строении. Буря проходит стороной. Всё оборудование цело — подготовка окупилась.', weight: 25, effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.02, 0.04) }), resourceCost: nextResource(), resourceText: `Прячем электронику в экранированный бокс и укрываемся в бетонном строении. Буря проходит стороной. Всё оборудование цело — подготовка окупилась.
+        { text: 'Прячем электронику в экранированный бокс и укрываемся в бетонном строении. Буря проходит стороной. Всё оборудование цело — подготовка окупилась.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.02, 0.04) }), resourceCost: nextResource(), resourceText: `Прячем электронику в экранированный бокс и укрываемся в бетонном строении. Буря проходит стороной. Всё оборудование цело — подготовка окупилась.
 [Благодаря Гвозди — результат x2!]`, noResourceText: `Прячем электронику в экранированный бокс и укрываемся в бетонном строении. Буря проходит стороной. Всё оборудование цело — подготовка окупилась.
 [Гвозди нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Буря застаёт на открытой местности, но находим старый трубопровод — залезаем внутрь. Металл принимает разряды на себя, мы отбиваемся лишь испугом.', weight: 25, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Буря застаёт на открытой местности, но находим старый трубопровод — залезаем внутрь. Металл принимает разряды на себя, мы отбиваемся лишь испугом.
+        { text: 'Буря застаёт на открытой местности, но находим старый трубопровод — залезаем внутрь. Металл принимает разряды на себя, мы отбиваемся лишь испугом.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Буря застаёт на открытой местности, но находим старый трубопровод — залезаем внутрь. Металл принимает разряды на себя, мы отбиваемся лишь испугом.
 [Благодаря Пластмасса — результат x2!]`, noResourceText: `Буря застаёт на открытой местности, но находим старый трубопровод — залезаем внутрь. Металл принимает разряды на себя, мы отбиваемся лишь испугом.
 [Пластмасса нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Успеваем натянуть диэлектрические перчатки и плащ. Статическое электричество стекает, не причиняя вреда. Находим среди камней оплавленный метеорит.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), damagePercent: RANGE(0.01, 0.02) }), resourceCost: nextResource(), resourceText: `Успеваем натянуть диэлектрические перчатки и плащ. Статическое электричество стекает, не причиняя вреда. Находим среди камней оплавленный метеорит.
+        { text: 'Успеваем натянуть диэлектрические перчатки и плащ. Статическое электричество стекает, не причиняя вреда. Находим среди камней оплавленный метеорит.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), damagePercent: RF(0.01, 0.02) }), resourceCost: nextResource(), resourceText: `Успеваем натянуть диэлектрические перчатки и плащ. Статическое электричество стекает, не причиняя вреда. Находим среди камней оплавленный метеорит.
 [Благодаря Топливо — результат x2!]`, noResourceText: `Успеваем натянуть диэлектрические перчатки и плащ. Статическое электричество стекает, не причиняя вреда. Находим среди камней оплавленный метеорит.
 [Топливо нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Идём прямо в бурю — спешка берёт верх. Получаем сильный удар током, теряем часть электроники. Приборы сгорели, чипы памяти потеряны.', weight: 15, effects: (_, level) => ({ damagePercent: 0.10, chips: NC(level, 2) }), resourceCost: nextResource(), resourceText: `Идём прямо в бурю — спешка берёт верх. Получаем сильный удар током, теряем часть электроники. Приборы сгорели, чипы памяти потеряны.
+        { text: 'Идём прямо в бурю — спешка берёт верх. Получаем сильный удар током, теряем часть электроники. Приборы сгорели, чипы памяти потеряны.', weight: 20, effects: (_, level) => ({ damagePercent: 0.10, chips: NC(level, 2) }), resourceCost: nextResource(), resourceText: `Идём прямо в бурю — спешка берёт верх. Получаем сильный удар током, теряем часть электроники. Приборы сгорели, чипы памяти потеряны.
 [С Батарейки урон смягчён — потери -50%.]`, noResourceText: `Идём прямо в бурю — спешка берёт верх. Получаем сильный удар током, теряем часть электроники. Приборы сгорели, чипы памяти потеряны.
 [Без Батарейки — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Укрываемся в металлическом ангаре — плохое решение. Здание притягивает разряды. Контужены, но живы. Электроника частично вышла из строя.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.05, 0.10), chips: NC(level, 2), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Укрываемся в металлическом ангаре — плохое решение. Здание притягивает разряды. Контужены, но живы. Электроника частично вышла из строя.
+        { text: 'Укрываемся в металлическом ангаре — плохое решение. Здание притягивает разряды. Контужены, но живы. Электроника частично вышла из строя.', weight: 15, effects: (_, level) => ({ damagePercent: RF(0.05, 0.10), chips: NC(level, 2), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Укрываемся в металлическом ангаре — плохое решение. Здание притягивает разряды. Контужены, но живы. Электроника частично вышла из строя.
 [С Консервы урон смягчён — потери -50%.]`, noResourceText: `Укрываемся в металлическом ангаре — плохое решение. Здание притягивает разряды. Контужены, но живы. Электроника частично вышла из строя.
 [Без Консервы — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -2153,19 +2154,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Хозяин — ветеран, варит отличный кофе и кормит яичницей с хлебом. «Давно у меня таких гостей не было». Сытный обед восстанавливает силы.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.12, 0.22), chips: C(level, 3), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Хозяин — ветеран, варит отличный кофе и кормит яичницей с хлебом. «Давно у меня таких гостей не было». Сытный обед восстанавливает силы.
+        { text: 'Хозяин — ветеран, варит отличный кофе и кормит яичницей с хлебом. «Давно у меня таких гостей не было». Сытный обед восстанавливает силы.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.12, 0.22), chips: C(level, 3), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Хозяин — ветеран, варит отличный кофе и кормит яичницей с хлебом. «Давно у меня таких гостей не было». Сытный обед восстанавливает силы.
 [Благодаря Лекарства — результат x2!]`, noResourceText: `Хозяин — ветеран, варит отличный кофе и кормит яичницей с хлебом. «Давно у меня таких гостей не было». Сытный обед восстанавливает силы.
 [Лекарства нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'В кафе пусто — хозяин ушёл. В холодильнике — пара банок газировки и консервы. Отдыхаем в тишине под старую музыку. Никто не мешает.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.06, 0.11), itemCount: RANGE(1, 2), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `В кафе пусто — хозяин ушёл. В холодильнике — пара банок газировки и консервы. Отдыхаем в тишине под старую музыку. Никто не мешает.
+        { text: 'В кафе пусто — хозяин ушёл. В холодильнике — пара банок газировки и консервы. Отдыхаем в тишине под старую музыку. Никто не мешает.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.06, 0.11), itemCount: RANGE(1, 2), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `В кафе пусто — хозяин ушёл. В холодильнике — пара банок газировки и консервы. Отдыхаем в тишине под старую музыку. Никто не мешает.
 [Благодаря Вода — результат x2!]`, noResourceText: `В кафе пусто — хозяин ушёл. В холодильнике — пара банок газировки и консервы. Отдыхаем в тишине под старую музыку. Никто не мешает.
 [Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Хозяин — бывший полевой врач {male} {nick}. Он осматривает наши раны, делает перевязку и даёт обезболивающее. «С такими ранами далеко не уйдёшь, брат».', weight: 20, effects: (_, level) => ({ healPercent: RANGE(0.10, 0.18), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Хозяин — бывший полевой врач {male} {nick}. Он осматривает наши раны, делает перевязку и даёт обезболивающее. «С такими ранами далеко не уйдёшь, брат».
+        { text: 'Хозяин — бывший полевой врач {male} {nick}. Он осматривает наши раны, делает перевязку и даёт обезболивающее. «С такими ранами далеко не уйдёшь, брат».', weight: 20, effects: (_, level) => ({ healPercent: RF(0.10, 0.18), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Хозяин — бывший полевой врач {male} {nick}. Он осматривает наши раны, делает перевязку и даёт обезболивающее. «С такими ранами далеко не уйдёшь, брат».
 [Благодаря Изолента — результат x2!]`, noResourceText: `Хозяин — бывший полевой врач {male} {nick}. Он осматривает наши раны, делает перевязку и даёт обезболивающее. «С такими ранами далеко не уйдёшь, брат».
 [Изолента нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Засада — в подсобке сидят трое бандитов, ждут добычу. Бой в тесном помещении, переворачиваем столы, получаем удар ножом, но вырываемся.', weight: 15, effects: (_, level) => ({ combat: true, damagePercent: RANGE(0.05, 0.10), chips: NC(level, 2) }), resourceCost: nextResource(), resourceText: `Засада — в подсобке сидят трое бандитов, ждут добычу. Бой в тесном помещении, переворачиваем столы, получаем удар ножом, но вырываемся.
+        { text: 'Засада — в подсобке сидят трое бандитов, ждут добычу. Бой в тесном помещении, переворачиваем столы, получаем удар ножом, но вырываемся.', weight: 20, effects: (_, level) => ({ combat: true, damagePercent: RF(0.05, 0.10), chips: NC(level, 2) }), resourceCost: nextResource(), resourceText: `Засада — в подсобке сидят трое бандитов, ждут добычу. Бой в тесном помещении, переворачиваем столы, получаем удар ножом, но вырываемся.
 [С Железо урон смягчён — потери -50%.]`, noResourceText: `Засада — в подсобке сидят трое бандитов, ждут добычу. Бой в тесном помещении, переворачиваем столы, получаем удар ножом, но вырываемся.
 [Без Железо — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Еда оказывается просроченной — тушёнка горчит, хлеб чёрствый. Но горячий чай греет, и крыша над головой — уже роскошь для Пустоши.', weight: 15, effects: (_, level) => ({ healPercent: RANGE(0.03, 0.06), exp: E(level, 2), chips: NC(level, 0) }), resourceCost: nextResource(), resourceText: `Еда оказывается просроченной — тушёнка горчит, хлеб чёрствый. Но горячий чай греет, и крыша над головой — уже роскошь для Пустоши.
+        { text: 'Еда оказывается просроченной — тушёнка горчит, хлеб чёрствый. Но горячий чай греет, и крыша над головой — уже роскошь для Пустоши.', weight: 15, effects: (_, level) => ({ healPercent: RF(0.03, 0.06), exp: E(level, 2), chips: NC(level, 0) }), resourceCost: nextResource(), resourceText: `Еда оказывается просроченной — тушёнка горчит, хлеб чёрствый. Но горячий чай греет, и крыша над головой — уже роскошь для Пустоши.
 [С Дерево урон смягчён — потери -50%.]`, noResourceText: `Еда оказывается просроченной — тушёнка горчит, хлеб чёрствый. Но горячий чай греет, и крыша над головой — уже роскошь для Пустоши.
 [Без Дерево — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -2179,16 +2180,16 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Сигнал от дрона-курьера с грузовым отсеком. Внутри — заказанные кем-то лекарства, карты и пачка чипов. Забираем — в Пустоше нет хозяев.', weight: 25, effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), exp: E(level, 4), healPercent: RANGE(0.03, 0.05) }), resourceCost: nextResource(), resourceText: `Сигнал от дрона-курьера с грузовым отсеком. Внутри — заказанные кем-то лекарства, карты и пачка чипов. Забираем — в Пустоше нет хозяев.
+        { text: 'Сигнал от дрона-курьера с грузовым отсеком. Внутри — заказанные кем-то лекарства, карты и пачка чипов. Забираем — в Пустоше нет хозяев.', weight: 20, effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), exp: E(level, 4), healPercent: RF(0.03, 0.05) }), resourceCost: nextResource(), resourceText: `Сигнал от дрона-курьера с грузовым отсеком. Внутри — заказанные кем-то лекарства, карты и пачка чипов. Забираем — в Пустоше нет хозяев.
 [Благодаря Инструменты — результат x2!]`, noResourceText: `Сигнал от дрона-курьера с грузовым отсеком. Внутри — заказанные кем-то лекарства, карты и пачка чипов. Забираем — в Пустоше нет хозяев.
 [Инструменты нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Маяк указывает на схрон в расщелине скалы — герметичный контейнер с довоенным оружием и боеприпасами. Кто-то хорошо подготовился.', weight: 25, effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Маяк указывает на схрон в расщелине скалы — герметичный контейнер с довоенным оружием и боеприпасами. Кто-то хорошо подготовился.
+        { text: 'Маяк указывает на схрон в расщелине скалы — герметичный контейнер с довоенным оружием и боеприпасами. Кто-то хорошо подготовился.', weight: 20, effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Маяк указывает на схрон в расщелине скалы — герметичный контейнер с довоенным оружием и боеприпасами. Кто-то хорошо подготовился.
 [Благодаря Гвозди — результат x2!]`, noResourceText: `Маяк указывает на схрон в расщелине скалы — герметичный контейнер с довоенным оружием и боеприпасами. Кто-то хорошо подготовился.
 [Гвозди нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'Сигнал от потерпевшего крушение вертолёта. Внутри — мёртвый пилот и ценные приборы. Забираем навигационное оборудование и бортовой журнал.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(1, 3), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Сигнал от потерпевшего крушение вертолёта. Внутри — мёртвый пилот и ценные приборы. Забираем навигационное оборудование и бортовой журнал.
 [Благодаря Пластмасса — результат x2!]`, noResourceText: `Сигнал от потерпевшего крушение вертолёта. Внутри — мёртвый пилот и ценные приборы. Забираем навигационное оборудование и бортовой журнал.
 [Пластмасса нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Маяк — ловушка. Вокруг растяжки с гранатами. Чудом замечаем тонкую проволоку, но при отступлении подрываем сигнальную мину — контузия.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.12), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Маяк — ловушка. Вокруг растяжки с гранатами. Чудом замечаем тонкую проволоку, но при отступлении подрываем сигнальную мину — контузия.
+        { text: 'Маяк — ловушка. Вокруг растяжки с гранатами. Чудом замечаем тонкую проволоку, но при отступлении подрываем сигнальную мину — контузия.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.08, 0.12), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Маяк — ловушка. Вокруг растяжки с гранатами. Чудом замечаем тонкую проволоку, но при отступлении подрываем сигнальную мину — контузия.
 [С Топливо урон смягчён — потери -50%.]`, noResourceText: `Маяк — ловушка. Вокруг растяжки с гранатами. Чудом замечаем тонкую проволоку, но при отступлении подрываем сигнальную мину — контузия.
 [Без Топливо — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
         { text: 'Маяк оказывается пустышкой — батарея села, сигнал слабый. Вокруг — никакого схрона. Только старый ржавый ящик с гнилыми тряпками внутри.', weight: 15, effects: (_, level) => ({ exp: E(level, 3), chips: C(level, 2) }), resourceCost: nextResource(), resourceText: `Маяк оказывается пустышкой — батарея села, сигнал слабый. Вокруг — никакого схрона. Только старый ржавый ящик с гнилыми тряпками внутри.
@@ -2205,19 +2206,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Бандиты повержены — забираем их припасы, чипы и оружие. В палатке находим карту с пометками других засад — ценная информация.', weight: 25, effects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(2, 4), exp: E(level, 4), combat: true }), resourceCost: nextResource(), resourceText: `Бандиты повержены — забираем их припасы, чипы и оружие. В палатке находим карту с пометками других засад — ценная информация.
+        { text: 'Бандиты повержены — забираем их припасы, чипы и оружие. В палатке находим карту с пометками других засад — ценная информация.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), itemCount: RANGE(2, 4), exp: E(level, 4), combat: true }), resourceCost: nextResource(), resourceText: `Бандиты повержены — забираем их припасы, чипы и оружие. В палатке находим карту с пометками других засад — ценная информация.
 [Благодаря Консервы — результат x2!]`, noResourceText: `Бандиты повержены — забираем их припасы, чипы и оружие. В палатке находим карту с пометками других засад — ценная информация.
 [Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Платим дань — бандиты довольны, пропускают без проблем. Обходимся малой кровью, сохраняя здоровье для более важных дел.', weight: 25, effects: (_, level) => ({ chips: NC(level, 2), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Платим дань — бандиты довольны, пропускают без проблем. Обходимся малой кровью, сохраняя здоровье для более важных дел.
+        { text: 'Платим дань — бандиты довольны, пропускают без проблем. Обходимся малой кровью, сохраняя здоровье для более важных дел.', weight: 20, effects: (_, level) => ({ chips: NC(level, 2), exp: E(level, 2) }), resourceCost: nextResource(), resourceText: `Платим дань — бандиты довольны, пропускают без проблем. Обходимся малой кровью, сохраняя здоровье для более важных дел.
 [Благодаря Лекарства — результат x2!]`, noResourceText: `Платим дань — бандиты довольны, пропускают без проблем. Обходимся малой кровью, сохраняя здоровье для более важных дел.
 [Лекарства нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
         { text: 'Используем тактику — заходим с фланга через лес. Снимаем часового арбалетом, остальные разбегаются. Забираем трофеи без лишнего шума.', weight: 20, effects: (_, level) => ({ combat: true, chips: C(level, 5), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Используем тактику — заходим с фланга через лес. Снимаем часового арбалетом, остальные разбегаются. Забираем трофеи без лишнего шума.
 [Благодаря Вода — результат x2!]`, noResourceText: `Используем тактику — заходим с фланга через лес. Снимаем часового арбалетом, остальные разбегаются. Забираем трофеи без лишнего шума.
 [Вода нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Бандиты оказываются опытными бойцами — в бою получаем тяжёлое ранение, теряем припасы. Едва выживаем и уходим в лес зализывать раны.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.10, 0.16), chips: NC(level, 2), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Бандиты оказываются опытными бойцами — в бою получаем тяжёлое ранение, теряем припасы. Едва выживаем и уходим в лес зализывать раны.
+        { text: 'Бандиты оказываются опытными бойцами — в бою получаем тяжёлое ранение, теряем припасы. Едва выживаем и уходим в лес зализывать раны.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.10, 0.16), chips: NC(level, 2), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Бандиты оказываются опытными бойцами — в бою получаем тяжёлое ранение, теряем припасы. Едва выживаем и уходим в лес зализывать раны.
 [С Изолента урон смягчён — потери -50%.]`, noResourceText: `Бандиты оказываются опытными бойцами — в бою получаем тяжёлое ранение, теряем припасы. Едва выживаем и уходим в лес зализывать раны.
 [Без Изолента — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Увидев деньги, бандиты жалеют, что запросили мало. Начинается бой, отбиваемся, но часть чипов уже потеряна в суматохе.', weight: 15, effects: (_, level) => ({ combat: true, damagePercent: RANGE(0.03, 0.07), chips: NC(level, 2), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Увидев деньги, бандиты жалеют, что запросили мало. Начинается бой, отбиваемся, но часть чипов уже потеряна в суматохе.
+        { text: 'Увидев деньги, бандиты жалеют, что запросили мало. Начинается бой, отбиваемся, но часть чипов уже потеряна в суматохе.', weight: 15, effects: (_, level) => ({ combat: true, damagePercent: RF(0.03, 0.07), chips: NC(level, 2), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `Увидев деньги, бандиты жалеют, что запросили мало. Начинается бой, отбиваемся, но часть чипов уже потеряна в суматохе.
 [С Железо урон смягчён — потери -50%.]`, noResourceText: `Увидев деньги, бандиты жалеют, что запросили мало. Начинается бой, отбиваемся, но часть чипов уже потеряна в суматохе.
 [Без Железо — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -2231,19 +2232,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Отшельник представляется {male} {nick}, бывшим военным врачом. Он лечит наши раны, даёт травяной чай и подробную карту местных аномалий.', weight: 25, effects: (_, level) => ({ healPercent: RANGE(0.12, 0.22), exp: E(level, 4), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Отшельник представляется {male} {nick}, бывшим военным врачом. Он лечит наши раны, даёт травяной чай и подробную карту местных аномалий.
+        { text: 'Отшельник представляется {male} {nick}, бывшим военным врачом. Он лечит наши раны, даёт травяной чай и подробную карту местных аномалий.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.12, 0.22), exp: E(level, 4), chips: C(level, 3) }), resourceCost: nextResource(), resourceText: `Отшельник представляется {male} {nick}, бывшим военным врачом. Он лечит наши раны, даёт травяной чай и подробную карту местных аномалий.
 [Благодаря Дерево — результат x2!]`, noResourceText: `Отшельник представляется {male} {nick}, бывшим военным врачом. Он лечит наши раны, даёт травяной чай и подробную карту местных аномалий.
 [Дерево нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Старик — коллекционер. Показывает коллекцию довоенных артефактов: телефоны, флешки, CD-диски, старые журналы. Дарит книгу c ценными схемами.', weight: 25, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 5), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Старик — коллекционер. Показывает коллекцию довоенных артефактов: телефоны, флешки, CD-диски, старые журналы. Дарит книгу c ценными схемами.
+        { text: 'Старик — коллекционер. Показывает коллекцию довоенных артефактов: телефоны, флешки, CD-диски, старые журналы. Дарит книгу c ценными схемами.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), chips: C(level, 5), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Старик — коллекционер. Показывает коллекцию довоенных артефактов: телефоны, флешки, CD-диски, старые журналы. Дарит книгу c ценными схемами.
 [Благодаря Инструменты — результат x2!]`, noResourceText: `Старик — коллекционер. Показывает коллекцию довоенных артефактов: телефоны, флешки, CD-диски, старые журналы. Дарит книгу c ценными схемами.
 [Инструменты нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Помогаем по хозяйству — колем дрова, чиним крышу. Старик доволен, угощает ужином из лесных грибов и даёт настойку от радиации.', weight: 20, effects: (_, level) => ({ healPercent: RANGE(0.06, 0.12), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Помогаем по хозяйству — колем дрова, чиним крышу. Старик доволен, угощает ужином из лесных грибов и даёт настойку от радиации.
+        { text: 'Помогаем по хозяйству — колем дрова, чиним крышу. Старик доволен, угощает ужином из лесных грибов и даёт настойку от радиации.', weight: 20, effects: (_, level) => ({ healPercent: RF(0.06, 0.12), exp: E(level, 4), itemCount: RANGE(1, 2) }), resourceCost: nextResource(), resourceText: `Помогаем по хозяйству — колем дрова, чиним крышу. Старик доволен, угощает ужином из лесных грибов и даёт настойку от радиации.
 [Благодаря Гвозди — результат x2!]`, noResourceText: `Помогаем по хозяйству — колем дрова, чиним крышу. Старик доволен, угощает ужином из лесных грибов и даёт настойку от радиации.
 [Гвозди нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Отшельник безумен — принимает нас за «солдата Империи». Под дулом ружья выгоняет, стреляет вслед. Едва уносим ноги, царапина от дроби.', weight: 15, effects: () => ({ damagePercent: RANGE(0.08, 0.12) }), resourceCost: nextResource(), resourceText: `Отшельник безумен — принимает нас за «солдата Империи». Под дулом ружья выгоняет, стреляет вслед. Едва уносим ноги, царапина от дроби.
+        { text: 'Отшельник безумен — принимает нас за «солдата Империи». Под дулом ружья выгоняет, стреляет вслед. Едва уносим ноги, царапина от дроби.', weight: 20, effects: () => ({ damagePercent: RF(0.08, 0.12) }), resourceCost: nextResource(), resourceText: `Отшельник безумен — принимает нас за «солдата Империи». Под дулом ружья выгоняет, стреляет вслед. Едва уносим ноги, царапина от дроби.
 [С Пластмасса урон смягчён — потери -50%.]`, noResourceText: `Отшельник безумен — принимает нас за «солдата Империи». Под дулом ружья выгоняет, стреляет вслед. Едва уносим ноги, царапина от дроби.
 [Без Пластмасса — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'В избе — засада. Трое бандитов отдыхали после налёта. Бой в тесной избе, используем старика как прикрытие. Вырываемся с потерями.', weight: 15, effects: (_, level) => ({ combat: true, damagePercent: RANGE(0.08, 0.12), chips: C(level, 1), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `В избе — засада. Трое бандитов отдыхали после налёта. Бой в тесной избе, используем старика как прикрытие. Вырываемся с потерями.
+        { text: 'В избе — засада. Трое бандитов отдыхали после налёта. Бой в тесной избе, используем старика как прикрытие. Вырываемся с потерями.', weight: 15, effects: (_, level) => ({ combat: true, damagePercent: RF(0.08, 0.12), chips: C(level, 1), exp: E(level, 3) }), resourceCost: nextResource(), resourceText: `В избе — засада. Трое бандитов отдыхали после налёта. Бой в тесной избе, используем старика как прикрытие. Вырываемся с потерями.
 [С Топливо урон смягчён — потери -50%.]`, noResourceText: `В избе — засада. Трое бандитов отдыхали после налёта. Бой в тесной избе, используем старика как прикрытие. Вырываемся с потерями.
 [Без Топливо — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -2257,19 +2258,19 @@ const branchingTemplates: EventTemplate[] = [
     branch: {
       prompt: '',
       outcomes: [
-        { text: 'Выходим на связь — неизвестный представляется {male} «{nick}», местный искатель артефактов. Он даёт координаты ценного трофея в руинах.', weight: 25, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Выходим на связь — неизвестный представляется {male} «{nick}», местный искатель артефактов. Он даёт координаты ценного трофея в руинах.
+        { text: 'Выходим на связь — неизвестный представляется {male} «{nick}», местный искатель артефактов. Он даёт координаты ценного трофея в руинах.', weight: 20, effects: (_, level) => ({ chips: C(level, 5), exp: E(level, 4), itemCount: 1 }), resourceCost: nextResource(), resourceText: `Выходим на связь — неизвестный представляется {male} «{nick}», местный искатель артефактов. Он даёт координаты ценного трофея в руинах.
 [Благодаря Батарейки — результат x2!]`, noResourceText: `Выходим на связь — неизвестный представляется {male} «{nick}», местный искатель артефактов. Он даёт координаты ценного трофея в руинах.
 [Батарейки нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Находим журнал радиста с картами местности и координатами складов припасов. Целый кладезь информации для дальнейших рейдов.', weight: 25, effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Находим журнал радиста с картами местности и координатами складов припасов. Целый кладезь информации для дальнейших рейдов.
+        { text: 'Находим журнал радиста с картами местности и координатами складов припасов. Целый кладезь информации для дальнейших рейдов.', weight: 20, effects: (_, level) => ({ itemCount: RANGE(2, 4), chips: C(level, 5), exp: E(level, 4) }), resourceCost: nextResource(), resourceText: `Находим журнал радиста с картами местности и координатами складов припасов. Целый кладезь информации для дальнейших рейдов.
 [Благодаря Консервы — результат x2!]`, noResourceText: `Находим журнал радиста с картами местности и координатами складов припасов. Целый кладезь информации для дальнейших рейдов.
 [Консервы нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'Из рации слышен сигнал бедствия — кто-то просит помощи в паре километров. Помогаем путникам, получаем награду и благословение.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RANGE(0.04, 0.08), chips: C(level, 5) }), resourceCost: nextResource(), resourceText: `Из рации слышен сигнал бедствия — кто-то просит помощи в паре километров. Помогаем путникам, получаем награду и благословение.
+        { text: 'Из рации слышен сигнал бедствия — кто-то просит помощи в паре километров. Помогаем путникам, получаем награду и благословение.', weight: 20, effects: (_, level) => ({ exp: E(level, 4), healPercent: RF(0.04, 0.08), chips: C(level, 5) }), resourceCost: nextResource(), resourceText: `Из рации слышен сигнал бедствия — кто-то просит помощи в паре километров. Помогаем путникам, получаем награду и благословение.
 [Благодаря Лекарства — результат x2!]`, noResourceText: `Из рации слышен сигнал бедствия — кто-то просит помощи в паре километров. Помогаем путникам, получаем награду и благословение.
 [Лекарства нет — упускаем выгоду.]`, resourceEffects: (_, level) => ({ itemCount: RANGE(1, 2) }), noResourceEffects: (_, level) => ({ chips: NC(level, 0) }) },
-        { text: 'В рубке — ловушка. Провода под напряжением, получаем разряд. Контужены, но успеваем вырубить рубильник и забрать трофеи со стола.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.08, 0.12), chips: C(level, 1) }), resourceCost: nextResource(), resourceText: `В рубке — ловушка. Провода под напряжением, получаем разряд. Контужены, но успеваем вырубить рубильник и забрать трофеи со стола.
+        { text: 'В рубке — ловушка. Провода под напряжением, получаем разряд. Контужены, но успеваем вырубить рубильник и забрать трофеи со стола.', weight: 20, effects: (_, level) => ({ damagePercent: RF(0.08, 0.12), chips: C(level, 1) }), resourceCost: nextResource(), resourceText: `В рубке — ловушка. Провода под напряжением, получаем разряд. Контужены, но успеваем вырубить рубильник и забрать трофеи со стола.
 [С Вода урон смягчён — потери -50%.]`, noResourceText: `В рубке — ловушка. Провода под напряжением, получаем разряд. Контужены, но успеваем вырубить рубильник и забрать трофеи со стола.
 [Без Вода — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
-        { text: 'Внизу слышны голоса — к вышке приближается бандитский патруль. Приходится быстро покидать вышку, прыгая с нижней площадки и ловя ветки.', weight: 15, effects: (_, level) => ({ damagePercent: RANGE(0.02, 0.04), exp: E(level, 3), combat: true }), resourceCost: nextResource(), resourceText: `Внизу слышны голоса — к вышке приближается бандитский патруль. Приходится быстро покидать вышку, прыгая с нижней площадки и ловя ветки.
+        { text: 'Внизу слышны голоса — к вышке приближается бандитский патруль. Приходится быстро покидать вышку, прыгая с нижней площадки и ловя ветки.', weight: 15, effects: (_, level) => ({ damagePercent: RF(0.02, 0.04), exp: E(level, 3), combat: true }), resourceCost: nextResource(), resourceText: `Внизу слышны голоса — к вышке приближается бандитский патруль. Приходится быстро покидать вышку, прыгая с нижней площадки и ловя ветки.
 [С Изолента урон смягчён — потери -50%.]`, noResourceText: `Внизу слышны голоса — к вышке приближается бандитский патруль. Приходится быстро покидать вышку, прыгая с нижней площадки и ловя ветки.
 [Без Изолента — урон x2, потери серьёзные.]`, resourceEffects: (_, level) => ({ damagePercent: -0.04 }), noResourceEffects: (_, level) => ({ damagePercent: 0.04 }) },
       ],
@@ -2372,11 +2373,11 @@ export const generateExplorationEvent = (
       if (v) (baseEffects as any)[k] = ((baseEffects as any)[k] || 0) + (v as number);
     }
 
-    const fullText = `${baseText} → ${branchText}${renderEffects(baseEffects)}`;
+    const fullText = `${baseText} → ${branchText}`;
     return { text: fullText, type: template.type, effects: baseEffects, decision, resourceCost: branchResult.resourceCost, resourceHad: branchResult.resourceHad };
   }
 
-  const fullText = `${baseText}${renderEffects(baseEffects)}`;
+  const fullText = baseText;
   return { text: fullText, type: template.type, effects: baseEffects, decision };
 };
 
