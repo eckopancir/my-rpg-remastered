@@ -85,8 +85,11 @@ const generateShop = (level: number): ShopItem[] => {
     }
   }
 
-  // Resources / materials (8 items)
-  const resources = [...GAME_RESOURCES];
+  // Resources / materials (8 items) — only BASE resources, not CRAFT
+  const BASE_RESOURCES = GAME_RESOURCES.filter((r) =>
+    !['Металлолом', 'Провода', 'Микросхема', 'Хим. реагент', 'Редкий сплав'].includes(r.name)
+  );
+  const resources = [...BASE_RESOURCES];
   for (let i = 0; i < 8; i++) {
     const def = resources[Math.floor(Math.random() * resources.length)];
     const qty = 1 + Math.floor(Math.random() * 5);

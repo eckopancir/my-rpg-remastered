@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
@@ -23,6 +24,9 @@ export const Adventures = () => {
   const isTraveling = usePlayerStore((s) => s.travel.isTraveling);
   const isReturning = usePlayerStore((s) => s.travel.isReturning);
   const isFighting = usePlayerStore((s) => s.combat.isFighting);
+
+  const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
+  const history = useExplorationStore((s) => s.history);
 
   const handleStart = (name: string, difficulty: number, factions: string[]) => {
     useExplorationStore.getState().startExploration(name, difficulty, factions);
@@ -157,6 +161,73 @@ export const Adventures = () => {
               </motion.div>
             ))}
           </div>
+        )}
+
+        {history.length > 0 && (
+          <WapPanel variant="glass" padding="md" style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>
+              📜 История путешествий
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {history.map((entry) => (
+                <div key={entry.id} style={{
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-glass)',
+                  overflow: 'hidden',
+                }}>
+                  <div
+                    onClick={() => setExpandedHistory(expandedHistory === entry.id ? null : entry.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                      cursor: 'pointer', fontSize: 13,
+                    }}
+                  >
+                    <span>{entry.outcome === 'death' ? '💀' : entry.outcome === 'cancelled' ? '🛑' : '🏁'}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>{entry.zoneName}</span>
+                    <span style={{ color: entry.outcome === 'death' ? 'var(--accent-danger)' : 'var(--text-secondary)', fontSize: 11 }}>
+                      {entry.outcome === 'death' ? 'Погиб' : entry.outcome === 'cancelled' ? 'Прервано' : 'Завершено'}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                      {entry.totalChipsGained > 0 && `💾${entry.totalChipsGained} `}
+                      {entry.totalExpGained > 0 && `⚡${entry.totalExpGained} `}
+                      {entry.totalItemsGained > 0 && `📦${entry.totalItemsGained}`}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+                      {(() => {
+                        const diff = Math.floor((Date.now() - entry.endedAt) / 1000);
+                        if (diff < 60) return `${diff}с назад`;
+                        if (diff < 3600) return `${Math.floor(diff/60)}м назад`;
+                        if (diff < 86400) return `${Math.floor(diff/3600)}ч назад`;
+                        return `${Math.floor(diff/86400)}д назад`;
+                      })()}
+                    </span>
+                  </div>
+                  {expandedHistory === entry.id && (
+                    <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border-glass)', maxHeight: 300, overflowY: 'auto', fontSize: 12 }}>
+                      {entry.eventLog.length === 0 ? (
+                        <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Нет записей событий</div>
+                      ) : (
+                        [...entry.eventLog].reverse().map((ev) => (
+                          <div key={ev.id} style={{ padding: '3px 0', display: 'flex', gap: 6, color: 'var(--text-secondary)' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: 10, whiteSpace: 'nowrap', minWidth: 32 }}>
+                              {(() => {
+                                const diff = Math.floor((ev.ts - entry.eventLog[0].ts) / 1000);
+                                return `+${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}`;
+                              })()}
+                            </span>
+                            <span style={{ flex: 1 }}>{ev.text}</span>
+                            {ev.chips && <span style={{ color: '#fbbf24', fontSize: 10 }}>💾{ev.chips}</span>}
+                            {ev.exp && <span style={{ color: '#818cf8', fontSize: 10 }}>⚡{ev.exp}</span>}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </WapPanel>
         )}
       </WapPanel>
     </motion.div>

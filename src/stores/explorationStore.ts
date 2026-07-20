@@ -11,6 +11,17 @@ import { GAME_ITEMS } from '../data/GameItems';
 
 export type ExplorationPhase = 'idle' | 'travel_out' | 'exploring' | 'travel_back' | 'complete';
 
+export interface HistoryEntry {
+  id: string;
+  zoneName: string;
+  outcome: 'complete' | 'death' | 'cancelled';
+  totalChipsGained: number;
+  totalExpGained: number;
+  totalItemsGained: number;
+  eventLog: ExplorationEventLog[];
+  endedAt: number;
+}
+
 export interface LegendaryState {
   event: LegendaryEventData;
   stageIndex: number;
@@ -41,6 +52,9 @@ interface ExplorationStore {
   lastTickTimestamp: number;
   expeditionTickCounter: number;
   expeditionStartTimestamp: number;
+
+  history: HistoryEntry[];
+  saveCurrentToHistory: (outcome: HistoryEntry['outcome']) => void;
 
   handleExplorationDeath: () => void;
 
@@ -129,6 +143,23 @@ export const useExplorationStore = create<ExplorationStore>()(
   lastTickTimestamp: 0,
   expeditionTickCounter: 0,
   expeditionStartTimestamp: 0,
+  history: [],
+
+  saveCurrentToHistory: (outcome) => {
+    const state = get();
+    if (state.totalChipsGained === 0 && state.totalExpGained === 0 && state.totalItemsGained === 0 && outcome === 'cancelled') return;
+    const entry: HistoryEntry = {
+      id: Date.now().toString(),
+      zoneName: state.zoneName || 'Unknown',
+      outcome,
+      totalChipsGained: state.totalChipsGained,
+      totalExpGained: state.totalExpGained,
+      totalItemsGained: state.totalItemsGained,
+      eventLog: state.eventLog.slice(-50),
+      endedAt: Date.now(),
+    };
+    set({ history: [entry, ...state.history].slice(0, 5) });
+  },
 
   startExploration: (zoneName, difficulty, factions) => {
     const player = usePlayerStore.getState();
@@ -149,7 +180,7 @@ export const useExplorationStore = create<ExplorationStore>()(
       zoneName,
       zoneDifficulty: difficulty,
       zoneFactions: factions,
-      phase: 'travel_out',
+      phase: isInfinite ? 'exploring' : 'travel_out',
       timeLeft: TRAVEL_TIME,
       totalTime: TOTAL_TIME,
       eventLog: [],
@@ -213,6 +244,7 @@ export const useExplorationStore = create<ExplorationStore>()(
     if (state.totalChipsGained > 0 || state.totalExpGained > 0) {
       rewardText = ` Добыто: ${state.totalChipsGained}💾, ${state.totalExpGained}⚡.`;
     }
+    get().saveCurrentToHistory('cancelled');
     player.addLog(`🛑 Авто-исследование прервано. Возврат на базу.${rewardText}`, 'warning');
     if (player.combat.isFighting) {
       usePlayerStore.setState({ combat: { ...player.combat, isFighting: false } });
@@ -400,6 +432,7 @@ export const useExplorationStore = create<ExplorationStore>()(
   completeExploration: () => {
     const player = usePlayerStore.getState();
     const state = get();
+    get().saveCurrentToHistory('complete');
     const bonusExp = Math.floor(state.zoneDifficulty * 5 + 20);
     const bonusChips = Math.floor(state.zoneDifficulty * 3 + 10);
     player.addExp(bonusExp);
@@ -577,6 +610,7 @@ export const useExplorationStore = create<ExplorationStore>()(
       explorationDeathTimestamp: Date.now(),
     });
 
+    get().saveCurrentToHistory('death');
     player.addLog('💀 Герой потерял сознание от ран. Экспедиция провалена. Весь лут и чипы потеряны.', 'damage');
 
     if (player.combat.isFighting) {
@@ -623,6 +657,7 @@ export const useExplorationStore = create<ExplorationStore>()(
         lastTickTimestamp: state.lastTickTimestamp,
         expeditionTickCounter: state.expeditionTickCounter,
         expeditionStartTimestamp: state.expeditionStartTimestamp,
+        history: state.history,
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.isExploring && state.lastTickTimestamp > 0) {
@@ -641,7 +676,7 @@ export function catchUpExploration() {
   const elapsed = Math.floor((Date.now() - store.lastTickTimestamp) / 1000);
   if (elapsed <= 0) return;
 
-  const maxTicks = Math.min(elapsed, store.totalTime + 60);
+  const maxTicks = Math.min(elapsed, store.isInfinite ? elapsed : store.totalTime + 60);
   const prevChips = store.totalChipsGained;
   const prevExp = store.totalExpGained;
   const prevItems = store.totalItemsGained;

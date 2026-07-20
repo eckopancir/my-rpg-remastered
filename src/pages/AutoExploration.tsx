@@ -45,21 +45,22 @@ export const AutoExploration = () => {
     return null;
   }
 
-  // Display: countdown for travel phases, elapsed for infinite exploring
-  const exploringElapsed = tickCounter - travelTime; // seconds since exploring started
-  const displayTime = isInfinite && phase === 'exploring' ? exploringElapsed : timeLeft;
-  const timeLabel = isInfinite && phase === 'exploring' ? 'прошло' : 'осталось';
+  // Display: countdown for normal, elapsed for infinite
+  const displayTime = isInfinite ? tickCounter : timeLeft;
+  const timeLabel = isInfinite ? 'прошло' : 'осталось';
 
   const showProgress = !isInfinite || phase !== 'exploring';
   const totalTrip = travelTime * 3;
   const progress = !showProgress ? 0
-    : phase === 'travel_out'
-      ? ((travelTime - timeLeft) / totalTrip) * 100
-      : phase === 'exploring'
-        ? (travelTime / totalTrip) * 100 + ((travelTime - timeLeft) / totalTrip) * 100
-        : phase === 'travel_back'
-          ? ((travelTime * 3 - timeLeft) / totalTrip) * 100
-          : 100;
+    : isInfinite && phase === 'travel_back'
+      ? ((30 - timeLeft) / 30) * 100
+      : phase === 'travel_out'
+        ? ((travelTime - timeLeft) / totalTrip) * 100
+        : phase === 'exploring'
+          ? (travelTime / totalTrip) * 100 + ((travelTime - timeLeft) / totalTrip) * 100
+          : phase === 'travel_back'
+            ? ((travelTime * 3 - timeLeft) / totalTrip) * 100
+            : 100;
 
   const handleCancel = () => {
     cancelExploration();

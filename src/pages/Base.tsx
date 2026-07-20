@@ -16,34 +16,35 @@ interface UpgradeReq {
   time: number;
 }
 
-const ORIGINAL_RESOURCES = ['Железо', 'Дерево', 'Пластмасса', 'Вода', 'Гвозди', 'Изолента', 'Инструменты'] as const;
+const ORIGINAL_RESOURCES = ['Железо', 'Дерево', 'Пластмасса', 'Вода', 'Гвозди', 'Изолента', 'Инструменты', 'Топливо', 'Батарейки', 'Консервы', 'Лекарства'] as const;
 
-const RESOURCE_PATTERNS: Record<string, { primary: string; secondary: string[] }> = {
-  'base-workbench': { primary: 'Железо', secondary: ['Инструменты', 'Изолента', 'Гвозди'] },
-  'base-garden': { primary: 'Дерево', secondary: ['Вода', 'Гвозди'] },
-  'base-greenhouse': { primary: 'Пластмасса', secondary: ['Изолента', 'Инструменты', 'Вода'] },
-  'base-sleep': { primary: 'Дерево', secondary: ['Изолента', 'Гвозди', 'Вода'] },
-  'base-weapons': { primary: 'Железо', secondary: ['Гвозди', 'Инструменты', 'Изолента', 'Вода'] },
-  'base-armor': { primary: 'Пластмасса', secondary: ['Изолента', 'Инструменты', 'Гвозди'] },
-  'base-livestock': { primary: 'Дерево', secondary: ['Вода', 'Изолента', 'Инструменты'] },
-  'base-medbay': { primary: 'Пластмасса', secondary: ['Изолента', 'Вода', 'Инструменты'] },
-  'base-fun': { primary: 'Дерево', secondary: ['Изолента', 'Инструменты', 'Гвозди'] },
-  'base-gym': { primary: 'Железо', secondary: ['Гвозди', 'Инструменты', 'Изолента'] },
-  'base-watchtower': { primary: 'Дерево', secondary: ['Гвозди', 'Инструменты', 'Изолента'] },
+const RESOURCE_PATTERNS: Record<string, string[]> = {
+  'base-workbench': ['Железо', 'Инструменты', 'Изолента'],
+  'base-garden': ['Дерево', 'Вода', 'Консервы'],
+  'base-greenhouse': ['Пластмасса', 'Вода', 'Батарейки'],
+  'base-sleep': ['Дерево', 'Изолента', 'Батарейки'],
+  'base-weapons': ['Железо', 'Инструменты', 'Топливо'],
+  'base-armor': ['Железо', 'Пластмасса', 'Инструменты'],
+  'base-livestock': ['Дерево', 'Вода', 'Консервы'],
+  'base-medbay': ['Лекарства', 'Вода', 'Пластмасса'],
+  'base-fun': ['Дерево', 'Батарейки', 'Изолента'],
+  'base-gym': ['Дерево', 'Гвозди', 'Железо'],
+  'base-watchtower': ['Дерево', 'Батарейки', 'Инструменты'],
 };
 
 const genRequirements = (baseId: string, level: number): UpgradeReq | null => {
   if (level > 30) return null;
-  const pattern = RESOURCE_PATTERNS[baseId] || { primary: 'Железо', secondary: ['Гвозди', 'Дерево'] };
-  const secIdx = (level * 7) % pattern.secondary.length;
-  const items = [
-    { name: pattern.primary, count: Math.max(2, Math.floor(2 + level * 0.3)) },
-    { name: pattern.secondary[secIdx], count: Math.max(1, Math.floor(1 + level * 0.2)) },
-  ];
+  const pattern = RESOURCE_PATTERNS[baseId] || ['Железо', 'Гвозди', 'Дерево'];
+  const coeffs = [0.33, 0.28, 0.22];
+  const bases = [2, 1, 1];
+  const items = pattern.map((name, i) => ({
+    name,
+    count: Math.max(bases[i], Math.floor(bases[i] + level * level * coeffs[i])),
+  }));
   return {
     items,
     chips: Math.floor(20 + level * 5 + level * level * 0.5),
-    time: Math.max(30, Math.floor(level * 12)),
+    time: Math.floor(18000 * Math.pow(level, 1.3)),
   };
 };
 
@@ -178,6 +179,15 @@ const BASE_BONUSES: Record<string, LevelBonus[]> = {
     { level: 25, label: '+30% радиус обзора' },
     { level: 30, label: '+50% радиус обзора' },
   ],
+};
+
+const formatDuration = (sec: number): string => {
+  if (sec < 60) return `${sec}с`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}м ${sec % 60}с`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}ч ${Math.floor((sec % 3600) / 60)}м`;
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  return `${d}д ${h}ч`;
 };
 
 export const Base = () => {
@@ -364,7 +374,7 @@ export const Base = () => {
     setCraftingTimer(req.time);
     setUpgradingBase(selectedUpg.name);
     setPlacedItems([]);
-    addLog(`🔧 ${selectedUpg.name} улучшается... ${req.time}с`, 'system');
+    addLog(`🔧 ${selectedUpg.name} улучшается... ${formatDuration(req.time)}`, 'system');
   };
 
   const useConsumable = (con: BaseConsumable) => {
@@ -538,12 +548,12 @@ export const Base = () => {
                         })}
                       </div>
                       <div style={{ display: 'flex', gap: 12, marginBottom: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-                        <span>💾 {req.chips}</span><span>⏱ {req.time}с</span>
+                        <span>💾 {req.chips}</span><span>⏱ {formatDuration(req.time)}</span>
                       </div>
                       {allPlaced ? (
                         <Button variant="primary" size="md" onClick={startUpgrade}
                           disabled={dataChips < req.chips} style={{ width: '100%', marginBottom: 12 }}>
-                          🔧 Начать ({req.time}с)
+                          🔧 Начать ({formatDuration(req.time)})
                         </Button>
                       ) : (
                         <Button variant="primary" size="md" onClick={autoPlaceResources}

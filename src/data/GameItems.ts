@@ -40,6 +40,10 @@ export const GAME_RESOURCES: ItemDefinition[] = [
     stats: {},
     image: r5Icon,
   },
+  { name: 'Топливо', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r1Icon },
+  { name: 'Батарейки', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r2Icon },
+  { name: 'Консервы', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r7Icon },
+  { name: 'Лекарства', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r4Icon },
 ];
 
 // Item set bonus definitions

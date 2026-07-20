@@ -50,11 +50,11 @@ export const Sidebar = () => {
         <div className={styles.queue}>
           {isExploring && (
             <div className={`${styles.queueItem} ${styles.queueItemActive}`}>
-              <div style={{ fontWeight: 600, color: 'var(--accent-primary)', fontSize: 12 }}>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12 }}>
                 📡 {expZoneName}
               </div>
               <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)', marginBottom: 2 }}>
-                {isInfinite && phase === 'exploring' ? `⏱ прошло ${tickCounter - travelTime}с` : `⏱ осталось ${expTimeLeft}с`} · {phase === 'travel_out' ? 'выезд' : phase === 'exploring' ? 'в зоне' : phase === 'travel_back' ? 'возврат' : 'завершено'}
+                {isInfinite ? `⏱ прошло ${tickCounter}с` : `⏱ осталось ${expTimeLeft}с`} · {phase === 'travel_out' ? 'выезд' : phase === 'exploring' ? 'в зоне' : phase === 'travel_back' ? 'возврат' : 'завершено'}
               </div>
               {expChips + expExp + expItems > 0 && (
                 <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>
