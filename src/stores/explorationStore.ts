@@ -426,7 +426,7 @@ export const useExplorationStore = create<ExplorationStore>()(
       // Decrement big event cooldown (micro already handled above)
       set({ eventCooldown: newEventCd });
     } catch (err) {
-      player.addLog(`⚠️ Ошибка обработки события: ${err}`, 'warning');
+      player.addLog(`⚠️ Ошибка обработки события: ${err instanceof Error ? err.message : err}`, 'warning');
       set({ eventCooldown: randCooldown(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX) });
     }
   },
