@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { PageContainer } from './components/layout/PageContainer';
+import { AuthGuard } from './components/auth/AuthGuard';
+import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Map } from './pages/Map';
 import { Equipment } from './pages/Equipment';
@@ -13,6 +15,7 @@ import { Skills } from './pages/Skills';
 import { Expedition } from './pages/Expedition';
 import { AutoExploration } from './pages/AutoExploration';
 import { Adventures } from './pages/Adventures';
+import { Admin } from './pages/Admin';
 import { MusicPlayer } from './components/widgets/MusicPlayer';
 import { InventoryOverlay } from './components/widgets/InventoryOverlay';
 import { useGameLoop } from './hooks/useGameLoop';
@@ -22,7 +25,6 @@ import { useEffect } from 'react';
 import { images } from './assets/index';
 import './styles/global.css';
 
-// Temporary seed items for testing
 const seedInventory = () => {
   const store = usePlayerStore.getState();
   if (store.level === 1 && store.dataChips === 100) {
@@ -55,7 +57,7 @@ const AppContent = () => {
   }, [toggleEquipment]);
 
   return (
-    <>
+    <AuthGuard>
       <MusicPlayer />
       <InventoryOverlay />
       {equipmentOpen && <Equipment />}
@@ -73,18 +75,22 @@ const AppContent = () => {
             <Route path="/craft" element={<Craft />} />
             <Route path="/battle" element={<Battle />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="/equipment" element={<Dashboard />} />
           </Route>
         </Routes>
       </AnimatePresence>
-    </>
+    </AuthGuard>
   );
 };
 
 const App = () => {
   return (
     <BrowserRouter>
-      <AppContent />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/*" element={<AppContent />} />
+      </Routes>
     </BrowserRouter>
   );
 };

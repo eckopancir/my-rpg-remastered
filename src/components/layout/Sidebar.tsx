@@ -25,6 +25,7 @@ export const Sidebar = () => {
   const logs = usePlayerStore((s) => s.logs);
   const queue = useUiStore((s) => s.queue);
   const craftingTimer = useUiStore((s) => s.craftingTimer);
+  const craftingTimerMax = useUiStore((s) => s.craftingTimerMax);
   const craftingType = useUiStore((s) => s.craftingType);
   const craftingLabel = useUiStore((s) => s.craftingLabel);
   const isExploring = useExplorationStore((s) => s.isExploring);
@@ -39,7 +40,7 @@ export const Sidebar = () => {
   const expItems = useExplorationStore((s) => s.totalItemsGained);
 
 
-  const craftingMax = craftingType === 'merge' ? 10 : craftingType === 'create' ? 5 : craftingType === 'upgrade' ? 60 : 0;
+  const craftingMax = craftingType === 'merge' ? 10 : craftingType === 'create' ? 5 : craftingType === 'upgrade' ? craftingTimerMax || 1 : 0;
   const craftingIcon = craftingType === 'merge' ? '⬆️' : craftingType === 'create' ? '⚙️' : craftingType === 'upgrade' ? '🏢' : '';
   const craftingTitle = craftingType === 'merge' ? 'Улучшение предмета' : craftingType === 'create' ? 'Создание предмета' : craftingLabel;
 

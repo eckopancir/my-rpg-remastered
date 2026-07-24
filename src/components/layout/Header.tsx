@@ -1,6 +1,8 @@
-import { NavLink } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useAuthStore } from '../../stores/authStore';
 import { useSound } from '../../hooks/useSound';
 import { WapHudBar } from '../ui/WapHudBar';
 import { images } from '../../assets/index';
@@ -24,7 +26,23 @@ export const Header = () => {
   const expToNext = usePlayerStore((s) => s.expToNext);
   const toggleInventory = useUiStore((s) => s.toggleInventory);
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const { playClick } = useSound();
+  const navigate = useNavigate();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   return (
     <header className={styles.header}>
@@ -76,6 +94,52 @@ export const Header = () => {
         <div className={styles.stat}>
           💾<span className={styles.statValue}>{dataChips}</span>
         </div>
+
+        {/* User menu */}
+        {user && (
+          <div className={styles.userMenu} ref={menuRef}>
+            <button
+              className={styles.userButton}
+              onClick={() => { playClick(); setMenuOpen(!menuOpen); }}
+              title={user.username}
+            >
+              <span className={styles.userAvatar}>🧟</span>
+              <span className={styles.userName}>{user.username}</span>
+              <span className={styles.userCaret}>{menuOpen ? '▲' : '▼'}</span>
+            </button>
+            {menuOpen && (
+              <div className={styles.userDropdown}>
+                <div className={styles.userDropdownInfo}>
+                  <span style={{ fontSize: 18 }}>🧟</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{user.username}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>
+                      ID: {user.id}
+                    </div>
+                  </div>
+                </div>
+                {user.is_admin && (
+                  <button
+                    className={styles.userDropdownItem}
+                    onClick={() => { playClick(); setMenuOpen(false); navigate('/admin'); }}
+                    style={{ color: 'var(--wa-accent-amber)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(217,119,6,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
+                  >
+                    ⚙️ Админка
+                  </button>
+                )}
+                <div className={styles.userDropdownDivider} />
+                <button
+                  className={styles.userDropdownItem}
+                  onClick={() => { playClick(); setMenuOpen(false); logout(); }}
+                >
+                  🚪 Выйти
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

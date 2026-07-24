@@ -1,0 +1,13 @@
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+
+RewriteEngine On
+
+# Route API requests
+RewriteRule ^api/auth/(.*)$ api/auth/$1 [L]
+
+# If the request is not for an existing file, serve index.html (for SPA)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(?!api/).*$ index.html [L]

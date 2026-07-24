@@ -35,6 +35,7 @@ interface UiStore {
   musicVolume: number;
   isResting: boolean;
   craftingTimer: number;
+  craftingTimerMax: number;
   craftingType: 'merge' | 'create' | 'upgrade' | null;
   craftingLabel: string;
   upgradingBase: string | null;
@@ -49,6 +50,7 @@ interface UiStore {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setCraftingTimer: (timer: number) => void;
+  setCraftingTimerMax: (max: number) => void;
   setCraftingType: (type: 'merge' | 'create' | 'upgrade' | null) => void;
   setCraftingLabel: (label: string) => void;
   setUpgradingBase: (name: string | null) => void;
@@ -93,6 +95,7 @@ export const useUiStore = create<UiStore>()(
       musicVolume: 0.2,
       isResting: false,
       craftingTimer: 0,
+      craftingTimerMax: 0,
       craftingType: null,
       craftingLabel: '',
       upgradingBase: null,
@@ -115,6 +118,7 @@ export const useUiStore = create<UiStore>()(
       removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
       setCraftingTimer: (timer) => set({ craftingTimer: timer }),
+      setCraftingTimerMax: (max) => set({ craftingTimerMax: max }),
       setCraftingType: (type) => set({ craftingType: type }),
       setCraftingLabel: (label) => set({ craftingLabel: label }),
       setUpgradingBase: (name) => set({ upgradingBase: name }),
@@ -202,6 +206,7 @@ export const useUiStore = create<UiStore>()(
       partialize: (state) => ({
         queue: state.queue,
         craftingTimer: state.craftingTimer,
+        craftingTimerMax: state.craftingTimerMax,
         craftingType: state.craftingType,
         craftingLabel: state.craftingLabel,
         upgradingBase: state.upgradingBase,

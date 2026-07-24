@@ -105,3 +105,94 @@
 .hpBar {
   min-width: 120px;
 }
+
+/* User menu */
+.userMenu {
+  position: relative;
+}
+
+.userButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(146, 64, 14, 0.2);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--wa-font-hud);
+  font-size: 12px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.userButton:hover {
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.3);
+  color: var(--text-primary);
+}
+
+.userAvatar {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.userName {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--wa-accent-amber);
+}
+
+.userCaret {
+  font-size: 8px;
+  color: var(--text-muted);
+}
+
+.userDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: #1a1410;
+  border: 1px solid rgba(146, 64, 14, 0.3);
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 12px rgba(217,119,6,0.08);
+  z-index: var(--z-modal);
+  overflow: hidden;
+}
+
+.userDropdownInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.userDropdownDivider {
+  height: 1px;
+  background: rgba(146, 64, 14, 0.2);
+}
+
+.userDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--wa-font-hud);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.userDropdownItem:hover {
+  background: rgba(248, 113, 113, 0.08);
+  color: #f87171;
+}

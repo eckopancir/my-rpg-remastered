@@ -3,29 +3,33 @@ import { useUiStore } from '../../stores/uiStore';
 
 const audioModules = import.meta.glob<{ default: string }>('../../assets/audio/**/*.mp3', { eager: true });
 
-const getTrackSrc = (): string | undefined => {
+const getTrackSrc = (substring: string): string | undefined => {
   for (const [path, mod] of Object.entries(audioModules)) {
-    if (path.toLowerCase().includes('track')) return mod.default;
+    if (path.toLowerCase().includes(substring)) return mod.default;
   }
   return undefined;
 };
 
-const trackSrc = getTrackSrc();
-
-export const MusicPlayer = () => {
+export const MusicPlayer = ({ track = 'track' }: { track?: string }) => {
   const musicEnabled = useUiStore((s) => s.musicEnabled);
   const musicVolume = useUiStore((s) => s.musicVolume);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
-    if (!trackSrc) return;
-    if (!audioRef.current) {
-      const audio = new Audio(trackSrc);
+    const src = getTrackSrc(track);
+    if (!src) return;
+
+    if (!audioRef.current || audioRef.current.dataset.track !== track) {
+      if (audioRef.current) audioRef.current.pause();
+      const audio = new Audio(src);
       audio.loop = true;
       audio.volume = musicVolume;
+      audio.dataset.track = track;
       audioRef.current = audio;
+      startedRef.current = false;
     }
+
     const audio = audioRef.current;
 
     if (musicEnabled) {
@@ -38,7 +42,7 @@ export const MusicPlayer = () => {
     } else {
       audio.pause();
     }
-  }, [musicEnabled]);
+  }, [musicEnabled, track]);
 
   useEffect(() => {
     if (audioRef.current) {

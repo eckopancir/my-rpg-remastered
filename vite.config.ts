@@ -9,4 +9,12 @@ export default defineConfig({
       generateScopedName: '[name]__[local]',
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://rpg.local',
+        changeOrigin: true,
+      },
+    },
+  },
 })

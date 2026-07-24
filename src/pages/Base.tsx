@@ -204,6 +204,7 @@ export const Base = () => {
   const storeCraftingLabel = useUiStore((s) => s.craftingLabel);
   const storeUpgradingBase = useUiStore((s) => s.upgradingBase);
   const setCraftingTimer = useUiStore((s) => s.setCraftingTimer);
+  const setCraftingTimerMax = useUiStore((s) => s.setCraftingTimerMax);
   const setCraftingType = useUiStore((s) => s.setCraftingType);
   const setCraftingLabel = useUiStore((s) => s.setCraftingLabel);
   const setUpgradingBase = useUiStore((s) => s.setUpgradingBase);
@@ -372,6 +373,7 @@ export const Base = () => {
     setCraftingType('upgrade');
     setCraftingLabel(`${selectedUpg.name} ур.${currentLevel + 1}`);
     setCraftingTimer(req.time);
+    setCraftingTimerMax(req.time);
     setUpgradingBase(selectedUpg.name);
     setPlacedItems([]);
     addLog(`🔧 ${selectedUpg.name} улучшается... ${formatDuration(req.time)}`, 'system');
@@ -427,9 +429,10 @@ export const Base = () => {
               >
                 {upgrading && (
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(251,191,36,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
-                    <div style={{ textAlign: 'center' }}>
+                    <div style={{ textAlign: 'center', width: '80%' }}>
                       <div style={{ fontSize: 11, color: 'var(--accent-warning)', marginBottom: 4 }}>УЛУЧШЕНИЕ...</div>
-                      <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-warning)' }}>{storeCraftingTimer}с</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-warning)', marginBottom: 8 }}>{storeCraftingTimer}с</div>
+                      <ProgressBar value={storeCraftingTimer} max={useUiStore.getState().craftingTimerMax || 1} variant="accent" showPercent />
                     </div>
                   </div>
                 )}
