@@ -1,0 +1,23 @@
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-glass);
+  transition: background var(--transition-base), border-color var(--transition-base);
+}
+
+.glass:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-glass-hover);
+}
+
+.glow {
+  box-shadow: var(--shadow-glass), var(--shadow-glow);
+  border-color: var(--border-accent);
+}
+
+.paddingSm { padding: var(--space-sm); }
+.paddingMd { padding: var(--space-md); }
+.paddingLg { padding: var(--space-lg); }
+.paddingXl { padding: var(--space-xl); }

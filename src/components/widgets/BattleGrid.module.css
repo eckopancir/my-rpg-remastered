@@ -1,0 +1,791 @@
+.container {
+  position: relative;
+  width: 100%;
+  max-width: 880px;
+  margin: -30px auto 0;
+  overflow: hidden;
+}
+
+.battleScreen {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  background: #0a0a0a;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.fogCanvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.95;
+  transition: background 0.4s ease-out;
+}
+
+.bgDarken {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.15);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Global fog overlay — above all cells to cover obstacle overflow */
+.globalFog {
+  position: absolute;
+  inset: 0;
+  z-index: 51;
+  pointer-events: none;
+}
+
+.fogCell {
+  position: absolute;
+  width: 3.2258%;
+  height: 3.2258%;
+  background: rgba(0, 0, 0, 0.88);
+  transition: opacity 0.3s ease;
+}
+
+.gridOverlay {
+  display: grid;
+  grid-template-columns: repeat(32, 1fr);
+  grid-template-rows: repeat(32, 1fr);
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0;
+  margin: 0;
+  z-index: 3;
+}
+
+.cell {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background-color: transparent;
+  z-index: 1;
+  transition: background-color 0.2s ease;
+  overflow: visible;
+}
+
+.cell:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cellActive {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.obstacleCell {
+  cursor: not-allowed;
+}
+
+.playerCell {
+  z-index: 20;
+}
+
+.pathActive {
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.cell[data-invalid='true'] {
+  background-color: rgba(255, 0, 0, 0.15);
+  border: 1px solid rgba(255, 50, 50, 0.3);
+}
+
+/* Obstacles */
+.obstacleImg {
+  position: absolute;
+  object-fit: fill;
+  pointer-events: none;
+  display: block;
+  filter: drop-shadow(2px 4px 4px rgba(0, 0, 0, 0.5));
+}
+
+.obstacleWoodsImg {
+  width: 244%;
+  height: 244%;
+  left: -5%;
+  top: -5%;
+}
+
+.obstacleCarImg {
+  width: 250%;
+  height: 150%;
+  left: -75%;
+  top: -30%;
+  z-index: 10;
+}
+
+.obstacleBigImg {
+  width: 770%;
+  height: 650%;
+  left: -40%;
+  top: -50%;
+  z-index: 10;
+}
+
+.obstacleSmallImg {
+  width: 130%;
+  height: 130%;
+  left: -14%;
+  top: -14%;
+  z-index: 10;
+}
+
+/* Units */
+.unit {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: left 0.12s linear, top 0.12s linear;
+}
+
+.unit.selected {
+  outline: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.player {
+  z-index: 20;
+}
+
+.playerSprite {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+}
+
+.shieldActive {
+  filter: drop-shadow(0 0 8px rgba(59,130,246,0.8)) drop-shadow(0 0 16px rgba(59,130,246,0.4));
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+
+
+.invisible {
+  opacity: 0.2;
+}
+
+.humanSprite {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+}
+
+.meleeSpin {
+  animation: spin360 0.4s linear;
+}
+
+@keyframes spin360 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* HP Bar */
+.hpBar {
+  width: 120%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #000;
+  position: absolute;
+  top: -8px;
+}
+
+.hpFill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* Battle popups */
+.battlePopup {
+  position: absolute;
+  pointer-events: none;
+  font-weight: 900;
+  font-family: 'Courier New', monospace;
+  text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000;
+  z-index: 1000;
+  animation: popupFloat 1s ease-out forwards;
+  white-space: nowrap;
+  font-size: 14px;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes popupFloat {
+  0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+  20% { transform: translate(-50%, -20px) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -60px) scale(1); opacity: 0; }
+}
+
+.battlePopup.normal { color: #ffffff; }
+.battlePopup.crit { color: #ffcc00; font-size: 18px; }
+.battlePopup.miss { color: #aaaaaa; }
+.battlePopup.vamp { color: #ff3333; }
+.battlePopup.heal { color: #44ff44; }
+.battlePopup.error { color: #ff0000; }
+.battlePopup.reload { color: #33ccff; }
+.battlePopup.buff { color: #ffff00; }
+.battlePopup.block { color: #ff8800; }
+.battlePopup.special { color: #ff00ff; }
+.battlePopup.success { color: #44ff44; font-size: 12px; }
+
+/* Shot tracer */
+.shotSvg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.tracerLine {
+  stroke: #fffb00;
+  stroke-width: 2;
+  stroke-dasharray: 4, 2;
+  filter: drop-shadow(0 0 5px #ffaa00);
+  opacity: 0.9;
+  animation: dashFly 0.5s linear infinite;
+}
+
+.tracerLine.aimShot {
+  stroke: #00f2ff;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px #00a2ff);
+  stroke-dasharray: 10, 5;
+}
+
+.tracerLine.bazookaShot {
+  stroke: #ff2200;
+  stroke-width: 5;
+  filter: drop-shadow(0 0 12px #ff4400);
+  stroke-dasharray: 14, 6;
+  animation: dashFly 0.3s linear infinite;
+}
+
+.tracerLine.healShot {
+  stroke: #44ff44;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px #22cc22);
+  stroke-dasharray: 6, 4;
+  animation: dashFly 0.6s linear infinite;
+}
+
+@keyframes dashFly {
+  from { stroke-dashoffset: 10; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Grenade */
+.grenadeFly {
+  position: absolute;
+  font-size: 24px;
+  z-index: 100;
+  pointer-events: none;
+  filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.5));
+  transform: translate(-50%, -50%);
+}
+
+.grenadeZone {
+  width: 9.375%;
+  height: 9.375%;
+  background: radial-gradient(circle, rgba(255, 0, 0, 0.4) 0%, rgba(255, 0, 0, 0) 70%);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+  transform: translate(-33%, -33%);
+  animation: pulseZone 1.5s infinite;
+}
+
+@keyframes pulseZone {
+  0% { transform: translate(-33%, -33%) scale(1); opacity: 0.4; }
+  50% { transform: translate(-33%, -33%) scale(1.1); opacity: 0.6; }
+  100% { transform: translate(-33%, -33%) scale(1); opacity: 0.4; }
+}
+
+.dangerZone {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-35%, -35%);
+}
+
+.redZonePulse {
+  transform: translate(0, 0);
+  animation: redPulseAnim 0.8s infinite ease-in-out;
+  border: 2px solid red;
+  background-color: rgba(255, 0, 0, 0.4);
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes redPulseAnim {
+  0% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+  100% { opacity: 0.4; transform: scale(1); }
+}
+
+.mine {
+  position: absolute;
+  pointer-events: none;
+  z-index: 100;
+  width: 9.375%;
+  height: 9.375%;
+  background: transparent;
+  border-radius: 50%;
+  border: 2px dashed #888;
+  transform: translate(-50%, -50%);
+}
+.mine::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  background: #888;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Explosion flash */
+.explosionFlash {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  margin-left: -50px;
+  margin-top: -50px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Hit shake */
+.arenaShake {
+  animation: shakeAnim 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shakeAnim {
+  10%, 90% { transform: translate3d(-2px, 0, 0); }
+  20%, 80% { transform: translate3d(4px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+  40%, 60% { transform: translate3d(6px, 0, 0); }
+}
+
+/* Victory overlay removed — replaced with small finish button */
+
+/* Enemy status badges */
+.enemyStatusBadge {
+  position: absolute;
+  top: -45px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  z-index: 100;
+  pointer-events: none;
+  text-shadow: 0 0 5px black;
+  animation: statusBounce 0.3s ease-out;
+}
+
+@keyframes statusBounce {
+  0% { transform: translateX(-50%) scale(0); }
+  70% { transform: translateX(-50%) scale(1.2); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* Player in woods — stealth opacity */
+.inWoods {
+  opacity: 0.4;
+  filter: brightness(0.7);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+/* Loot window */
+.lootOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 300;
+}
+
+.lootWindow {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 20px;
+  min-width: 320px;
+  max-height: 70%;
+  overflow-y: auto;
+}
+
+.lootHeader {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.lootEmpty {
+  color: #888;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+.lootRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.lootRow:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lootName {
+  flex: 1;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.lootQty {
+  color: #888;
+  font-size: 12px;
+}
+
+.lootTakeBtn {
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.lootTakeBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.lootCloseBtn {
+  margin-top: 15px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #aaa;
+  cursor: pointer;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+
+.lootCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Cell crosshair on enemy hover */
+.cellCrosshair {
+  cursor: crosshair;
+  background: rgba(255, 50, 50, 0.15) !important;
+  box-shadow: inset 0 0 8px rgba(255, 0, 0, 0.3);
+}
+
+.enemyCrosshair {
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.6), 0 0 24px rgba(255, 0, 0, 0.3);
+  filter: brightness(1.2);
+}
+
+/* In-range cell glow */
+.inRange {
+  background: rgba(50, 50, 255, 0.06) !important;
+}
+
+/* Red glow on in-range enemies */
+.inRangeEnemy {
+  filter: drop-shadow(0 0 8px rgba(255, 0, 0, 0.7));
+  transition: filter 0.2s ease;
+}
+
+/* Hit flash overlay on damage */
+.hitFlash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  background: radial-gradient(circle, rgba(255, 100, 0, 0.35), transparent 70%);
+  animation: flashOut 0.3s ease-out forwards;
+}
+
+@keyframes flashOut {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* Player locating pulse */
+.locating {
+  filter: brightness(2) drop-shadow(0 0 12px rgba(255, 255, 255, 0.5));
+  transform: scale(1.15);
+  transition: filter 0.1s, transform 0.1s;
+}
+
+.locating::after {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: locatePulse 0.8s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes locatePulse {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Enraged enemy — sepia/hue-rotate */
+.enraged {
+  filter: sepia(1) hue-rotate(-50deg) saturate(5) drop-shadow(0 0 10px rgba(255, 0, 0, 0.8)) !important;
+  transition: filter 0.3s ease;
+}
+
+/* Target crosshair — rotating dashed circle */
+.crosshairCircle {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border: 2px dashed rgba(255, 50, 50, 0.8);
+  border-radius: 50%;
+  animation: rotateCrosshair 3s linear infinite;
+  pointer-events: none;
+  z-index: 50;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes rotateCrosshair {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Button animations */
+@keyframes pulseBorder {
+  0%, 100% { border-color: rgba(255,255,255,0.15); }
+  50% { border-color: rgba(255,255,255,0.5); }
+}
+
+@keyframes pulseText {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulseBorder {
+  animation: pulseBorder 2s infinite;
+}
+
+.pulseText {
+  animation: pulseText 2s infinite;
+}
+
+/* Waypoint markers */
+.waypointDot {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: bold;
+  color: #fff;
+  z-index: 15;
+  pointer-events: none;
+}
+
+/* Dead enemy */
+.deadSprite {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0.7;
+  filter: brightness(0.5) sepia(0.6) hue-rotate(-20deg) saturate(3);
+  pointer-events: none;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+  transform: scale(1.12);
+  transform-origin: center center;
+}
+
+.barrierActive {
+  filter: drop-shadow(0 0 10px rgba(0,100,255,0.9)) drop-shadow(0 0 20px rgba(0,100,255,0.5));
+  animation: pulseBarrier 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseBarrier {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(0,100,255,0.9)) drop-shadow(0 0 20px rgba(0,100,255,0.5)); }
+  50% { filter: drop-shadow(0 0 15px rgba(0,100,255,1)) drop-shadow(0 0 30px rgba(0,100,255,0.7)); }
+}
+
+.evasionActive {
+  filter: drop-shadow(0 0 10px rgba(255,255,255,0.9)) drop-shadow(0 0 20px rgba(255,255,255,0.5));
+  animation: pulseEvasion 1s ease-in-out infinite;
+}
+
+@keyframes pulseEvasion {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(255,255,255,0.8)) drop-shadow(0 0 16px rgba(255,255,255,0.4)); }
+  50% { filter: drop-shadow(0 0 14px rgba(255,255,255,1)) drop-shadow(0 0 28px rgba(255,255,255,0.7)); }
+}
+
+.deadHovered {
+  filter: brightness(0.8) sepia(0.4) drop-shadow(0 0 10px rgba(255, 0, 0, 0.8));
+  opacity: 0.9;
+}
+
+/* Finish battle button */
+.finishBtn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  z-index: 250;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.finishBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Explosion VFX */
+.explosionFx {
+  position: absolute;
+  pointer-events: none;
+  z-index: 150;
+  transform: translate(-50%, -50%);
+}
+
+.explosionRing {
+  width: 60px;
+  height: 60px;
+  border: 3px solid rgba(255, 200, 0, 0.8);
+  border-radius: 50%;
+  position: absolute;
+  top: -30px;
+  left: -30px;
+  animation: explodeRingOut 0.8s ease-out forwards;
+}
+
+.explosionFlash {
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(255, 255, 200, 0.9) 0%, rgba(255, 150, 0, 0.5) 40%, transparent 70%);
+  border-radius: 50%;
+  position: absolute;
+  top: -40px;
+  left: -40px;
+  animation: explodeFlashOut 0.6s ease-out forwards;
+}
+
+@keyframes explodeRingOut {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+@keyframes explodeFlashOut {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* Danger zone labels */
+.dangerLabel {
+  font-size: 18px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Teleport landing effect — blue cell with expanding waves */
+.teleportLand {
+  position: absolute;
+  width: 3.2258%;
+  height: 3.2258%;
+  pointer-events: none;
+  z-index: 50;
+  background: radial-gradient(circle at center, rgba(0, 150, 255, 0.5) 0%, rgba(0, 100, 255, 0.3) 40%, transparent 70%);
+  animation: teleportPulse 0.5s ease-out infinite;
+}
+
+@keyframes teleportPulse {
+  0% { opacity: 0.8; transform: scale(0.5); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+  100% { opacity: 0.8; transform: scale(1); }
+}
+
+.teleportWave {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border: 2px solid rgba(0, 180, 255, 0.7);
+  border-radius: 4px;
+  transform: translate(-50%, -50%);
+  animation: teleportWaveExpand 1s ease-out infinite;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+@keyframes teleportWaveExpand {
+  0% { width: 100%; height: 100%; opacity: 0.8; border-width: 2px; }
+  100% { width: 400%; height: 400%; opacity: 0; border-width: 1px; }
+}

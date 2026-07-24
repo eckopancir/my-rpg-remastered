@@ -1,0 +1,92 @@
+.frame {
+  position: relative;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+/* Border variants */
+.border-rust {
+  border: 1px solid var(--wa-border-rust);
+  box-shadow: inset 0 0 20px rgba(146, 64, 14, 0.08), 0 0 12px rgba(146, 64, 14, 0.1);
+}
+.border-metal {
+  border: 1px solid var(--wa-border-metal);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 8px rgba(200, 200, 200, 0.04);
+}
+.border-screen {
+  border: 1px solid rgba(20, 184, 166, 0.2);
+  box-shadow: inset 0 0 15px rgba(20, 184, 166, 0.05), 0 0 10px rgba(20, 184, 166, 0.08);
+}
+.border-none {
+  border: none;
+  box-shadow: none;
+}
+
+/* Corner decorations */
+.cornerTL, .cornerTR, .cornerBL, .cornerBR {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.corners-rivets .cornerTL {
+  top: -1px; left: -1px;
+  border-top: 2px solid rgba(200, 200, 200, 0.15);
+  border-left: 2px solid rgba(200, 200, 200, 0.15);
+}
+.corners-rivets .cornerTR {
+  top: -1px; right: -1px;
+  border-top: 2px solid rgba(200, 200, 200, 0.15);
+  border-right: 2px solid rgba(200, 200, 200, 0.15);
+}
+.corners-rivets .cornerBL {
+  bottom: -1px; left: -1px;
+  border-bottom: 2px solid rgba(200, 200, 200, 0.15);
+  border-left: 2px solid rgba(200, 200, 200, 0.15);
+}
+.corners-rivets .cornerBR {
+  bottom: -1px; right: -1px;
+  border-bottom: 2px solid rgba(200, 200, 200, 0.15);
+  border-right: 2px solid rgba(200, 200, 200, 0.15);
+}
+
+.corners-screws .cornerTL,
+.corners-screws .cornerTR,
+.corners-screws .cornerBL,
+.corners-screws .cornerBR {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(180, 180, 180, 0.3), rgba(60, 60, 60, 0.5));
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.1), 0 1px 2px rgba(0,0,0,0.4);
+}
+.corners-screws .cornerTL { top: -4px; left: -4px; }
+.corners-screws .cornerTR { top: -4px; right: -4px; }
+.corners-screws .cornerBL { bottom: -4px; left: -4px; }
+.corners-screws .cornerBR { bottom: -4px; right: -4px; }
+
+/* Glow effects */
+.glow-amber {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+.glow-teal {
+  animation: glowPulseTeal 3s ease-in-out infinite;
+}
+.glow-green {
+  animation: glowPulseGreen 3s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(217, 119, 6, 0.2), inset 0 0 20px rgba(146, 64, 14, 0.08); }
+  50% { box-shadow: 0 0 16px rgba(217, 119, 6, 0.4), inset 0 0 20px rgba(146, 64, 14, 0.12); }
+}
+@keyframes glowPulseTeal {
+  0%, 100% { box-shadow: 0 0 4px rgba(20, 184, 166, 0.2), inset 0 0 15px rgba(20, 184, 166, 0.05); }
+  50% { box-shadow: 0 0 16px rgba(20, 184, 166, 0.4), inset 0 0 15px rgba(20, 184, 166, 0.1); }
+}
+@keyframes glowPulseGreen {
+  0%, 100% { box-shadow: 0 0 4px rgba(74, 222, 128, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(74, 222, 128, 0.4); }
+}

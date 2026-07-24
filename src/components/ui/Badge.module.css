@@ -1,0 +1,21 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.common { background: rgba(148, 163, 184, 0.2); color: var(--rarity-common); }
+.uncommon { background: rgba(74, 222, 128, 0.2); color: var(--rarity-uncommon); }
+.rare { background: rgba(96, 165, 250, 0.2); color: var(--rarity-rare); }
+.epic { background: rgba(167, 139, 250, 0.2); color: var(--rarity-epic); }
+.legendary { background: rgba(251, 146, 60, 0.2); color: var(--rarity-legendary); }
+.success { background: rgba(74, 222, 128, 0.15); color: var(--accent-success); }
+.warning { background: rgba(251, 146, 60, 0.15); color: var(--accent-warning); }
+.danger { background: rgba(248, 113, 113, 0.15); color: var(--accent-danger); }
+.info { background: rgba(129, 140, 248, 0.15); color: var(--accent-primary); }
