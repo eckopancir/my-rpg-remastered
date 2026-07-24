@@ -2,8 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
-import { images } from '../assets/index';
 import { MusicPlayer } from '../components/widgets/MusicPlayer';
+import bgVideo from '../assets/images/backgrounds/video111.mp4';
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -45,29 +45,40 @@ export const Login = () => {
 
   return (
     <>
-      <MusicPlayer track="zemlya-mutantov" />
+      <MusicPlayer track="zemlya-mutantov" forcePlay />
       <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       height: '100vh', width: '100vw',
-      background: images.background ? `url(${images.background})` : 'var(--wa-bg-deep)',
-      backgroundSize: 'cover', backgroundPosition: 'center',
       position: 'relative', overflow: 'hidden',
+      background: 'var(--wa-bg-deep)',
     }}>
+      {/* Video background */}
+      <video
+        autoPlay muted loop playsInline
+        style={{
+          position: 'fixed', inset: 0, zIndex: 0,
+          width: '100%', height: '100%',
+          objectFit: 'cover',
+        }}
+      >
+        <source src={bgVideo} type="video/mp4" />
+      </video>
+
       {/* Dark overlay */}
       <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1,
         background: 'rgba(0,0,0,0.6)',
       }} />
 
       {/* Scanlines */}
       <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1,
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 2,
         background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)',
       }} />
 
       {/* Vignette */}
       <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1,
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 2,
         background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%)',
       }} />
 
@@ -76,7 +87,7 @@ export const Login = () => {
         position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
         width: 600, height: 600,
         background: 'radial-gradient(circle, rgba(217,119,6,0.06) 0%, transparent 70%)',
-        pointerEvents: 'none', zIndex: 0,
+        pointerEvents: 'none', zIndex: 2,
       }} />
 
       <motion.div
@@ -84,7 +95,7 @@ export const Login = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         style={{
-          position: 'relative', zIndex: 2,
+          position: 'relative', zIndex: 3,
           width: 400, maxWidth: '90vw',
         }}
       >

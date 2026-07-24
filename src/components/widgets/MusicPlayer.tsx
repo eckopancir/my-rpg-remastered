@@ -10,11 +10,18 @@ const getTrackSrc = (substring: string): string | undefined => {
   return undefined;
 };
 
-export const MusicPlayer = ({ track = 'track' }: { track?: string }) => {
+export const MusicPlayer = ({ track = 'track', forcePlay }: { track?: string; forcePlay?: boolean }) => {
   const musicEnabled = useUiStore((s) => s.musicEnabled);
   const musicVolume = useUiStore((s) => s.musicVolume);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const startedRef = useRef(false);
+  const unmutedRef = useRef(false);
+
+  const unmute = (audio: HTMLAudioElement) => {
+    if (unmutedRef.current) return;
+    audio.muted = false;
+    audio.volume = musicVolume;
+    unmutedRef.current = true;
+  };
 
   useEffect(() => {
     const src = getTrackSrc(track);
@@ -24,28 +31,48 @@ export const MusicPlayer = ({ track = 'track' }: { track?: string }) => {
       if (audioRef.current) audioRef.current.pause();
       const audio = new Audio(src);
       audio.loop = true;
-      audio.volume = musicVolume;
+      audio.muted = true;
+      audio.volume = 0;
       audio.dataset.track = track;
       audioRef.current = audio;
-      startedRef.current = false;
+      unmutedRef.current = false;
     }
 
     const audio = audioRef.current;
 
-    if (musicEnabled) {
-      if (!startedRef.current) {
-        audio.play().catch(() => {});
-        startedRef.current = true;
-      } else if (audio.paused) {
-        audio.play().catch(() => {});
-      }
-    } else {
+    const shouldPlay = forcePlay || musicEnabled;
+
+    if (!shouldPlay) {
       audio.pause();
+      return;
     }
-  }, [musicEnabled, track]);
+
+    if (!unmutedRef.current) {
+      audio.muted = true;
+      audio.volume = 0;
+    }
+
+    audio.play().catch(() => {});
+
+    if (forcePlay) {
+      const onInteraction = () => {
+        unmute(audio);
+        audio.removeEventListener('click', onInteraction);
+        audio.removeEventListener('keydown', onInteraction);
+      };
+      document.addEventListener('click', onInteraction, { once: true });
+      document.addEventListener('keydown', onInteraction, { once: true });
+      return () => {
+        document.removeEventListener('click', onInteraction);
+        document.removeEventListener('keydown', onInteraction);
+      };
+    } else if (!unmutedRef.current) {
+      unmute(audio);
+    }
+  }, [musicEnabled, track, forcePlay]);
 
   useEffect(() => {
-    if (audioRef.current) {
+    if (audioRef.current && unmutedRef.current) {
       audioRef.current.volume = musicVolume;
     }
   }, [musicVolume]);

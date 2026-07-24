@@ -103,14 +103,14 @@ export const Header = () => {
               onClick={() => { playClick(); setMenuOpen(!menuOpen); }}
               title={user.username}
             >
-              <span className={styles.userAvatar}>🧟</span>
+              <span className={styles.userAvatar}></span>
               <span className={styles.userName}>{user.username}</span>
               <span className={styles.userCaret}>{menuOpen ? '▲' : '▼'}</span>
             </button>
             {menuOpen && (
               <div className={styles.userDropdown}>
                 <div className={styles.userDropdownInfo}>
-                  <span style={{ fontSize: 18 }}>🧟</span>
+                  <span style={{ fontSize: 18 }}></span>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{user.username}</div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>
