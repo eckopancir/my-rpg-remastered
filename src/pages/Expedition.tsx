@@ -83,7 +83,7 @@ export const Expedition = () => {
     addToQueue(entry);
     addLog(`📋 Экспедиция на карту "${card.name}" (SL ${card.totalSl}) добавлена.`, 'info');
     addToast(`Экспедиция на "${card.name}" запущена!`, 'success');
-    navigate('/');
+    navigate('/dashboard');
   }, [selectedId, cards, zoneName, addToQueue, addLog, addToast, navigate]);
 
   return (

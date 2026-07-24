@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { PageContainer } from './components/layout/PageContainer';
 import { AuthGuard } from './components/auth/AuthGuard';
@@ -64,7 +64,8 @@ const AppContent = () => {
       <AnimatePresence mode="wait">
         <Routes>
           <Route element={<PageContainer />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/skills" element={<Skills />} />
           <Route path="/map" element={<Map />} />
             <Route path="/adventure" element={<Adventures />} />

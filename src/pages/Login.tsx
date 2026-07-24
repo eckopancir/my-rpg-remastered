@@ -34,7 +34,7 @@ export const Login = () => {
     }
 
     if (success) {
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   };
 

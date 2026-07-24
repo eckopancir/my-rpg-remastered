@@ -7,7 +7,6 @@ import { useUiStore } from '../stores/uiStore';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useExplorationStore } from '../stores/explorationStore';
 import { useSound } from '../hooks/useSound';
-import bgVideo from '../assets/images/backgrounds/video111.mp4';
 import { WapPanel } from '../components/ui/WapPanel';
 import { WapFrame } from '../components/ui/WapFrame';
 import { WapHeader } from '../components/ui/WapHeader';
@@ -140,19 +139,8 @@ export const Dashboard = () => {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', position: 'relative', zIndex: 1 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}
     >
-      {/* Video background */}
-      <video
-        autoPlay muted loop playsInline
-        style={{
-          position: 'fixed', inset: 0, zIndex: -1,
-          width: '100%', height: '100%',
-          objectFit: 'cover',
-        }}
-      >
-        <source src={bgVideo} type="video/mp4" />
-      </video>
 
       {/* Character panel */}
       <WapPanel variant="metal" glow="amber">

@@ -9,7 +9,7 @@ import { images } from '../../assets/index';
 import styles from './Header.module.css';
 
 const navItems = [
-  { to: '/', label: '📊 Dashboard' },
+  { to: '/dashboard', label: '📊 Dashboard' },
   { to: '/skills', label: '⭐ Skills' },
   { to: '/map', label: '🗺️ Map' },
   { to: '/adventure', label: '🔍 Travel' },

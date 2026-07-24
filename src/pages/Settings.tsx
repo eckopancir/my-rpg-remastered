@@ -18,7 +18,7 @@ export const Settings = () => {
       <WapPanel variant="metal" padding="lg">
         <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>⚙️ Настройки</span>
-          <span onClick={() => navigate('/')} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
+          <span onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
