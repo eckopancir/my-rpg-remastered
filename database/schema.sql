@@ -49,3 +49,19 @@ CREATE TABLE timers (
     INDEX idx_user_type_status (user_id, type, status),
     CONSTRAINT fk_timers_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE inventory_items (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    item_id VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    slot VARCHAR(32) DEFAULT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    equipped TINYINT(1) NOT NULL DEFAULT 0,
+    data JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_id (user_id),
+    INDEX idx_user_item (user_id, item_id),
+    INDEX idx_equipped (user_id, equipped),
+    CONSTRAINT fk_inventory_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

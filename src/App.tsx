@@ -28,12 +28,44 @@ import { useEffect, useRef } from 'react';
 import { images } from './assets/index';
 import './styles/global.css';
 
+const API_BASE = '/api';
+
 const gatherSaveData = () => ({
   player: usePlayerStore.getState(),
   inventory: useInventoryStore.getState(),
   exploration: useExplorationStore.getState(),
   ui: useUiStore.getState(),
 });
+
+const syncInventoryToServer = async (token: string) => {
+  const items = useInventoryStore.getState().items;
+  try {
+    await fetch(`${API_BASE}/inventory/sync.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ items }),
+    });
+  } catch {
+    // silent
+  }
+};
+
+const loadInventoryFromServer = async (token: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_BASE}/inventory/load.php`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const json = await res.json();
+    if (json.items && json.items.length > 0) {
+      useInventoryStore.getState().setItems(json.items);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
 
 const seedInventory = () => {
   const store = usePlayerStore.getState();
@@ -68,14 +100,23 @@ const AppContent = () => {
   useEffect(() => {
     if (!token || loadedRef.current) return;
     loadedRef.current = true;
-    loadGame().then((data) => {
+
+    const doLoad = async () => {
+      const hasInventory = await loadInventoryFromServer(token);
+
+      const data = await loadGame();
       if (!data) return;
+
       if (data.player) usePlayerStore.setState(data.player as any);
-      if (data.inventory) useInventoryStore.setState(data.inventory as any);
+      if (!hasInventory && data.inventory) {
+        useInventoryStore.setState(data.inventory as any);
+      }
       if (data.exploration) useExplorationStore.setState(data.exploration as any);
       if (data.ui) useUiStore.setState(data.ui as any);
       usePlayerStore.getState().recalcStats();
-    });
+    };
+
+    doLoad();
   }, [token]);
 
   // Periodic auto-save
@@ -83,6 +124,7 @@ const AppContent = () => {
     if (!token) return;
     const id = setInterval(() => {
       saveGame(gatherSaveData());
+      syncInventoryToServer(token);
     }, SAVE_INTERVAL_MS);
     return () => clearInterval(id);
   }, [token]);
@@ -91,10 +133,18 @@ const AppContent = () => {
   useEffect(() => {
     if (!token) return;
     const onUnload = () => {
-      fetch('/api/save.php', {
+      const data = gatherSaveData();
+      const items = useInventoryStore.getState().items;
+      fetch(`${API_BASE}/save.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ data: gatherSaveData() }),
+        body: JSON.stringify({ data }),
+        keepalive: true,
+      });
+      fetch(`${API_BASE}/inventory/sync.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ items }),
         keepalive: true,
       });
     };
