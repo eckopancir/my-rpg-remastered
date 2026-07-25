@@ -65,3 +65,16 @@ CREATE TABLE inventory_items (
     INDEX idx_equipped (user_id, equipped),
     CONSTRAINT fk_inventory_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE bazaar_items (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    item_id VARCHAR(64) NOT NULL,
+    data JSON NOT NULL,
+    bought TINYINT(1) NOT NULL DEFAULT 0,
+    refresh_at BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user (user_id),
+    INDEX idx_user_bought (user_id, bought),
+    CONSTRAINT fk_bazaar_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
