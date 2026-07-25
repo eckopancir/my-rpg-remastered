@@ -7,6 +7,7 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
+import { useAuthStore } from '../stores/authStore';
 import { useSound } from '../hooks/useSound';
 import { GAME_ITEMS } from '../data/GameItems';
 import {
@@ -199,9 +200,12 @@ export const Craft = () => {
   const setCraftingType = useUiStore((s) => s.setCraftingType);
 
   const [tab, setTab] = useState<Tab>('merge');
+  const token = useAuthStore((s) => s.token);
+  const base = import.meta.env.VITE_API_URL || 'http://rpg.local/api';
 
   // Merge
   const [mergeSlots, setMergeSlots] = useState<(Item | null)[]>(Array(5).fill(null));
+  const mergeItemIdsRef = useRef<string[]>([]);
 
   // Disassemble
   const [disassembleSlots, setDisassembleSlots] = useState<(Item | null)[]>(Array(5).fill(null));
@@ -214,6 +218,8 @@ export const Craft = () => {
   const [createBlueprint, setCreateBlueprint] = useState<Item | null>(null);
   const [createSelectedStats, setCreateSelectedStats] = useState<Record<string, number>>({});
   const [createResult, setCreateResult] = useState<Item | null>(null);
+  const createBlueprintIdRef = useRef<string | null>(null);
+  const createResourceIdsRef = useRef<string[]>([]);
 
   // Tooltip for result items
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
@@ -280,17 +286,18 @@ export const Craft = () => {
 
   function startMerge() {
     if (!canMerge || !mergeMeta) return;
+    mergeItemIdsRef.current = mergeSlots.filter(Boolean).map((i) => i!.id);
     setCraftingType('merge');
     setCraftingTimer(10);
     addLog(`⬆️ Улучшение (${mergeMeta.lowestQuality})... 10 сек`, 'info');
   }
 
-  function handleMergeComplete() {
+  async function handleMergeComplete() {
     if (!mergeMeta) return;
     const nextQuality = getNextQuality(mergeMeta.lowestQuality);
     if (!nextQuality) { addLog('❌ Максимальное качество', 'warning'); return; }
     const generated = generateItem(GAME_ITEMS_LIST, level, null, nextQuality, mergeMeta.majoritySlot);
-    setMergeResult({
+    const resultItem: Item = {
       id: generated.id,
       name: generated.name,
       displayName: generated.displayName,
@@ -304,9 +311,11 @@ export const Craft = () => {
       image: generated.image,
       timeLimit: generated.timeLimit,
       damage: generated.damage,
-    } as Item);
+    } as Item;
+    setMergeResult(resultItem);
     addLog(`⬆️ Создан: ${generated.displayName} (${nextQuality})`, 'loot');
     setMergeSlots(Array(5).fill(null));
+    try { await fetch(`${base}/craft/merge.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ consumeIds: mergeItemIdsRef.current, result: resultItem }) }); } catch {}
   }
 
   function handleDropToDisassemble(itemId: string) {
@@ -327,13 +336,26 @@ export const Craft = () => {
     setDisassembleSlots((prev) => { const next = [...prev]; next[idx] = null; return next; });
   }
 
-  function handleDisassembleAll() {
+  async function handleDisassembleAll() {
     const filled = disassembleSlots.filter(Boolean) as Item[];
     if (filled.length === 0) return;
+    const consumeIds = filled.map((i) => i.id);
+    const materials: { id: string; name: string; quantity: number }[] = [];
+    let blueprint: { id: string; name: string; slot: string; quality: string } | null = null;
     for (const item of filled) {
       if (!item.quality) continue;
       const yields = rollYield(item.quality);
-      addMaterials(yields);
+      for (const [mat, count] of Object.entries(yields)) {
+        const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
+        if (matName) materials.push({ id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: matName, quantity: count });
+      }
+      const bp = rollBlueprint(item.quality);
+      if (bp && !blueprint) blueprint = { id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: `Схема: ${bp}`, slot: 'any', quality: bp };
+    }
+    try { await fetch(`${base}/craft/disassemble.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ consumeIds, materials, blueprint }) }); } catch {}
+    for (const item of filled) {
+      if (!item.quality) continue;
+      addMaterials(rollYield(item.quality));
       const bp = tryDropBlueprint(item.quality);
       if (bp) addLog(`📜 Схема (${bp}) при разборе ${item.displayName || item.name}`, 'loot');
     }
@@ -408,6 +430,17 @@ export const Craft = () => {
     for (const [mat, count] of Object.entries(base)) {
       if (count > 0) resourceCheck[MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES]] = Math.ceil(count * mul);
     }
+    // Capture resource IDs before removal
+    const allItems = useInventoryStore.getState().items;
+    const resourceIds: string[] = [];
+    for (const [matName, needed] of Object.entries(resourceCheck)) {
+      let remaining = needed;
+      for (const it of allItems) {
+        if (it.name === matName && it.type === 'material' && remaining > 0) { resourceIds.push(it.id); remaining -= it.quantity || 1; }
+      }
+    }
+    createBlueprintIdRef.current = createBlueprint.id;
+    createResourceIdsRef.current = resourceIds;
     if (!removeResources(resourceCheck)) { addLog('❌ Недостаточно ресурсов', 'warning'); return; }
     removeItem(createBlueprint.id);
     setCraftingType('create');
@@ -415,7 +448,7 @@ export const Craft = () => {
     addLog('⚙️ Создание предмета... 5 сек', 'info');
   }
 
-  function handleCreateComplete() {
+  async function handleCreateComplete() {
     if (!createSlot) return;
     const quality = createBlueprint?.blueprintRarity || 'Обычный';
     const forcedStats: Record<string, number> = {};
@@ -432,6 +465,7 @@ export const Craft = () => {
     setCreateBlueprint(null);
     setCreateSlot(null);
     setCreateSelectedStats({});
+    try { await fetch(`${base}/craft/create.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ blueprintId: createBlueprintIdRef.current, resourceIds: createResourceIdsRef.current, result: newItem }) }); } catch {}
   }
 
   return (
