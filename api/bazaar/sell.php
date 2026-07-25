@@ -33,7 +33,7 @@ try {
 
         // Support selling by name (stackable materials across multiple entries)
         if (!empty($itemName)) {
-            $invStmt = $pdo->prepare('SELECT id, quantity, data FROM inventory_items WHERE user_id = ? AND name = ? AND type = "material" ORDER BY id ASC FOR UPDATE');
+            $invStmt = $pdo->prepare('SELECT id, quantity, data FROM inventory_items WHERE user_id = ? AND name = ? AND data->>"$.type" = "material" ORDER BY id ASC FOR UPDATE');
             $invStmt->execute([$user['id'], $itemName]);
             $rows = $invStmt->fetchAll();
 

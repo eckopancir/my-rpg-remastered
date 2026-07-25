@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
@@ -28,7 +29,10 @@ export const Skills = () => {
   const applySkills = usePlayerStore((s) => s.applySkills);
   const cancelSkills = usePlayerStore((s) => s.cancelSkills);
   const resetSkills = usePlayerStore((s) => s.resetSkills);
+  const loadSkills = usePlayerStore((s) => s.loadSkills);
   const level = usePlayerStore((s) => s.level);
+
+  useEffect(() => { loadSkills(); }, []);
 
   const pendingTotal = Object.values(pendingSkills).reduce((a, b) => a + b, 0);
 

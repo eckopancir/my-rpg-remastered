@@ -13,10 +13,13 @@ $refreshAt = $row['max_refresh'] ? (int)$row['max_refresh'] : 0;
 $now = time() * 1000; // JS timestamp (ms)
 $needsRefresh = false;
 
-if ($refreshAt === 0 || $now >= $refreshAt) {
-    // Expired or no shop — delete old, signal refresh needed
-    $del = $pdo->prepare('DELETE FROM bazaar_items WHERE user_id = ?');
-    $del->execute([$user['id']]);
+if ($refreshAt === 0) {
+    // No shop yet — signal refresh needed
+    jsonResponse(['items' => [], 'refreshAt' => 0, 'needsRefresh' => true, 'dataChips' => 0]);
+}
+
+if ($now >= $refreshAt) {
+    // Expired — signal refresh, items deleted in sync.php / refresh.php when new data arrives
     jsonResponse(['items' => [], 'refreshAt' => 0, 'needsRefresh' => true, 'dataChips' => 0]);
 }
 

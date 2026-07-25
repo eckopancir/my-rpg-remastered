@@ -5,7 +5,6 @@ import { generateEnemy } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
 import { GAME_ITEMS, SET_BONUSES } from '../data/GameItems';
 import { useInventoryStore } from './inventoryStore';
-import { useUiStore } from './uiStore';
 import { useAuthStore } from './authStore';
 import type { Item } from '../types/items';
 import type { ActiveEffect } from '../types/player';
@@ -140,13 +139,13 @@ interface PlayerStore {
 
   equipItem: (slot: EquipmentSlot, item: Item) => boolean;
   unequipItem: (slot: EquipmentSlot) => Item | null;
-  upgradeBase: (id: string) => void;
   spendSkillPoint: (skillId: string) => boolean;
   allocateSkill: (skillId: string) => void;
   deallocateSkill: (skillId: string) => void;
   applySkills: () => void;
   cancelSkills: () => void;
   resetSkills: () => void;
+  loadSkills: () => Promise<void>;
   skillBonuses: () => PlayerStats;
   skillUtility: () => SkillUtilityEffects;
 
@@ -154,8 +153,6 @@ interface PlayerStore {
   addEffect: (effect: ActiveEffect) => void;
   removeEffect: (id: string) => void;
   tickEffects: () => void;
-  baseUpgradeTick: () => void;
-
   startTravel: (zoneName: string, travelTime: number) => void;
   travelTick: () => void;
   cancelTravel: () => void;
@@ -594,10 +591,6 @@ export const usePlayerStore = create<PlayerStore>()(
         return item;
       },
 
-      upgradeBase: (id) => set((s) => ({
-        baseUpgrades: { ...s.baseUpgrades, [id]: (s.baseUpgrades[id] || 0) + 1 },
-      })),
-
       spendSkillPoint: (skillId) => {
         const s = get();
         if (s.skillPoints <= 0) return false;
@@ -633,15 +626,28 @@ export const usePlayerStore = create<PlayerStore>()(
         set({ skillPoints: s.skillPoints + 1, pendingSkills: updated });
       },
 
-      applySkills: () => {
+      applySkills: async () => {
         const s = get();
-        const merged = { ...s.skills };
-        for (const [id, pts] of Object.entries(s.pendingSkills)) {
-          merged[id] = (merged[id] || 0) + pts;
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+        try {
+          const res = await fetch('/api/skills/apply.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ pendingSkills: s.pendingSkills }),
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            get().addLog(`❌ ${err.error || 'Ошибка применения навыков'}`, 'warning');
+            return;
+          }
+          const json = await res.json();
+          set({ skills: json.skills, skillPoints: json.skillPoints, pendingSkills: {} });
+          get().recalcStats();
+          get().addLog('✅ Навыки применены!', 'info');
+        } catch {
+          get().addLog('❌ Ошибка сети при применении навыков', 'warning');
         }
-        set({ skills: merged, pendingSkills: {} });
-        get().recalcStats();
-        get().addLog('✅ Навыки применены!', 'info');
       },
 
       cancelSkills: () => {
@@ -651,18 +657,41 @@ export const usePlayerStore = create<PlayerStore>()(
         get().addLog('🔄 Изменения отменены.', 'info');
       },
 
-      resetSkills: () => {
+      loadSkills: async () => {
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+        try {
+          const res = await fetch('/api/skills/load.php', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) return;
+          const json = await res.json();
+          set({ skills: json.skills, skillPoints: json.skillPoints, pendingSkills: {} });
+        } catch { /* silent */ }
+      },
+
+      resetSkills: async () => {
         const s = get();
         const cost = 50 + s.level * 10;
-        if (s.dataChips < cost) {
-          get().addLog(`❌ Недостаточно 💾 для сброса навыков. Нужно ${cost} 💾 (есть ${s.dataChips})`, 'warning');
-          return;
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+        try {
+          const res = await fetch('/api/skills/reset.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            get().addLog(`❌ ${err.error || 'Ошибка сброса навыков'}`, 'warning');
+            return;
+          }
+          const json = await res.json();
+          set({ skills: {}, pendingSkills: {}, skillPoints: json.skillPoints, dataChips: json.dataChips });
+          get().addLog(`🔄 Навыки сброшены. Списанo ${cost} 💾.`, 'info');
+          get().recalcStats();
+        } catch {
+          get().addLog('❌ Ошибка сети при сбросе навыков', 'warning');
         }
-        const spent = Object.values(s.skills).reduce((a, b) => a + b, 0);
-        const pending = Object.values(s.pendingSkills).reduce((a, b) => a + b, 0);
-        set({ skills: {}, pendingSkills: {}, skillPoints: s.skillPoints + spent + pending, dataChips: s.dataChips - cost });
-        get().addLog(`🔄 Навыки сброшены. Списанo ${cost} 💾. Возвращено ${spent} очков.`, 'info');
-        get().recalcStats();
       },
 
       skillBonuses: () => {
@@ -1135,21 +1164,6 @@ export const usePlayerStore = create<PlayerStore>()(
         return false;
       },
 
-      baseUpgradeTick: () => {
-        const ui = useUiStore.getState();
-        if (!ui.upgradingBase || ui.craftingTimer <= 0) return;
-        const newTimer = ui.craftingTimer - 1;
-        ui.setCraftingTimer(newTimer);
-        if (newTimer <= 0) {
-          const baseName = ui.upgradingBase;
-          get().upgradeBase(baseName);
-          const newLevel = get().baseUpgrades[baseName] || 0;
-          get().addLog(`🏢 ${baseName} улучшена до уровня ${newLevel}!`, 'loot');
-          ui.setCraftingType(null);
-          ui.setCraftingLabel('');
-          ui.setUpgradingBase(null);
-        }
-      },
     }),
     {
       name: 'remastered_player',
@@ -1159,8 +1173,7 @@ export const usePlayerStore = create<PlayerStore>()(
         dataChips: state.dataChips, baseHealth: state.baseHealth,
         stats: state.stats, equipment: state.equipment,
         activeEffects: state.activeEffects,
-        baseUpgrades: state.baseUpgrades,
-        skillPoints: state.skillPoints, skills: state.skills, pendingSkills: state.pendingSkills,
+        skillPoints: state.skillPoints,
         logs: pruneLogs(state.logs).slice(-LOG_MAX_SAVED), logIdCounter: state.logIdCounter,
         explorationDeathTimestamp: state.explorationDeathTimestamp,
       }),

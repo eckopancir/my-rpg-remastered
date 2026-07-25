@@ -120,7 +120,11 @@ const AppContent = () => {
       const data = await loadGame();
       if (!data) return;
 
-      if (data.player) usePlayerStore.setState(data.player as any);
+      if (data.player) {
+        usePlayerStore.setState(data.player as any);
+        // Skills are now server-authoritative — reload from DB after restore
+        usePlayerStore.getState().loadSkills();
+      }
       if (!hasInventory && data.inventory) {
         useInventoryStore.setState(data.inventory as any);
       }

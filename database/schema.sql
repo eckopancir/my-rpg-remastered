@@ -66,6 +66,40 @@ CREATE TABLE inventory_items (
     CONSTRAINT fk_inventory_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE base_upgrades (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    base_name VARCHAR(64) NOT NULL,
+    class_name VARCHAR(64) NOT NULL,
+    level INT NOT NULL DEFAULT 0,
+    upgrading TINYINT(1) NOT NULL DEFAULT 0,
+    timer_started_at DATETIME DEFAULT NULL,
+    timer_duration INT DEFAULT NULL,
+    timer_expires_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_user (user_id),
+    UNIQUE KEY uk_user_base (user_id, base_name),
+    CONSTRAINT fk_base_upg_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE base_effect_cooldowns (
+    user_id INT UNSIGNED NOT NULL,
+    effect_id VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    INDEX idx_user (user_id),
+    PRIMARY KEY (user_id, effect_id),
+    CONSTRAINT fk_effect_cd_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE player_skills (
+    user_id INT UNSIGNED NOT NULL,
+    skill_id VARCHAR(64) NOT NULL,
+    points INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, skill_id),
+    CONSTRAINT fk_skills_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE bazaar_items (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED NOT NULL,

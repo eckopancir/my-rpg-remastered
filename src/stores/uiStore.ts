@@ -38,7 +38,6 @@ interface UiStore {
   craftingTimerMax: number;
   craftingType: 'merge' | 'create' | 'upgrade' | null;
   craftingLabel: string;
-  upgradingBase: string | null;
   inventoryOpen: boolean;
   equipmentOpen: boolean;
   draggedItemId: string | null;
@@ -53,7 +52,6 @@ interface UiStore {
   setCraftingTimerMax: (max: number) => void;
   setCraftingType: (type: 'merge' | 'create' | 'upgrade' | null) => void;
   setCraftingLabel: (label: string) => void;
-  setUpgradingBase: (name: string | null) => void;
   toggleInventory: () => void;
   setInventoryOpen: (open: boolean) => void;
   toggleEquipment: () => void;
@@ -98,7 +96,6 @@ export const useUiStore = create<UiStore>()(
       craftingTimerMax: 0,
       craftingType: null,
       craftingLabel: '',
-      upgradingBase: null,
       inventoryOpen: false,
       equipmentOpen: false,
       draggedItemId: null,
@@ -121,7 +118,6 @@ export const useUiStore = create<UiStore>()(
       setCraftingTimerMax: (max) => set({ craftingTimerMax: max }),
       setCraftingType: (type) => set({ craftingType: type }),
       setCraftingLabel: (label) => set({ craftingLabel: label }),
-      setUpgradingBase: (name) => set({ upgradingBase: name }),
       setInventoryOpen: (open) => set({ inventoryOpen: open }),
       toggleInventory: () => set((s) => ({ inventoryOpen: !s.inventoryOpen })),
       setEquipmentOpen: (open) => set({ equipmentOpen: open }),
@@ -209,7 +205,6 @@ export const useUiStore = create<UiStore>()(
         craftingTimerMax: state.craftingTimerMax,
         craftingType: state.craftingType,
         craftingLabel: state.craftingLabel,
-        upgradingBase: state.upgradingBase,
         soundEnabled: state.soundEnabled,
         musicEnabled: state.musicEnabled,
         musicVolume: state.musicVolume,

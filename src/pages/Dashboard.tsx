@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../stores/playerStore';
@@ -104,6 +104,52 @@ export const Dashboard = () => {
   const toggleInventory = useUiStore((s) => s.toggleInventory);
   const powerBreakdown = usePlayerStore((s) => s.powerBreakdown);
   const { playClick } = useSound();
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+    fetch('/api/dashboard/load.php', { headers })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) return;
+        const slots = ['head','armor','weapon1','weapon2','gloves','boots','ammo1','ammo2','ammo3','ammo4'];
+        const eq: Record<string, any> = {};
+        slots.forEach((s) => { eq[s] = data.equipment[s] ?? null; });
+        usePlayerStore.setState({
+          level: data.level,
+          currentExp: data.currentExp,
+          expToNext: data.expToNext,
+          dataChips: data.dataChips,
+          baseHealth: data.baseHealth,
+          equipment: eq as any,
+          activeEffects: data.activeEffects,
+          skills: data.skills,
+          skillPoints: data.skillPoints,
+        });
+        usePlayerStore.getState().recalcStats();
+      })
+      .catch(() => {});
+
+    const interval = setInterval(() => {
+      const s = usePlayerStore.getState();
+      fetch('/api/dashboard/sync.php', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          currentHp: s.stats.currentHp,
+          stamina: s.stats.stamina,
+          currentExp: s.currentExp,
+          expToNext: s.expToNext,
+          dataChips: s.dataChips,
+          activeEffects: s.activeEffects,
+        }),
+      }).catch(() => {});
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const [hoveredStat, setHoveredStat] = useState<StatInfo | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });

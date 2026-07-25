@@ -75,10 +75,7 @@ export const useGameLoop = () => {
         player.tickEffects();
       }
 
-      // 8. Base upgrade tick (works even if Base page is not mounted)
-      player.baseUpgradeTick();
-
-      // 9. Timed items decay — only while not traveling
+      // 8. Timed items decay — only while not traveling
       if (!player.travel.isTraveling && !player.travel.isReturning) {
       const eq = player.equipment;
       for (const slot of ['head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots']) {
