@@ -192,6 +192,13 @@ export const Bazaar = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [refreshAt, loadShop]);
 
+  // Total inventory quantity for a material name (sum across all entries)
+  const getTotalMatQty = useCallback((name: string): number => {
+    return inventoryItems
+      .filter((i) => i.name === name && i.type === 'material')
+      .reduce((sum, i) => sum + (i.quantity || 1), 0);
+  }, [inventoryItems]);
+
   // Update sellQty when sellSlots change (reset qty for new items)
   useEffect(() => {
     setSellQty((prev) => {
@@ -199,14 +206,14 @@ export const Bazaar = () => {
       for (const idx in sellSlots) {
         const item = sellSlots[idx];
         if (item) {
-          const maxQty = item.quantity || 1;
+          const maxQty = item.type === 'material' ? getTotalMatQty(item.name) : (item.quantity || 1);
           const existing = prev[idx];
           next[idx] = existing && existing <= maxQty ? existing : 1;
         }
       }
       return next;
     });
-  }, [sellSlots]);
+  }, [sellSlots, getTotalMatQty]);
 
   // Buy sort
   const sortedShop = useMemo(() => {
@@ -321,7 +328,7 @@ export const Bazaar = () => {
   const adjustSellQty = (slotIdx: number, delta: number) => {
     const item = sellSlots[slotIdx];
     if (!item) return;
-    const max = item.quantity || 1;
+    const max = item.type === 'material' ? getTotalMatQty(item.name) : (item.quantity || 1);
     setSellQty((prev) => ({
       ...prev,
       [slotIdx]: Math.max(1, Math.min(max, (prev[slotIdx] || 1) + delta)),
@@ -334,8 +341,6 @@ export const Bazaar = () => {
       if (!item) return sum;
       const qty = sellQty[idx] || 1;
       const basePrice = getSellPrice(item);
-      // getSellPrice already includes quantity factor for stackable items,
-      // but we need per-unit price × qty
       const perUnit = item.quantity && item.quantity > 1
         ? Math.floor(basePrice / (item.quantity || 1))
         : basePrice;
@@ -347,7 +352,13 @@ export const Bazaar = () => {
     if (totalSellValue <= 0) return;
     if (!token) return;
     const slots = sellSlots
-      .map((item, idx) => item ? { itemId: item.id, quantity: sellQty[idx] || 1 } : null)
+      .map((item, idx) => {
+        if (!item) return null;
+        const qty = sellQty[idx] || 1;
+        // For materials, sell by name (covers all inventory entries with that name)
+        if (item.type === 'material') return { name: item.name, quantity: qty };
+        return { itemId: item.id, quantity: qty };
+      })
       .filter(Boolean);
     try {
       const res = await fetch(`${API_BASE}/bazaar/sell.php`, {
@@ -360,20 +371,41 @@ export const Bazaar = () => {
         return;
       }
       const json = await res.json();
-      // Remove/reduce items from client inventory
+      // Update client inventory
       for (const slot of slots) {
         if (!slot) continue;
-        const invItem = inventoryItems.find((i) => i.id === slot.itemId);
-        if (!invItem) continue;
         const qty = slot.quantity;
-        if (!invItem.quantity || invItem.quantity <= 1 || qty >= invItem.quantity) {
-          removeFromInv(slot.itemId);
-        } else {
-          useInventoryStore.setState((s) => ({
-            items: s.items.map((i) =>
-              i.id === slot.itemId ? { ...i, quantity: (i.quantity || 1) - qty } : i
-            ),
-          }));
+        if (slot.name) {
+          // Material sold by name — deduct from all matching entries
+          let remaining = qty;
+          for (const invItem of inventoryItems) {
+            if (remaining <= 0) break;
+            if (invItem.name === slot.name && invItem.type === 'material') {
+              if (remaining >= (invItem.quantity || 1)) {
+                removeFromInv(invItem.id);
+                remaining -= invItem.quantity || 1;
+              } else {
+                useInventoryStore.setState((s) => ({
+                  items: s.items.map((i) =>
+                    i.id === invItem.id ? { ...i, quantity: (i.quantity || 1) - remaining } : i
+                  ),
+                }));
+                remaining = 0;
+              }
+            }
+          }
+        } else if (slot.itemId) {
+          const invItem = inventoryItems.find((i) => i.id === slot.itemId);
+          if (!invItem) continue;
+          if (!invItem.quantity || invItem.quantity <= 1 || qty >= invItem.quantity) {
+            removeFromInv(slot.itemId);
+          } else {
+            useInventoryStore.setState((s) => ({
+              items: s.items.map((i) =>
+                i.id === slot.itemId ? { ...i, quantity: (i.quantity || 1) - qty } : i
+              ),
+            }));
+          }
         }
       }
       usePlayerStore.setState({ dataChips: json.dataChips });

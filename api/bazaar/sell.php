@@ -27,51 +27,100 @@ try {
     $totalChipsGained = 0;
 
     foreach ($input['slots'] as $slot) {
-        $itemId = $slot['itemId'] ?? '';
         $sellQty = max(1, (int)($slot['quantity'] ?? 1));
+        $itemName = $slot['name'] ?? '';
+        $itemId = $slot['itemId'] ?? '';
 
-        if (empty($itemId)) continue;
+        // Support selling by name (stackable materials across multiple entries)
+        if (!empty($itemName)) {
+            $invStmt = $pdo->prepare('SELECT id, quantity, data FROM inventory_items WHERE user_id = ? AND name = ? AND type = "material" ORDER BY id ASC FOR UPDATE');
+            $invStmt->execute([$user['id'], $itemName]);
+            $rows = $invStmt->fetchAll();
 
-        // Find inventory item
-        $invStmt = $pdo->prepare('SELECT id, quantity, data FROM inventory_items WHERE user_id = ? AND item_id = ? FOR UPDATE');
-        $invStmt->execute([$user['id'], $itemId]);
-        $invRow = $invStmt->fetch();
+            if (empty($rows)) continue;
 
-        if (!$invRow) continue;
+            $remaining = $sellQty;
+            $pricePerUnit = 0;
 
-        $invQty = (int)$invRow['quantity'];
-        $sellQty = min($sellQty, $invQty);
+            foreach ($rows as $invRow) {
+                if ($remaining <= 0) break;
 
-        if ($sellQty <= 0) continue;
+                $invQty = (int)$invRow['quantity'];
+                $take = min($remaining, $invQty);
 
-        // Calculate sell price (port of getSellPrice)
-        $itemData = json_decode($invRow['data'], true);
-        $itemPrice = isset($itemData['price']) ? (int)$itemData['price'] : 0;
-        $itemLevel = isset($itemData['level']) ? (int)$itemData['level'] : 1;
-        $itemQuality = $itemData['quality'] ?? 'Обычный';
+                // Calculate price per unit from first row
+                if ($pricePerUnit === 0) {
+                    $itemData = json_decode($invRow['data'], true);
+                    $itemPrice = isset($itemData['price']) ? (int)$itemData['price'] : 0;
+                    $itemLevel = isset($itemData['level']) ? (int)$itemData['level'] : 1;
+                    $itemQuality = $itemData['quality'] ?? 'Обычный';
 
-        if ($itemPrice > 0) {
-            $pricePerUnit = (int)floor($itemPrice * 0.4);
-        } else {
-            $qMul = 1;
-            if ($itemQuality === 'Божественный') $qMul = 12;
-            elseif ($itemQuality === 'Легендарный') $qMul = 8;
-            elseif ($itemQuality === 'Смертоносный') $qMul = 6;
-            elseif ($itemQuality === 'Эпический') $qMul = 4;
-            elseif ($itemQuality === 'Раритетный') $qMul = 2.5;
-            elseif ($itemQuality === 'Редкий') $qMul = 1.5;
-            $pricePerUnit = (int)floor(($itemLevel * 3 + 5) * $qMul);
-        }
+                    if ($itemPrice > 0) {
+                        $pricePerUnit = (int)floor($itemPrice * 0.4);
+                    } else {
+                        $qMul = 1;
+                        if ($itemQuality === 'Божественный') $qMul = 12;
+                        elseif ($itemQuality === 'Легендарный') $qMul = 8;
+                        elseif ($itemQuality === 'Смертоносный') $qMul = 6;
+                        elseif ($itemQuality === 'Эпический') $qMul = 4;
+                        elseif ($itemQuality === 'Раритетный') $qMul = 2.5;
+                        elseif ($itemQuality === 'Редкий') $qMul = 1.5;
+                        $pricePerUnit = (int)floor(($itemLevel * 3 + 5) * $qMul);
+                    }
+                }
 
-        $totalChipsGained += $pricePerUnit * $sellQty;
+                if ($take >= $invQty) {
+                    $delStmt = $pdo->prepare('DELETE FROM inventory_items WHERE id = ?');
+                    $delStmt->execute([$invRow['id']]);
+                } else {
+                    $updStmt = $pdo->prepare('UPDATE inventory_items SET quantity = quantity - ? WHERE id = ?');
+                    $updStmt->execute([$take, $invRow['id']]);
+                }
 
-        // Remove or reduce quantity
-        if ($sellQty >= $invQty) {
-            $delStmt = $pdo->prepare('DELETE FROM inventory_items WHERE id = ?');
-            $delStmt->execute([$invRow['id']]);
-        } else {
-            $updStmt = $pdo->prepare('UPDATE inventory_items SET quantity = quantity - ? WHERE id = ?');
-            $updStmt->execute([$sellQty, $invRow['id']]);
+                $remaining -= $take;
+            }
+
+            $totalChipsGained += $pricePerUnit * ($sellQty - $remaining);
+        } elseif (!empty($itemId)) {
+            // Legacy: sell by specific item ID
+            $invStmt = $pdo->prepare('SELECT id, quantity, data FROM inventory_items WHERE user_id = ? AND item_id = ? FOR UPDATE');
+            $invStmt->execute([$user['id'], $itemId]);
+            $invRow = $invStmt->fetch();
+
+            if (!$invRow) continue;
+
+            $invQty = (int)$invRow['quantity'];
+            $sellQty = min($sellQty, $invQty);
+
+            if ($sellQty <= 0) continue;
+
+            $itemData = json_decode($invRow['data'], true);
+            $itemPrice = isset($itemData['price']) ? (int)$itemData['price'] : 0;
+            $itemLevel = isset($itemData['level']) ? (int)$itemData['level'] : 1;
+            $itemQuality = $itemData['quality'] ?? 'Обычный';
+
+            if ($itemPrice > 0) {
+                $pricePerUnit = (int)floor($itemPrice * 0.4);
+            } else {
+                $qMul = 1;
+                if ($itemQuality === 'Божественный') $qMul = 12;
+                elseif ($itemQuality === 'Легендарный') $qMul = 8;
+                elseif ($itemQuality === 'Смертоносный') $qMul = 6;
+                elseif ($itemQuality === 'Эпический') $qMul = 4;
+                elseif ($itemQuality === 'Раритетный') $qMul = 2.5;
+                elseif ($itemQuality === 'Редкий') $qMul = 1.5;
+                $pricePerUnit = (int)floor(($itemLevel * 3 + 5) * $qMul);
+            }
+
+            $totalChipsGained += $pricePerUnit * $sellQty;
+
+            if ($sellQty >= $invQty) {
+                $delStmt = $pdo->prepare('DELETE FROM inventory_items WHERE id = ?');
+                $delStmt->execute([$invRow['id']]);
+            } else {
+                $updStmt = $pdo->prepare('UPDATE inventory_items SET quantity = quantity - ? WHERE id = ?');
+                $updStmt->execute([$sellQty, $invRow['id']]);
+            }
         }
     }
 

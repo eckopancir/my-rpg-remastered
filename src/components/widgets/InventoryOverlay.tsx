@@ -26,7 +26,6 @@ const SLOT_FILTERS = [
   { value: 'boots', label: '— Ботинки' },
   { value: 'ammo', label: '— Амуниция' },
   { value: 'mod', label: '— Моды' },
-  { value: 'consumable', label: '— Расходники' },
   { value: 'material', label: '— Ресурсы' },
 ];
 
