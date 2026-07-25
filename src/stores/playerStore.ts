@@ -6,6 +6,7 @@ import { generateLoot } from '../engine/loot';
 import { GAME_ITEMS, SET_BONUSES } from '../data/GameItems';
 import { useInventoryStore } from './inventoryStore';
 import { useUiStore } from './uiStore';
+import { useAuthStore } from './authStore';
 import type { Item } from '../types/items';
 import type { ActiveEffect } from '../types/player';
 import type { AccessoryAbility } from '../types/abilities';
@@ -556,6 +557,18 @@ export const usePlayerStore = create<PlayerStore>()(
         set((state) => ({ equipment: { ...state.equipment, [slot]: item } }));
         get().addLog(`⛓️ ${item.displayName || item.name} экипирован в слот ${slot}.`, 'info');
         get().recalcStats();
+
+        try {
+          const token = useAuthStore.getState().token;
+          if (token) {
+            fetch('/api/player/equip.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ slot, item }),
+            });
+          }
+        } catch { /* best effort */ }
+
         return true;
       },
 
@@ -566,6 +579,18 @@ export const usePlayerStore = create<PlayerStore>()(
         set((state) => ({ equipment: { ...state.equipment, [slot]: null } }));
         get().addLog(`📦 ${item.displayName || item.name} снят со слота ${slot}.`, 'info');
         get().recalcStats();
+
+        try {
+          const token = useAuthStore.getState().token;
+          if (token) {
+            fetch('/api/player/unequip.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ slot }),
+            });
+          }
+        } catch { /* best effort */ }
+
         return item;
       },
 

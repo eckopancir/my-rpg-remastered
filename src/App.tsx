@@ -104,6 +104,19 @@ const AppContent = () => {
     const doLoad = async () => {
       const hasInventory = await loadInventoryFromServer(token);
 
+      // Load equipment from server
+      try {
+        const equipRes = await fetch(`${API_BASE}/player/load-equipment.php`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (equipRes.ok) {
+          const equipJson = await equipRes.json();
+          if (equipJson.equipment && Object.keys(equipJson.equipment).length > 0) {
+            usePlayerStore.setState({ equipment: equipJson.equipment });
+          }
+        }
+      } catch { /* fallback to blob */ }
+
       const data = await loadGame();
       if (!data) return;
 
