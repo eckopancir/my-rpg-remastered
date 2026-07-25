@@ -20,10 +20,20 @@ import { MusicPlayer } from './components/widgets/MusicPlayer';
 import { InventoryOverlay } from './components/widgets/InventoryOverlay';
 import { useGameLoop } from './hooks/useGameLoop';
 import { usePlayerStore } from './stores/playerStore';
+import { useInventoryStore } from './stores/inventoryStore';
+import { useExplorationStore } from './stores/explorationStore';
 import { useUiStore } from './stores/uiStore';
-import { useEffect } from 'react';
+import { useAuthStore } from './stores/authStore';
+import { useEffect, useRef } from 'react';
 import { images } from './assets/index';
 import './styles/global.css';
+
+const gatherSaveData = () => ({
+  player: usePlayerStore.getState(),
+  inventory: useInventoryStore.getState(),
+  exploration: useExplorationStore.getState(),
+  ui: useUiStore.getState(),
+});
 
 const seedInventory = () => {
   const store = usePlayerStore.getState();
@@ -32,10 +42,16 @@ const seedInventory = () => {
   }
 };
 
+const SAVE_INTERVAL_MS = 60000;
+
 const AppContent = () => {
   useGameLoop();
   const equipmentOpen = useUiStore((s) => s.equipmentOpen);
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
+  const token = useAuthStore((s) => s.token);
+  const saveGame = useAuthStore((s) => s.saveGame);
+  const loadGame = useAuthStore((s) => s.loadGame);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
     seedInventory();
@@ -47,6 +63,44 @@ const AppContent = () => {
       document.body.style.backgroundAttachment = 'fixed';
     }
   }, []);
+
+  // Load save from server on mount (once)
+  useEffect(() => {
+    if (!token || loadedRef.current) return;
+    loadedRef.current = true;
+    loadGame().then((data) => {
+      if (!data) return;
+      if (data.player) usePlayerStore.setState(data.player as any);
+      if (data.inventory) useInventoryStore.setState(data.inventory as any);
+      if (data.exploration) useExplorationStore.setState(data.exploration as any);
+      if (data.ui) useUiStore.setState(data.ui as any);
+      usePlayerStore.getState().recalcStats();
+    });
+  }, [token]);
+
+  // Periodic auto-save
+  useEffect(() => {
+    if (!token) return;
+    const id = setInterval(() => {
+      saveGame(gatherSaveData());
+    }, SAVE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [token]);
+
+  // Save on tab close
+  useEffect(() => {
+    if (!token) return;
+    const onUnload = () => {
+      fetch('/api/save.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ data: gatherSaveData() }),
+        keepalive: true,
+      });
+    };
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
+  }, [token]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
