@@ -19,6 +19,7 @@ interface InventoryStore {
   setItems: (items: Item[]) => void;
   addItem: (item: Item) => void;
   removeItem: (id: string) => void;
+  consumeItemByName: (name: string) => void;
   moveItem: (fromIndex: number, toIndex: number) => void;
   setCurrentPage: (page: number) => void;
   setActiveTab: (tab: InvTab) => void;
@@ -58,6 +59,18 @@ export const useInventoryStore = create<InventoryStore>()(
       setItems: (items) => set({ items }),
       addItem: (item) => set((s) => ({ items: [...s.items, item] })),
       removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+      consumeItemByName: (name) => set((s) => {
+        const idx = s.items.findIndex((i) => i.name === name);
+        if (idx === -1) return s;
+        const item = s.items[idx];
+        const qty = (item as any).quantity ?? 1;
+        if (qty > 1) {
+          const updated = [...s.items];
+          updated[idx] = { ...updated[idx], quantity: qty - 1 };
+          return { items: updated };
+        }
+        return { items: s.items.filter((_, i) => i !== idx) };
+      }),
       moveItem: (fromIndex, toIndex) => set((s) => {
         const newItems = [...s.items];
         const [moved] = newItems.splice(fromIndex, 1);

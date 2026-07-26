@@ -4,6 +4,7 @@ import { usePlayerStore } from './playerStore';
 import { useInventoryStore } from './inventoryStore';
 import { useAuthStore } from './authStore';
 
+
 const API_BASE = '/api/exploration';
 
 export interface ServerExploration {
@@ -14,6 +15,7 @@ export interface ServerExploration {
   tickCount: number;
   totalChips: number;
   totalExp: number;
+  totalItems?: number;
   isInfinite: boolean;
   legendaryId: string | null;
   legendaryStage: number | null;
@@ -151,14 +153,50 @@ export const useExplorationStore = create<ExplorationStore>()(
           const allRecentEvents: any[] = data.events ?? [];
           const serverOutcome = data.state ?? 'active';
 
-          // Apply effects from new events client-side
+          // Preserve items from previous events (server response doesn't include items)
+          const oldLog = state.eventLog;
+          const oldItemsByEvent: Record<number, any[]> = {};
+          for (const evt of oldLog) {
+            try {
+              const pe = JSON.parse(evt.effects);
+              if (Array.isArray(pe.items) && pe.items.length > 0) {
+                oldItemsByEvent[evt.id] = pe.items;
+              }
+            } catch {}
+          }
+
+          // Process new events (effects + resources)
           const newEvents = allRecentEvents.filter((e: any) => e.id > state.processedEventId);
+          const inv = useInventoryStore.getState();
           if (newEvents.length > 0) {
             const maxId = Math.max(...newEvents.map((e: any) => e.id));
             for (const evt of newEvents) {
               applyLocalEffects(evt.effects);
+              if (evt.resource_had && evt.resource_cost) {
+                inv.consumeItemByName(evt.resource_cost);
+              }
             }
             set({ processedEventId: maxId });
+          }
+
+          // Restore items from server effects or from previous eventLog
+          for (const evt of allRecentEvents) {
+            try {
+              const pe = JSON.parse(evt.effects);
+              if (pe?.itemCount > 0) {
+                if (Array.isArray(pe.items) && pe.items.length > 0) {
+                  // Server-generated items — add to local inventory for immediate UI
+                  for (const item of pe.items) {
+                    inv.addItem(item);
+                  }
+                } else if (oldItemsByEvent[evt.id]) {
+                  // Restore items from previous poll (display only, items already in DB/inventory)
+                  pe.items = oldItemsByEvent[evt.id];
+                  evt.effects = JSON.stringify(pe);
+                }
+                // NO client-side fallback — server generates all items via generateLoot in PHP
+              }
+            } catch {}
           }
 
           // Sync player data from server to prevent dashboard sync from overwriting
@@ -175,8 +213,6 @@ export const useExplorationStore = create<ExplorationStore>()(
           }
 
           if (!data.active) {
-            // Sync inventory once on completion
-            syncInventoryFromServer(token);
             set({
               isExploring: false,
               phase: 'complete', serverPhase: 'complete',

@@ -84,7 +84,16 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
   $events = [];
   $zoneDesc = getZoneDesc($exp['zone']);
 
+  // Passive regen per tick
+  $sd = getSaveData($pdo, $userId);
+  $regenPerTick = (int)($sd['player']['stats']['regen'] ?? 0);
+
   for ($i = 0; $i < $ticksToProcess; $i++) {
+    // Passive regen per tick
+    if ($regenPerTick > 0) {
+      applyEffects($pdo, $userId, ['flatHeal' => $regenPerTick]);
+    }
+
     // --- Phase transitions ---
     if ($exp['phase'] === 'travel_out') {
       $exp['time_left'] = (int)$exp['time_left'] - 1;
@@ -154,7 +163,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
         $exp['total_chips'] = (int)$exp['total_chips'] + (int)($me['effects']['chips'] ?? 0);
         $exp['total_exp'] = (int)$exp['total_exp'] + (int)($me['effects']['exp'] ?? 0);
-        if (!empty($applyResult['items'])) {
+        if ($applyResult['count'] > 0) {
           $me['effects']['items'] = $applyResult['items'];
         }
         $meEvent = [
@@ -218,7 +227,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
           $exp['total_chips'] = (int)$exp['total_chips'] + (int)($event['effects']['chips'] ?? 0);
           $exp['total_exp'] = (int)$exp['total_exp'] + (int)($event['effects']['exp'] ?? 0);
-          if (!empty($applyResult['items'])) {
+          if ($applyResult['count'] > 0) {
             $event['effects']['items'] = $applyResult['items'];
           }
           $ev = [
@@ -305,7 +314,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($fr['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($fr['exp'] ?? 0);
-    if (!empty($applyResult['items'])) {
+    if ($applyResult['count'] > 0) {
       $fr['items'] = $applyResult['items'];
     }
     $exp['legendary_id'] = null;
@@ -341,7 +350,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($stageReward['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($stageReward['exp'] ?? 0);
-    if (!empty($applyResult['items'])) {
+    if ($applyResult['count'] > 0) {
       $stageReward['items'] = $applyResult['items'];
     }
     return [
@@ -363,7 +372,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($rewards['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($rewards['exp'] ?? 0);
-    if (!empty($applyResult['items'])) {
+    if ($applyResult['count'] > 0) {
       $rewards['items'] = $applyResult['items'];
     }
     $exp['legendary_id'] = null;
@@ -592,6 +601,7 @@ function applyEffects($pdo, $userId, $effects) {
   $exp = isset($effects['exp']) ? (int)$effects['exp'] : 0;
   $healPct = isset($effects['healPercent']) ? (float)$effects['healPercent'] : 0;
   $dmgPct = isset($effects['damagePercent']) ? (float)$effects['damagePercent'] : 0;
+  $flatHeal = isset($effects['flatHeal']) ? (int)$effects['flatHeal'] : 0;
   $result = ['count' => 0, 'items' => []];
 
   if ($chips != 0) {
@@ -606,6 +616,12 @@ function applyEffects($pdo, $userId, $effects) {
     $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
     $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
     $sd['player']['stats']['currentHp'] = min($maxHp, $cur + (int)round($maxHp * $healPct));
+    $changed = true;
+  }
+  if ($flatHeal > 0) {
+    $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
+    $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
+    $sd['player']['stats']['currentHp'] = min($maxHp, $cur + $flatHeal);
     $changed = true;
   }
   if ($dmgPct > 0) {
@@ -632,7 +648,7 @@ function mergeEffectsArr($a, $b) {
 // Inventory helpers (reused from earlier)
 // ---------------------------------------------------------------------------
 function loadInventoryItems($pdo, $userId) {
-  $stmt = $pdo->prepare("SELECT id, name, quantity FROM inventory_items WHERE user_id = ? AND data->>'$.type' = 'material'");
+  $stmt = $pdo->prepare("SELECT id, name, quantity FROM inventory_items WHERE user_id = ? AND quantity > 0");
   $stmt->execute([$userId]);
   return $stmt->fetchAll();
 }

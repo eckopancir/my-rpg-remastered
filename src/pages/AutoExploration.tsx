@@ -171,12 +171,14 @@ const EventCard = ({ entry, formatTime, onItemHover, onItemMove, onItemLeave }: 
   const isLegendary = !!entry.legendary_event_id;
 
   const effects = parseEffects(entry.effects);
+  if (effects.itemCount > 0) console.log('[EventCard] effects:', effects, 'items:', effects.items);
   const rewardIcons: string[] = [];
   if (effects.chips && effects.chips > 0) rewardIcons.push(`💾+${effects.chips}`);
   if (effects.chips && effects.chips < 0) rewardIcons.push(`💾${effects.chips}`);
   if (effects.exp && effects.exp > 0) rewardIcons.push(`⚡+${effects.exp}`);
   if (effects.damagePercent && effects.damagePercent > 0) rewardIcons.push(`💥-${Math.round(effects.damagePercent * 100)}%HP`);
   if (effects.healPercent && effects.healPercent > 0) rewardIcons.push(`💚+${Math.round(effects.healPercent * 100)}%HP`);
+  if (effects.itemCount && effects.itemCount > 0) rewardIcons.push(`📦+${effects.itemCount}`);
 
   return (
     <div style={{
