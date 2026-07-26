@@ -7,6 +7,15 @@ if (!$input) jsonResponse(['error' => 'Invalid input'], 400);
 
 $pdo = getDB();
 
+// During active exploration, server is the source of truth — skip sync to prevent
+// stale client data from overwriting exploration gains (chips, exp, HP).
+$stmt = $pdo->prepare("SELECT id FROM explorations WHERE user_id = ? AND phase NOT IN ('complete','idle') LIMIT 1");
+$stmt->execute([$user['id']]);
+if ($stmt->fetch()) {
+  jsonResponse(['ok' => true, 'exploration_active' => true]);
+  exit;
+}
+
 // Read current save_data
 $stmt = $pdo->prepare('SELECT save_data FROM saves WHERE user_id = ?');
 $stmt->execute([$user['id']]);
