@@ -13,6 +13,7 @@ function generateLoot($pdo, $userId, $zoneName, $playerLevel, $itemCount = 1) {
       }
     }
   }
+  $created = [];
   foreach ($items as $item) {
     $itemId = preg_replace('/[^a-z0-9_-]/', '', str_replace(' ', '_', mb_strtolower($item['name'], 'UTF-8')));
     $stmt = $pdo->prepare("INSERT INTO inventory_items (user_id, item_id, name, quantity, data) VALUES (?, ?, ?, 1, ?)");
@@ -22,8 +23,13 @@ function generateLoot($pdo, $userId, $zoneName, $playerLevel, $itemCount = 1) {
       'icon' => $item['icon'] ?? null,
     ]);
     $stmt->execute([$userId, $itemId, $item['name'], $data]);
+    $created[] = [
+      'name' => $item['name'],
+      'type' => $item['type'] ?? 'material',
+      'category' => $item['category'] ?? 'common',
+    ];
   }
-  return count($items);
+  return ['count' => count($created), 'items' => $created];
 }
 
 function getLootTable($zoneName, $playerLevel) {

@@ -150,9 +150,13 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       $exp['micro_event_cooldown'] = (int)$exp['micro_event_cooldown'] - 1;
       if ($exp['micro_event_cooldown'] <= 0) {
         $me = generateMicroEvent($zoneDesc, '');
-        $exp['total_items'] = (int)$exp['total_items'] + applyEffects($pdo, $userId, $me['effects']);
+        $applyResult = applyEffects($pdo, $userId, $me['effects']);
+        $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
         $exp['total_chips'] = (int)$exp['total_chips'] + (int)($me['effects']['chips'] ?? 0);
         $exp['total_exp'] = (int)$exp['total_exp'] + (int)($me['effects']['exp'] ?? 0);
+        if (!empty($applyResult['items'])) {
+          $me['effects']['items'] = $applyResult['items'];
+        }
         $meEvent = [
           'text' => $me['text'],
           'type' => $me['type'],
@@ -210,9 +214,13 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           if (!empty($event['resourceHad'])) {
             persistInventoryItems($pdo, $userId, $itemsRef, $origIds);
           }
-          $exp['total_items'] = (int)$exp['total_items'] + applyEffects($pdo, $userId, $event['effects']);
+          $applyResult = applyEffects($pdo, $userId, $event['effects']);
+          $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
           $exp['total_chips'] = (int)$exp['total_chips'] + (int)($event['effects']['chips'] ?? 0);
           $exp['total_exp'] = (int)$exp['total_exp'] + (int)($event['effects']['exp'] ?? 0);
+          if (!empty($applyResult['items'])) {
+            $event['effects']['items'] = $applyResult['items'];
+          }
           $ev = [
             'text' => $event['text'],
             'type' => $event['type'],
@@ -293,9 +301,13 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $fr = computeLegendaryReward($leg['fr_rw'], getPlayerLevel($pdo, $userId));
     $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
     $merged = mergeEffectsArr($rewards, $fr);
-    $exp['total_items'] = (int)$exp['total_items'] + applyEffects($pdo, $userId, $merged);
+    $applyResult = applyEffects($pdo, $userId, $merged);
+    $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($fr['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($fr['exp'] ?? 0);
+    if (!empty($applyResult['items'])) {
+      $fr['items'] = $applyResult['items'];
+    }
     $exp['legendary_id'] = null;
     $exp['legendary_stage'] = null;
     $exp['legendary_auto_resolve'] = null;
@@ -325,9 +337,13 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $exp['legendary_rewards'] = json_encode($merged);
     $exp['legendary_stage'] = $stageIdx + 1;
     $exp['legendary_auto_resolve'] = LEGENDARY_AUTO_RESOLVE_TICKS;
-    $exp['total_items'] = (int)$exp['total_items'] + applyEffects($pdo, $userId, $stageReward);
+    $applyResult = applyEffects($pdo, $userId, $stageReward);
+    $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($stageReward['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($stageReward['exp'] ?? 0);
+    if (!empty($applyResult['items'])) {
+      $stageReward['items'] = $applyResult['items'];
+    }
     return [
       'text' => $stage['suc'],
       'type' => 'legendary',
@@ -343,9 +359,13 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     ];
   } else {
     // Fail — chain breaks, payout accumulated rewards
-    $exp['total_items'] = (int)$exp['total_items'] + applyEffects($pdo, $userId, $rewards);
+    $applyResult = applyEffects($pdo, $userId, $rewards);
+    $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($rewards['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($rewards['exp'] ?? 0);
+    if (!empty($applyResult['items'])) {
+      $rewards['items'] = $applyResult['items'];
+    }
     $exp['legendary_id'] = null;
     $exp['legendary_stage'] = null;
     $exp['legendary_auto_resolve'] = null;
@@ -426,9 +446,9 @@ function buildStatus($pdo, $exp, $events, $forceState = null) {
   // For infinite zones, return elapsed seconds instead of remaining countdown
   $timeLeft = (int)$exp['time_left'];
   if (!empty($exp['is_infinite']) && $exp['started_at']) {
-    $dbNow = $pdo->query("SELECT UNIX_TIMESTAMP(NOW(3)) AS dbts")->fetch();
-    $start = new DateTimeImmutable($exp['started_at']);
-    $elapsed = (int)$dbNow['dbts'] - $start->getTimestamp();
+    $stmt = $pdo->query("SELECT UNIX_TIMESTAMP(started_at) AS started_ts, UNIX_TIMESTAMP(NOW(3)) AS dbts FROM explorations WHERE id = " . (int)$exp['id']);
+    $row = $stmt->fetch();
+    $elapsed = (int)$row['dbts'] - (int)$row['started_ts'];
     $timeLeft = max(0, $elapsed);
   }
 
@@ -572,7 +592,7 @@ function applyEffects($pdo, $userId, $effects) {
   $exp = isset($effects['exp']) ? (int)$effects['exp'] : 0;
   $healPct = isset($effects['healPercent']) ? (float)$effects['healPercent'] : 0;
   $dmgPct = isset($effects['damagePercent']) ? (float)$effects['damagePercent'] : 0;
-  $itemsGenerated = 0;
+  $result = ['count' => 0, 'items' => []];
 
   if ($chips != 0) {
     $sd['player']['dataChips'] = ($sd['player']['dataChips'] ?? 0) + $chips;
@@ -595,10 +615,10 @@ function applyEffects($pdo, $userId, $effects) {
     $changed = true;
   }
   if (isset($effects['itemCount']) && $effects['itemCount'] > 0) {
-    $itemsGenerated = generateLoot($pdo, $userId, '', 1, $effects['itemCount']);
+    $result = generateLoot($pdo, $userId, '', 1, $effects['itemCount']);
   }
   if ($changed) putSaveData($pdo, $userId, $sd);
-  return $itemsGenerated;
+  return $result;
 }
 
 function mergeEffectsArr($a, $b) {

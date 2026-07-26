@@ -267,6 +267,45 @@ const EventCard = ({ entry, formatTime, onItemHover, onItemMove, onItemLeave }: 
           </div>
         )}
 
+        {effects.items && effects.items.length > 0 && (
+          <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+            📦
+            {effects.items.map((item: any, i: number) => {
+              const rarityColor = item.category === 'legendary' ? '#fbbf24'
+                : item.category === 'rare' ? '#a78bfa'
+                : item.category === 'material' ? '#60a5fa'
+                : '#94a3b8';
+              return (
+                <span
+                  key={i}
+                  onMouseEnter={(e) => {
+                    onItemHover({
+                      id: `loot_${item.name}`,
+                      name: item.name,
+                      displayName: item.name,
+                      type: item.type || 'material',
+                      slot: null,
+                      rarity: item.category || 'common',
+                      stats: {},
+                      qualityColor: rarityColor,
+                    }, e);
+                  }}
+                  onMouseMove={onItemMove}
+                  onMouseLeave={onItemLeave}
+                  style={{
+                    cursor: 'pointer', fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                    background: 'rgba(255,255,255,0.06)', color: rarityColor,
+                    fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap',
+                    borderBottom: `1px dashed ${rarityColor}44`,
+                  }}
+                >
+                  {item.name}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {entry.decision && (
           <div style={{ marginTop: 3, fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', opacity: 0.8 }}>
             → {entry.decision}
