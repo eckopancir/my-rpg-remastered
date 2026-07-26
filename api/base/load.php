@@ -43,6 +43,7 @@ foreach ($dbUpgrades as $row) {
             'level' => (int)$row['level'],
             'upgrading' => (bool)$upgrading,
             'timerExpiresAt' => $upgrading ? strtotime($expiresAt) * 1000 : null,
+            'timerDuration' => $upgrading ? (int)$row['timer_duration'] : null,
         ];
     }
 }

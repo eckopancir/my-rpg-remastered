@@ -187,10 +187,23 @@ export const useUiStore = create<UiStore>()(
 
         if (queueChanged) {
           set({ queue: newQueue });
-          // Process next in queue
           setTimeout(() => get().processQueue(), 100);
         } else {
           set({ queue: newQueue });
+        }
+
+        // Tick crafting timer (works even when Craft page is not mounted)
+        if (state.craftingTimer > 0) {
+          const next = state.craftingTimer - 1;
+          if (next <= 0) {
+            if (state.craftingType === 'upgrade') {
+              set({ craftingTimer: 0 });
+            } else {
+              set({ craftingTimer: 0, craftingType: null, craftingLabel: '', craftingTimerMax: 0 });
+            }
+          } else {
+            set({ craftingTimer: next });
+          }
         }
       },
 
@@ -198,13 +211,20 @@ export const useUiStore = create<UiStore>()(
     }),
     {
       name: 'remastered_ui',
-      version: 1,
+      version: 4,
+      migrate: (persisted, version) => {
+        const state = persisted as Record<string, unknown>;
+        if (version < 4) {
+          state.craftingTimer = 0;
+          state.craftingTimerMax = 0;
+          state.craftingType = null;
+          state.craftingLabel = '';
+          state.queue = [];
+        }
+        return state as UiStore;
+      },
       partialize: (state) => ({
         queue: state.queue,
-        craftingTimer: state.craftingTimer,
-        craftingTimerMax: state.craftingTimerMax,
-        craftingType: state.craftingType,
-        craftingLabel: state.craftingLabel,
         soundEnabled: state.soundEnabled,
         musicEnabled: state.musicEnabled,
         musicVolume: state.musicVolume,

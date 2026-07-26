@@ -30,12 +30,16 @@ import './styles/global.css';
 
 const API_BASE = '/api';
 
-const gatherSaveData = () => ({
-  player: usePlayerStore.getState(),
-  inventory: useInventoryStore.getState(),
-  exploration: useExplorationStore.getState(),
-  ui: useUiStore.getState(),
-});
+const gatherSaveData = () => {
+  const ui = useUiStore.getState();
+  const { craftingTimer, craftingTimerMax, craftingType, craftingLabel, queue, ...safeUi } = ui;
+  return {
+    player: usePlayerStore.getState(),
+    inventory: useInventoryStore.getState(),
+    exploration: useExplorationStore.getState(),
+    ui: safeUi,
+  };
+};
 
 const syncInventoryToServer = async (token: string) => {
   const items = useInventoryStore.getState().items;
@@ -129,7 +133,14 @@ const AppContent = () => {
         useInventoryStore.setState(data.inventory as any);
       }
       if (data.exploration) useExplorationStore.setState(data.exploration as any);
-      if (data.ui) useUiStore.setState(data.ui as any);
+      if (data.ui) {
+        // Strip any stale crafting fields from old server saves
+        const { craftingTimer: _ct, craftingTimerMax: _ctm, craftingType: _cty, craftingLabel: _cl, ...cleanUi } = data.ui as any;
+        useUiStore.setState({
+          ...cleanUi,
+          queue: [],
+        });
+      }
       usePlayerStore.getState().recalcStats();
     };
 

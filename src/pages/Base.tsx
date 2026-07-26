@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/Badge';
 import { usePlayerStore } from '../stores/playerStore';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useAuthStore } from '../stores/authStore';
+import { useUiStore } from '../stores/uiStore';
 import { BASE_POINTS, type BasePoint } from '../data/basePoints';
 import type { ActiveEffect } from '../types/player';
 
@@ -176,6 +177,28 @@ export const Base = () => {
 
         if (json.dataChips !== undefined) usePlayerStore.setState({ dataChips: json.dataChips });
 
+        // Restore active base upgrade in sidebar
+        const ui = useUiStore.getState();
+        let hasActiveUpgrade = false;
+        for (const u of json.upgrades || []) {
+          if (u.upgrading && u.timerExpiresAt) {
+            const remaining = Math.max(0, Math.floor((u.timerExpiresAt - Date.now()) / 1000));
+            // Recalculate total duration from level if timer_duration is missing (old rows)
+            const level = u.level + 1;
+            const totalDuration = u.timerDuration || Math.floor(18000 * Math.pow(level, 1.3));
+            ui.setCraftingType('upgrade');
+            ui.setCraftingLabel(`${u.baseName} ур.${u.level + 1}`);
+            ui.setCraftingTimer(remaining);
+            ui.setCraftingTimerMax(totalDuration);
+            hasActiveUpgrade = true;
+          }
+        }
+        if (!hasActiveUpgrade && useUiStore.getState().craftingType === 'upgrade') {
+          ui.setCraftingTimer(0);
+          ui.setCraftingType(null);
+          ui.setCraftingLabel('');
+        }
+
         // Notify completed upgrades
         for (const c of json.completedUpgrades || []) {
           addLog(`🏢 ${c.baseName} улучшена до уровня ${c.newLevel}!`, 'loot');
@@ -186,27 +209,29 @@ export const Base = () => {
     doLoad();
   }, [token]);
 
-  // Timer tick: upgrade timers + cooldowns
+  // Timer tick: recalculate from expiresAt + cooldowns
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     timerRef.current = setInterval(() => {
+      const now = Date.now();
       setUpgradeTimers((prev) => {
         const next: Record<string, number> = {};
-        for (const [k, v] of Object.entries(prev)) {
-          if (v > 0) { next[k] = v - 1; } else { next[k] = 0; }
+        for (const [name, expiresAt] of Object.entries(upgradingBases)) {
+          const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+          next[name] = remaining;
         }
-        setCooldowns((cd) => {
-          const nextCd: Record<string, number> = {};
-          for (const [k, v] of Object.entries(cd)) {
-            if (v > 0) nextCd[k] = v - 1;
-          }
-          return nextCd;
-        });
         return next;
+      });
+      setCooldowns((cd) => {
+        const nextCd: Record<string, number> = {};
+        for (const [k, v] of Object.entries(cd)) {
+          if (v > 0) nextCd[k] = v - 1;
+        }
+        return nextCd;
       });
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+  }, [upgradingBases]);
 
   // Recalculate upgrade timers from expiresAt (Unix ms)
   // Only on mount and when upgradingBases changes (new upgrade / completed)
@@ -234,6 +259,11 @@ export const Base = () => {
         for (const c of json.completed || []) {
           setBaseUpgrades((prev) => ({ ...prev, [c.baseName]: c.newLevel }));
           addLog(`🏢 ${c.baseName} улучшена до уровня ${c.newLevel}!`, 'loot');
+        }
+        if (json.completed?.length > 0) {
+          useUiStore.getState().setCraftingTimer(0);
+          useUiStore.getState().setCraftingType(null);
+          useUiStore.getState().setCraftingLabel('');
         }
         setUpgradingBases((prev) => {
           const next = { ...prev };
@@ -347,6 +377,11 @@ export const Base = () => {
       const json = await res.json();
       if (json.dataChips !== undefined) usePlayerStore.setState({ dataChips: json.dataChips });
       setUpgradingBases((prev) => ({ ...prev, [selectedUpg.name]: json.expiresAt }));
+      const ui = useUiStore.getState();
+      ui.setCraftingType('upgrade');
+      ui.setCraftingLabel(`${selectedUpg.name} ур.${currentLevel + 1}`);
+      ui.setCraftingTimer(req.time);
+      ui.setCraftingTimerMax(req.time);
       setPlacedItems([]);
       addLog(`🔧 ${selectedUpg.name} улучшается... ${formatDuration(req.time)}`, 'system');
       closeModal();
