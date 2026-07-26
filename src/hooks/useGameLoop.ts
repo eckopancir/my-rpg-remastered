@@ -43,7 +43,7 @@ export const useGameLoop = () => {
       // 4. Exploration tick
       const exploration = useExplorationStore.getState();
       if (exploration.isExploring) {
-        exploration.explorationTick();
+        exploration.pollServerState();
       }
 
       // 5. Rest tick

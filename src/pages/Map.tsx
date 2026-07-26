@@ -14,9 +14,10 @@ const LOCKED_ZONES = new Set([
 export const Map = () => {
   const navigate = useNavigate();
   const isTraveling = usePlayerStore((s) => s.travel.isTraveling);
+  const isExploring = useExplorationStore((s) => s.isExploring);
   const isNight = new Date().getHours() < 6 || new Date().getHours() >= 20;
 
-  if (isTraveling) {
+  if (isTraveling || isExploring) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -73,9 +74,9 @@ export const Map = () => {
           {ZONES.filter((z) => z.name !== 'Наша база' && z.name !== 'Базар').map((zone) => {
             const isLocked = LOCKED_ZONES.has(zone.name);
             const isMilitary = zone.name === 'Заброшенная военная база и окрестности';
-            const handleAutoExplore = (e: React.MouseEvent) => {
+            const handleAutoExplore = async (e: React.MouseEvent) => {
               e.stopPropagation();
-              useExplorationStore.getState().startExploration(zone.name, zone.difficulty, zone.allowedFactions);
+              await useExplorationStore.getState().startExploration(zone.name);
               navigate(`/explore?zone=${encodeURIComponent(zone.name)}`);
             };
             return (
