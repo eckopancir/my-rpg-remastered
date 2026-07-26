@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { usePlayerStore } from './playerStore';
+import { useInventoryStore } from './inventoryStore';
 import { useAuthStore } from './authStore';
 
 const API_BASE = '/api/exploration';
@@ -49,6 +50,7 @@ interface ExplorationStore {
   explorationId: number | null;
   serverOutcome: string | null; // 'active', 'complete', 'dead'
   error: string | null;
+  processedEventId: number;
 
   startExploration: (zoneName: string) => Promise<void>;
   cancelExploration: () => Promise<void>;
@@ -76,6 +78,7 @@ export const useExplorationStore = create<ExplorationStore>()(
       explorationId: null,
       serverOutcome: null,
       error: null,
+      processedEventId: 0,
 
       startExploration: async (zoneName) => {
         const token = getToken();
@@ -88,6 +91,9 @@ export const useExplorationStore = create<ExplorationStore>()(
           if (!res.ok) { set({ error: data.error || 'Failed to start' }); return; }
 
           const exp = data.exploration;
+
+          // Refresh inventory from server before starting
+          syncInventoryFromServer(token);
           usePlayerStore.getState().addLog(`🚀 Отправляемся в "${zoneName}".`, 'info');
           set({
             isExploring: true,
@@ -104,6 +110,7 @@ export const useExplorationStore = create<ExplorationStore>()(
             isInfinite: exp?.is_infinite === true || exp?.phase === 'exploring',
             explorationId: exp?.id ?? null,
             error: null,
+            processedEventId: 0,
           });
         } catch (e) {
           set({ error: `Network error: ${e}` });
@@ -117,6 +124,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           await fetch(`${API_BASE}/cancel.php`, { headers: { Authorization: `Bearer ${token}` } });
         } catch { /* ignore */ }
         usePlayerStore.getState().addLog('🛑 Исследование прервано.', 'warning');
+        syncInventoryFromServer(token);
         set({
           isExploring: false, zoneName: null, phase: 'idle', serverPhase: '',
           serverOutcome: null, timeLeft: 0, tickCount: 0,
@@ -143,6 +151,16 @@ export const useExplorationStore = create<ExplorationStore>()(
           const allRecentEvents: any[] = data.events ?? [];
           const serverOutcome = data.state ?? 'active';
 
+          // Apply effects from new events client-side
+          const newEvents = allRecentEvents.filter((e: any) => e.id > state.processedEventId);
+          if (newEvents.length > 0) {
+            const maxId = Math.max(...newEvents.map((e: any) => e.id));
+            for (const evt of newEvents) {
+              applyLocalEffects(evt.effects);
+            }
+            set({ processedEventId: maxId });
+          }
+
           // Sync player data from server to prevent dashboard sync from overwriting
           const playerData = data.player as { dataChips?: number; currentExp?: number; currentHp?: number } | undefined;
           if (playerData) {
@@ -157,6 +175,8 @@ export const useExplorationStore = create<ExplorationStore>()(
           }
 
           if (!data.active) {
+            // Sync inventory once on completion
+            syncInventoryFromServer(token);
             set({
               isExploring: false,
               phase: 'complete', serverPhase: 'complete',
@@ -165,6 +185,7 @@ export const useExplorationStore = create<ExplorationStore>()(
               totalChips: exp?.totalChips ?? 0,
               totalExp: exp?.totalExp ?? 0,
               tickCount: exp?.tickCount ?? 0,
+              processedEventId: 0,
             });
             return;
           }
@@ -200,6 +221,8 @@ export const useExplorationStore = create<ExplorationStore>()(
         usePlayerStore.getState().addLog(
           state.serverOutcome === 'dead' ? '💀 Герой погиб.'
           : `🏁 Исследование "${state.zoneName}" завершено!`, 'loot');
+        const token = getToken();
+        if (token) syncInventoryFromServer(token);
         set({
           isExploring: false, zoneName: null, phase: 'idle', serverPhase: '',
           serverOutcome: null, timeLeft: 0, tickCount: 0,
@@ -229,6 +252,7 @@ export const useExplorationStore = create<ExplorationStore>()(
         timeLeft: state.timeLeft,
         tickCount: state.tickCount,
         eventLog: state.eventLog.slice(-200),
+        processedEventId: state.processedEventId,
         totalChips: state.totalChips,
         totalExp: state.totalExp,
         totalItems: state.totalItems,
@@ -243,4 +267,54 @@ export async function catchUpExploration() {
   const store = useExplorationStore.getState();
   if (!store.isExploring) return;
   await store.pollServerState();
+}
+
+// Apply effects from a JSON effects string to the player store (client-side safety net)
+function applyLocalEffects(effectsJson: string) {
+  if (!effectsJson || effectsJson === '{}') return;
+  try {
+    const eff = JSON.parse(effectsJson);
+    if (!eff || typeof eff !== 'object') return;
+    const ps = usePlayerStore.getState();
+    const patch: Record<string, any> = {};
+
+    if (eff.chips && typeof eff.chips === 'number') {
+      patch.dataChips = ps.dataChips + eff.chips;
+    }
+    if (eff.exp && typeof eff.exp === 'number') {
+      patch.currentExp = ps.currentExp + eff.exp;
+    }
+    if (eff.healPercent && typeof eff.healPercent === 'number') {
+      const maxHp = ps.stats.maxHp || 10000;
+      const healAmt = Math.round(maxHp * eff.healPercent);
+      patch.stats = { ...ps.stats, currentHp: Math.min(maxHp, ps.stats.currentHp + healAmt) };
+    }
+    if (eff.damagePercent && typeof eff.damagePercent === 'number') {
+      const maxHp = ps.stats.maxHp || 10000;
+      const dmgAmt = Math.round(maxHp * eff.damagePercent);
+      patch.stats = { ...(patch.stats || ps.stats), currentHp: Math.max(0, (patch.stats?.currentHp ?? ps.stats.currentHp) - dmgAmt) };
+    }
+
+    if (Object.keys(patch).length > 0) {
+      usePlayerStore.setState(patch);
+    }
+  } catch {
+    // silent
+  }
+}
+
+async function syncInventoryFromServer(token: string) {
+  try {
+    const res = await fetch('/api/inventory/load.php', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.items) {
+        useInventoryStore.getState().setItems(json.items);
+      }
+    }
+  } catch {
+    // silent
+  }
 }
