@@ -34,7 +34,7 @@ export const Sidebar = () => {
   const expTimeLeft = useExplorationStore((s) => s.timeLeft);
   const expTickCount = useExplorationStore((s) => s.tickCount);
   const expIsInfinite = useExplorationStore((s) => s.isInfinite);
-  const fmtTime = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
+  const fmtSec = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
   const expChips = useExplorationStore((s) => s.totalChips);
   const expExp = useExplorationStore((s) => s.totalExp);
 
@@ -54,7 +54,7 @@ export const Sidebar = () => {
                 📡 {expZoneName}
               </div>
               <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)', marginBottom: 2 }}>
-                ⏱ {expIsInfinite ? `прошло ${fmtTime(expTimeLeft)}` : `осталось ${expTimeLeft}с`} · {phase === 'travel_out' ? 'выезд' : phase === 'exploring' ? 'в зоне' : phase === 'travel_back' ? 'возврат' : 'завершено'}
+                ⏱ {expIsInfinite ? `прошло ${fmtSec(expTimeLeft)}` : `осталось ${expTimeLeft}с`} · {phase === 'travel_out' ? 'выезд' : phase === 'exploring' ? 'в зоне' : phase === 'travel_back' ? 'возврат' : 'завершено'}
               </div>
               {(expChips + expExp) > 0 && (
                 <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>
@@ -70,7 +70,7 @@ export const Sidebar = () => {
                 {craftingIcon} {craftingTitle}
               </div>
               <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)', marginBottom: 4 }}>
-                {craftingType === 'upgrade' && craftingTimer <= 0 ? '⏳ завершение...' : `⏳ ${craftingType === 'upgrade' ? fmtTime(craftingTimer) : `${craftingTimer} сек`}`}
+                {craftingType === 'upgrade' && craftingTimer <= 0 ? '⏳ завершение...' : `⏳ ${craftingType === 'upgrade' ? fmtSec(craftingTimer) : `${craftingTimer} сек`}`}
               </div>
               <ProgressBar
                 value={craftingMax - craftingTimer}
