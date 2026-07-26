@@ -142,6 +142,34 @@ const AppContent = () => {
         });
       }
       usePlayerStore.getState().recalcStats();
+
+      // Restore active base upgrade in sidebar (works on any page)
+      try {
+        const baseRes = await fetch(`${API_BASE}/base/load.php`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (baseRes.ok) {
+          const baseJson = await baseRes.json();
+          const ui = useUiStore.getState();
+          let hasActiveUpgrade = false;
+          for (const u of baseJson.upgrades || []) {
+            if (u.upgrading && u.timerExpiresAt) {
+              const remaining = Math.max(0, Math.floor((u.timerExpiresAt - Date.now()) / 1000));
+              const totalDuration = u.timerDuration || Math.floor(18000 * Math.pow(u.level + 1, 1.3));
+              ui.setCraftingType('upgrade');
+              ui.setCraftingLabel(`${u.baseName} ур.${u.level + 1}`);
+              ui.setCraftingTimer(remaining);
+              ui.setCraftingTimerMax(totalDuration);
+              hasActiveUpgrade = true;
+            }
+          }
+          if (!hasActiveUpgrade && useUiStore.getState().craftingType === 'upgrade') {
+            ui.setCraftingTimer(0);
+            ui.setCraftingType(null);
+            ui.setCraftingLabel('');
+          }
+        }
+      } catch { /* silent */ }
     };
 
     doLoad();
