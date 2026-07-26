@@ -14,11 +14,8 @@ const logColorMap: Record<string, string> = {
 };
 
 const fmtTime = (ts: number): string => {
-  const diff = Date.now() - ts;
-  if (diff < 60000) return `${Math.floor(diff / 1000)}с`;
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}м`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}ч`;
-  return `${Math.floor(diff / 86400000)}д`;
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 };
 
 export const Sidebar = () => {
@@ -34,7 +31,7 @@ export const Sidebar = () => {
   const expTimeLeft = useExplorationStore((s) => s.timeLeft);
   const expTickCount = useExplorationStore((s) => s.tickCount);
   const expIsInfinite = useExplorationStore((s) => s.isInfinite);
-  const fmtSec = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
+  const fmtSec = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
   const expChips = useExplorationStore((s) => s.totalChips);
   const expExp = useExplorationStore((s) => s.totalExp);
 
