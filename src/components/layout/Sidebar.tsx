@@ -108,7 +108,7 @@ export const Sidebar = () => {
               className={styles.logEntry}
               style={{ color: logColorMap[log.type] || 'var(--text-secondary)' }}
             >
-              <span style={{ opacity: 0.4, fontSize: 9, marginRight: 4, fontFamily: 'var(--wa-font-terminal)', flexShrink: 0 }}>
+              <span style={{ opacity: 0.4, fontSize: 11, marginRight: 4, fontFamily: 'var(--wa-font-terminal)', flexShrink: 0 }}>
                 {log.ts ? fmtTime(log.ts) : ''}
               </span>
               {log.message}

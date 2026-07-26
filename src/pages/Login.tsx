@@ -121,7 +121,19 @@ export const Login = () => {
             letterSpacing: 3,
             textTransform: 'uppercase',
           }}>
-            {isLogin ? 'Вход в систему' : 'Регистрация'}
+            {(isLogin ? 'Вход в систему' : 'Регистрация').split('').map((char, i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-block',
+                  animation: `flicker ${3.6 + (i % 3) * 1.2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.12}s`,
+                  animationFillMode: 'both',
+                }}
+              >
+                {char === ' ' ? '\u00A0' : char}
+              </span>
+            ))}
           </div>
           <div style={{
             width: 60, height: 2,
@@ -409,11 +421,26 @@ export const Login = () => {
         </div>
       </motion.div>
 
-      {/* Spin animation + input placeholder color */}
+      {/* Spin animation + flicker effect + input placeholder color */}
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        @keyframes flicker {
+          0%, 100% { opacity: 1; text-shadow: 0 0 40px rgba(217,119,6,0.4), 0 0 80px rgba(217,119,6,0.15); }
+          10% { opacity: 0.8; text-shadow: 0 0 20px rgba(217,119,6,0.15); }
+          12% { opacity: 0.65; text-shadow: none; }
+          14% { opacity: 0.85; text-shadow: 0 0 15px rgba(217,119,6,0.1); }
+          16% { opacity: 1; text-shadow: 0 0 40px rgba(217,119,6,0.4), 0 0 80px rgba(217,119,6,0.15); }
+          45% { opacity: 0.75; text-shadow: 0 0 10px rgba(217,119,6,0.05); }
+          47% { opacity: 0.6; text-shadow: none; }
+          49% { opacity: 0.85; }
+          51% { opacity: 1; }
+          80% { opacity: 0.7; }
+          82% { opacity: 0.55; text-shadow: none; }
+          84% { opacity: 0.9; text-shadow: 0 0 8px rgba(217,119,6,0.05); }
+          86% { opacity: 1; text-shadow: 0 0 40px rgba(217,119,6,0.4), 0 0 80px rgba(217,119,6,0.15); }
         }
         input::placeholder {
           color: rgba(148, 163, 184, 0.3);
