@@ -348,28 +348,10 @@ export const Equipment = () => {
             );
           })}
 
-          {/* Divider */}
-          <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(217,119,6,0.3), transparent)' }} />
-
-          {/* Item powers per slot */}
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            <div style={{ color: '#a16207', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 1 }}>⚡ Сила предметов</div>
-            {EQUIPMENT_SLOTS.map((s) => {
-              const it = equipment[s];
-              if (!it) return null;
-              const pw = calcItemPower(it);
-              return (
-                <div key={s} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
-                  <span>{SLOT_LABELS[s]}</span>
-                  <span style={{ color: '#fbbf24', fontWeight: 600 }}>⚡{pw}</span>
-                </div>
-              );
-            })}
-          </div>
         </div>
 
         {/* Right: character + slots */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 80 }}>
           <div style={{
             position: 'relative',
             width: Math.round(150 * S),
