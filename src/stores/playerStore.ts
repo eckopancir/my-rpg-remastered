@@ -667,6 +667,7 @@ export const usePlayerStore = create<PlayerStore>()(
           if (!res.ok) return;
           const json = await res.json();
           set({ skills: json.skills, skillPoints: json.skillPoints, pendingSkills: {} });
+          get().recalcStats();
         } catch { /* silent */ }
       },
 
@@ -675,6 +676,9 @@ export const usePlayerStore = create<PlayerStore>()(
         const cost = 50 + s.level * 10;
         const token = useAuthStore.getState().token;
         if (!token) return;
+        // Clear skills immediately on client, don't wait for server
+        set({ skills: {}, pendingSkills: {} });
+        get().recalcStats();
         try {
           const res = await fetch('/api/skills/reset.php', {
             method: 'POST',
@@ -686,9 +690,8 @@ export const usePlayerStore = create<PlayerStore>()(
             return;
           }
           const json = await res.json();
-          set({ skills: {}, pendingSkills: {}, skillPoints: json.skillPoints, dataChips: json.dataChips });
+          set({ skillPoints: json.skillPoints, dataChips: json.dataChips });
           get().addLog(`🔄 Навыки сброшены. Списанo ${cost} 💾.`, 'info');
-          get().recalcStats();
         } catch {
           get().addLog('❌ Ошибка сети при сбросе навыков', 'warning');
         }
@@ -1154,6 +1157,10 @@ export const usePlayerStore = create<PlayerStore>()(
       restTick: () => {
         const s = get();
         if (s.stats.currentHp >= s.stats.maxHp && s.stats.stamina >= s.stats.maxStamina) return true;
+        const regenUsed = s.stats.regen;
+        const hpBefore = s.stats.currentHp;
+        const hpAfter = Math.min(s.stats.maxHp, hpBefore + regenUsed * 3 + 5);
+        console.log('[REST_TICK_FN]', { before: hpBefore, regenUsed, formula: `${regenUsed}*3+5=${regenUsed*3+5}`, after: hpAfter, maxHp: s.stats.maxHp, ts: Date.now() });
         set((state) => ({
           stats: {
             ...state.stats,
@@ -1168,6 +1175,7 @@ export const usePlayerStore = create<PlayerStore>()(
     {
       name: 'remastered_player',
       version: 9,
+      migrate: (persisted: any) => persisted,
       partialize: (state) => ({
         level: state.level, currentExp: state.currentExp, expToNext: state.expToNext,
         dataChips: state.dataChips, baseHealth: state.baseHealth,

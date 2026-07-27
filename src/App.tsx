@@ -1,4 +1,4 @@
-const BUILD_VERSION = '2026-07-27 rewards-v3.3';
+const BUILD_VERSION = '2026-07-27 rewards-v3.5';
 console.log('BUILD VERSION:', BUILD_VERSION);
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -127,16 +127,21 @@ const AppContent = () => {
       const data = await loadGame();
       if (!data) return;
 
-      // Keep client's XP/level — server may have stale values while exploration XP accumulates client-side
+      // Keep highest XP/level — server may have stale values while exploration XP accumulates client-side
       const psBefore = usePlayerStore.getState();
-      const clientXpRestore = { currentExp: psBefore.currentExp, level: psBefore.level, expToNext: psBefore.expToNext };
+      const serverPlayer = data.player as any;
 
-      if (data.player) {
-        usePlayerStore.setState(data.player as any);
-        // Restore client XP/level after server overwrite
-        usePlayerStore.setState(clientXpRestore);
+      if (serverPlayer) {
+        usePlayerStore.setState(serverPlayer);
+        // Restore max(server, client) XP/level after server overwrite
+        // (client persist may have been discarded on version mismatch)
+        usePlayerStore.setState({
+          level: Math.max(psBefore.level, serverPlayer.level ?? 1),
+          currentExp: Math.max(psBefore.currentExp, serverPlayer.currentExp ?? 0),
+          expToNext: Math.max(psBefore.expToNext, serverPlayer.expToNext ?? 100),
+        });
         // Skills are now server-authoritative — reload from DB after restore
-        usePlayerStore.getState().loadSkills();
+        await usePlayerStore.getState().loadSkills();
       }
       if (!hasInventory && data.inventory) {
         useInventoryStore.setState(data.inventory as any);

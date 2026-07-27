@@ -43,27 +43,37 @@ export const useGameLoop = () => {
       // 4. Exploration tick
       const exploration = useExplorationStore.getState();
       if (exploration.isExploring) {
-        exploration.pollServerState();
+        exploration.pollServerState().catch(() => {});
       }
 
       // 5. Rest tick
       if (ui.isResting) {
+        const sBefore = usePlayerStore.getState().stats;
+        console.log('[REST_TICK] before', { currentHp: sBefore.currentHp, maxHp: sBefore.maxHp, regen: sBefore.regen, stamina: sBefore.stamina, maxStamina: sBefore.maxStamina, ts: Date.now() });
         const done = player.restTick();
+        const sAfter = usePlayerStore.getState().stats;
         if (done) {
+          console.log('[REST_TICK] done — HP full');
           ui.setIsResting(false);
           ui.addToast('Полностью восстановлен!', 'success');
+        } else {
+          console.log('[REST_TICK] after', { currentHp: sAfter.currentHp, hpDelta: sAfter.currentHp - sBefore.currentHp, ts: Date.now() });
         }
       }
 
-      // 6. Passive regen — faster at base, slower outside
-      if (!player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
+      // 6. Passive regen — faster at base, slower outside (skip during server-polled phase of exploration)
+      const skipRegenDueToExploration = exploration.isExploring && !exploration.isReturningHome;
+      if (!skipRegenDueToExploration && !player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
         const s = player.stats;
-        if (s.currentHp < s.maxHp || s.stamina < s.maxStamina) {
+        if (s.currentHp !== s.maxHp || s.stamina !== s.maxStamina) {
           const atBase = !player.travel.isReturning && !player.travel.isTraveling;
+          const regenVal = s.regen * (atBase ? 1 : 0.3);
+          const newHp = Math.min(s.maxHp, s.currentHp + regenVal);
+          console.log('[PASSIVE_REGEN]', { before: s.currentHp, regenUsed: s.regen, multiplier: atBase ? 1 : 0.3, regenVal, after: newHp, maxHp: s.maxHp, ts: Date.now() });
           usePlayerStore.setState({
             stats: {
               ...s,
-              currentHp: Math.min(s.maxHp, s.currentHp + s.regen * (atBase ? 1 : 0.3)),
+              currentHp: newHp,
               stamina: Math.min(s.maxStamina, s.stamina + (atBase ? 1 : 0.1)),
             },
           });

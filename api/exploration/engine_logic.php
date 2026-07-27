@@ -44,6 +44,21 @@ function generateMicroEvent($zoneDesc, $faction) {
 }
 
 // ---------------------------------------------------------------------------
+// Offline reward creation
+// ---------------------------------------------------------------------------
+function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr) {
+  if ($itemCount <= 0) return;
+  $rewardData = json_encode([
+    'source' => 'travel',
+    'event_type' => $eventType,
+    'effects' => $effectsArr,
+  ], JSON_UNESCAPED_UNICODE);
+  $stmt = $pdo->prepare("INSERT INTO offline_rewards (user_id, exploration_id, event_id, event_text, item_count, player_level, generation_version, reward_data)
+    VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
+  $stmt->execute([$userId, $expId, $eventId, $eventText, $itemCount, $playerLevel, $rewardData]);
+}
+
+// ---------------------------------------------------------------------------
 // Core: process ticks for an exploration
 // ---------------------------------------------------------------------------
 function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
@@ -62,19 +77,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
   $dbLastTickSec = (int)$dbLastTick->fetch()['dbts'];
   $lastTickSec = $exp['last_tick_at'] ? $dbLastTickSec : $dbNowSec;
   $elapsedSec = max(0, $dbNowSec - $lastTickSec);
-  // Stale detection: if last_tick_at is null or idle > 5 min, auto-complete
   $expId = $exp['id'];
-  if ((!$exp['last_tick_at'] || $elapsedSec > 300) && $exp['phase'] !== 'travel_back') {
-    $exp['phase'] = 'complete';
-    saveExplorationHistory($pdo, $userId, $exp, 'complete');
-    $fields = ['phase' => 'complete', 'time_left' => 0,
-      'tick_count' => $exp['tick_count'], 'event_cooldown' => 0,
-      'micro_event_cooldown' => 0, 'last_tick_at' => $pdo->query("SELECT NOW(3) AS dbnow")->fetch()['dbnow']];
-    if ($exp['legendary_rewards']) $fields['legendary_rewards'] = is_string($exp['legendary_rewards']) ? $exp['legendary_rewards'] : json_encode($exp['legendary_rewards']);
-    setExploreFields($pdo, $expId, $fields);
-    return buildStatus($pdo, $exp, []);
-  }
-
   $ticksToProcess = min($elapsedSec, $maxTicks);
   if ($ticksToProcess <= 0) {
     // Still in cooldown — just return current state
@@ -87,6 +90,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
   // Passive regen per tick
   $sd = getSaveData($pdo, $userId);
   $regenPerTick = (int)($sd['player']['stats']['regen'] ?? 0);
+  $playerLevel = getPlayerLevel($pdo, $userId);
 
   for ($i = 0; $i < $ticksToProcess; $i++) {
     // Passive regen per tick
@@ -141,6 +145,11 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           if ($legEvent) {
             $events[] = $legEvent;
             saveEvent($pdo, $userId, $expId, $legEvent);
+            $legEff = json_decode($legEvent['effects'], true);
+            if (isset($legEff['itemCount']) && $legEff['itemCount'] > 0) {
+              $eventId = $pdo->lastInsertId();
+              createOfflineReward($pdo, $userId, $expId, $eventId, $legEvent['text'], $legEvent['type'], (int)$legEff['itemCount'], $playerLevel, $legEff);
+            }
           }
         }
         $exp['tick_count']++;
@@ -160,12 +169,11 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       if ($exp['micro_event_cooldown'] <= 0) {
         $me = generateMicroEvent($zoneDesc, '');
         $applyResult = applyEffects($pdo, $userId, $me['effects']);
-        $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
+        // Micro events never generate items
+        unset($me['effects']['itemCount']);
+        $exp['total_items'] = (int)$exp['total_items'] + (int)($me['effects']['itemCount'] ?? 0);
         $exp['total_chips'] = (int)$exp['total_chips'] + (int)($me['effects']['chips'] ?? 0);
         $exp['total_exp'] = (int)$exp['total_exp'] + (int)($me['effects']['exp'] ?? 0);
-        if ($applyResult['count'] > 0) {
-          $me['effects']['items'] = $applyResult['items'];
-        }
         $meEvent = [
           'text' => $me['text'],
           'type' => $me['type'],
@@ -217,7 +225,6 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           // Regular event
           $itemsRef = loadInventoryItems($pdo, $userId);
           $origIds = array_column($itemsRef, 'id');
-          $playerLevel = getPlayerLevel($pdo, $userId);
           $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
           $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count']);
           if (!empty($event['resourceHad'])) {
@@ -227,9 +234,6 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
           $exp['total_chips'] = (int)$exp['total_chips'] + (int)($event['effects']['chips'] ?? 0);
           $exp['total_exp'] = (int)$exp['total_exp'] + (int)($event['effects']['exp'] ?? 0);
-          if ($applyResult['count'] > 0) {
-            $event['effects']['items'] = $applyResult['items'];
-          }
           $ev = [
             'text' => $event['text'],
             'type' => $event['type'],
@@ -244,6 +248,10 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           ];
           $events[] = $ev;
           saveEvent($pdo, $userId, $expId, $ev);
+          if ($applyResult['count'] > 0) {
+            $eventId = $pdo->lastInsertId();
+            createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $applyResult['count'], $playerLevel, $event['effects']);
+          }
         }
         $exp['event_cooldown'] = RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX);
       }
@@ -268,11 +276,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
     break; // unknown phase
   }
 
-  // Update last_tick_at and totals
-  $dbNowRow = $pdo->query("SELECT NOW(3) AS dbnow")->fetch();
-  $nowStr = $dbNowRow['dbnow'];
+  // Update last_tick_at by processed ticks via MySQL DATE_ADD (avoids PHP/MySQL timezone mismatch)
   $fields = [
-    'last_tick_at' => $nowStr,
     'phase' => $exp['phase'],
     'time_left' => $exp['time_left'],
     'tick_count' => $exp['tick_count'],
@@ -290,6 +295,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
     $fields['legendary_rewards'] = is_string($exp['legendary_rewards']) ? $exp['legendary_rewards'] : json_encode($exp['legendary_rewards']);
   }
   setExploreFields($pdo, $expId, $fields);
+  $ltStmt = $pdo->prepare("UPDATE explorations SET last_tick_at = DATE_ADD(last_tick_at, INTERVAL ? SECOND) WHERE id = ?");
+  $ltStmt->execute([$ticksToProcess, $expId]);
 
   return buildStatus($pdo, $exp, $events);
 }
@@ -305,18 +312,16 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
   $stageIdx = (int)$exp['legendary_stage'];
   if (!isset($leg['stages'][$stageIdx])) return null;
   $stage = $leg['stages'][$stageIdx];
+  $playerLevel = getPlayerLevel($pdo, $userId);
   if (empty($stage['text'])) {
     // Final stage — give final reward
-    $fr = computeLegendaryReward($leg['fr_rw'], getPlayerLevel($pdo, $userId));
+    $fr = computeLegendaryReward($leg['fr_rw'], $playerLevel);
     $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
     $merged = mergeEffectsArr($rewards, $fr);
     $applyResult = applyEffects($pdo, $userId, $merged);
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($fr['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($fr['exp'] ?? 0);
-    if ($applyResult['count'] > 0) {
-      $fr['items'] = $applyResult['items'];
-    }
     $exp['legendary_id'] = null;
     $exp['legendary_stage'] = null;
     $exp['legendary_auto_resolve'] = null;
@@ -338,7 +343,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
 
   // 70/30 roll
   $success = mt_rand(1, 100) <= 70;
-  $stageReward = computeLegendaryReward($stage['rw'], getPlayerLevel($pdo, $userId));
+  $stageReward = computeLegendaryReward($stage['rw'], $playerLevel);
   $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
 
   if ($success) {
@@ -350,9 +355,6 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($stageReward['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($stageReward['exp'] ?? 0);
-    if ($applyResult['count'] > 0) {
-      $stageReward['items'] = $applyResult['items'];
-    }
     return [
       'text' => $stage['suc'],
       'type' => 'legendary',
@@ -372,9 +374,6 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($rewards['chips'] ?? 0);
     $exp['total_exp'] = (int)$exp['total_exp'] + (int)($rewards['exp'] ?? 0);
-    if ($applyResult['count'] > 0) {
-      $rewards['items'] = $applyResult['items'];
-    }
     $exp['legendary_id'] = null;
     $exp['legendary_stage'] = null;
     $exp['legendary_auto_resolve'] = null;
@@ -416,7 +415,8 @@ function handleExplorationDeath($pdo, $userId, &$exp) {
     putSaveData($pdo, $userId, $sd);
   }
   $exp['phase'] = 'complete';
-  setExploreFields($pdo, $exp['id'], ['phase' => 'complete', 'last_tick_at' => date('Y-m-d H:i:s')]);
+  $dbNowRow = $pdo->query("SELECT NOW(3) AS dbnow")->fetch();
+  setExploreFields($pdo, $exp['id'], ['phase' => 'complete', 'last_tick_at' => $dbNowRow['dbnow']]);
   saveExplorationHistory($pdo, $userId, $exp, 'dead');
 }
 
@@ -631,7 +631,7 @@ function applyEffects($pdo, $userId, $effects) {
     $changed = true;
   }
   if (isset($effects['itemCount']) && $effects['itemCount'] > 0) {
-    $result = generateLoot($pdo, $userId, '', 1, $effects['itemCount']);
+    $result['count'] = (int)$effects['itemCount'];
   }
   if ($changed) putSaveData($pdo, $userId, $sd);
   return $result;

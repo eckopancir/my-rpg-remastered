@@ -307,8 +307,13 @@ export const Equipment = () => {
 
       <div style={{
         background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
-        border: '1px solid rgba(217,119,6,0.15)',
+        border: '2px solid rgba(217,119,6,0.2)',
         borderRadius: '0 0 8px 8px',
+        boxShadow: [
+          '0 0 0 1px rgba(217,119,6,0.3)',
+          '0 0 12px rgba(217,119,6,0.06)',
+          'inset 0 0 30px rgba(217,119,6,0.02)',
+        ].join(', '),
         padding: '11px 15px',
         display: 'flex', gap: 18, minWidth: 550,
       }}>

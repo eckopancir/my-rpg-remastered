@@ -27,6 +27,9 @@ try {
 
     // Deduct chips
     $sd['player']['dataChips'] = $chips - $cost;
+    // Clear skills in save_data JSON so loadGame() returns empty skills
+    $sd['player']['skills'] = new stdClass();
+    $sd['player']['pendingSkills'] = new stdClass();
     $updSave = $pdo->prepare('UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?');
     $updSave->execute([json_encode($sd, JSON_UNESCAPED_UNICODE), $user['id']]);
 

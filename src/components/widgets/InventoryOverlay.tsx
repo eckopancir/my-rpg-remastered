@@ -289,8 +289,13 @@ export const InventoryOverlay = () => {
           {/* Body */}
           <div style={{
             background: 'linear-gradient(180deg, rgb(8,20,18), rgb(5,12,10))',
-            border: '1px solid rgba(20,184,166,0.1)',
+            border: '2px solid rgba(217,119,6,0.2)',
             borderRadius: '0 0 6px 6px',
+            boxShadow: [
+              '0 0 0 1px rgba(217,119,6,0.3)',
+              '0 0 12px rgba(217,119,6,0.06)',
+              'inset 0 0 30px rgba(217,119,6,0.02)',
+            ].join(', '),
             padding: 8, minWidth: cols * (cellSize + 4) + 16,
           }}>
             {/* Filters */}

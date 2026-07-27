@@ -226,8 +226,11 @@ export const useExplorationStore = create<ExplorationStore>()(
           const playerData = data.player as { currentHp?: number } | undefined;
           if (playerData?.currentHp !== undefined) {
             const ps = usePlayerStore.getState();
-            if (playerData.currentHp !== ps.stats.currentHp) {
-              usePlayerStore.setState({ stats: { ...ps.stats, currentHp: playerData.currentHp } });
+            const serverHp = playerData.currentHp;
+            const cappedHp = Math.min(serverHp, ps.stats.maxHp);
+            if (cappedHp !== ps.stats.currentHp) {
+              console.log('[SERVER_HP_SYNC]', { before: ps.stats.currentHp, serverHp, cappedHp, maxHp: ps.stats.maxHp, ts: Date.now() });
+              usePlayerStore.setState({ stats: { ...ps.stats, currentHp: cappedHp } });
             }
           }
 
