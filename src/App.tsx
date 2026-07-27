@@ -127,25 +127,22 @@ const AppContent = () => {
       const data = await loadGame();
       if (!data) return;
 
+      // Keep client's XP/level — server may have stale values while exploration XP accumulates client-side
+      const psBefore = usePlayerStore.getState();
+      const clientXpRestore = { currentExp: psBefore.currentExp, level: psBefore.level, expToNext: psBefore.expToNext };
+
       if (data.player) {
-        // Don't overwrite XP/level from server — client-side addExp() manages them
-        const { currentExp: _xp, level: _lv, expToNext: _etn, ...serverPlayer } = data.player as any;
-        usePlayerStore.setState(serverPlayer);
+        usePlayerStore.setState(data.player as any);
+        // Restore client XP/level after server overwrite
+        usePlayerStore.setState(clientXpRestore);
         // Skills are now server-authoritative — reload from DB after restore
         usePlayerStore.getState().loadSkills();
       }
       if (!hasInventory && data.inventory) {
         useInventoryStore.setState(data.inventory as any);
       }
-      if (data.exploration) useExplorationStore.setState(data.exploration as any);
-      if (data.ui) {
-        // Strip any stale crafting fields from old server saves
-        const { craftingTimer: _ct, craftingTimerMax: _ctm, craftingType: _cty, craftingLabel: _cl, ...cleanUi } = data.ui as any;
-        useUiStore.setState({
-          ...cleanUi,
-          queue: [],
-        });
-      }
+      // Don't overwrite exploration state from server — persist middleware handles it
+      // and server may re-trigger stale event processing
       usePlayerStore.getState().recalcStats();
 
       // Restore active base upgrade in sidebar (works on any page)
