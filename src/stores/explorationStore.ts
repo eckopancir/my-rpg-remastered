@@ -345,6 +345,12 @@ export const useExplorationStore = create<ExplorationStore>()(
     {
       name: 'remastered_exploration',
       version: 7,
+      migrate: (persisted: any) => {
+        const clean = { ...persisted };
+        delete clean.eventRewardItems;
+        delete clean.isProcessingRewards;
+        return clean;
+      },
       partialize: (state) => ({
         isExploring: state.isExploring,
         zoneName: state.zoneName,

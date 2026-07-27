@@ -237,17 +237,15 @@ export const Adventures = () => {
                             if (e.itemCount && e.itemCount > 0) rewardParts.push(`📦+${e.itemCount}`);
                             const d = Math.floor((new Date(ev.created_at).getTime() - baseTime) / 1000);
                             return (
-                              <div key={i} style={{ padding: '3px 0' }}>
-                                <div style={{ display: 'flex', gap: 6, color: 'var(--text-secondary)' }}>
-                                  <span style={{ color: 'var(--text-muted)', fontSize: 10, whiteSpace: 'nowrap', minWidth: 32 }}>
-                                    {d >= 0 ? `+${Math.floor(d/60)}:${(d%60).toString().padStart(2,'0')}` : ''}
-                                  </span>
-                                  <span style={{ flex: 1 }}>{ev.text}</span>
-                                </div>
+                              <div key={i} style={{ display: 'flex', gap: 6, padding: '3px 0', color: 'var(--text-secondary)' }}>
+                                <span style={{ color: 'var(--text-muted)', fontSize: 10, whiteSpace: 'nowrap', minWidth: 32 }}>
+                                  {d >= 0 ? `+${Math.floor(d/60)}:${(d%60).toString().padStart(2,'0')}` : ''}
+                                </span>
+                                <span style={{ flex: 1 }}>{ev.text}</span>
                                 {rewardParts.length > 0 && (
-                                  <div style={{ display: 'flex', gap: 4, marginLeft: 38, fontSize: 10, color: 'var(--accent-success)', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap', marginLeft: 8 }}>
                                     {rewardParts.join(' ')}
-                                  </div>
+                                  </span>
                                 )}
                               </div>
                             );
