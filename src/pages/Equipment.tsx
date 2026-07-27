@@ -16,7 +16,7 @@ const QUALITY_STARS: Record<string, number> = {
   'Смертоносный': 5, 'Легендарный': 6, 'Божественный': 7,
 };
 
-const S = 1.5;
+  const S = 1.65;
 const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   head: { top: Math.round(12 * S), left: Math.round(45 * S) },
   armor: { top: Math.round(100 * S), left: Math.round(45 * S) },
@@ -44,13 +44,17 @@ const STAT_LABELS: Record<string, string> = {
   dpsExtro: 'Экстро урон', dpsFire: 'Огненный урон',
 };
 
-const formatStat = (k: string, v: number): string => {
-  const pct = ['crit', 'evasion', 'block', 'vampir', 'incomingDamageMult'];
-  const pctKeys = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'incomingDamageMult'];
-  if (pctKeys.includes(k)) return `${STAT_LABELS[k] || k}: ${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%`;
-  if (v >= 1) return `${STAT_LABELS[k] || k}: ${v.toFixed(1)}`;
-  return `${STAT_LABELS[k] || k}: ${v.toFixed(3)}`;
-};
+  const statValue = (k: string, v: number): { label: string; val: string; color: string } | null => {
+    if (v === 0 && k !== 'accuracy') return null;
+    if (k === 'accuracy' && v === 0.1) return null;
+    const label = STAT_LABELS[k] || k;
+    const pctKeys = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'incomingDamageMult'];
+    const val = pctKeys.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
+    const color = ['damage', 'crit', 'accuracy', 'punching', 'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'].includes(k)
+      ? '#f87171' : k === 'maxHp' || k === 'armor' || k === 'evasion' || k === 'block'
+        ? '#4ade80' : '#94a3b8';
+    return { label, val, color };
+  };
 
 export const Equipment = () => {
   const equipment = usePlayerStore((s) => s.equipment);
@@ -79,7 +83,7 @@ export const Equipment = () => {
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragRef.current.dragging) return;
-      const newX = Math.max(0, Math.min(window.innerWidth - 720, dragRef.current.startPosX + e.clientX - dragRef.current.startX));
+      const newX = Math.max(0, Math.min(window.innerWidth - 800, dragRef.current.startPosX + e.clientX - dragRef.current.startX));
       const newY = Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.startPosY + e.clientY - dragRef.current.startY));
       setPos({ x: newX, y: newY });
       setEquipmentPinPos({ x: newX, y: newY });
@@ -191,8 +195,8 @@ export const Equipment = () => {
     const item = equipment[slot];
     const pos = SLOT_POSITIONS[slot];
     const isAmmo = slot.startsWith('ammo');
-    const slotW = isAmmo ? 50 : 62;
-    const slotH = isAmmo ? 42 : 54;
+    const slotW = isAmmo ? 62 : 74;
+    const slotH = isAmmo ? 52 : 64;
     const isOccupied = !!equipment[slot];
     const isDragTarget = draggedItemId && validDropSlots.has(slot) && !isOccupied;
 
@@ -227,12 +231,12 @@ export const Equipment = () => {
                 ? (item.qualityColor || '#818cf8')
                 : 'rgba(255,255,255,0.08)'
           }`,
-          borderRadius: 6,
+          borderRadius: 8,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: isDragTarget
-            ? '0 0 14px rgba(34,197,94,0.5)'
+            ? '0 0 18px rgba(34,197,94,0.5)'
             : item
-              ? `0 0 8px ${(item.qualityColor || '#818cf8') + '66'}`
+              ? `0 0 10px ${(item.qualityColor || '#818cf8') + '66'}`
               : 'none',
           cursor: 'pointer',
           transition: 'all 120ms',
@@ -241,36 +245,34 @@ export const Equipment = () => {
         {item ? (
           <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             {stars > 0 && (
-              <div style={{ position: 'absolute', top: 1, left: 2, fontSize: 7, color: '#fbbf24', lineHeight: 1, zIndex: 2, whiteSpace: 'nowrap' }}>
-                {'★'.repeat(stars)}
+              <div style={{ position: 'absolute', top: 1, left: 3, fontSize: 9, color: '#fbbf24', lineHeight: 1, zIndex: 2, whiteSpace: 'nowrap' }}>
+                {'★'.repeat(Math.min(stars, 5))}
               </div>
             )}
-            {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 36 : 42, height: isAmmo ? 32 : 42, objectFit: 'contain', imageRendering: 'pixelated', position: 'relative', top: stars > 0 ? -2 : 0 }} /> : null; })()}
-            <div style={{ fontSize: 7, color: 'var(--text-muted)', lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
+            {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 42 : 50, height: isAmmo ? 36 : 50, objectFit: 'contain', imageRendering: 'pixelated', position: 'relative', top: stars > 0 ? -3 : 0 }} /> : null; })()}
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
               {item.level || 0} ур.
             </div>
             {isAmmo && (item.quantity || 0) > 1 && (
               <div style={{
                 position: 'absolute', bottom: 1, right: 2,
-                fontSize: 7, fontWeight: 600, fontFamily: 'var(--font-mono)',
-                color: '#fff', background: 'rgba(0,0,0,0.7)',
-                borderRadius: 2, padding: '0 2px', lineHeight: '11px',
+                fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                color: '#fff', background: 'rgba(0,0,0,0.75)',
+                borderRadius: 3, padding: '0 3px', lineHeight: '13px',
               }}>
                 x{item.quantity}
               </div>
             )}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.15)' }}>{SLOT_LABELS[slot]}</span>
-            <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.08)' }}>🔧</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)' }}>{SLOT_LABELS[slot]}</span>
+            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.06)' }}>+</span>
           </div>
         )}
       </div>
     );
   };
-
-  const statKeys: (keyof typeof stats)[] = ['damage', 'crit', 'accuracy', 'armor', 'evasion', 'block', 'maxHp', 'maxStamina', 'regen', 'vampir', 'speed', 'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'];
 
   const statGroups: { label: string; keys: (keyof typeof stats)[] }[] = [
     { label: '⚔️ Боевые', keys: ['damage', 'crit', 'accuracy', 'punching'] },
@@ -305,13 +307,69 @@ export const Equipment = () => {
 
       <div style={{
         background: 'linear-gradient(180deg, rgba(20,12,8,0.85), rgba(10,8,5,0.9))',
-        border: '1px solid rgba(217,119,6,0.1)',
-        borderRadius: '0 0 6px 6px',
-        padding: '12px 16px',
-        display: 'flex', gap: 16,
+        border: '1px solid rgba(217,119,6,0.15)',
+        borderRadius: '0 0 8px 8px',
+        padding: '16px 20px',
+        display: 'flex', gap: 24, minWidth: 680,
       }}>
-        {/* Left: character + slots */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        {/* Left: stats panel */}
+        <div style={{ minWidth: 260, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Summary line */}
+          <div style={{ fontSize: 14, color: 'var(--text-secondary)', display: 'flex', gap: 12, alignItems: 'center' }}>
+            <span style={{ background: 'rgba(251,191,36,0.1)', padding: '2px 8px', borderRadius: 4 }}>📦 {equippedCount}/10</span>
+            <span style={{ color: '#fbbf24' }}>⭐ {avgStars.toFixed(1)}</span>
+            <span>📊 {avgLevel.toFixed(1)} ур.</span>
+          </div>
+
+          {/* Total power */}
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#fbbf24', lineHeight: 1.1, letterSpacing: '0.5px' }}>
+            ⚡{stats.power ?? 0}
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(217,119,6,0.3), transparent)' }} />
+
+          {/* Stat groups */}
+          {statGroups.map((g) => {
+            const entries = g.keys
+              .map((k) => ({ key: k, ...(statValue(k, stats[k] ?? 0) ?? { label: '', val: '', color: '' }) }))
+              .filter((e) => e.label);
+            if (entries.length === 0) return null;
+            return (
+              <div key={g.label} style={{ fontSize: 13, lineHeight: 1.8 }}>
+                <div style={{ color: '#a16207', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 1 }}>{g.label}</div>
+                {entries.map((e) => (
+                  <div key={e.key} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
+                    <span style={{ color: '#a0aec0' }}>{e.label}</span>
+                    <span style={{ color: e.color, fontWeight: 600 }}>{e.val}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          {/* Divider */}
+          <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(217,119,6,0.3), transparent)' }} />
+
+          {/* Item powers per slot */}
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+            <div style={{ color: '#a16207', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 1 }}>⚡ Сила предметов</div>
+            {EQUIPMENT_SLOTS.map((s) => {
+              const it = equipment[s];
+              if (!it) return null;
+              const pw = calcItemPower(it);
+              return (
+                <div key={s} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
+                  <span>{SLOT_LABELS[s]}</span>
+                  <span style={{ color: '#fbbf24', fontWeight: 600 }}>⚡{pw}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right: character + slots */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <div style={{
             position: 'relative',
             width: Math.round(150 * S),
@@ -325,46 +383,6 @@ export const Equipment = () => {
             flexShrink: 0,
           }}>
             {EQUIPMENT_SLOTS.map(renderSlot)}
-          </div>
-        </div>
-
-        {/* Right: stats panel */}
-        <div style={{ minWidth: 240, maxWidth: 280, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {/* Summary */}
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <span>📦 {equippedCount}/10</span>
-            <span>⭐ {avgStars.toFixed(1)}</span>
-            <span>📊 {avgLevel.toFixed(1)} ур.</span>
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#fbbf24', lineHeight: 1.2 }}>
-            ⚡{stats.power ?? 0}
-          </div>
-
-          {/* Stat groups */}
-          {statGroups.map((g) => {
-            const hasAny = g.keys.some((k) => stats[k] !== undefined && stats[k] !== 0 && stats[k] !== 0.1);
-            if (!hasAny) return null;
-            return (
-              <div key={g.label} style={{ fontSize: 10, lineHeight: 1.6 }}>
-                <div style={{ color: 'var(--text-muted)', fontWeight: 600, marginBottom: 1, fontSize: 9 }}>{g.label}</div>
-                {g.keys.map((k) => {
-                  const v = stats[k];
-                  if (v === undefined || (v === 0 && k !== 'accuracy')) return null;
-                  if (k === 'accuracy' && v === 0.1) return null;
-                  return <div key={k} style={{ color: 'var(--text-secondary)', paddingLeft: 8 }}>{formatStat(k, v)}</div>;
-                })}
-              </div>
-            );
-          })}
-
-          {/* Item powers per slot */}
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
-            {EQUIPMENT_SLOTS.map((s) => {
-              const it = equipment[s];
-              if (!it) return null;
-              const pw = calcItemPower(it);
-              return <div key={s}>{SLOT_LABELS[s]}: ⚡{pw}</div>;
-            })}
           </div>
         </div>
       </div>
