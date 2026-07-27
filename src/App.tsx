@@ -128,7 +128,9 @@ const AppContent = () => {
       if (!data) return;
 
       if (data.player) {
-        usePlayerStore.setState(data.player as any);
+        // Don't overwrite XP/level from server — client-side addExp() manages them
+        const { currentExp: _xp, level: _lv, expToNext: _etn, ...serverPlayer } = data.player as any;
+        usePlayerStore.setState(serverPlayer);
         // Skills are now server-authoritative — reload from DB after restore
         usePlayerStore.getState().loadSkills();
       }
