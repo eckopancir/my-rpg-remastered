@@ -9,6 +9,39 @@ import { GAME_ITEMS } from '../data/GameItems';
 
 const API_BASE = '/api/exploration';
 
+const DEATH_FLAVORS = [
+  'Странствующий торговец нашёл ваше бездыханное тело и донёс до базы.',
+  'Отряд сталкеров подобрал вас в пустоши и доставил к лекарю.',
+  'Местные жители нашли вас у дороги и выходили ценой своих припасов.',
+  'Бродячий механик наткнулся на ваше тело и отвёз на своей телеге.',
+  'Спасательная группа услышала сигнал твоего КПК и эвакуировала.',
+  'Стая псов кружила вокруг, но вмешался рейнджер и отбил вас.',
+  'Ваше тело подобрал дрон-медик и доставил в ближайший лагерь.',
+  'Караванщики нашли вас в кювете и подбросили до базы за спасибо.',
+  'Из последних сил дополз до тракта — тебя подобрал попутный грузовик.',
+  'Кочевое племя выходило вас с помощью древних техник.',
+  'Бандиты обыскали вас, забрали ценное, но бросили умирать — тебя нашли свои.',
+  'Вас вынес на себе наёмник, которому ты задолжал пару чипов.',
+  'Безымянный герой рискнул жизнью и вытащил вас из зоны поражения.',
+  'Патруль сектора эвакуировал вас после того, как сигнал биометрии пропал.',
+  'Случайный охотник за артефактами наткнулся на ваше тело в аномалии.',
+  'Монахи из ближайшего скита подобрали вас и отмолили от смерти.',
+  'Боевой медик ввёл стимулятор и на руках донёс до госпиталя.',
+  'Вас эвакуировали на вертолёте — пришлось отдать последние чипы за топливо.',
+  'Старый друг выкупил вас у мародёров, не задавая лишних вопросов.',
+  'Конвой ООН наткнулся на вас и оказал первую помощь.',
+  'Вы очнулись в капсуле Vita — автоматическая система спасения сработала.',
+  'Тебя вытащили из-под завалов, когда здание рухнуло.',
+  'Ребёнок привёл взрослых к вашему телу — вся деревня помогала выхаживать.',
+  'Собака-поводырь притащила аптечку и грела вас до прихода подмоги.',
+  'Путешественник из другого клана поделился последней аптечкой.',
+  'Вы промёрзли до костей, но охотничья избушка дала убежище — вас нашли по дыму.',
+  'Шахтёры наткнулись на вас в туннеле и вытащили на поверхность.',
+  'Робот-уборщик принял вас за мусор и сгрузил в лазарет — главное, живой.',
+  'Цыганский табор выходил вас за несколько монет и гадание на судьбу.',
+  'Вас смыло рекой, но рыбаки вытянули сетями и откачали.',
+];
+
 export interface ServerExploration {
   id: number;
   zone: string;
@@ -57,6 +90,8 @@ interface ExplorationStore {
   processedEventId: number;
   eventRewardItems: Record<number, { items: GeneratedItem[]; saved: boolean }>;
   isProcessingRewards: boolean;
+  isReturningHome: boolean;
+  deathFlavor: string;
 
   startExploration: (zoneName: string) => Promise<void>;
   cancelExploration: () => Promise<void>;
@@ -88,6 +123,8 @@ export const useExplorationStore = create<ExplorationStore>()(
       processedEventId: 0,
       eventRewardItems: {},
       isProcessingRewards: false,
+      isReturningHome: false,
+      deathFlavor: '',
 
       startExploration: async (zoneName) => {
         const token = getToken();
@@ -132,19 +169,30 @@ export const useExplorationStore = create<ExplorationStore>()(
         try {
           await fetch(`${API_BASE}/cancel.php`, { headers: { Authorization: `Bearer ${token}` } });
         } catch { /* ignore */ }
-        usePlayerStore.getState().addLog('🛑 Исследование прервано.', 'warning');
-        syncInventoryFromServer(token);
+        usePlayerStore.getState().addLog('🛑 Возвращаемся на базу... 30 сек до прибытия.', 'warning');
         set({
-          isExploring: false, zoneName: null, phase: 'idle', serverPhase: '',
-          serverOutcome: null, timeLeft: 0, tickCount: 0,
-          eventLog: [], totalChips: 0, totalExp: 0, totalItems: 0,
-          explorationId: null, error: null,
+          phase: 'travel_back',
+          serverPhase: 'travel_back',
+          timeLeft: 30,
+          isInfinite: false,
+          isReturningHome: true,
         });
       },
 
       pollServerState: async () => {
         const state = get();
         if (!state.isExploring) return;
+
+        // Return journey countdown
+        if (state.isReturningHome) {
+          const newTimeLeft = state.timeLeft - 1;
+          if (newTimeLeft <= 0) {
+            set({ timeLeft: 0, isReturningHome: false });
+            get().completeExploration();
+            return;
+          }
+          set({ timeLeft: newTimeLeft });
+        }
 
         const token = getToken();
         if (!token) return;
@@ -240,16 +288,23 @@ export const useExplorationStore = create<ExplorationStore>()(
         const ps = usePlayerStore.getState();
 
         if (state.serverOutcome === 'dead') {
-          ps.addLog('💀 Герой погиб во время исследования.', 'danger');
-          // Death penalty: lose 30% chips, reset HP to 50%
-          const chipPenalty = Math.round(ps.dataChips * 0.3);
-          if (chipPenalty > 0) {
-            usePlayerStore.setState({ dataChips: Math.max(0, ps.dataChips - chipPenalty) });
-            ps.addLog(`💾 Потеряно ${chipPenalty} чипов.`, 'warning');
+          // Pick random death flavor
+          const flavors = DEATH_FLAVORS;
+          const flavor = flavors[Math.floor(Math.random() * flavors.length)];
+          ps.addLog(`💀 ${flavor}`, 'danger');
+          // Lose chips earned this trip
+          const lostChips = state.totalChips;
+          if (lostChips > 0) {
+            usePlayerStore.setState({ dataChips: Math.max(0, ps.dataChips - lostChips) });
+            ps.addLog(`💾 Потеряно ${lostChips} чипов.`, 'warning');
           }
+          // HP to 1%
           const maxHp = ps.stats.maxHp || 10000;
-          usePlayerStore.setState({ stats: { ...ps.stats, currentHp: Math.round(maxHp * 0.5) } });
-          ps.addLog('❤️ Здоровье восстановлено до 50%.', 'heal');
+          usePlayerStore.setState({ stats: { ...ps.stats, currentHp: Math.max(1, Math.round(maxHp * 0.01)) } });
+          ps.addLog('❤️ Здоровье восстановлено до 1%.', 'heal');
+          set({ deathFlavor: flavor });
+        } else if (state.isReturningHome) {
+          ps.addLog(`🏁 Возвращение на базу завершено.`, 'loot');
         } else {
           ps.addLog(`🏁 Исследование "${state.zoneName}" завершено!`, 'loot');
         }
@@ -260,7 +315,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           isExploring: false, zoneName: null, phase: 'idle', serverPhase: '',
           serverOutcome: null, timeLeft: 0, tickCount: 0,
           eventLog: [], totalChips: 0, totalExp: 0, totalItems: 0,
-          explorationId: null,
+          explorationId: null, isReturningHome: false,
         });
         // Process pending rewards after completion
         get().processPendingRewards();

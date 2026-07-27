@@ -76,13 +76,6 @@ export const AutoExploration = () => {
       exit={{ opacity: 0, y: -12 }}
       style={{ display: 'flex', flexDirection: 'column', gap: 16, height: '100%' }}
     >
-      {isDead && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 10,
-          background: 'rgba(100,0,0,0.15)',
-          borderRadius: 6, pointerEvents: 'none',
-        }} />
-      )}
       <WapPanel variant="metal" padding="lg" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 18, fontWeight: 600 }}>
@@ -95,7 +88,9 @@ export const AutoExploration = () => {
             border: `1px solid ${isDead ? 'var(--accent-danger)40' : `${PHASE_COLORS[s.phase]}40`}`,
             fontWeight: 500,
           }}>
-            {isDead ? '💀 Погиб' : PHASE_LABELS[s.phase]}
+            {isDead ? '💀 Погиб'
+              : s.isReturningHome ? `🏠 Возвращение ${s.timeLeft}с`
+              : PHASE_LABELS[s.phase]}
           </div>
         </div>
 
@@ -147,16 +142,22 @@ export const AutoExploration = () => {
           <ItemTooltip item={tooltipItem} x={tooltipPos.x} y={tooltipPos.y} />
         )}
 
+        {s.deathFlavor && s.phase === 'complete' && (
+          <div style={{
+            marginTop: 8, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)',
+            padding: '10px 14px', background: 'rgba(248,113,113,0.1)',
+            border: '1px solid rgba(248,113,113,0.2)', borderRadius: 'var(--radius-sm)',
+            fontStyle: 'italic',
+          }}>
+            💀 {s.deathFlavor}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 12, marginTop: 12, justifyContent: 'flex-end' }}>
-          {isDead ? (
-            <button onClick={() => { s.completeExploration(); navigate('/dashboard'); }} style={{
-              padding: '10px 32px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--accent-danger)', background: 'rgba(248,113,113,0.2)',
-              color: '#f87171', cursor: 'pointer', fontSize: 15, fontWeight: 600,
-              fontFamily: 'var(--wa-font-terminal)',
-            }}>
-              💀 Вернуться на базу
-            </button>
+          {s.isReturningHome && s.phase === 'travel_back' ? (
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+              🏠 Возвращение на базу... {s.timeLeft} сек
+            </div>
           ) : s.phase === 'complete' ? (
             <button onClick={() => { s.completeExploration(); navigate('/adventure'); }} style={{
               padding: '10px 32px', borderRadius: 'var(--radius-sm)',
@@ -166,7 +167,7 @@ export const AutoExploration = () => {
             }}>
               ✅ Завершить
             </button>
-          ) : (
+          ) : !s.isReturningHome ? (
             <button onClick={handleCancel} style={{
               padding: '8px 24px', borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--accent-danger)', background: 'rgba(248,113,113,0.1)',
@@ -175,7 +176,7 @@ export const AutoExploration = () => {
             }}>
               🔴 Отмена
             </button>
-          )}
+          ) : null}
         </div>
       </WapPanel>
     </motion.div>
