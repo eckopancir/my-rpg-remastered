@@ -48,7 +48,7 @@ const STAT_LABELS: Record<string, string> = {
     if (v === 0 && k !== 'accuracy') return null;
     if (k === 'accuracy' && v === 0.1) return null;
     const label = STAT_LABELS[k] || k;
-    const pctKeys = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'incomingDamageMult'];
+    const pctKeys = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'incomingDamageMult'];
     const val = pctKeys.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
     const color = ['damage', 'crit', 'accuracy', 'punching', 'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'].includes(k)
       ? '#f87171' : k === 'maxHp' || k === 'armor' || k === 'evasion' || k === 'block'
@@ -290,7 +290,7 @@ export const Equipment = () => {
       style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 600, userSelect: 'none' }}
     >
       <WapHeader title="⚔️ ЭКИПИРОВКА" glow="amber" onMouseDown={onMouseDown}
-        style={{ background: 'linear-gradient(180deg, rgba(217,119,6,0.6), rgba(146,64,14,0.4))' }}>
+        style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))' }}>
         <span
           onClick={(e) => { e.stopPropagation(); setEquipmentPinned(!equipmentPinned); }}
           style={{ cursor: 'pointer', fontSize: 13, color: equipmentPinned ? 'var(--accent-primary)' : 'var(--text-muted)', padding: '0 4px' }}
@@ -306,7 +306,7 @@ export const Equipment = () => {
       </WapHeader>
 
       <div style={{
-        background: 'linear-gradient(180deg, rgba(20,12,8,0.85), rgba(10,8,5,0.9))',
+        background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
         border: '1px solid rgba(217,119,6,0.15)',
         borderRadius: '0 0 8px 8px',
         padding: '16px 20px',

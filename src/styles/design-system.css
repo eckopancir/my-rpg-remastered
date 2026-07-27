@@ -2,9 +2,9 @@
   /* Backgrounds */
   --bg-base: #0a0a0f;
   --bg-elevated: #12121a;
-  --bg-glass: rgba(10, 10, 15, 0.85);
-  --bg-glass-hover: rgba(20, 20, 30, 0.85);
-  --bg-glass-active: rgba(30, 30, 42, 0.85);
+  --bg-glass: rgb(10, 10, 15);
+  --bg-glass-hover: rgb(20, 20, 30);
+  --bg-glass-active: rgb(30, 30, 42);
   --bg-solid: #12121a;
   --bg-solid-hover: #1a1a26;
 
