@@ -16,7 +16,7 @@ const QUALITY_STARS: Record<string, number> = {
   'Смертоносный': 5, 'Легендарный': 6, 'Божественный': 7,
 };
 
-  const S = 1.65;
+const S = 1.25;
 const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   head: { top: Math.round(12 * S), left: Math.round(45 * S) },
   armor: { top: Math.round(100 * S), left: Math.round(45 * S) },
@@ -44,7 +44,7 @@ const STAT_LABELS: Record<string, string> = {
   dpsExtro: 'Экстро урон', dpsFire: 'Огненный урон',
 };
 
-  const statValue = (k: string, v: number): { label: string; val: string; color: string } | null => {
+const statValue = (k: string, v: number): { label: string; val: string; color: string } | null => {
     if (v === 0 && k !== 'accuracy') return null;
     if (k === 'accuracy' && v === 0.1) return null;
     const label = STAT_LABELS[k] || k;
@@ -86,7 +86,7 @@ export const Equipment = () => {
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragRef.current.dragging) return;
-      const newX = Math.max(0, Math.min(window.innerWidth - 800, dragRef.current.startPosX + e.clientX - dragRef.current.startX));
+      const newX = Math.max(0, Math.min(window.innerWidth - 580, dragRef.current.startPosX + e.clientX - dragRef.current.startX));
       const newY = Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.startPosY + e.clientY - dragRef.current.startY));
       setPos({ x: newX, y: newY });
       setEquipmentPinPos({ x: newX, y: newY });
@@ -198,8 +198,8 @@ export const Equipment = () => {
     const item = equipment[slot];
     const pos = SLOT_POSITIONS[slot];
     const isAmmo = slot.startsWith('ammo');
-    const slotW = isAmmo ? 62 : 74;
-    const slotH = isAmmo ? 52 : 64;
+    const slotW = isAmmo ? 48 : 58;
+    const slotH = isAmmo ? 40 : 50;
     const isOccupied = !!equipment[slot];
     const isDragTarget = draggedItemId && validDropSlots.has(slot) && !isOccupied;
 
@@ -243,30 +243,30 @@ export const Equipment = () => {
         >
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 42 : 50, height: isAmmo ? 36 : 50, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
+              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 32 : 38, height: isAmmo ? 28 : 38, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
+              <div style={{ fontSize: 8, color: 'var(--text-muted)', lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
                 {item.level || 0} ур.
               </div>
               {isAmmo && (item.quantity || 0) > 1 && (
                 <div style={{
                   position: 'absolute', bottom: 1, right: 2,
-                  fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  fontSize: 8, fontWeight: 700, fontFamily: 'var(--font-mono)',
                   color: '#fff', background: 'rgba(0,0,0,0.75)',
-                  borderRadius: 3, padding: '0 3px', lineHeight: '13px',
+                  borderRadius: 2, padding: '0 2px', lineHeight: '11px',
                 }}>
                   x{item.quantity}
                 </div>
               )}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)' }}>{SLOT_LABELS[slot]}</span>
-              <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.06)' }}>+</span>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.18)' }}>{SLOT_LABELS[slot]}</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.06)' }}>+</span>
+          </div>
           )}
         </div>
         {stars > 0 && (
-          <div style={{ fontSize: 10, color: '#fbbf24', lineHeight: 1, marginTop: 2, whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 8, color: '#fbbf24', lineHeight: 1, marginTop: 1, whiteSpace: 'nowrap' }}>
             {'★'.repeat(Math.min(stars, 5))}
           </div>
         )}
@@ -309,20 +309,20 @@ export const Equipment = () => {
         background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
         border: '1px solid rgba(217,119,6,0.15)',
         borderRadius: '0 0 8px 8px',
-        padding: '16px 20px',
-        display: 'flex', gap: 24, minWidth: 680,
+        padding: '10px 14px',
+        display: 'flex', gap: 16, minWidth: 500,
       }}>
         {/* Left: stats panel */}
-        <div style={{ minWidth: 260, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ minWidth: 200, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {/* Summary line */}
-          <div style={{ fontSize: 14, color: 'var(--text-secondary)', display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ background: 'rgba(251,191,36,0.1)', padding: '2px 8px', borderRadius: 4 }}>📦 {equippedCount}/10</span>
             <span style={{ color: '#fbbf24' }}>⭐ {avgStars.toFixed(1)}</span>
             <span>📊 {avgLevel.toFixed(1)} ур.</span>
           </div>
 
           {/* Total power */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, letterSpacing: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, letterSpacing: 0.5 }}>
             <span style={{ color: 'var(--text-muted)' }}>🟡</span>
             <span style={{ color: 'rgba(255,255,255,0.5)' }}>МОЩНОСТЬ</span>
             <span
@@ -345,8 +345,8 @@ export const Equipment = () => {
               .filter((e) => e.label);
             if (entries.length === 0) return null;
             return (
-              <div key={g.label} style={{ fontSize: 13, lineHeight: 1.8 }}>
-                <div style={{ color: '#a16207', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 1 }}>{g.label}</div>
+              <div key={g.label} style={{ fontSize: 11, lineHeight: 1.6 }}>
+                <div style={{ color: '#a16207', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 1 }}>{g.label}</div>
                 {entries.map((e) => (
                   <div key={e.key} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
                     <span style={{ color: '#a0aec0' }}>{e.label}</span>
@@ -360,7 +360,7 @@ export const Equipment = () => {
         </div>
 
         {/* Right: character + slots */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 65 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 40 }}>
           <div style={{
             position: 'relative',
             width: Math.round(150 * S),
