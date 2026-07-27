@@ -222,21 +222,11 @@ export const useExplorationStore = create<ExplorationStore>()(
             set({ processedEventId: maxId });
           }
 
-          // Sync player data from server to prevent dashboard sync from overwriting
-          const playerData = data.player as { dataChips?: number; currentExp?: number; currentHp?: number } | undefined;
-          if (playerData) {
+          // Sync player data from server (HP only — XP is applied via applyLocalEffects → addExp)
+          const playerData = data.player as { currentHp?: number } | undefined;
+          if (playerData?.currentHp !== undefined) {
             const ps = usePlayerStore.getState();
-            if (playerData.dataChips !== undefined && playerData.dataChips !== ps.dataChips) {
-              const diff = playerData.dataChips - ps.dataChips;
-              if (diff > 0) ps.addChips(diff);
-              else usePlayerStore.setState({ dataChips: playerData.dataChips });
-            }
-            if (playerData.currentExp !== undefined && playerData.currentExp !== ps.currentExp) {
-              const diff = playerData.currentExp - ps.currentExp;
-              if (diff > 0) ps.addExp(diff);
-              else usePlayerStore.setState({ currentExp: playerData.currentExp });
-            }
-            if (playerData.currentHp !== undefined && playerData.currentHp !== ps.stats.currentHp) {
+            if (playerData.currentHp !== ps.stats.currentHp) {
               usePlayerStore.setState({ stats: { ...ps.stats, currentHp: playerData.currentHp } });
             }
           }
