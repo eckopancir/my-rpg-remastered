@@ -152,10 +152,10 @@ export const Inventory = () => {
               }}
             >
               <div style={{ position: 'relative', margin: '0 auto 6px', textAlign: 'center' }}>
-                {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: 48, height: 48, objectFit: 'contain', imageRendering: 'pixelated', display: 'block', borderRadius: 4, background: 'rgba(0,0,0,0.2)' }} /> : null; })()}
+                {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: 48, height: 48, objectFit: 'contain', imageRendering: 'pixelated', display: 'block', borderRadius: 4, background: 'rgb(0,0,0)' }} /> : null; })()}
               </div>
               {item.abilityId && ABILITY_MAP[item.abilityId] && (
-                <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)', textAlign: 'center', marginBottom: 4, padding: '1px 4px', background: 'rgba(217,119,6,0.1)', borderRadius: 3, border: '1px solid rgba(217,119,6,0.2)' }}>
+                <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)', textAlign: 'center', marginBottom: 4, padding: '1px 4px', background: 'rgb(217,119,6)', borderRadius: 3, border: '1px solid rgb(217,119,6)' }}>
                   {ABILITY_MAP[item.abilityId].icon} {ABILITY_MAP[item.abilityId].name}
                 </div>
               )}
