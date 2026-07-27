@@ -455,11 +455,15 @@ export const useExplorationStore = create<ExplorationStore>()(
 );
 
 export async function catchUpExploration() {
-  const store = useExplorationStore.getState();
-  if (store.isExploring) {
-    await store.pollServerState();
+  try {
+    const store = useExplorationStore.getState();
+    if (store.isExploring) {
+      await store.pollServerState();
+    }
+    await store.processPendingRewards();
+  } catch {
+    // silent
   }
-  await store.processPendingRewards();
 }
 
 // Apply effects from a JSON effects string to the player store (client-side safety net)
