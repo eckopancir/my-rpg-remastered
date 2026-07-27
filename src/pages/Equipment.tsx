@@ -59,6 +59,7 @@ const STAT_LABELS: Record<string, string> = {
 export const Equipment = () => {
   const equipment = usePlayerStore((s) => s.equipment);
   const stats = usePlayerStore((s) => s.stats);
+  const powerBreakdown = usePlayerStore((s) => s.powerBreakdown);
   const equipItem = usePlayerStore((s) => s.equipItem);
   const unequipItem = usePlayerStore((s) => s.unequipItem);
   const items = useInventoryStore((s) => s.items);
@@ -77,6 +78,8 @@ export const Equipment = () => {
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [customizing, setCustomizing] = useState<{ item: Item | null; slot: string } | null>(null);
+  const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
+  const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
   const [pos, setPos] = useState(equipmentPinPos);
   const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; startPosX: number; startPosY: number }>({ dragging: false, startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
 
@@ -200,74 +203,71 @@ export const Equipment = () => {
     const isOccupied = !!equipment[slot];
     const isDragTarget = draggedItemId && validDropSlots.has(slot) && !isOccupied;
 
-    const itemPower = item ? calcItemPower(item) : 0;
     const stars = item?.quality ? (QUALITY_STARS[item.quality] || 0) : 0;
 
     return (
-      <div
-        key={slot}
-        onDrop={(e) => handleDrop(slot, e)}
-        onDragOver={handleDragOver}
-        onMouseEnter={(e) => handleMouseEnter(slot, item, e)}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        onClick={() => handleSlotClick(slot, item)}
-        onDoubleClick={() => handleSlotDoubleClick(slot, item)}
-        style={{
-          position: 'absolute',
-          top: pos.top,
-          left: pos.left,
-          width: slotW,
-          height: slotH,
-          background: isDragTarget
-            ? 'rgba(34,197,94,0.15)'
-            : item
-              ? `linear-gradient(135deg, ${item.qualityColor || '#818cf8'}22, rgba(0,0,0,0.4))`
-              : 'rgba(0,0,0,0.35)',
-          border: `2px solid ${
-            isDragTarget
-              ? 'rgba(34,197,94,0.8)'
+      <div key={slot} style={{ position: 'absolute', top: pos.top, left: pos.left, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div
+          onDrop={(e) => handleDrop(slot, e)}
+          onDragOver={handleDragOver}
+          onMouseEnter={(e) => handleMouseEnter(slot, item, e)}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          onClick={() => handleSlotClick(slot, item)}
+          onDoubleClick={() => handleSlotDoubleClick(slot, item)}
+          style={{
+            width: slotW,
+            height: slotH,
+            background: isDragTarget
+              ? 'rgba(34,197,94,0.15)'
               : item
-                ? (item.qualityColor || '#818cf8')
-                : 'rgba(255,255,255,0.08)'
-          }`,
-          borderRadius: 8,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: isDragTarget
-            ? '0 0 18px rgba(34,197,94,0.5)'
-            : item
-              ? `0 0 10px ${(item.qualityColor || '#818cf8') + '66'}`
-              : 'none',
-          cursor: 'pointer',
-          transition: 'all 120ms',
-        }}
-      >
-        {item ? (
-          <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            {stars > 0 && (
-              <div style={{ position: 'absolute', top: 1, left: 3, fontSize: 9, color: '#fbbf24', lineHeight: 1, zIndex: 2, whiteSpace: 'nowrap' }}>
-                {'★'.repeat(Math.min(stars, 5))}
+                ? `linear-gradient(135deg, ${item.qualityColor || '#818cf8'}22, rgba(0,0,0,0.4))`
+                : 'rgba(0,0,0,0.35)',
+            border: `2px solid ${
+              isDragTarget
+                ? 'rgba(34,197,94,0.8)'
+                : item
+                  ? (item.qualityColor || '#818cf8')
+                  : 'rgba(255,255,255,0.08)'
+            }`,
+            borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: isDragTarget
+              ? '0 0 18px rgba(34,197,94,0.5)'
+              : item
+                ? `0 0 10px ${(item.qualityColor || '#818cf8') + '66'}`
+                : 'none',
+            cursor: 'pointer',
+            transition: 'all 120ms',
+          }}
+        >
+          {item ? (
+            <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 42 : 50, height: isAmmo ? 36 : 50, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
+                {item.level || 0} ур.
               </div>
-            )}
-            {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 42 : 50, height: isAmmo ? 36 : 50, objectFit: 'contain', imageRendering: 'pixelated', position: 'relative', top: stars > 0 ? -3 : 0 }} /> : null; })()}
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
-              {item.level || 0} ур.
+              {isAmmo && (item.quantity || 0) > 1 && (
+                <div style={{
+                  position: 'absolute', bottom: 1, right: 2,
+                  fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  color: '#fff', background: 'rgba(0,0,0,0.75)',
+                  borderRadius: 3, padding: '0 3px', lineHeight: '13px',
+                }}>
+                  x{item.quantity}
+                </div>
+              )}
             </div>
-            {isAmmo && (item.quantity || 0) > 1 && (
-              <div style={{
-                position: 'absolute', bottom: 1, right: 2,
-                fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                color: '#fff', background: 'rgba(0,0,0,0.75)',
-                borderRadius: 3, padding: '0 3px', lineHeight: '13px',
-              }}>
-                x{item.quantity}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)' }}>{SLOT_LABELS[slot]}</span>
-            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.06)' }}>+</span>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)' }}>{SLOT_LABELS[slot]}</span>
+              <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.06)' }}>+</span>
+            </div>
+          )}
+        </div>
+        {stars > 0 && (
+          <div style={{ fontSize: 10, color: '#fbbf24', lineHeight: 1, marginTop: 2, whiteSpace: 'nowrap' }}>
+            {'★'.repeat(Math.min(stars, 5))}
           </div>
         )}
       </div>
@@ -322,8 +322,17 @@ export const Equipment = () => {
           </div>
 
           {/* Total power */}
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#fbbf24', lineHeight: 1.1, letterSpacing: '0.5px' }}>
-            ⚡{stats.power ?? 0}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, letterSpacing: 1 }}>
+            <span style={{ color: 'var(--text-muted)' }}>🟡</span>
+            <span style={{ color: 'rgba(255,255,255,0.5)' }}>МОЩНОСТЬ</span>
+            <span
+              style={{ color: 'var(--wa-accent-amber)', fontWeight: 700, cursor: 'help', borderBottom: '1px dashed rgba(251,191,36,0.3)' }}
+              onMouseEnter={(e) => { setShowPowerBreakdown(true); setPowerTooltipPos({ x: e.clientX, y: e.clientY }); }}
+              onMouseMove={(e) => setPowerTooltipPos({ x: e.clientX, y: e.clientY })}
+              onMouseLeave={() => setShowPowerBreakdown(false)}
+            >
+              {(stats.power || 0).toLocaleString()}
+            </span>
           </div>
 
           {/* Divider */}
@@ -351,7 +360,7 @@ export const Equipment = () => {
         </div>
 
         {/* Right: character + slots */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 80 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 65 }}>
           <div style={{
             position: 'relative',
             width: Math.round(150 * S),
@@ -369,6 +378,58 @@ export const Equipment = () => {
         </div>
       </div>
 
+      {showPowerBreakdown && (
+        <div style={{
+          position: 'fixed',
+          left: Math.min(powerTooltipPos.x + 14, window.innerWidth - 300),
+          top: Math.min(powerTooltipPos.y - 8, window.innerHeight - 300),
+          zIndex: 9999, width: 260,
+          background: '#12121a', border: '1px solid rgba(251,191,36,0.3)',
+          borderRadius: 4, padding: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5), 0 0 12px rgba(251,191,36,0.1)',
+          pointerEvents: 'none', fontSize: 11,
+        }}>
+          <div style={{ fontWeight: 600, color: '#fbbf24', marginBottom: 6, fontSize: 12 }}>🟡 Разбор мощности</div>
+          <div style={{ color: 'var(--text-secondary)', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <span>⚔️ Атака (DPS ×3):</span>
+            <span style={{ color: 'var(--text-primary)' }}>+{powerBreakdown.offensiveScore.toLocaleString()}</span>
+          </div>
+          <div style={{ color: 'var(--text-secondary)', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+            <span>🛡️ Защита (EHP /10):</span>
+            <span style={{ color: 'var(--text-primary)' }}>+{powerBreakdown.defensiveScore.toLocaleString()}</span>
+          </div>
+          {powerBreakdown.itemPowers.length > 0 && (
+            <>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, marginBottom: 4 }}>
+                <div style={{ color: '#fbbf24', marginBottom: 4, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>⚙️ Предметы</div>
+                {powerBreakdown.itemPowers.map((ip, i) => (
+                  <div key={i} style={{ color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', marginBottom: 2, fontSize: 10 }}>
+                    <span>{ip.slot} <span style={{ opacity: 0.4 }}>({ip.itemName})</span></span>
+                    <span style={{ color: '#fbbf24' }}>+{ip.power}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {powerBreakdown.abilityItems.length > 0 && (
+            <>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, marginBottom: 4 }}>
+                <div style={{ color: '#fbbf24', marginBottom: 4, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>💎 Способности амуниции</div>
+                {powerBreakdown.abilityItems.map((ai, i) => (
+                  <div key={i} style={{ color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', marginBottom: 2, fontSize: 10 }}>
+                    <span>{ai.abilityName} <span style={{ opacity: 0.4 }}>({ai.itemName})</span></span>
+                    <span style={{ color: '#fbbf24' }}>+{ai.power}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, marginTop: 2, display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+            <span style={{ color: 'var(--text-primary)' }}>Итого</span>
+            <span style={{ color: '#fbbf24' }}>{(stats.power || 0).toLocaleString()}</span>
+          </div>
+        </div>
+      )}
       {tooltipItem && <ItemTooltip item={tooltipItem} x={tooltipPos.x} y={tooltipPos.y} />}
 
       {customizing && (
