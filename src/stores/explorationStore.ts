@@ -289,14 +289,26 @@ export const useExplorationStore = create<ExplorationStore>()(
 
         if (state.serverOutcome === 'dead') {
           // Pick random death flavor
-          const flavors = DEATH_FLAVORS;
-          const flavor = flavors[Math.floor(Math.random() * flavors.length)];
+          const flavor = DEATH_FLAVORS[Math.floor(Math.random() * DEATH_FLAVORS.length)];
           ps.addLog(`💀 ${flavor}`, 'danger');
           // Lose chips earned this trip
           const lostChips = state.totalChips;
           if (lostChips > 0) {
             usePlayerStore.setState({ dataChips: Math.max(0, ps.dataChips - lostChips) });
             ps.addLog(`💾 Потеряно ${lostChips} чипов.`, 'warning');
+          }
+          // Lose all items found this trip
+          const inv = useInventoryStore.getState();
+          const rewardItems = state.eventRewardItems;
+          let lostItems = 0;
+          for (const entry of Object.values(rewardItems)) {
+            for (const item of entry.items) {
+              inv.removeItem(item.id);
+              lostItems++;
+            }
+          }
+          if (lostItems > 0) {
+            ps.addLog(`📦 Потеряно ${lostItems} предметов.`, 'warning');
           }
           // HP to 1%
           const maxHp = ps.stats.maxHp || 10000;
