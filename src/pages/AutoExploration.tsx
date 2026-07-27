@@ -76,6 +76,13 @@ export const AutoExploration = () => {
       exit={{ opacity: 0, y: -12 }}
       style={{ display: 'flex', flexDirection: 'column', gap: 16, height: '100%' }}
     >
+      {isDead && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 10,
+          background: 'rgba(100,0,0,0.15)',
+          borderRadius: 6, pointerEvents: 'none',
+        }} />
+      )}
       <WapPanel variant="metal" padding="lg" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 18, fontWeight: 600 }}>
@@ -141,14 +148,34 @@ export const AutoExploration = () => {
         )}
 
         <div style={{ display: 'flex', gap: 12, marginTop: 12, justifyContent: 'flex-end' }}>
-          <button onClick={handleCancel} style={{
-            padding: '8px 24px', borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--accent-danger)', background: 'transparent',
-            color: 'var(--accent-danger)', cursor: 'pointer', fontSize: 14, fontWeight: 500,
-            fontFamily: 'var(--wa-font-terminal)',
-          }}>
-            🔴 Отмена
-          </button>
+          {isDead ? (
+            <button onClick={() => { s.completeExploration(); navigate('/dashboard'); }} style={{
+              padding: '10px 32px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--accent-danger)', background: 'rgba(248,113,113,0.2)',
+              color: '#f87171', cursor: 'pointer', fontSize: 15, fontWeight: 600,
+              fontFamily: 'var(--wa-font-terminal)',
+            }}>
+              💀 Вернуться на базу
+            </button>
+          ) : s.phase === 'complete' ? (
+            <button onClick={() => { s.completeExploration(); navigate('/adventure'); }} style={{
+              padding: '10px 32px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--accent-success)', background: 'rgba(74,222,128,0.15)',
+              color: '#4ade80', cursor: 'pointer', fontSize: 15, fontWeight: 600,
+              fontFamily: 'var(--wa-font-terminal)',
+            }}>
+              ✅ Завершить
+            </button>
+          ) : (
+            <button onClick={handleCancel} style={{
+              padding: '8px 24px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--accent-danger)', background: 'rgba(248,113,113,0.1)',
+              color: 'var(--accent-danger)', cursor: 'pointer', fontSize: 14, fontWeight: 500,
+              fontFamily: 'var(--wa-font-terminal)',
+            }}>
+              🔴 Отмена
+            </button>
+          )}
         </div>
       </WapPanel>
     </motion.div>

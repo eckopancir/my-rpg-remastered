@@ -178,13 +178,19 @@ export const useExplorationStore = create<ExplorationStore>()(
           const playerData = data.player as { dataChips?: number; currentExp?: number; currentHp?: number } | undefined;
           if (playerData) {
             const ps = usePlayerStore.getState();
-            const patch: Record<string, any> = {};
-            if (playerData.dataChips !== undefined) patch.dataChips = playerData.dataChips;
-            if (playerData.currentExp !== undefined) patch.currentExp = playerData.currentExp;
-            if (playerData.currentHp !== undefined) {
-              patch.stats = { ...ps.stats, currentHp: playerData.currentHp };
+            if (playerData.dataChips !== undefined && playerData.dataChips !== ps.dataChips) {
+              const diff = playerData.dataChips - ps.dataChips;
+              if (diff > 0) ps.addChips(diff);
+              else usePlayerStore.setState({ dataChips: playerData.dataChips });
             }
-            usePlayerStore.setState(patch);
+            if (playerData.currentExp !== undefined && playerData.currentExp !== ps.currentExp) {
+              const diff = playerData.currentExp - ps.currentExp;
+              if (diff > 0) ps.addExp(diff);
+              else usePlayerStore.setState({ currentExp: playerData.currentExp });
+            }
+            if (playerData.currentHp !== undefined && playerData.currentHp !== ps.stats.currentHp) {
+              usePlayerStore.setState({ stats: { ...ps.stats, currentHp: playerData.currentHp } });
+            }
           }
 
           if (!data.active) {
@@ -231,9 +237,23 @@ export const useExplorationStore = create<ExplorationStore>()(
 
       completeExploration: () => {
         const state = get();
-        usePlayerStore.getState().addLog(
-          state.serverOutcome === 'dead' ? '💀 Герой погиб.'
-          : `🏁 Исследование "${state.zoneName}" завершено!`, 'loot');
+        const ps = usePlayerStore.getState();
+
+        if (state.serverOutcome === 'dead') {
+          ps.addLog('💀 Герой погиб во время исследования.', 'danger');
+          // Death penalty: lose 30% chips, reset HP to 50%
+          const chipPenalty = Math.round(ps.dataChips * 0.3);
+          if (chipPenalty > 0) {
+            usePlayerStore.setState({ dataChips: Math.max(0, ps.dataChips - chipPenalty) });
+            ps.addLog(`💾 Потеряно ${chipPenalty} чипов.`, 'warning');
+          }
+          const maxHp = ps.stats.maxHp || 10000;
+          usePlayerStore.setState({ stats: { ...ps.stats, currentHp: Math.round(maxHp * 0.5) } });
+          ps.addLog('❤️ Здоровье восстановлено до 50%.', 'heal');
+        } else {
+          ps.addLog(`🏁 Исследование "${state.zoneName}" завершено!`, 'loot');
+        }
+
         const token = getToken();
         if (token) syncInventoryFromServer(token);
         set({
@@ -395,10 +415,10 @@ function applyLocalEffects(effectsJson: string) {
     const patch: Record<string, any> = {};
 
     if (eff.chips && typeof eff.chips === 'number') {
-      patch.dataChips = ps.dataChips + eff.chips;
+      usePlayerStore.getState().addChips(eff.chips);
     }
     if (eff.exp && typeof eff.exp === 'number') {
-      patch.currentExp = ps.currentExp + eff.exp;
+      usePlayerStore.getState().addExp(eff.exp);
     }
     if (eff.healPercent && typeof eff.healPercent === 'number') {
       const maxHp = ps.stats.maxHp || 10000;

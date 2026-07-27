@@ -102,10 +102,7 @@ export const Adventures = () => {
         ) : isExploring ? (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <button onClick={async () => {
-              const token = useAuthStore.getState().token;
-              if (!token) return;
-              await fetch('/api/exploration/cancel.php', { headers: { Authorization: `Bearer ${token}` } });
-              useExplorationStore.getState().resetExploration();
+              await useExplorationStore.getState().cancelExploration();
               addLog('🛑 Экспедиция принудительно завершена.', 'warning');
             }} style={{
               padding: '10px 28px', borderRadius: 'var(--radius-sm)',
