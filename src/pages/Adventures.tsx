@@ -66,6 +66,15 @@ export const Adventures = () => {
     return `${m}м ${s}с`;
   };
 
+  const parseEffects = (effects: string): Record<string, any> => {
+    if (!effects) return {};
+    try {
+      const parsed = JSON.parse(effects);
+      if (Array.isArray(parsed)) return {};
+      return parsed;
+    } catch { return {}; }
+  };
+
   const timeAgo = (iso: string) => {
     const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
     if (diff < 60) return `${diff}с назад`;
@@ -198,23 +207,52 @@ export const Adventures = () => {
                     <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
                       {entry.total_chips > 0 && `💾${entry.total_chips} `}
                       {entry.total_exp > 0 && `⚡${entry.total_exp} `}
+                      {entry.total_items > 0 && `📦${entry.total_items} `}
                     </span>
                     <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>{timeAgo(entry.ended_at)}</span>
                   </div>
                   {expandedId === entry.id && (
                     <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border-glass)', maxHeight: 300, overflowY: 'auto', fontSize: 12 }}>
+                      {entry.outcome === 'death' && (
+                        <div style={{ color: 'var(--accent-danger)', fontWeight: 600, marginBottom: 6, fontSize: 13 }}>
+                          💀 Герой погиб в этом путешествии
+                        </div>
+                      )}
                       <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>⏱ {fmtDuration(entry.duration_seconds)}</div>
                       {entry.event_log.length === 0 ? (
                         <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Нет записей событий</div>
                       ) : (
-                        [...entry.event_log].reverse().map((ev: any, i: number) => (
-                          <div key={i} style={{ padding: '3px 0', display: 'flex', gap: 6, color: 'var(--text-secondary)' }}>
-                            <span style={{ color: 'var(--text-muted)', fontSize: 10, whiteSpace: 'nowrap', minWidth: 32 }}>
-                              {(() => { const d = Math.floor((new Date(ev.created_at).getTime() - new Date(entry.event_log[0].created_at).getTime()) / 1000); return `+${Math.floor(d/60)}:${(d%60).toString().padStart(2,'0')}`; })()}
-                            </span>
-                            <span style={{ flex: 1 }}>{ev.text}</span>
-                          </div>
-                        ))
+                        (() => {
+                          const reversed = [...entry.event_log].reverse();
+                          const baseTime = new Date(reversed[0].created_at).getTime();
+                          return reversed.map((ev: any, i: number) => {
+                            const e = parseEffects(ev.effects);
+                            const rewardParts: string[] = [];
+                            if (e.chips && e.chips > 0) rewardParts.push(`💾+${e.chips}`);
+                            if (e.chips && e.chips < 0) rewardParts.push(`💾${e.chips}`);
+                            if (e.exp && e.exp > 0) rewardParts.push(`⚡+${e.exp}`);
+                            if (e.healPercent && e.healPercent > 0) rewardParts.push(`❤️+${Math.round(e.healPercent * 100)}%`);
+                            if (e.flatHeal && e.flatHeal > 0) rewardParts.push(`❤️+${e.flatHeal}`);
+                            if (e.damagePercent && e.damagePercent > 0) rewardParts.push(`💔-${Math.round(e.damagePercent * 100)}%`);
+                            if (e.itemCount && e.itemCount > 0) rewardParts.push(`📦+${e.itemCount}`);
+                            const d = Math.floor((new Date(ev.created_at).getTime() - baseTime) / 1000);
+                            return (
+                              <div key={i} style={{ padding: '3px 0' }}>
+                                <div style={{ display: 'flex', gap: 6, color: 'var(--text-secondary)' }}>
+                                  <span style={{ color: 'var(--text-muted)', fontSize: 10, whiteSpace: 'nowrap', minWidth: 32 }}>
+                                    {d >= 0 ? `+${Math.floor(d/60)}:${(d%60).toString().padStart(2,'0')}` : ''}
+                                  </span>
+                                  <span style={{ flex: 1 }}>{ev.text}</span>
+                                </div>
+                                {rewardParts.length > 0 && (
+                                  <div style={{ display: 'flex', gap: 4, marginLeft: 38, fontSize: 10, color: 'var(--accent-success)', flexWrap: 'wrap' }}>
+                                    {rewardParts.join(' ')}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          });
+                        })()
                       )}
                     </div>
                   )}

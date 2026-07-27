@@ -344,7 +344,7 @@ export const useExplorationStore = create<ExplorationStore>()(
     }),
     {
       name: 'remastered_exploration',
-      version: 6,
+      version: 7,
       partialize: (state) => ({
         isExploring: state.isExploring,
         zoneName: state.zoneName,
@@ -360,15 +360,12 @@ export const useExplorationStore = create<ExplorationStore>()(
         totalItems: state.totalItems,
         isInfinite: state.isInfinite,
         explorationId: state.explorationId,
-        eventRewardItems: state.eventRewardItems,
       }),
       merge: (persisted: any, current: any) => ({
         ...current,
         ...persisted,
         isProcessingRewards: false,
-        eventRewardItems: Object.fromEntries(
-          Object.entries(persisted.eventRewardItems ?? {}).map(([k, v]: any) => [k, { items: v.items ?? [], saved: v.saved ?? false }])
-        ),
+        eventRewardItems: {},
       }),
     },
   ),
