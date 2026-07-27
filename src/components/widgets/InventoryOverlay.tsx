@@ -268,7 +268,7 @@ export const InventoryOverlay = () => {
         >
           {/* Title bar / drag handle */}
           <WapHeader title={`📦 ИНВЕНТАРЬ (${items.length})`} glow="teal" onMouseDown={onMouseDown}
-            style={{ background: 'linear-gradient(180deg, rgba(217,119,6,0.6), rgba(146,64,14,0.4))' }}>
+            style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))' }}>
             <span style={{ fontFamily: 'var(--wa-font-hud)', fontSize: 11, color: 'var(--wa-accent-teal)' }}>
               💾 {dataChips}
             </span>
@@ -288,7 +288,7 @@ export const InventoryOverlay = () => {
 
           {/* Body */}
           <div style={{
-            background: 'linear-gradient(180deg, rgba(8,20,18,0.85), rgba(5,12,10,0.9))',
+            background: 'linear-gradient(180deg, rgb(8,20,18), rgb(5,12,10))',
             border: '1px solid rgba(20,184,166,0.1)',
             borderRadius: '0 0 6px 6px',
             padding: 8, minWidth: cols * (cellSize + 4) + 16,
@@ -350,7 +350,7 @@ export const InventoryOverlay = () => {
                     onMouseLeave={() => setHoveredItem(null)}
                     style={{
                       width: cellSize, height: cellSize,
-                      background: 'rgba(255,255,255,0.02)',
+                      background: '#0f0f15',
                       border: `1px solid ${item.qualityColor || 'rgba(255,255,255,0.08)'}`,
                       borderRadius: 3,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -399,7 +399,7 @@ export const InventoryOverlay = () => {
                   disabled={currentPage <= 0}
                   style={{
                     padding: '2px 8px', fontSize: 11, fontFamily: 'var(--font-mono)',
-                    background: currentPage > 0 ? 'rgba(129,140,248,0.15)' : 'transparent',
+                    background: currentPage > 0 ? '#1a1a30' : 'transparent',
                     color: currentPage > 0 ? 'var(--accent-primary)' : 'var(--text-muted)',
                     border: '1px solid rgba(255,255,255,0.06)',
                     borderRadius: 'var(--radius-sm)', cursor: currentPage > 0 ? 'pointer' : 'default',
@@ -415,7 +415,7 @@ export const InventoryOverlay = () => {
                   disabled={currentPage >= totalPages - 1}
                   style={{
                     padding: '2px 8px', fontSize: 11, fontFamily: 'var(--font-mono)',
-                    background: currentPage < totalPages - 1 ? 'rgba(129,140,248,0.15)' : 'transparent',
+                    background: currentPage < totalPages - 1 ? '#1a1a30' : 'transparent',
                     color: currentPage < totalPages - 1 ? 'var(--accent-primary)' : 'var(--text-muted)',
                     border: '1px solid rgba(255,255,255,0.06)',
                     borderRadius: 'var(--radius-sm)', cursor: currentPage < totalPages - 1 ? 'pointer' : 'default',
