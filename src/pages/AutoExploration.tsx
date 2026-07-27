@@ -104,7 +104,7 @@ export const AutoExploration = () => {
           {!isDead && <span>⏱ {timeLabel} {displayTime}</span>}
           <span>💾 {s.totalChips >= 0 ? `+${s.totalChips}` : s.totalChips}</span>
           <span>⚡ {s.totalExp >= 0 ? `+${s.totalExp}` : s.totalExp}</span>
-          {s.totalItems > 0 && <span>📦 +{s.totalItems}</span>}
+          <span>📦 +{s.totalItems}</span>
         </div>
 
         <div style={{
@@ -171,7 +171,9 @@ const EventCard = ({ entry, formatTime, onItemHover, onItemMove, onItemLeave }: 
   const isLegendary = !!entry.legendary_event_id;
 
   const effects = parseEffects(entry.effects);
-  if (effects.itemCount > 0) console.log('[EventCard] effects:', effects, 'items:', effects.items);
+  const eventRewardItems = useExplorationStore((s) => s.eventRewardItems);
+  const rewardEntry = eventRewardItems[entry.id] ?? null;
+  const displayItems = rewardEntry?.items ?? effects.items ?? [];
   const rewardIcons: string[] = [];
   if (effects.chips && effects.chips > 0) rewardIcons.push(`💾+${effects.chips}`);
   if (effects.chips && effects.chips < 0) rewardIcons.push(`💾${effects.chips}`);
@@ -269,42 +271,56 @@ const EventCard = ({ entry, formatTime, onItemHover, onItemMove, onItemLeave }: 
           </div>
         )}
 
-        {effects.items && effects.items.length > 0 && (
-          <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-            📦
-            {effects.items.map((item: any, i: number) => {
-              const rarityColor = item.category === 'legendary' ? '#fbbf24'
-                : item.category === 'rare' ? '#a78bfa'
-                : item.category === 'material' ? '#60a5fa'
-                : '#94a3b8';
-              return (
-                <span
-                  key={i}
-                  onMouseEnter={(e) => {
-                    onItemHover({
-                      id: `loot_${item.name}`,
-                      name: item.name,
-                      displayName: item.name,
-                      type: item.type || 'material',
-                      slot: null,
-                      rarity: item.category || 'common',
-                      stats: {},
-                      qualityColor: rarityColor,
-                    }, e);
-                  }}
-                  onMouseMove={onItemMove}
-                  onMouseLeave={onItemLeave}
-                  style={{
-                    cursor: 'pointer', fontSize: 10, padding: '1px 6px', borderRadius: 4,
-                    background: 'rgba(255,255,255,0.06)', color: rarityColor,
-                    fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap',
-                    borderBottom: `1px dashed ${rarityColor}44`,
-                  }}
-                >
-                  {item.name}
-                </span>
-              );
-            })}
+        {(displayItems.length > 0 || (effects.itemCount ?? 0) > 0) && (
+          <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>📦</span>
+            {displayItems.length > 0 ? (
+              displayItems.map((item: any, i: number) => {
+                const rarityColor = item.qualityColor
+                  || (item.rarity === 'legendary' ? '#fbbf24'
+                    : item.rarity === 'epic' ? '#a78bfa'
+                    : '#94a3b8');
+                const displayName = item.displayName || item.name;
+                return (
+                  <span
+                    key={item.id ?? i}
+                    onMouseEnter={(e) => {
+                      onItemHover({
+                        id: item.id || `loot_${item.name}`,
+                        name: item.name,
+                        displayName,
+                        type: item.type || 'material',
+                        slot: item.slot || null,
+                        rarity: item.rarity || 'common',
+                        stats: item.stats || {},
+                        qualityColor: rarityColor,
+                        quality: item.quality,
+                        level: item.level,
+                        damage: item.damage,
+                        image: item.image,
+                        ammoCapacity: item.ammoCapacity,
+                        mods: item.mods,
+                        abilityId: item.abilityId,
+                      }, e);
+                    }}
+                    onMouseMove={onItemMove}
+                    onMouseLeave={onItemLeave}
+                    style={{
+                      cursor: 'pointer', fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                      background: 'rgba(255,255,255,0.06)', color: rarityColor,
+                      fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap',
+                      borderBottom: `1px dashed ${rarityColor}44`,
+                    }}
+                  >
+                    {displayName}
+                  </span>
+                );
+              })
+            ) : (
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                +{effects.itemCount} {effects.itemCount === 1 ? 'предмет' : 'предметов'}
+              </span>
+            )}
           </div>
         )}
 

@@ -34,6 +34,7 @@ export const Sidebar = () => {
   const fmtSec = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
   const expChips = useExplorationStore((s) => s.totalChips);
   const expExp = useExplorationStore((s) => s.totalExp);
+  const expItems = useExplorationStore((s) => s.totalItems);
 
 
   const craftingMax = craftingType === 'merge' ? 10 : craftingType === 'create' ? 5 : craftingType === 'upgrade' ? craftingTimerMax || 1 : 0;
@@ -53,9 +54,9 @@ export const Sidebar = () => {
               <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)', marginBottom: 2 }}>
                 ⏱ {expIsInfinite ? `прошло ${fmtSec(expTimeLeft)}` : `осталось ${expTimeLeft}с`} · {phase === 'travel_out' ? 'выезд' : phase === 'exploring' ? 'в зоне' : phase === 'travel_back' ? 'возврат' : 'завершено'}
               </div>
-              {(expChips + expExp) > 0 && (
+              {(expChips + expExp + expItems) > 0 && (
                 <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>
-                  {expChips > 0 && `💾+${expChips} `}{expExp > 0 && `⚡+${expExp} `}
+                  {expChips > 0 && `💾+${expChips} `}{expExp > 0 && `⚡+${expExp} `}{expItems > 0 && `📦+${expItems} `}
                 </div>
               )}
               <ProgressBar value={expChips + expExp > 0 ? Math.min(100, (expChips + expExp) % 100) : 0} max={100} variant="accent" />

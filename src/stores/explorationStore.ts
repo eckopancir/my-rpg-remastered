@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import { usePlayerStore } from './playerStore';
 import { useInventoryStore } from './inventoryStore';
 import { useAuthStore } from './authStore';
+import { generateItem, type GeneratedItem } from '../engine/items';
+import { GAME_ITEMS } from '../data/GameItems';
 
 
 const API_BASE = '/api/exploration';
@@ -53,12 +55,15 @@ interface ExplorationStore {
   serverOutcome: string | null; // 'active', 'complete', 'dead'
   error: string | null;
   processedEventId: number;
+  eventRewardItems: Record<number, { items: GeneratedItem[]; saved: boolean }>;
+  isProcessingRewards: boolean;
 
   startExploration: (zoneName: string) => Promise<void>;
   cancelExploration: () => Promise<void>;
   pollServerState: () => Promise<void>;
   completeExploration: () => void;
   resetExploration: () => void;
+  processPendingRewards: () => Promise<void>;
 }
 
 const getToken = () => useAuthStore.getState().token;
@@ -81,6 +86,8 @@ export const useExplorationStore = create<ExplorationStore>()(
       serverOutcome: null,
       error: null,
       processedEventId: 0,
+      eventRewardItems: {},
+      isProcessingRewards: false,
 
       startExploration: async (zoneName) => {
         const token = getToken();
@@ -153,18 +160,6 @@ export const useExplorationStore = create<ExplorationStore>()(
           const allRecentEvents: any[] = data.events ?? [];
           const serverOutcome = data.state ?? 'active';
 
-          // Preserve items from previous events (server response doesn't include items)
-          const oldLog = state.eventLog;
-          const oldItemsByEvent: Record<number, any[]> = {};
-          for (const evt of oldLog) {
-            try {
-              const pe = JSON.parse(evt.effects);
-              if (Array.isArray(pe.items) && pe.items.length > 0) {
-                oldItemsByEvent[evt.id] = pe.items;
-              }
-            } catch {}
-          }
-
           // Process new events (effects + resources)
           const newEvents = allRecentEvents.filter((e: any) => e.id > state.processedEventId);
           const inv = useInventoryStore.getState();
@@ -177,26 +172,6 @@ export const useExplorationStore = create<ExplorationStore>()(
               }
             }
             set({ processedEventId: maxId });
-          }
-
-          // Restore items from server effects or from previous eventLog
-          for (const evt of allRecentEvents) {
-            try {
-              const pe = JSON.parse(evt.effects);
-              if (pe?.itemCount > 0) {
-                if (Array.isArray(pe.items) && pe.items.length > 0) {
-                  // Server-generated items — add to local inventory for immediate UI
-                  for (const item of pe.items) {
-                    inv.addItem(item);
-                  }
-                } else if (oldItemsByEvent[evt.id]) {
-                  // Restore items from previous poll (display only, items already in DB/inventory)
-                  pe.items = oldItemsByEvent[evt.id];
-                  evt.effects = JSON.stringify(pe);
-                }
-                // NO client-side fallback — server generates all items via generateLoot in PHP
-              }
-            } catch {}
           }
 
           // Sync player data from server to prevent dashboard sync from overwriting
@@ -247,6 +222,8 @@ export const useExplorationStore = create<ExplorationStore>()(
               eventLog: allRecentEvents.length > 0 ? allRecentEvents : state.eventLog,
             });
           }
+          // Process pending rewards after each poll
+          await get().processPendingRewards();
         } catch {
           // silent
         }
@@ -265,6 +242,8 @@ export const useExplorationStore = create<ExplorationStore>()(
           eventLog: [], totalChips: 0, totalExp: 0, totalItems: 0,
           explorationId: null,
         });
+        // Process pending rewards after completion
+        get().processPendingRewards();
       },
 
       resetExploration: () => {
@@ -275,10 +254,97 @@ export const useExplorationStore = create<ExplorationStore>()(
           explorationId: null, error: null,
         });
       },
+
+      processPendingRewards: async () => {
+        if (get().isProcessingRewards) return;
+        set({ isProcessingRewards: true });
+
+        try {
+          const token = getToken();
+          if (!token) { set({ isProcessingRewards: false }); return; }
+
+          const res = await fetch(`${API_BASE}/get_pending_rewards.php`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) { set({ isProcessingRewards: false }); return; }
+          const data = await res.json();
+          const rewards: any[] = data.pendingRewards ?? [];
+
+          if (rewards.length === 0) { set({ isProcessingRewards: false }); return; }
+
+          const playerLevel = usePlayerStore.getState().level;
+          const inv = useInventoryStore.getState();
+          const currentItems = get().eventRewardItems;
+          const newItems = { ...currentItems };
+          let changed = false;
+
+          for (const reward of rewards) {
+            const rewardId: number = reward.id;
+            const eventId: number = reward.event_id;
+            const itemCount: number = reward.item_count || 0;
+            if (itemCount <= 0) continue;
+            const rewardPlayerLevel: number = reward.player_level || playerLevel;
+
+            // Already cached — retry save if not saved
+            if (newItems[eventId]) {
+              const cached = newItems[eventId];
+              if (cached.saved) continue;
+              const saveRes = await fetch(`${API_BASE}/save_items.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ items: cached.items, rewardId }),
+              });
+              if (saveRes.ok) {
+                newItems[eventId] = { items: cached.items, saved: true };
+                changed = true;
+              }
+              continue;
+            }
+
+            // Generate new items
+            const items: GeneratedItem[] = [];
+            for (let i = 0; i < itemCount; i++) {
+              items.push(generateItem(GAME_ITEMS, rewardPlayerLevel));
+            }
+
+            // Add to inventory (immediate UI)
+            for (const item of items) {
+              inv.addItem(item);
+            }
+
+            // Save to server (transactional: INSERT + CLAIM)
+            const saveRes = await fetch(`${API_BASE}/save_items.php`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ items, rewardId }),
+            });
+
+            if (saveRes.ok) {
+              newItems[eventId] = { items, saved: true };
+              changed = true;
+            } else {
+              // Rollback inventory
+              for (const item of items) {
+                inv.removeItem(item.id);
+              }
+              newItems[eventId] = { items, saved: false };
+              changed = true;
+            }
+          }
+
+          if (changed) {
+            set({ eventRewardItems: newItems, isProcessingRewards: false });
+          } else {
+            set({ isProcessingRewards: false });
+          }
+        } catch {
+          set({ isProcessingRewards: false });
+        }
+      },
     }),
     {
       name: 'remastered_exploration',
-      version: 4,
+      version: 6,
       partialize: (state) => ({
         isExploring: state.isExploring,
         zoneName: state.zoneName,
@@ -294,6 +360,15 @@ export const useExplorationStore = create<ExplorationStore>()(
         totalItems: state.totalItems,
         isInfinite: state.isInfinite,
         explorationId: state.explorationId,
+        eventRewardItems: state.eventRewardItems,
+      }),
+      merge: (persisted: any, current: any) => ({
+        ...current,
+        ...persisted,
+        isProcessingRewards: false,
+        eventRewardItems: Object.fromEntries(
+          Object.entries(persisted.eventRewardItems ?? {}).map(([k, v]: any) => [k, { items: v.items ?? [], saved: v.saved ?? false }])
+        ),
       }),
     },
   ),
@@ -301,8 +376,10 @@ export const useExplorationStore = create<ExplorationStore>()(
 
 export async function catchUpExploration() {
   const store = useExplorationStore.getState();
-  if (!store.isExploring) return;
-  await store.pollServerState();
+  if (store.isExploring) {
+    await store.pollServerState();
+  }
+  await store.processPendingRewards();
 }
 
 // Apply effects from a JSON effects string to the player store (client-side safety net)

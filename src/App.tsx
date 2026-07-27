@@ -1,3 +1,6 @@
+const BUILD_VERSION = '2026-07-27 rewards-v3.1';
+console.log('BUILD VERSION:', BUILD_VERSION);
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { PageContainer } from './components/layout/PageContainer';
