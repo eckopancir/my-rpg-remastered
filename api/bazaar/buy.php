@@ -55,6 +55,17 @@ try {
     $updateSave = $pdo->prepare('UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?');
     $updateSave->execute([json_encode($saveData, JSON_UNESCAPED_UNICODE), $user['id']]);
 
+    // Insert item into inventory immediately
+    $invId = 'inv_' . bin2hex(random_bytes(6));
+    $invName = $item['resourceName'] ?? $item['name'] ?? 'Unknown';
+    $invSlot = $item['slot'] ?? null;
+    $invQty = (int)($item['quantity'] ?? 1);
+    $invData = json_encode($item, JSON_UNESCAPED_UNICODE);
+    $invStmt = $pdo->prepare(
+        'INSERT INTO inventory_items (user_id, item_id, name, slot, quantity, equipped, data) VALUES (?, ?, ?, ?, ?, 0, ?)'
+    );
+    $invStmt->execute([$user['id'], $invId, $invName, $invSlot, $invQty, $invData]);
+
     $pdo->commit();
 
     jsonResponse([
