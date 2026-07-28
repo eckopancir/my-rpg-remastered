@@ -382,9 +382,16 @@ export const useExplorationStore = create<ExplorationStore>()(
             }
 
             // Generate new items
+            let itemPool: string | null = null;
+            if (reward.reward_data) {
+              try {
+                const rd = typeof reward.reward_data === 'string' ? JSON.parse(reward.reward_data) : reward.reward_data;
+                itemPool = rd?.itemPool || null;
+              } catch (_) {}
+            }
             const items: GeneratedItem[] = [];
             for (let i = 0; i < itemCount; i++) {
-              items.push(generateItem(GAME_ITEMS, rewardPlayerLevel));
+              items.push(generateItem(GAME_ITEMS, rewardPlayerLevel, null, null, itemPool));
             }
 
             // Add to inventory (immediate UI)

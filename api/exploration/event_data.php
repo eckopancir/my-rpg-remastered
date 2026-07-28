@@ -2538,6 +2538,25 @@ $LOOT_TEXTS_RICH = [
         ],
     ],
 ];
+
+// ---------------------------------------------------------------------------
+// Item-rich events — guaranteed item drops with specific pools
+// ---------------------------------------------------------------------------
+$ITEM_TEXTS_RICH = [
+    [
+        'text' => 'Среди руин замечаешь старый армейский схрон. Из-под ржавого брезента виднеются ребристые контуры оружейных ящиков.',
+        'type' => 'loot', 'noAutoBranch' => true, 'itemPool' => 'weapon1', 'branch' => [
+            'prompt' => '', 'outcomes' => [
+                ['text' => 'Аккуратно вскрываешь ящик — внутри блестит смазка, оружие в идеальном состоянии.', 'weight' => 20, 'effects' => function($z,$l){return ['itemCount'=>1,'exp'=>E($l,3)];}, 'resourceCost' => 'Инструменты', 'resourceText' => '[Инструменты] вскрывают замок без повреждения — находим второй слой с редким стволом.', 'noResourceText' => 'Без [Инструменты] срываем крышку монтировкой — часть деталей потеряна.', 'resourceEffects' => function($z,$l){return ['itemCount'=>1,'exp'=>E($l,2)];}, 'noResourceEffects' => function($z,$l){return [];}],
+                ['text' => 'Проверяешь каждый ящик — в одном из них находишь запас патронов и чистый ствол.', 'weight' => 20, 'effects' => function($z,$l){return ['itemCount'=>1,'chips'=>C($l,3)];}, 'resourceCost' => 'Вода', 'resourceText' => '[Вода] пригодилась для протирки — качество сохранено, цена выше.', 'noResourceText' => 'Без [Вода] ствол в пыли — чистить придётся позже.', 'resourceEffects' => function($z,$l){return ['chips'=>C($l,2)];}, 'noResourceEffects' => function($z,$l){return [];}],
+                ['text' => 'Схрон почти пуст — кто-то был здесь до тебя. Но один ящик чудом уцелел.', 'weight' => 15, 'effects' => function($z,$l){return ['itemCount'=>1];}, 'resourceCost' => 'Изолента', 'resourceText' => '[Изолента] помогает восстановить замок — находишь тайник под ящиком.', 'noResourceText' => 'Без [Изолента] просто забираешь ствол — на безрыбье и это хлеб.', 'resourceEffects' => function($z,$l){return ['chips'=>C($l,2)];}, 'noResourceEffects' => function($z,$l){return [];}],
+                ['text' => 'Ящик оказывается заминирован — срабатывает растяжка.', 'weight' => 20, 'effects' => function($z,$l){return ['itemCount'=>1,'damagePercent'=>0.08];}, 'resourceCost' => 'Дерево', 'resourceText' => '[Дерево] принимает удар взрывной волны — отделался лёгким испугом.', 'noResourceText' => 'Без [Дерево] осколки задевают плечо — рана неглубокая, но противная.', 'resourceEffects' => function($z,$l){return ['damagePercent'=>-0.04];}, 'noResourceEffects' => function($z,$l){return ['damagePercent'=>0.04];}],
+                ['text' => 'В схроне поселился слепой псевдо-кабан. Приходится отбивать добычу.', 'weight' => 20, 'effects' => function($z,$l){return ['itemCount'=>1,'damagePercent'=>0.06];}, 'resourceCost' => 'Железо', 'resourceText' => '[Железо] используется как щит вовремя — кабан ломает клыки об металл.', 'noResourceText' => 'Без [Железо] кабан успевает боднуть в бедро — сильный ушиб.', 'resourceEffects' => function($z,$l){return ['damagePercent'=>-0.03];}, 'noResourceEffects' => function($z,$l){return ['damagePercent'=>0.04];}],
+            ],
+        ],
+    ],
+];
+
 // ---------------------------------------------------------------------------
 // Event categories — 12 categories matching client
 // Some templates are plain strings (use generic auto-branch),

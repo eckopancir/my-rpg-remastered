@@ -46,12 +46,13 @@ function generateMicroEvent($zoneDesc, $faction) {
 // ---------------------------------------------------------------------------
 // Offline reward creation
 // ---------------------------------------------------------------------------
-function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr) {
+function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr, $itemPool = null) {
   if ($itemCount <= 0) return;
   $rewardData = json_encode([
     'source' => 'travel',
     'event_type' => $eventType,
     'effects' => $effectsArr,
+    'itemPool' => $itemPool,
   ], JSON_UNESCAPED_UNICODE);
   $stmt = $pdo->prepare("INSERT INTO offline_rewards (user_id, exploration_id, event_id, event_text, item_count, player_level, generation_version, reward_data)
     VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
@@ -250,7 +251,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           saveEvent($pdo, $userId, $expId, $ev);
           if ($applyResult['count'] > 0) {
             $eventId = $pdo->lastInsertId();
-            createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $applyResult['count'], $playerLevel, $event['effects']);
+            createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $applyResult['count'], $playerLevel, $event['effects'], $event['itemPool'] ?? null);
           }
         }
         $exp['event_cooldown'] = RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX);
@@ -681,16 +682,17 @@ function persistInventoryItems($pdo, $userId, $items, $originalIds) {
 // (included via require_once, but aliased here for completeness)
 // ---------------------------------------------------------------------------
 function getCategoryTexts() {
-  global $HELP_TEXTS_RICH, $LOOT_TEXTS_RICH, $TRAP_TEXTS_RICH;
+  global $HELP_TEXTS_RICH, $LOOT_TEXTS_RICH, $TRAP_TEXTS_RICH, $ITEM_TEXTS_RICH;
   return [
     'help' => ['texts' => [], 'rich' => $HELP_TEXTS_RICH ?? []],
     'loot' => ['texts' => [], 'rich' => $LOOT_TEXTS_RICH ?? []],
     'trap' => ['texts' => [], 'rich' => $TRAP_TEXTS_RICH ?? []],
+    'item' => ['texts' => [], 'rich' => $ITEM_TEXTS_RICH ?? []],
   ];
 }
 
 const CATEGORY_WEIGHTS = [
-  'help' => 27, 'loot' => 103, 'trap' => 29,
+  'help' => 27, 'loot' => 103, 'trap' => 29, 'item' => 15,
 ];
 
 function pickCategory() {
@@ -725,6 +727,7 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
         'type' => $template['type'], 'effects' => $eff,
         'decision' => $result['texts'][0],
         'resourceCost' => $result['resourceCost'], 'resourceHad' => $result['resourceHad'] ? 1 : 0,
+        'itemPool' => $template['itemPool'] ?? null,
       ];
     }
   }
