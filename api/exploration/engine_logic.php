@@ -681,29 +681,16 @@ function persistInventoryItems($pdo, $userId, $items, $originalIds) {
 // (included via require_once, but aliased here for completeness)
 // ---------------------------------------------------------------------------
 function getCategoryTexts() {
-  global $COMBAT_TEXTS, $TRADE_TEXTS, $TRAP_TEXTS, $LOOT_TEXTS,
-         $DISCOVERY_TEXTS, $ANOMALY_TEXTS, $NPC_TEXTS, $REST_TEXTS,
-         $HELP_TEXTS_RICH, $FACTION_TEXTS, $SPECIAL_TEXTS, $BRANCHING_TEXTS;
+  global $HELP_TEXTS_RICH, $LOOT_TEXTS_RICH, $TRAP_TEXTS_RICH;
   return [
-    'combat' => ['texts' => $COMBAT_TEXTS ?? [], 'rich' => []],
-    'trade' => ['texts' => $TRADE_TEXTS ?? [], 'rich' => []],
-    'trap' => ['texts' => $TRAP_TEXTS ?? [], 'rich' => []],
-    'loot' => ['texts' => $LOOT_TEXTS ?? [], 'rich' => []],
-    'discovery' => ['texts' => $DISCOVERY_TEXTS ?? [], 'rich' => []],
-    'anomaly' => ['texts' => $ANOMALY_TEXTS ?? [], 'rich' => []],
-    'npc' => ['texts' => $NPC_TEXTS ?? [], 'rich' => []],
-    'rest' => ['texts' => $REST_TEXTS ?? [], 'rich' => []],
     'help' => ['texts' => [], 'rich' => $HELP_TEXTS_RICH ?? []],
-    'faction' => ['texts' => $FACTION_TEXTS ?? [], 'rich' => []],
-    'special' => ['texts' => $SPECIAL_TEXTS ?? [], 'rich' => []],
-    'branching' => ['texts' => $BRANCHING_TEXTS ?? [], 'rich' => []],
+    'loot' => ['texts' => [], 'rich' => $LOOT_TEXTS_RICH ?? []],
+    'trap' => ['texts' => [], 'rich' => $TRAP_TEXTS_RICH ?? []],
   ];
 }
 
 const CATEGORY_WEIGHTS = [
-  'combat' => 35, 'trade' => 12, 'help' => 12, 'trap' => 10,
-  'loot' => 15, 'discovery' => 10, 'anomaly' => 5, 'npc' => 12,
-  'rest' => 4, 'faction' => 6, 'special' => 3, 'branching' => 24,
+  'help' => 27, 'loot' => 103, 'trap' => 29,
 ];
 
 function pickCategory() {
@@ -724,9 +711,9 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
   $faction = $factions ? pick($factions) : 'Бандиты';
   $eventKey = $existingEventCount;
 
-  // 1. Rich help
-  if ($category === 'help' && !empty($catData['help']['rich'])) {
-    $template = $catData['help']['rich'][array_rand($catData['help']['rich'])];
+  // Rich events (any category with hand-crafted branches)
+  if (!empty($catData[$category]['rich'])) {
+    $template = $catData[$category]['rich'][array_rand($catData[$category]['rich'])];
     $text = substitute($template['text'], $zoneDesc, $faction);
     $branch = $template['branch'] ?? null;
     if ($branch) {
@@ -742,31 +729,7 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
     }
   }
 
-  // 2. Text categories
-  $textPool = $catData[$category]['texts'] ?? [];
-  if (!empty($textPool)) {
-    $baseText = substitute($textPool[array_rand($textPool)], $zoneDesc, $faction);
-    $branchType = ['faction' => 'neutral', 'special' => 'discovery', 'branching' => 'neutral', 'trap' => 'danger', 'anomaly' => 'danger', 'npc' => 'neutral', 'rest' => 'heal'][$category] ?? $category;
-    $autoTemplate = ['type' => $branchType];
-    $autoBranch = getAutoBranch($autoTemplate, $zoneDesc);
-    if ($autoBranch) {
-      $result = resolveBranch($autoBranch, $zone, $playerLevel, $items);
-      $eff = $result['effects'];
-      $eff = capEffects($eff, $result['resourceHad']);
-      return [
-        'eventKey' => $eventKey, 'text' => $baseText . ' → ' . implode(' → ', $result['texts']),
-        'type' => $category, 'effects' => $eff,
-        'decision' => $result['texts'][0],
-        'resourceCost' => $result['resourceCost'], 'resourceHad' => $result['resourceHad'] ? 1 : 0,
-      ];
-    }
-    return [
-      'eventKey' => $eventKey, 'text' => $baseText, 'type' => $category,
-      'effects' => [], 'decision' => null, 'resourceCost' => null, 'resourceHad' => 0,
-    ];
-  }
-
-  // 3. Fallback
+  // Fallback
   return [
     'eventKey' => $eventKey,
     'text' => substitute('Ты бредёшь по {zone} в тишине. Ничего особенного.', $zoneDesc, $faction),
