@@ -1,4 +1,4 @@
-const BUILD_VERSION = '2026-07-27 rewards-v3.5';
+const BUILD_VERSION = '2026-07-27 rewards-v3.6';
 console.log('BUILD VERSION:', BUILD_VERSION);
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
