@@ -9,6 +9,13 @@ import { GAME_ITEMS } from '../data/GameItems';
 
 const API_BASE = '/api/exploration';
 
+// Сколько событий держим в памяти. После долгого офлайна в БД могут быть
+// тысячи строк — весь лог в стейт не кладём, иначе виснет рендер.
+const MAX_EVENT_LOG = 500;
+// Сколько эффектов применяем локально за один полл (защита от фриза
+// при догоне большой истории).
+const MAX_EFFECTS_PER_POLL = 100;
+
 const DEATH_FLAVORS = [
   'Странствующий торговец нашёл ваше бездыханное тело и донёс до базы.',
   'Отряд сталкеров подобрал вас в пустоши и доставил к лекарю.',
@@ -52,6 +59,7 @@ export interface ServerExploration {
   totalExp: number;
   totalItems?: number;
   isInfinite: boolean;
+  plannedSec?: number;
   legendaryId: string | null;
   legendaryStage: number | null;
 }
@@ -92,13 +100,38 @@ interface ExplorationStore {
   isProcessingRewards: boolean;
   isReturningHome: boolean;
   deathFlavor: string;
+  totalEvents: number;
+  hasMoreEvents: boolean;
+  // Догон офлайна: сколько секунд долга осталось на сервере + режим bulk.
+  debtSec: number;
+  bulkMode: string;
+  engineVersion: string;
+  // Плановая длительность экспедиции, сек (слайдер 2-24ч). 0 = legacy.
+  plannedSec: number;
 
-  startExploration: (zoneName: string) => Promise<void>;
+  startExploration: (zoneName: string, hours?: number) => Promise<void>;
   cancelExploration: () => Promise<void>;
   pollServerState: () => Promise<void>;
+  loadOlderEvents: () => Promise<void>;
   completeExploration: () => void;
   resetExploration: () => void;
   processPendingRewards: () => Promise<void>;
+}
+
+// Мерж двух кусков лога по id с дедупом и капом на хвост.
+function mergeEventLogs(
+  current: ServerEventRow[], incoming: any[], max: number,
+): ServerEventRow[] {
+  if (incoming.length === 0) return current;
+  const seen = new Set<number>(current.map((e) => e.id));
+  const merged = [...current];
+  for (const e of incoming) {
+    if (typeof e?.id !== 'number' || seen.has(e.id)) continue;
+    seen.add(e.id);
+    merged.push(e as ServerEventRow);
+  }
+  merged.sort((a, b) => a.id - b.id);
+  return merged.length > max ? merged.slice(-max) : merged;
 }
 
 const getToken = () => useAuthStore.getState().token;
@@ -125,18 +158,30 @@ export const useExplorationStore = create<ExplorationStore>()(
       isProcessingRewards: false,
       isReturningHome: false,
       deathFlavor: '',
+      totalEvents: 0,
+      hasMoreEvents: false,
+      debtSec: 0,
+      bulkMode: 'none',
+      engineVersion: '',
+      plannedSec: 0,
 
-      startExploration: async (zoneName) => {
+      startExploration: async (zoneName, hours = 12) => {
         const token = getToken();
         if (!token) { set({ error: 'Not authenticated' }); return; }
+        const h = Math.max(2, Math.min(24, Math.round(hours)));
         try {
-          const res = await fetch(`${API_BASE}/start.php?zone=${encodeURIComponent(zoneName)}`, {
+          const res = await fetch(`${API_BASE}/start.php?zone=${encodeURIComponent(zoneName)}&hours=${h}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
           if (!res.ok) { set({ error: data.error || 'Failed to start' }); return; }
 
           const exp = data.exploration;
+          console.log('[EXP_START_CLIENT] received', {
+            id: exp?.id, phase: exp?.phase, timeLeft: exp?.time_left,
+            isInfinite: exp?.is_infinite, debug: data._debug,
+            ts: Date.now()
+          });
 
           // Refresh inventory from server before starting
           syncInventoryFromServer(token);
@@ -157,6 +202,12 @@ export const useExplorationStore = create<ExplorationStore>()(
             explorationId: exp?.id ?? null,
             error: null,
             processedEventId: 0,
+            totalEvents: 0,
+            hasMoreEvents: false,
+            debtSec: 0,
+            bulkMode: 'none',
+            engineVersion: '',
+            plannedSec: typeof exp?.planned_sec === 'number' ? exp.planned_sec : h * 3600,
           });
         } catch (e) {
           set({ error: `Network error: ${e}` });
@@ -169,11 +220,12 @@ export const useExplorationStore = create<ExplorationStore>()(
         try {
           await fetch(`${API_BASE}/cancel.php`, { headers: { Authorization: `Bearer ${token}` } });
         } catch { /* ignore */ }
-        usePlayerStore.getState().addLog('🛑 Возвращаемся на базу... 30 сек до прибытия.', 'warning');
+        usePlayerStore.getState().addLog('🛑 Возвращаемся на базу... дорога займёт около часа.', 'warning');
+        // Возврат идёт на сервере (travel_back, 1ч) — локально не выдумываем
+        // обратный отсчёт, ждём timeLeft из поллов.
         set({
           phase: 'travel_back',
           serverPhase: 'travel_back',
-          timeLeft: 30,
           isInfinite: false,
           isReturningHome: true,
         });
@@ -181,46 +233,82 @@ export const useExplorationStore = create<ExplorationStore>()(
 
       pollServerState: async () => {
         const state = get();
-        if (!state.isExploring) return;
-
-        // Return journey countdown
-        if (state.isReturningHome) {
-          const newTimeLeft = state.timeLeft - 1;
-          if (newTimeLeft <= 0) {
-            set({ timeLeft: 0, isReturningHome: false });
-            get().completeExploration();
-            return;
-          }
-          set({ timeLeft: newTimeLeft });
+        if (!state.isExploring) {
+          console.log('[EXP_POLL] isExploring is false, skipping');
+          return;
         }
 
         const token = getToken();
-        if (!token) return;
+        if (!token) {
+          console.log('[EXP_POLL] no token, skipping');
+          return;
+        }
 
         try {
-          const res = await fetch(`${API_BASE}/status.php`, {
+          const res = await fetch(`${API_BASE}/status.php?limit=150`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
-          if (!res.ok) return;
+          if (!res.ok) {
+            console.log('[EXP_POLL] server returned error', { status: res.status, data });
+            return;
+          }
+
+          console.log('[EXP_POLL] server response', {
+            active: data.active,
+            state: data.state,
+            timeLeft: data.exploration?.timeLeft,
+            phase: data.exploration?.phase,
+            tickCount: data.exploration?.tickCount,
+            hasDebug: !!data._debug,
+            debug: data._debug,
+            ts: Date.now()
+          });
 
           const exp = data.exploration as ServerExploration | undefined;
           const allRecentEvents: any[] = data.events ?? [];
+          // Свежие события, созданные именно этим тиком. Сервер уже учёл их
+          // эффекты в сейве — локально повторяем только их, а не всю историю.
+          const freshEvents: any[] = data.newEvents ?? [];
           const serverOutcome = data.state ?? 'active';
 
-          // Process new events (effects + resources)
-          const newEvents = allRecentEvents.filter((e: any) => e.id > state.processedEventId);
+          // Применяем эффекты только свежих событий (обычно 0–15 шт).
+          // Старый путь — дифф по всей 1000-й истории — после долгого офлайна
+          // делал до 1000 апдейтов стора за полл и вешал UI, поэтому дифф
+          // используем лишь как фолбэк и капаем его.
           const inv = useInventoryStore.getState();
-          if (newEvents.length > 0) {
-            const maxId = Math.max(...newEvents.map((e: any) => e.id));
-            for (const evt of newEvents) {
+          const fallbackNew = allRecentEvents
+            .filter((e: any) => e.id > state.processedEventId)
+            .slice(-MAX_EFFECTS_PER_POLL);
+          const effectsSource = freshEvents.length > 0 ? freshEvents : fallbackNew;
+          if (effectsSource.length > 0) {
+            for (const evt of effectsSource) {
               applyLocalEffects(evt.effects);
               if (evt.resource_had && evt.resource_cost) {
                 inv.consumeItemByName(evt.resource_cost);
               }
             }
-            set({ processedEventId: maxId });
           }
+          // processedEventId — максимум из всего виденного, чтобы backlog
+          // офлайна не переприменялся на каждом полле.
+          let maxSeenId = state.processedEventId;
+          for (const e of allRecentEvents) {
+            if (typeof e.id === 'number' && e.id > maxSeenId) maxSeenId = e.id;
+          }
+          for (const e of freshEvents) {
+            if (typeof e.id === 'number' && e.id > maxSeenId) maxSeenId = e.id;
+          }
+          if (maxSeenId !== state.processedEventId) {
+            set({ processedEventId: maxSeenId });
+          }
+
+          // Инкрементальный мерж лога с капом вместо замены всего массива.
+          const mergedLog = mergeEventLogs(state.eventLog, allRecentEvents, MAX_EVENT_LOG);
+          const totalEvents = typeof data.totalEvents === 'number' ? data.totalEvents : mergedLog.length;
+          // Догон офлайна с сервера (bulk): долг в секундах + режим + версия движка.
+          const debtSec = typeof data.debtSec === 'number' ? data.debtSec : 0;
+          const bulkMode = typeof data.bulkMode === 'string' ? data.bulkMode : 'none';
+          const engineVersion = typeof data.engine_version === 'string' ? data.engine_version : state.engineVersion;
 
           // Sync player data from server (HP only — XP is applied via applyLocalEffects → addExp)
           const playerData = data.player as { currentHp?: number } | undefined;
@@ -239,11 +327,16 @@ export const useExplorationStore = create<ExplorationStore>()(
               isExploring: false,
               phase: 'complete', serverPhase: 'complete',
               serverOutcome,
-              eventLog: allRecentEvents,
+              eventLog: mergedLog,
               totalChips: exp?.totalChips ?? 0,
               totalExp: exp?.totalExp ?? 0,
               tickCount: exp?.tickCount ?? 0,
+              totalEvents,
+              hasMoreEvents: totalEvents > mergedLog.length,
               processedEventId: 0,
+              debtSec: 0,
+              bulkMode: 'none',
+              engineVersion,
             });
             return;
           }
@@ -266,11 +359,56 @@ export const useExplorationStore = create<ExplorationStore>()(
               totalItems: exp.totalItems ?? 0,
               isInfinite: exp.isInfinite,
               explorationId: exp.id,
-              eventLog: allRecentEvents.length > 0 ? allRecentEvents : state.eventLog,
+              eventLog: mergedLog,
+              totalEvents,
+              hasMoreEvents: totalEvents > mergedLog.length,
+              debtSec,
+              bulkMode,
+              engineVersion,
+              plannedSec: typeof exp.plannedSec === 'number' && exp.plannedSec > 0
+                ? exp.plannedSec
+                : state.plannedSec,
             });
           }
           // Process pending rewards after each poll
           await get().processPendingRewards();
+        } catch {
+          // silent
+        }
+      },
+
+      // Догрузка старых событий для кнопки "показать ещё".
+      loadOlderEvents: async () => {
+        const state = get();
+        if (!state.isExploring || !state.hasMoreEvents) return;
+        let minId = Number.MAX_SAFE_INTEGER;
+        for (const e of state.eventLog) {
+          if (e.id < minId) minId = e.id;
+        }
+        if (minId === Number.MAX_SAFE_INTEGER) return;
+        const token = getToken();
+        if (!token) return;
+        try {
+          const res = await fetch(
+            `${API_BASE}/status.php?limit=200&before_id=${minId}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (!res.ok) return;
+          const data = await res.json();
+          const older: any[] = data.events ?? [];
+          if (older.length === 0) {
+            set({ hasMoreEvents: false });
+            return;
+          }
+          const mergedLog = mergeEventLogs(older, get().eventLog, MAX_EVENT_LOG);
+          const totalEvents = typeof data.totalEvents === 'number'
+            ? data.totalEvents
+            : mergedLog.length;
+          set({
+            eventLog: mergedLog,
+            totalEvents,
+            hasMoreEvents: totalEvents > mergedLog.length,
+          });
         } catch {
           // silent
         }
@@ -321,6 +459,8 @@ export const useExplorationStore = create<ExplorationStore>()(
           serverOutcome: null, timeLeft: 0, tickCount: 0,
           eventLog: [], totalChips: 0, totalExp: 0, totalItems: 0,
           explorationId: null, isReturningHome: false,
+          totalEvents: 0, hasMoreEvents: false,
+          debtSec: 0, bulkMode: 'none',
         });
         // Process pending rewards after completion
         get().processPendingRewards();
@@ -332,6 +472,8 @@ export const useExplorationStore = create<ExplorationStore>()(
           serverOutcome: null, timeLeft: 0, tickCount: 0,
           eventLog: [], totalChips: 0, totalExp: 0, totalItems: 0,
           explorationId: null, error: null,
+          totalEvents: 0, hasMoreEvents: false,
+          debtSec: 0, bulkMode: 'none',
         });
       },
 
@@ -453,6 +595,7 @@ export const useExplorationStore = create<ExplorationStore>()(
         totalItems: state.totalItems,
         isInfinite: state.isInfinite,
         explorationId: state.explorationId,
+        plannedSec: state.plannedSec,
       }),
       merge: (persisted: any, current: any) => ({
         ...current,
@@ -468,11 +611,23 @@ export async function catchUpExploration() {
   try {
     const store = useExplorationStore.getState();
     if (store.isExploring) {
+      console.log('[EXP_CATCHUP] calling pollServerState', {
+        phase: store.phase, timeLeft: store.timeLeft, tickCount: store.tickCount,
+        explorationId: store.explorationId, isReturningHome: store.isReturningHome,
+        ts: Date.now()
+      });
       await store.pollServerState();
+      const after = useExplorationStore.getState();
+      console.log('[EXP_CATCHUP] after pollServerState', {
+        isExploring: after.isExploring, phase: after.phase, timeLeft: after.timeLeft,
+        serverPhase: after.serverPhase, tickCount: after.tickCount, ts: Date.now()
+      });
+    } else {
+      console.log('[EXP_CATCHUP] isExploring is false, skipping poll');
     }
     await store.processPendingRewards();
-  } catch {
-    // silent
+  } catch (e) {
+    console.error('[EXP_CATCHUP] error', e);
   }
 }
 

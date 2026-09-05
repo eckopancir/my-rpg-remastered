@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
@@ -31,23 +31,51 @@ export const AutoExploration = () => {
 
   const [tooltipItem, setTooltipItem] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  // Сколько событий показываем. По умолчанию только хвост, чтобы не класть
+  // DOM после долгого офлайна (в логе могут быть тысячи строк).
+  const [visibleCount, setVisibleCount] = useState(100);
+
+  // Мемоизируем сортировку: без этого sort+reverse на ~1000 строк
+  // выполняется на каждый рендер и вешает UI.
+  // (Хуки — до раннего return, иначе ломается порядок хуков.)
+  const sortedEvents = useMemo(
+    () => [...s.eventLog].sort((a, b) => a.id - b.id),
+    [s.eventLog],
+  );
+  // Показываем только хвост лога, старые — по кнопке "показать ещё".
+  const visibleEvents = useMemo(
+    () => sortedEvents.slice(-visibleCount).reverse(),
+    [sortedEvents, visibleCount],
+  );
 
   if (!s.isExploring && s.phase !== 'complete') return null;
 
   const isDead = s.serverOutcome === 'dead';
   const fmtTime = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
-  const displayTime = s.isInfinite ? fmtTime(s.tickCount) : `${s.timeLeft}с`;
+  const formatDebt = (sec: number) => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (h > 0) return `${h}ч ${m}м`;
+    if (m > 0) return `${m}м`;
+    return `${sec}с`;
+  };
+  const displayTime = s.isInfinite ? fmtTime(s.tickCount) : fmtTime(Math.max(0, s.timeLeft));
   const timeLabel = s.isInfinite ? 'прошло' : 'осталось';
 
+  // Прогресс по плановой длительности (plannedSec со слайдера 2-24ч),
+  // legacy-строкам без неё — старый фолбэк 1+180+30.
+  const planned = s.plannedSec > 0 ? s.plannedSec : 180;
+  const travelOut = 120;
+  const travelBack = 3600;
+  const totalTrip = travelOut + planned + travelBack;
   const showProgress = !s.isInfinite || s.phase !== 'exploring';
-  const totalTrip = 1 + 180 + 30; // travel_out + explore + travel_back
   const progress = !showProgress ? 0
     : s.phase === 'travel_out'
-      ? ((1 - s.timeLeft) / totalTrip) * 100
+      ? ((travelOut - Math.min(s.timeLeft, travelOut)) / totalTrip) * 100
       : s.phase === 'exploring'
-        ? (1 / totalTrip) * 100 + ((180 - s.timeLeft) / totalTrip) * 100
+        ? (travelOut / totalTrip) * 100 + ((planned - Math.min(Math.max(s.timeLeft, 0), planned)) / totalTrip) * 100
         : s.phase === 'travel_back'
-          ? ((1 + 180 + 30 - s.timeLeft) / totalTrip) * 100
+          ? ((travelOut + planned + travelBack - Math.min(Math.max(s.timeLeft, 0), travelBack)) / totalTrip) * 100
           : 100;
 
   const handleCancel = async () => {
@@ -57,7 +85,9 @@ export const AutoExploration = () => {
     if (nextPhase !== 'travel_back') navigate('/adventure');
   };
 
-  const sortedEvents = [...s.eventLog].sort((a, b) => a.id - b.id);
+  const localHidden = sortedEvents.length - visibleEvents.length;
+  const serverHidden = Math.max(0, (s.totalEvents || 0) - sortedEvents.length);
+  const hiddenCount = localHidden + serverHidden;
   const startTs = sortedEvents.length > 0
     ? parseTs(sortedEvents[0].created_at)
     : Date.now();
@@ -109,6 +139,17 @@ export const AutoExploration = () => {
           <span>📦 +{s.totalItems}</span>
         </div>
 
+        {s.debtSec > 0 && !isDead && (
+          <div style={{
+            marginTop: 8, fontSize: 12, color: 'var(--text-secondary)',
+            padding: '6px 12px', background: 'rgba(251,191,36,0.08)',
+            border: '1px solid rgba(251,191,36,0.25)', borderRadius: 'var(--radius-sm)',
+          }}>
+            ⏳ Догоняем пропущенное время: осталось ~{formatDebt(s.debtSec)}
+            {s.bulkMode === 'partial' ? ' (идёт пакетная обработка…)' : ''}
+          </div>
+        )}
+
         <div style={{
           flex: 1, marginTop: 12, padding: '8px 4px', overflowY: 'auto',
           maxHeight: 'calc(100vh - 320px)', display: 'flex', flexDirection: 'column', gap: 4,
@@ -122,7 +163,27 @@ export const AutoExploration = () => {
                   : '⏳ Ожидание событий...'}
             </div>
           ) : (
-            [...sortedEvents].reverse().map((entry) => (
+            <>
+              {hiddenCount > 0 && (
+                <button
+                  onClick={() => {
+                    if (localHidden > 0) {
+                      setVisibleCount((c) => c + 200);
+                    } else {
+                      void s.loadOlderEvents();
+                    }
+                  }}
+                  style={{
+                    padding: '6px 12px', borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)',
+                    color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12,
+                    fontFamily: 'var(--wa-font-terminal)', alignSelf: 'center',
+                  }}
+                >
+                  ⬆ Показать ещё ({hiddenCount} скрыто)
+                </button>
+              )}
+              {visibleEvents.map((entry) => (
               <EventCard
                 key={entry.id}
                 entry={entry}
@@ -134,7 +195,8 @@ export const AutoExploration = () => {
                 onItemMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
                 onItemLeave={() => setTooltipItem(null)}
               />
-            ))
+              ))}
+            </>
           )}
         </div>
 
@@ -156,7 +218,7 @@ export const AutoExploration = () => {
         <div style={{ display: 'flex', gap: 12, marginTop: 12, justifyContent: 'flex-end' }}>
           {s.isReturningHome && s.phase === 'travel_back' ? (
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-              🏠 Возвращение на базу... {s.timeLeft} сек
+              🏠 Возвращение на базу... осталось {fmtTime(Math.max(0, s.timeLeft))}
             </div>
           ) : s.phase === 'complete' ? (
             <button onClick={() => { s.completeExploration(); navigate('/adventure'); }} style={{

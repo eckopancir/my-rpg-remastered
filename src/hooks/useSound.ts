@@ -46,14 +46,14 @@ export const useSound = () => {
   const soundEnabled = useUiStore((s) => s.soundEnabled);
 
   const playSound = useCallback(
-    (name: string) => {
+    (name: string, volume = 0.5) => {
       if (!soundEnabled) return;
       const src = audioMap.get(name);
       if (!src) return;
       const audio = getAudio(src);
       if (!audio) return;
       audio.currentTime = 0;
-      audio.volume = 0.5;
+      audio.volume = volume;
       audio.play().catch(() => {});
     },
     [soundEnabled],
@@ -69,7 +69,8 @@ export const useSound = () => {
     }
   }, []);
 
-  const playClick = useCallback(() => playSound('clickbutton'), [playSound]);
+  // Клик тихий (-80%): навигация по панелям не должна бить по ушам.
+  const playClick = useCallback(() => playSound('clickbutton', 0.1), [playSound]);
   const playCombat = useCallback(() => playSound('startbattle'), [playSound]);
   const playCraft = useCallback(() => playSound('craft'), [playSound]);
   const playEquip = useCallback(() => playSound('install'), [playSound]);

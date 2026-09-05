@@ -13,6 +13,10 @@ const LOCKED_ZONES = new Set([
   'База бандитов', 'Руины города', 'Старый завод',
 ]);
 
+// Зеркало durationBonusPct() из api/exploration/engine_config.php — для превью.
+const durationBonusPct = (hours: number) =>
+  hours >= 18 ? 100 : hours >= 12 ? 60 : hours >= 6 ? 30 : 10;
+
 interface HistoryEntry {
   id: number;
   zone: string;
@@ -31,7 +35,6 @@ export const Adventures = () => {
   const phase = useExplorationStore((s) => s.phase);
   const zoneName = useExplorationStore((s) => s.zoneName);
   const timeLeft = useExplorationStore((s) => s.timeLeft);
-  const tickCount = useExplorationStore((s) => s.tickCount);
   const isInfinite = useExplorationStore((s) => s.isInfinite);
   const fmtTime = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
   const isTraveling = usePlayerStore((s) => s.travel.isTraveling);
@@ -42,6 +45,9 @@ export const Adventures = () => {
   const token = useAuthStore((s) => s.token);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  // Модалка старта: выбор длительности слайдером 2-24ч.
+  const [pendingZone, setPendingZone] = useState<string | null>(null);
+  const [hours, setHours] = useState(12);
 
   useEffect(() => {
     if (!token) return;
@@ -51,9 +57,17 @@ export const Adventures = () => {
       .catch(() => {});
   }, [token]);
 
-  const handleStart = async (name: string) => {
-    await useExplorationStore.getState().startExploration(name);
-    navigate(`/explore?zone=${encodeURIComponent(name)}`);
+  const handleStart = (name: string) => {
+    setHours(12);
+    setPendingZone(name);
+  };
+
+  const confirmExplore = async () => {
+    if (!pendingZone) return;
+    await useExplorationStore.getState().startExploration(pendingZone, hours);
+    const zn = pendingZone;
+    setPendingZone(null);
+    navigate(`/explore?zone=${encodeURIComponent(zn)}`);
   };
 
   const availableZones = ZONES.filter((z) =>
@@ -102,8 +116,12 @@ export const Adventures = () => {
         ) : isExploring ? (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <button onClick={async () => {
-              await useExplorationStore.getState().cancelExploration();
-              addLog('🛑 Экспедиция принудительно завершена.', 'warning');
+              // Отладочная кнопка: мгновенное завершение через reset.php
+              // (без часового возврата) + локальный сброс.
+              if (!token) return;
+              await fetch('/api/exploration/reset.php', { headers: { Authorization: `Bearer ${token}` } });
+              resetExploration();
+              addLog('🔴 Экспедиция принудительно завершена (мгновенно).', 'warning');
             }} style={{
               padding: '10px 28px', borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--accent-danger)', background: 'rgba(248,113,113,0.15)',
@@ -113,7 +131,7 @@ export const Adventures = () => {
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
               Исследование активно
             </div>
-            <div style={{ fontSize: 13 }}>Зона: <b>{zoneName}</b> · Фаза: <b>{phase}</b> · {isInfinite ? `Прошло: ${fmtTime(timeLeft)}` : `Осталось: ${timeLeft} сек`}</div>
+            <div style={{ fontSize: 13 }}>Зона: <b>{zoneName}</b> · Фаза: <b>{phase}</b> · {isInfinite ? `Прошло: ${fmtTime(timeLeft)}` : `Осталось: ${fmtTime(Math.max(0, timeLeft))}`}</div>
             <button onClick={() => navigate('/explore')} style={{
               marginTop: 8, padding: '10px 28px', borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--accent-info)', background: 'rgba(96,165,250,0.15)',
@@ -257,6 +275,70 @@ export const Adventures = () => {
           </WapPanel>
         )}
       </WapPanel>
+
+      {/* Модалка старта экспедиции: длительность 2-24ч + превью бонуса */}
+      {pendingZone && (
+        <div
+          onClick={() => setPendingZone(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(440px, 100%)', background: 'var(--bg-glass)',
+              border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)',
+              padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
+            }}
+          >
+            <div style={{ fontSize: 17, fontWeight: 600 }}>🔍 Вылазка: {pendingZone}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Сколько времени остаёмся в зоне? Дорога туда ~2 мин, возврат — час.
+              Досрочный возврат — без бонуса.
+            </div>
+            <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              Длительность: <b style={{ color: 'var(--text-primary)', fontSize: 15 }}>{hours} ч</b>
+            </label>
+            <input
+              type="range" min={2} max={24} step={1} value={hours}
+              onChange={(e) => setHours(Number(e.target.value))}
+              style={{ width: '100%', accentColor: 'var(--accent-success)', cursor: 'pointer' }}
+            />
+            <div style={{
+              fontSize: 13, padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+              background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)',
+              color: '#4ade80',
+            }}>
+              🏆 Бонус за полную зачистку: +{durationBonusPct(hours)}% к чипам и опыту
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button
+                onClick={() => setPendingZone(null)}
+                style={{
+                  padding: '8px 20px', borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(255,255,255,0.15)', background: 'transparent',
+                  color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14,
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={confirmExplore}
+                style={{
+                  padding: '8px 24px', borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--accent-success)', background: 'rgba(74,222,128,0.15)',
+                  color: '#4ade80', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                }}
+              >
+                🚀 Отправиться
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

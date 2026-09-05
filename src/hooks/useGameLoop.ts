@@ -6,6 +6,7 @@ import { useExplorationStore, catchUpExploration } from '../stores/explorationSt
 
 export const useGameLoop = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const exploringInFlight = useRef(false);
 
   useEffect(() => {
     catchUpExploration();
@@ -40,10 +41,14 @@ export const useGameLoop = () => {
         freshUi.processQueue();
       }
 
-      // 4. Exploration tick
+      // 4. Exploration tick (skip if previous poll still in-flight — avoids
+      //    double-processing the same time window when server is slow)
       const exploration = useExplorationStore.getState();
-      if (exploration.isExploring) {
-        exploration.pollServerState().catch(() => {});
+      if (exploration.isExploring && !exploringInFlight.current) {
+        exploringInFlight.current = true;
+        exploration.pollServerState()
+          .catch(() => {})
+          .finally(() => { exploringInFlight.current = false; });
       }
 
       // 5. Rest tick

@@ -74,11 +74,6 @@ export const Map = () => {
           {ZONES.filter((z) => z.name !== 'Наша база' && z.name !== 'Базар').map((zone) => {
             const isLocked = LOCKED_ZONES.has(zone.name);
             const isMilitary = zone.name === 'Заброшенная военная база и окрестности';
-            const handleAutoExplore = async (e: React.MouseEvent) => {
-              e.stopPropagation();
-              await useExplorationStore.getState().startExploration(zone.name);
-              navigate(`/explore?zone=${encodeURIComponent(zone.name)}`);
-            };
             return (
               <motion.div
                 key={zone.name}
@@ -147,27 +142,6 @@ export const Map = () => {
                       {f}
                     </span>
                   ))}
-                  {!isLocked && !isMilitary && (
-                    <span
-                      onClick={handleAutoExplore}
-                      style={{
-                        padding: '2px 10px',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        background: 'rgba(34, 197, 94, 0.15)',
-                        color: '#22c55e',
-                        cursor: 'pointer',
-                        border: '1px solid rgba(34, 197, 94, 0.3)',
-                        transition: 'all 150ms ease',
-                        fontFamily: 'var(--wa-font-terminal)',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34, 197, 94, 0.25)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34, 197, 94, 0.15)'; }}
-                    >
-                      🔍 Авто
-                    </span>
-                  )}
                 </div>
               </motion.div>
             );
@@ -184,6 +158,7 @@ export const Map = () => {
           🏪 Базар
         </div>
       </div>
+
     </motion.div>
   );
 };
