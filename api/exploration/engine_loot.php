@@ -144,14 +144,14 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
     }
   }
 
-  // 2. Filter items
+  // 2. Filter items (closures instead of fn() — Apache runs PHP 7.0/7.1)
   if ($slotFilter) {
-    $filtered = array_values(array_filter($items, fn($i) => $i['slot'] === $slotFilter));
+    $filtered = array_values(array_filter($items, function ($i) use ($slotFilter) { return $i['slot'] === $slotFilter; }));
   } else {
-    $filtered = array_values(array_filter($items, fn($i) => ($i['rarity'] ?? 'normal') === $selectedRarity));
+    $filtered = array_values(array_filter($items, function ($i) use ($selectedRarity) { return ($i['rarity'] ?? 'normal') === $selectedRarity; }));
   }
   if (empty($filtered)) {
-    $filtered = array_values(array_filter($items, fn($i) => $i['name'] === 'Нож'));
+    $filtered = array_values(array_filter($items, function ($i) { return $i['name'] === 'Нож'; }));
     if (empty($filtered)) $filtered = [$items[0]];
   }
 
@@ -169,8 +169,8 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
   // Compute final stats with quality bonuses
   $finalStats = $base['stats'] ?? [];
   $slotKey = $base['slot'] ?? '';
-  if (str_starts_with($slotKey, 'mod_')) $slotKey = 'mod';
-  elseif (str_starts_with($slotKey, 'ammo')) $slotKey = 'ammo';
+  if (strpos($slotKey, 'mod_') === 0) $slotKey = 'mod';
+  elseif (strpos($slotKey, 'ammo') === 0) $slotKey = 'ammo';
 
   $bonusSource = (json_decode(QUALITY_BONUSES, true))[$slotKey] ?? [];
   $bonusKeys = array_keys($bonusSource);
@@ -254,7 +254,9 @@ function generateLoot($pdo, $userId, $zoneName, $playerLevel, $itemCount = 1) {
   }
 
   // Sort: resources first, then equipment
-  usort($items, fn($a, $b) => (($a['type'] ?? 'equipment') === 'material' ? 0 : 1) - (($b['type'] ?? 'equipment') === 'material' ? 0 : 1));
+  usort($items, function ($a, $b) {
+    return (($a['type'] ?? 'equipment') === 'material' ? 0 : 1) - (($b['type'] ?? 'equipment') === 'material' ? 0 : 1);
+  });
 
   // Insert items into inventory_items table
   if ($pdo && $userId) {

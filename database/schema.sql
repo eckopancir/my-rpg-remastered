@@ -126,6 +126,8 @@ CREATE TABLE explorations (
     is_infinite TINYINT(1) NOT NULL DEFAULT 0,
     phase VARCHAR(20) NOT NULL DEFAULT 'travel_out',
     time_left INT NOT NULL DEFAULT 180,
+    planned_sec INT NOT NULL DEFAULT 0,
+    was_cancelled TINYINT(1) NOT NULL DEFAULT 0,
     event_cooldown INT NOT NULL DEFAULT 12,
     micro_event_cooldown INT NOT NULL DEFAULT 5,
     has_triggered_legendary TINYINT(1) NOT NULL DEFAULT 0,
@@ -161,8 +163,28 @@ CREATE TABLE exploration_events (
     legendary_stage INT DEFAULT NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     INDEX idx_exploration (exploration_id),
+    INDEX idx_exp_id (exploration_id, id),
     INDEX idx_user_tick (user_id, tick_number),
     CONSTRAINT fk_exploration_events FOREIGN KEY (exploration_id) REFERENCES explorations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Pending item rewards from exploration events (claimed by the client
+-- via get_pending_rewards.php / save_items.php; written by engine_logic)
+CREATE TABLE offline_rewards (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    exploration_id INT UNSIGNED NOT NULL,
+    event_id INT UNSIGNED NOT NULL DEFAULT 0,
+    event_text TEXT DEFAULT NULL,
+    item_count INT NOT NULL DEFAULT 0,
+    player_level INT NOT NULL DEFAULT 1,
+    generation_version INT NOT NULL DEFAULT 1,
+    reward_data JSON DEFAULT NULL,
+    claimed TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_at DATETIME DEFAULT NULL,
+    INDEX idx_user_claimed (user_id, claimed),
+    CONSTRAINT fk_offline_rw_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- History of completed/cancelled/dead expeditions

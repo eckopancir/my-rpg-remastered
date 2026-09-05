@@ -4,15 +4,36 @@ require_once __DIR__ . '/event_data.php';
 require_once __DIR__ . '/legendary_data.php';
 require_once __DIR__ . '/engine_loot.php';
 
-const TRAVEL_OUT_TICKS = 1;
+const TRAVEL_OUT_TICKS = 120;
 const EXPLORE_TICKS = 180;
-const TRAVEL_BACK_TICKS = 30;
-const EVENT_COOLDOWN_MIN = 12;
-const EVENT_COOLDOWN_MAX = 25;
-const MICRO_COOLDOWN_MIN = 5;
-const MICRO_COOLDOWN_MAX = 8;
-const MAX_TICKS_PER_POLL = 3600;
-const LEGENDARY_AUTO_RESOLVE_TICKS = 3;
+const TRAVEL_BACK_TICKS = 3600;
+// Редкий темп (было тестово-часто: 12-25с / 5-8с):
+// крупные ~2/час, микро раз в 8-12 мин.
+const EVENT_COOLDOWN_MIN = 1500;
+const EVENT_COOLDOWN_MAX = 2100;
+const MICRO_COOLDOWN_MIN = 480;
+const MICRO_COOLDOWN_MAX = 720;
+const MAX_TICKS_PER_POLL = 60;
+// Шанс запуска легендарной цепочки на каждом крупном событии, %.
+// 2 крупных/час → ~12 за 6 часов → ~1 легендарка за 6 часов. Только если
+// нет активной цепочки. Латч has_triggered_legendary больше не используется.
+const LEGENDARY_CHANCE_PCT = 8;
+// Маркер версии движка — виден в ответе status.php, чтобы сразу понимать,
+// какой код реально крутится на сервере.
+const ENGINE_VERSION = 'bulk-v4.1-chunked';
+// Остаток непокрытых тиков сверх этого порога не расписываем построчно,
+// а агрегируем в одно сводное событие (иначе за 6–10ч офлайна копятся
+// тысячи строк и клиент виснет на их загрузке/рендере).
+const BULK_CATCHUP_SEC = 300;
+// Кап строк лога на одну экспедицию (прунинг старых микро-событий).
+const MAX_EVENTS_PER_EXP = 1000;
+// Бюджет времени одного bulk-прохода, сек. При исчерпании коммитим
+// обработанную часть и продолжаем следующим поллом (чанки) — вместо
+// all-or-nothing, который max_execution_time убивает целиком с rollback.
+const BULK_TIME_BUDGET_SEC = 15;
+// Максимум предметов в одной строке offline_rewards: клиент материализует
+// награду одним POST'ом в save_items.php, сотни за раз вешают стор и упираются в лимит.
+const OFFLINE_REWARD_CHUNK = 20;
 
 // Tiny MB texts
 const MICRO_TEXTS = [
@@ -48,6 +69,14 @@ function generateMicroEvent($zoneDesc, $faction) {
 // ---------------------------------------------------------------------------
 function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr, $itemPool = null) {
   if ($itemCount <= 0) return;
+  // Крупные суммы (например, bulk-сводка за сутки) режем на чанки, иначе
+  // клиент попытается сгенерировать и POST'нуть сотни предметов одним
+  // запросом: save_items.php режет по лимиту, стор лагает на генерации.
+  // event_id чанков деривируем со сдвигом: в таблице UNIQUE(user,exp,event),
+  // а диапазон 1e9+ реальными id событий не достижим.
+  $eventId = (int)$eventId;
+  $chunks = array_fill(0, (int)ceil($itemCount / OFFLINE_REWARD_CHUNK), OFFLINE_REWARD_CHUNK);
+  $chunks[count($chunks) - 1] = $itemCount - OFFLINE_REWARD_CHUNK * (count($chunks) - 1);
   $rewardData = json_encode([
     'source' => 'travel',
     'event_type' => $eventType,
@@ -56,44 +85,56 @@ function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $event
   ], JSON_UNESCAPED_UNICODE);
   $stmt = $pdo->prepare("INSERT INTO offline_rewards (user_id, exploration_id, event_id, event_text, item_count, player_level, generation_version, reward_data)
     VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
-  $stmt->execute([$userId, $expId, $eventId, $eventText, $itemCount, $playerLevel, $rewardData]);
+  foreach ($chunks as $i => $n) {
+    $chunkEventId = $i === 0 ? $eventId : $eventId + 1000000000 + $i;
+    $stmt->execute([$userId, $expId, $chunkEventId, $eventText, (int)$n, $playerLevel, $rewardData]);
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Core: process ticks for an exploration
 // ---------------------------------------------------------------------------
 function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
-  // 1. Load active exploration
-  $stmt = $pdo->prepare("SELECT * FROM explorations WHERE user_id = ? AND phase NOT IN ('complete','idle') ORDER BY id DESC LIMIT 1");
-  $stmt->execute([$userId]);
-  $exp = $stmt->fetch();
-  if (!$exp) return null;
-  if (!isset($exp['total_items'])) $exp['total_items'] = 0;
+  $procStart = microtime(true);
+  // Transaction + row lock prevents race conditions when multiple requests
+  // (e.g. overlapping setInterval polls, multiple tabs) try to process the
+  // same time window, which would double-count ticks and speed up exploration.
+  $pdo->beginTransaction();
+  try {
+    $stmt = $pdo->prepare("SELECT * FROM explorations WHERE user_id = ? AND phase NOT IN ('complete','idle') ORDER BY id DESC LIMIT 1 FOR UPDATE");
+    $stmt->execute([$userId]);
+    $exp = $stmt->fetch();
+    if (!$exp) { $pdo->rollBack(); return null; }
+    if (!isset($exp['total_items'])) $exp['total_items'] = 0;
 
-  // 2. Calculate elapsed seconds since last_tick_at (use DB time for consistency)
-  $dbNow = $pdo->query("SELECT UNIX_TIMESTAMP(NOW(3)) AS dbts")->fetch();
-  $dbNowSec = (int)$dbNow['dbts'];
-  $dbLastTick = $pdo->prepare("SELECT UNIX_TIMESTAMP(?) AS dbts");
-  $dbLastTick->execute([$exp['last_tick_at']]);
-  $dbLastTickSec = (int)$dbLastTick->fetch()['dbts'];
-  $lastTickSec = $exp['last_tick_at'] ? $dbLastTickSec : $dbNowSec;
-  $elapsedSec = max(0, $dbNowSec - $lastTickSec);
-  $expId = $exp['id'];
-  $ticksToProcess = min($elapsedSec, $maxTicks);
-  if ($ticksToProcess <= 0) {
-    // Still in cooldown — just return current state
-    return buildStatus($pdo, $exp, []);
-  }
+    $dbNow = $pdo->query("SELECT UNIX_TIMESTAMP(NOW(3)) AS dbts")->fetch();
+    $dbNowSec = (int)$dbNow['dbts'];
+    $dbLastTick = $pdo->prepare("SELECT UNIX_TIMESTAMP(?) AS dbts");
+    $dbLastTick->execute([$exp['last_tick_at']]);
+    $dbLastTickSec = (int)$dbLastTick->fetch()['dbts'];
+    $lastTickSec = $exp['last_tick_at'] ? $dbLastTickSec : $dbNowSec;
+    $elapsedSec = max(0, $dbNowSec - $lastTickSec);
+    $expId = $exp['id'];
+    $ticksToProcess = min($elapsedSec, $maxTicks);
+    if ($ticksToProcess <= 0) {
+      $pdo->commit();
+      return buildStatus($pdo, $exp, [], null, [
+        'engine_version' => ENGINE_VERSION,
+        'debtSec' => $elapsedSec,
+        'bulkMode' => 'none',
+        'processing_ms' => (int)round((microtime(true) - $procStart) * 1000),
+      ]);
+    }
 
-  $events = [];
-  $zoneDesc = getZoneDesc($exp['zone']);
+    $events = [];
+    $zoneDesc = getZoneDesc($exp['zone']);
 
-  // Passive regen per tick
-  $sd = getSaveData($pdo, $userId);
-  $regenPerTick = (int)($sd['player']['stats']['regen'] ?? 0);
-  $playerLevel = getPlayerLevel($pdo, $userId);
+    $sd = getSaveData($pdo, $userId);
+    $regenPerTick = (int)($sd['player']['stats']['regen'] ?? 0);
+    $playerLevel = getPlayerLevel($pdo, $userId);
 
-  for ($i = 0; $i < $ticksToProcess; $i++) {
+    $died = false;
+    for ($i = 0; $i < $ticksToProcess; $i++) {
     // Passive regen per tick
     if ($regenPerTick > 0) {
       applyEffects($pdo, $userId, ['flatHeal' => $regenPerTick]);
@@ -104,7 +145,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       $exp['time_left'] = (int)$exp['time_left'] - 1;
       if ($exp['time_left'] <= 0) {
         $exp['phase'] = 'exploring';
-        $exp['time_left'] = EXPLORE_TICKS;
+        // Плановая длительность слайдера (2-24ч); legacy-строкам без неё — старый фолбэк.
+        $exp['time_left'] = !empty($exp['planned_sec']) ? (int)$exp['planned_sec'] : EXPLORE_TICKS;
         $exp['event_cooldown'] = 0;
         $exp['micro_event_cooldown'] = 0;
         $events[] = ['text' => '🚀 Вы прибыли в зону "' . $exp['zone'] . '". Время исследовать!', 'type' => 'system', 'effects' => '{}', 'is_micro' => 0, 'tick_number' => $exp['tick_count']];
@@ -123,47 +165,22 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       if ($hp <= 0) {
         handleExplorationDeath($pdo, $userId, $exp);
         $exp['phase'] = 'complete';
-        return buildStatus($pdo, $exp, $events, 'dead');
+        $died = true;
+        break;
       }
 
-      // Time up → travel back (or reset for infinite)
+      // Время вышло → дорога домой (конечный run, без бесконечного ресета).
+      // Бонус за длительность — только за полную зачистку, не за cancel.
       if ($exp['time_left'] <= 0) {
-        if ($exp['is_infinite']) {
-          $exp['time_left'] = EXPLORE_TICKS;
-        } else {
-          $exp['phase'] = 'travel_back';
-          $exp['time_left'] = TRAVEL_BACK_TICKS;
-          $events[] = ['text' => 'Время вышло. Пора возвращаться на базу.', 'type' => 'system', 'effects' => '{}', 'is_micro' => 0, 'tick_number' => $exp['tick_count']];
-          saveEvent($pdo, $userId, $expId, $events[count($events)-1]);
-        }
+        $exp['phase'] = 'travel_back';
+        $exp['time_left'] = TRAVEL_BACK_TICKS;
+        $exp['was_cancelled'] = 0;
       }
 
-      // Legendary auto-resolve
-      if ($exp['legendary_id']) {
-        $exp['legendary_auto_resolve'] = (int)$exp['legendary_auto_resolve'] - 1;
-        if ($exp['legendary_auto_resolve'] <= 0) {
-          $legEvent = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc);
-          if ($legEvent) {
-            $events[] = $legEvent;
-            saveEvent($pdo, $userId, $expId, $legEvent);
-            $legEff = json_decode($legEvent['effects'], true);
-            if (isset($legEff['itemCount']) && $legEff['itemCount'] > 0) {
-              $eventId = $pdo->lastInsertId();
-              createOfflineReward($pdo, $userId, $expId, $eventId, $legEvent['text'], $legEvent['type'], (int)$legEff['itemCount'], $playerLevel, $legEff);
-            }
-          }
-        }
-        $exp['tick_count']++;
-        setExploreField($pdo, $expId, [
-          'time_left' => $exp['time_left'],
-          'legendary_auto_resolve' => $exp['legendary_auto_resolve'],
-          'legendary_stage' => $exp['legendary_stage'],
-          'legendary_rewards' => $exp['legendary_rewards'],
-          'legendary_id' => $exp['legendary_id'],
-          'tick_count' => $exp['tick_count'],
-        ]);
-        continue;
-      }
+      // Стадии легендарки идут по слотам крупных событий, а не по тикам:
+      // пока цепочка активна — каждое крупное событие это следующий этап.
+      // (Потикового auto-resolve больше нет: при темпе 2 события/час
+      //  счётчик в тиках сжёг бы цепочку за секунды.)
 
       // Micro events
       $exp['micro_event_cooldown'] = (int)$exp['micro_event_cooldown'] - 1;
@@ -195,8 +212,20 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       // Big events
       $exp['event_cooldown'] = (int)$exp['event_cooldown'] - 1;
       if ($exp['event_cooldown'] <= 0) {
-        // Legendary trigger on first big event
-        if (!$exp['has_triggered_legendary']) {
+        // Активная легендарная цепочка: слот события = следующий этап.
+        if ($exp['legendary_id']) {
+          $legEvent = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc);
+          if ($legEvent) {
+            $events[] = $legEvent;
+            saveEvent($pdo, $userId, $expId, $legEvent);
+            $legEff = json_decode($legEvent['effects'], true);
+            if (isset($legEff['itemCount']) && $legEff['itemCount'] > 0) {
+              $eventId = $pdo->lastInsertId();
+              createOfflineReward($pdo, $userId, $expId, $eventId, $legEvent['text'], $legEvent['type'], (int)$legEff['itemCount'], $playerLevel, $legEff);
+            }
+          }
+        // Нет цепочки: ролл запуска новой (~1 за 6 часов при 2 событиях/час).
+        } elseif (mt_rand(1, 100) <= LEGENDARY_CHANCE_PCT) {
           $legEvents = getLegendaryEvents();
           $legKeys = array_keys($legEvents);
           if (!empty($legKeys)) {
@@ -204,9 +233,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
             $legData = $legEvents[$pickedKey];
             $exp['legendary_id'] = $pickedKey;
             $exp['legendary_stage'] = 0;
-            $exp['legendary_auto_resolve'] = LEGENDARY_AUTO_RESOLVE_TICKS;
+            $exp['legendary_auto_resolve'] = null;
             $exp['legendary_rewards'] = json_encode([]);
-            $exp['has_triggered_legendary'] = 1;
             $events[] = [
               'text' => $legData['desc'],
               'type' => 'legendary',
@@ -265,9 +293,30 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       $exp['time_left'] = (int)$exp['time_left'] - 1;
       if ($exp['time_left'] <= 0) {
         $exp['phase'] = 'complete';
+        $natural = empty($exp['was_cancelled']);
+        $outcome = $natural ? 'complete' : 'cancelled';
+        // Бонус ступенями за полную зачистку (2-5ч +10%, 6-11ч +30%,
+        // 12-17ч +60%, 18-24ч +100%). Досрочный возврат — без бонуса.
+        if ($natural) {
+          $pct = durationBonusPct((int)($exp['planned_sec'] ?? 0));
+          if ($pct > 0) {
+            $bChips = (int)floor((int)$exp['total_chips'] * $pct / 100);
+            $bExp = (int)floor((int)$exp['total_exp'] * $pct / 100);
+            if ($bChips !== 0 || $bExp > 0) {
+              applyEffects($pdo, $userId, ['chips' => $bChips, 'exp' => $bExp]);
+              $exp['total_chips'] = (int)$exp['total_chips'] + $bChips;
+              $exp['total_exp'] = (int)$exp['total_exp'] + $bExp;
+              $bonusEv = ['text' => "🏆 Бонус за полную зачистку (+{$pct}%): +{$bChips} чипов, +{$bExp} опыта.",
+                'type' => 'system', 'effects' => json_encode(['chips' => $bChips, 'exp' => $bExp], JSON_UNESCAPED_UNICODE),
+                'is_micro' => 0, 'tick_number' => $exp['tick_count']];
+              $events[] = $bonusEv;
+              saveEvent($pdo, $userId, $expId, $bonusEv);
+            }
+          }
+        }
         $events[] = ['text' => '🏠 Вы вернулись на базу. Экспедиция завершена!', 'type' => 'system', 'effects' => '{}', 'is_micro' => 0, 'tick_number' => $exp['tick_count']];
         saveEvent($pdo, $userId, $expId, $events[count($events)-1]);
-        saveExplorationHistory($pdo, $userId, $exp, 'complete');
+        saveExplorationHistory($pdo, $userId, $exp, $outcome);
       }
       $exp['tick_count']++;
       setExploreField($pdo, $expId, ['phase' => $exp['phase'], 'time_left' => $exp['time_left'], 'tick_count' => $exp['tick_count']]);
@@ -277,13 +326,41 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
     break; // unknown phase
   }
 
-  // Update last_tick_at by processed ticks via MySQL DATE_ADD (avoids PHP/MySQL timezone mismatch)
+  // Долгий офлайн: остаток тиков агрегируем сводкой вместо тысяч строк.
+  // (Без этого догон 10ч = ~600 поллов по 60 тиков.)
+  // Time-boxed чанки: bulk идёт пока хватает бюджета времени; при исчерпании
+  // коммитим обработанную часть (last_tick_at сдвигается), остаток добирает
+  // следующий полл. Так max_execution_time не может откатить всё в ноль.
+  $remainingSec = $elapsedSec - $ticksToProcess;
+  $bulkMode = 'none';
+  if ($remainingSec > BULK_CATCHUP_SEC && !$died && $exp['phase'] === 'exploring') {
+    $bulkDone = 0; $bulkComplete = false;
+    processBulkCatchup($pdo, $userId, $exp, $expId, $playerLevel, $regenPerTick, $remainingSec,
+      $events, $died, microtime(true) + BULK_TIME_BUDGET_SEC, $bulkDone, $bulkComplete);
+    $ticksToProcess += $bulkDone;
+    $bulkMode = $died ? 'dead' : ($bulkComplete ? 'complete' : 'partial');
+  }
+  $statusMeta = [
+    'engine_version' => ENGINE_VERSION,
+    // После смерти экспедиция завершена — долга нет (last_tick_at = now).
+    'debtSec' => $died ? 0 : max(0, $elapsedSec - $ticksToProcess),
+    'bulkMode' => $bulkMode,
+    'processing_ms' => (int)round((microtime(true) - $procStart) * 1000),
+  ];
+
+  if ($died) {
+    pruneOldEvents($pdo, $expId);
+    $pdo->commit();
+    return buildStatus($pdo, $exp, $events, 'dead', $statusMeta);
+  }
+
   $fields = [
     'phase' => $exp['phase'],
     'time_left' => $exp['time_left'],
     'tick_count' => $exp['tick_count'],
     'event_cooldown' => $exp['event_cooldown'],
     'micro_event_cooldown' => $exp['micro_event_cooldown'],
+    'was_cancelled' => (int)($exp['was_cancelled'] ?? 0),
     'has_triggered_legendary' => $exp['has_triggered_legendary'],
     'legendary_id' => $exp['legendary_id'],
     'legendary_stage' => $exp['legendary_stage'],
@@ -299,7 +376,214 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
   $ltStmt = $pdo->prepare("UPDATE explorations SET last_tick_at = DATE_ADD(last_tick_at, INTERVAL ? SECOND) WHERE id = ?");
   $ltStmt->execute([$ticksToProcess, $expId]);
 
-  return buildStatus($pdo, $exp, $events);
+  pruneOldEvents($pdo, $expId);
+  $pdo->commit();
+  $statusMeta['processing_ms'] = (int)round((microtime(true) - $procStart) * 1000);
+  return buildStatus($pdo, $exp, $events, null, $statusMeta);
+  } catch (Exception $e) {
+    $pdo->rollBack();
+    throw $e;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bulk catch-up: долгий офлайн симулируем без построчных INSERT'ов.
+// Реальная симуляция (те же generateEvent/resolveLegendaryStage), но в БД
+// уходит ОДНА сводная строка + ОДНА оффлайн-награда. Награды применяются
+// одним проходом, HP трекаем в памяти (со смертью — штатный путь).
+// ---------------------------------------------------------------------------
+function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPerTick, $seconds, &$events, &$died, $deadline, &$bulkDone, &$bulkComplete) {
+  $bulkDone = 0; $bulkComplete = false;
+  $sd = getSaveData($pdo, $userId);
+  $maxHp = max(1, (int)($sd['player']['stats']['maxHp'] ?? 100));
+  $hp = (int)($sd['player']['stats']['currentHp'] ?? $maxHp);
+
+  $bulkChips = 0; $bulkExp = 0; $bulkItems = 0;
+  $microN = 0; $bigN = 0; $legN = 0;
+  $itemPool = null;
+
+  $zoneDesc = getZoneDesc($exp['zone']);
+  $itemsRef = loadInventoryItems($pdo, $userId);
+  $origIds = array_column($itemsRef, 'id');
+  $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
+  $cdEvent = (int)($exp['event_cooldown'] ?? 0);
+  $cdMicro = (int)($exp['micro_event_cooldown'] ?? 0);
+
+  // Bulk покрывает только exploring-окно: если плановое время истекает
+  // внутри bulk, остаток идёт countdown'ом travel_back (без событий).
+  $tl = max(0, (int)($exp['time_left'] ?? 0));
+  $simSec = min($seconds, $tl);
+
+  for ($s = 0; $s < $simSec; $s++) {
+    // Time-box: проверяем бюджет каждые 64 итерации (microtime дешёвый,
+    // но незачем дёргать его на каждом тике). При исчерпании выходим —
+    // caller закоммитит обработанную часть, остаток доберёт следующий полл.
+    if (($s & 63) === 0 && microtime(true) >= $deadline) {
+      break;
+    }
+    if ($regenPerTick > 0) $hp = min($maxHp, $hp + $regenPerTick);
+
+    // Микро: эффекты копим в памяти, строк не пишем.
+    $cdMicro--;
+    if ($cdMicro <= 0) {
+      $me = generateMicroEvent($zoneDesc, '');
+      if (!empty($me['effects']['healPercent'])) {
+        $hp = min($maxHp, $hp + (int)round($maxHp * (float)$me['effects']['healPercent']));
+      }
+      $microN++;
+      $cdMicro = RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX);
+    }
+
+    // Крупные в bulk: слот события либо тихо резолвит активную цепочку,
+    // либо роллит запуск новой (8%), либо генерится обычное событие.
+    // Строк не пишем — всё уходит в сводку.
+    $cdEvent--;
+    if ($cdEvent <= 0) {
+      if ($exp['legendary_id']) {
+        $row = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc);
+        if ($row) {
+          $legN++;
+          $le = json_decode($row['effects'], true) ?: [];
+          if (!empty($le['itemCount'])) $bulkItems += (int)$le['itemCount'];
+        }
+      } elseif (mt_rand(1, 100) <= LEGENDARY_CHANCE_PCT) {
+        $legEvents = getLegendaryEvents();
+        $legKeys = array_keys($legEvents);
+        if (!empty($legKeys)) {
+          $pickedKey = $legKeys[array_rand($legKeys)];
+          $exp['legendary_id'] = $pickedKey;
+          $exp['legendary_stage'] = 0;
+          $exp['legendary_auto_resolve'] = null;
+          $exp['legendary_rewards'] = json_encode([]);
+          $legN++; // интро без наград: цепочка учтена, стадии — следующими событиями
+        }
+      } else {
+      $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count']);
+      $eff = $event['effects'] ?? [];
+      $bulkChips += (int)($eff['chips'] ?? 0);
+      $bulkExp += (int)($eff['exp'] ?? 0);
+      if (!empty($eff['healPercent'])) $hp = min($maxHp, $hp + (int)round($maxHp * (float)$eff['healPercent']));
+      if (!empty($eff['damagePercent'])) $hp = max(0, $hp - (int)round($maxHp * (float)$eff['damagePercent']));
+      if (!empty($eff['itemCount'])) {
+        $bulkItems += (int)$eff['itemCount'];
+        if ($itemPool === null && !empty($event['itemPool'])) $itemPool = $event['itemPool'];
+      }
+      $bigN++;
+      }
+      $cdEvent = RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX);
+    }
+
+    // Смерть в офлайне — штатный путь с откатом и историей.
+    if ($hp <= 0) {
+      $exp['total_chips'] = (int)$exp['total_chips'] + $bulkChips;
+      $exp['total_exp'] = (int)$exp['total_exp'] + $bulkExp;
+      $exp['total_items'] = (int)$exp['total_items'] + $bulkItems;
+      // Потиковый счётчик уже инкрементился на каждой итерации цикла —
+      // добавляем только текущий (фатальный) тик, иначе задвоение.
+      $exp['tick_count'] += 1;
+      $exp['event_cooldown'] = $cdEvent;
+      $exp['micro_event_cooldown'] = $cdMicro;
+      applyEffects($pdo, $userId, ['chips' => $bulkChips, 'exp' => $bulkExp]);
+      persistInventoryItems($pdo, $userId, $itemsRef, $origIds);
+      $summary = buildBulkSummary($s + 1, $microN, $bigN, $legN, $bulkChips, $bulkExp, $bulkItems, true);
+      $events[] = $summary;
+      saveEvent($pdo, $userId, $expId, $summary);
+      handleExplorationDeath($pdo, $userId, $exp);
+      $exp['phase'] = 'complete';
+      $died = true;
+      $bulkDone = $s + 1;
+      $bulkComplete = true; // смерть завершает всё — продолжать нечего
+      return;
+    }
+
+    $exp['tick_count']++;
+  }
+  $bulkDone = $s;
+  // Конец exploring-окна внутри bulk: остаток секунд — countdown travel_back
+  // без событий. Сводка ниже описывает только симулированную часть ($sumSec).
+  $sumSec = $bulkDone;
+  if ($tl > 0 && $tl <= $seconds) {
+    $over = $seconds - $tl;
+    $exp['phase'] = 'travel_back';
+    $exp['time_left'] = max(1, TRAVEL_BACK_TICKS - $over);
+    $exp['was_cancelled'] = 0;
+    $exp['tick_count'] += $over;
+    $bulkDone = $seconds;
+    $bulkComplete = true;
+    $sumSec = $tl;
+  } else {
+    $exp['time_left'] = $tl - $bulkDone;
+    $bulkComplete = ($simSec > 0 && $bulkDone >= $simSec);
+  }
+
+  // Применяем накопленное (и на полном, и на частичном проходе).
+  $exp['total_chips'] = (int)$exp['total_chips'] + $bulkChips;
+  $exp['total_exp'] = (int)$exp['total_exp'] + $bulkExp;
+  $exp['total_items'] = (int)$exp['total_items'] + $bulkItems;
+  $exp['event_cooldown'] = $cdEvent;
+  $exp['micro_event_cooldown'] = $cdMicro;
+  if ($bulkChips !== 0 || $bulkExp > 0) {
+    applyEffects($pdo, $userId, ['chips' => $bulkChips, 'exp' => $bulkExp]);
+  }
+  $curHp = getPlayerHp($pdo, $userId);
+  if ($curHp !== $hp) {
+    $sd2 = getSaveData($pdo, $userId);
+    $sd2['player']['stats']['currentHp'] = $hp;
+    putSaveData($pdo, $userId, $sd2);
+  }
+  persistInventoryItems($pdo, $userId, $itemsRef, $origIds);
+
+  // Сводную строку и награду пишем ТОЛЬКО при полном закрытии долга —
+  // иначе каждый чанк плодил бы по сводке.
+  if (!$bulkComplete) {
+    return;
+  }
+
+  $summary = buildBulkSummary($sumSec, $microN, $bigN, $legN, $bulkChips, $bulkExp, $bulkItems, false);
+  $events[] = $summary;
+  saveEvent($pdo, $userId, $expId, $summary);
+  if ($bulkItems > 0) {
+    $eventId = (int)$pdo->lastInsertId();
+    createOfflineReward($pdo, $userId, $expId, $eventId, $summary['text'], 'loot', $bulkItems, $playerLevel,
+      ['chips' => $bulkChips, 'exp' => $bulkExp, 'itemCount' => $bulkItems], $itemPool);
+  }
+}
+
+function buildBulkSummary($seconds, $microN, $bigN, $legN, $chips, $exp, $items, $died) {
+  $h = (int)floor($seconds / 3600);
+  $m = (int)floor(($seconds % 3600) / 60);
+  $dur = $h > 0 ? "{$h} ч {$m} мин" : "{$m} мин";
+  $text = $died
+    ? "🌙 Пока вас не было ({$dur}): {$bigN} крупных событий, {$microN} мелких. Герой погиб в пустоши — экспедиция завершена."
+    : "🌙 Пока вас не было ({$dur}): {$bigN} крупных событий, {$microN} мелких."
+      . ($legN > 0 ? " Легендарных этапов: {$legN}." : "")
+      . " Итог: +{$chips} чипов, +{$exp} опыта"
+      . ($items > 0 ? ", находок: {$items}." : ".");
+  return [
+    'text' => $text,
+    'type' => 'system',
+    'effects' => json_encode(['chips' => $chips, 'exp' => $exp, 'itemCount' => $items], JSON_UNESCAPED_UNICODE),
+    'is_micro' => 0,
+    'tick_number' => 0,
+    'decision' => null,
+    'resource_cost' => null,
+    'resource_had' => 0,
+    'legendary_event_id' => null,
+    'legendary_stage' => null,
+  ];
+}
+
+// Прунинг: держим не больше MAX_EVENTS_PER_EXP строк на экспедицию.
+function pruneOldEvents($pdo, $expId) {
+  $cntStmt = $pdo->prepare("SELECT COUNT(*) AS c, MAX(id) AS m FROM exploration_events WHERE exploration_id = ?");
+  $cntStmt->execute([$expId]);
+  $row = $cntStmt->fetch();
+  $count = (int)($row['c'] ?? 0);
+  if ($count > MAX_EVENTS_PER_EXP + 200) {
+    $threshold = (int)$row['m'] - MAX_EVENTS_PER_EXP;
+    $del = $pdo->prepare("DELETE FROM exploration_events WHERE exploration_id = ? AND id <= ?");
+    $del->execute([$expId, $threshold]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +635,8 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $merged = mergeEffectsArr($rewards, $stageReward);
     $exp['legendary_rewards'] = json_encode($merged);
     $exp['legendary_stage'] = $stageIdx + 1;
-    $exp['legendary_auto_resolve'] = LEGENDARY_AUTO_RESOLVE_TICKS;
+    // Потикового auto-resolve больше нет: стадии идут по слотам крупных событий.
+    $exp['legendary_auto_resolve'] = null;
     $applyResult = applyEffects($pdo, $userId, $stageReward);
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + (int)($stageReward['chips'] ?? 0);
@@ -424,31 +709,24 @@ function handleExplorationDeath($pdo, $userId, &$exp) {
 // ---------------------------------------------------------------------------
 // Exploration start
 // ---------------------------------------------------------------------------
-function startExploration($pdo, $userId, $zone) {
+function startExploration($pdo, $userId, $zone, $hours = 12) {
   $zoneData = getZoneData($zone);
-  $isInfinite = ($zone === 'Заброшенная военная база и окрестности');
-  if ($isInfinite) {
-    $phase = 'exploring';
-    $timeLeft = EXPLORE_TICKS;
-  } else {
-    $phase = 'travel_out';
-    $timeLeft = TRAVEL_OUT_TICKS;
-  }
-  $stmt = $pdo->prepare("INSERT INTO explorations (user_id, zone, zone_difficulty, zone_factions, is_infinite, phase, time_left, event_cooldown, micro_event_cooldown, has_triggered_legendary, last_tick_at, started_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW(3), NOW())");
+  $hours = max(EXP_MIN_HOURS, min(EXP_MAX_HOURS, (int)$hours));
+  $plannedSec = $hours * 3600;
+  $stmt = $pdo->prepare("INSERT INTO explorations (user_id, zone, zone_difficulty, zone_factions, is_infinite, phase, time_left, planned_sec, was_cancelled, event_cooldown, micro_event_cooldown, has_triggered_legendary, last_tick_at, started_at)
+    VALUES (?, ?, ?, ?, 0, 'travel_out', ?, ?, 0, 0, 0, 0, NOW(3), NOW())");
   $stmt->execute([$userId, $zone, (int)($zoneData['difficulty'] ?? 1),
     json_encode($zoneData['allowedFactions'] ?? [], JSON_UNESCAPED_UNICODE),
-    $isInfinite ? 1 : 0,
-    $phase, $timeLeft]);
+    TRAVEL_OUT_TICKS, $plannedSec]);
   $expId = $pdo->lastInsertId();
 
-  return ['id' => $expId, 'phase' => $phase, 'time_left' => $timeLeft, 'is_infinite' => $isInfinite];
+  return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => TRAVEL_OUT_TICKS, 'is_infinite' => false, 'planned_sec' => $plannedSec];
 }
 
 // ---------------------------------------------------------------------------
 // Build status response
 // ---------------------------------------------------------------------------
-function buildStatus($pdo, $exp, $events, $forceState = null) {
+function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
   $phase = $exp['phase'];
   $isActive = $phase !== 'complete' && $phase !== 'idle';
   $sd = getSaveData($pdo, $exp['user_id']);
@@ -464,6 +742,10 @@ function buildStatus($pdo, $exp, $events, $forceState = null) {
 
   return [
     'active' => $isActive,
+    'engine_version' => $meta['engine_version'] ?? ENGINE_VERSION,
+    'debtSec' => (int)($meta['debtSec'] ?? 0),
+    'bulkMode' => $meta['bulkMode'] ?? 'none',
+    'processing_ms' => (int)($meta['processing_ms'] ?? 0),
     'exploration' => [
       'id' => (int)$exp['id'],
       'zone' => $exp['zone'],
@@ -474,6 +756,7 @@ function buildStatus($pdo, $exp, $events, $forceState = null) {
       'totalExp' => (int)$exp['total_exp'],
       'totalItems' => (int)($exp['total_items'] ?? 0),
       'isInfinite' => (bool)$exp['is_infinite'],
+      'plannedSec' => (int)($exp['planned_sec'] ?? 0),
       'legendaryId' => $exp['legendary_id'],
       'legendaryStage' => $exp['legendary_stage'] !== null ? (int)$exp['legendary_stage'] : null,
     ],
@@ -495,11 +778,11 @@ function cancelExploration($pdo, $userId) {
   $stmt->execute([$userId]);
   $exp = $stmt->fetch();
   if (!$exp) return ['success' => false, 'message' => 'Нет активного исследования'];
-  $exp['phase'] = 'complete';
-  saveExplorationHistory($pdo, $userId, $exp, 'cancelled');
-  $upd = $pdo->prepare("UPDATE explorations SET phase = 'complete' WHERE id = ?");
-  $upd->execute([$exp['id']]);
-  return ['success' => true];
+  // Досрочный возврат — реальная дорога домой (час), без бонуса за зачистку.
+  // История запишется по прибытии с исходом 'cancelled'.
+  $upd = $pdo->prepare("UPDATE explorations SET phase = 'travel_back', time_left = ?, was_cancelled = 1 WHERE id = ?");
+  $upd->execute([TRAVEL_BACK_TICKS, $exp['id']]);
+  return ['success' => true, 'return_sec' => TRAVEL_BACK_TICKS];
 }
 
 // ---------------------------------------------------------------------------
@@ -721,6 +1004,15 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
     if ($branch) {
       $result = resolveBranch(['outcomes' => $branch['outcomes']], $zone, $playerLevel, $items);
       $eff = mergeEffectsArr($template['effects'] ?? [], $result['effects']);
+      // Ловушки бьют редко (2/час), поэтому каждый удар весомый:
+      // масштабируем урон в полосу 0.35-0.80 (без ресурса; с ресурсом
+      // смягчение работает и capEffects режет сильнее).
+      if (($template['type'] ?? '') === 'trap' && !empty($eff['damagePercent']) && $eff['damagePercent'] > 0) {
+        $eff['damagePercent'] = $eff['damagePercent'] * TRAP_DAMAGE_MULT;
+        if (empty($result['resourceHad'])) {
+          $eff['damagePercent'] = max($eff['damagePercent'], TRAP_DAMAGE_MIN);
+        }
+      }
       $eff = capEffects($eff, $result['resourceHad']);
       return [
         'eventKey' => $eventKey, 'text' => $text . ' → ' . implode(' → ', $result['texts']),
@@ -745,7 +1037,12 @@ function capEffects($effects, $hadResource) {
     $effects['healPercent'] = min($effects['healPercent'], $hadResource ? 0.15 : 0.05);
   }
   if (isset($effects['damagePercent']) && $effects['damagePercent'] > 0) {
-    $effects['damagePercent'] = min($effects['damagePercent'], $hadResource ? 0.15 : 0.30);
+    // Редкие удары (ловушки раз в ~30 мин) — весомые: до 0.80 без ресурса.
+    $effects['damagePercent'] = min($effects['damagePercent'], $hadResource ? 0.50 : 0.80);
   }
   return $effects;
 }
+
+// Масштабирование урона ловушек в полосу TRAP_DAMAGE_MIN..0.80.
+const TRAP_DAMAGE_MULT = 4;
+const TRAP_DAMAGE_MIN = 0.35;

@@ -1,11 +1,32 @@
 <?php
 define('TRAVEL_TIME', 180);
 define('TOTAL_TIME', 540);
-define('EVENT_COOLDOWN_MIN', 12);
-define('EVENT_COOLDOWN_MAX', 25);
-define('MICRO_COOLDOWN_MIN', 5);
-define('MICRO_COOLDOWN_MAX', 8);
+// Редкий темп (синхронно с константами engine_logic.php — define() побеждает
+// дублирующий const, поэтому значения должны совпадать здесь):
+// крупные ~2/час, микро раз в 8-12 мин.
+define('EVENT_COOLDOWN_MIN', 1500);
+define('EVENT_COOLDOWN_MAX', 2100);
+define('MICRO_COOLDOWN_MIN', 480);
+define('MICRO_COOLDOWN_MAX', 720);
 define('DEATH_COOLDOWN_MS', 30000);
+
+// Длительность экспедиции, часы (слайдер на старте: 2-24).
+define('EXP_MIN_HOURS', 2);
+define('EXP_MAX_HOURS', 24);
+// Дорога туда, сек (реальная вместо мгновенной).
+define('TRAVEL_OUT_SEC', 120);
+// Дорога домой, сек (плановая и досрочная — всегда час).
+define('TRAVEL_BACK_SEC', 3600);
+
+// Бонус к итогам за полную зачистку, ступени по плановой длительности:
+// 2-5ч +10%, 6-11ч +30%, 12-17ч +60%, 18-24ч +100%. Досрочный возврат — без бонуса.
+function durationBonusPct($plannedSec) {
+  $h = $plannedSec / 3600;
+  if ($h >= 18) return 100;
+  if ($h >= 12) return 60;
+  if ($h >= 6) return 30;
+  return 10;
+}
 
 function RNG($min, $max) { return mt_rand($min, $max); }
 function PICK_RAND(&$arr) { return $arr[array_rand($arr)]; }
