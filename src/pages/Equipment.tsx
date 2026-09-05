@@ -24,17 +24,20 @@ const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   weapon2: { top: Math.round(120 * S), left: Math.round(125 * S) },
   gloves: { top: Math.round(60 * S), left: Math.round(-20 * S) },
   boots: { top: Math.round(170 * S), left: Math.round(45 * S) },
-  ammo1: { top: Math.round(220 * S), left: Math.round(19 * S) },
-  ammo2: { top: Math.round(220 * S), left: Math.round(131 * S) },
-  ammo3: { top: Math.round(220 * S), left: Math.round(-38 * S) },
-  ammo4: { top: Math.round(220 * S), left: Math.round(75 * S) },
 };
 
 const SLOT_LABELS: Record<string, string> = {
   head: 'Шлем', armor: 'Броня', weapon1: 'Оружие', weapon2: 'Вторая рука',
   gloves: 'Перчатки', boots: 'Ботинки',
-  ammo1: 'Ам1', ammo2: 'Ам2', ammo3: 'Ам3', ammo4: 'Ам4',
+  ammo1: 'Патроны', ammo2: 'Патроны', ammo3: 'Патроны', ammo4: 'Патроны',
 };
+
+// Слоты поверх силуэта + отдельный ряд боеприпасов под куклой.
+const OVERLAY_SLOTS = EQUIPMENT_SLOTS.filter((s) => !s.startsWith('ammo')) as EquipmentSlot[];
+const AMMO_SLOTS = EQUIPMENT_SLOTS.filter((s) => s.startsWith('ammo')) as EquipmentSlot[];
+
+// Ключевые характеристики для сводки (остальное — под «Показать все»).
+const KEY_STATS = ['damage', 'armor', 'maxHp', 'crit', 'evasion', 'regen'] as const;
 
 const STAT_LABELS: Record<string, string> = {
   damage: 'Урон', crit: 'Крит. шанс', armor: 'Броня', regen: 'Регенерация',
@@ -77,6 +80,8 @@ export const Equipment = () => {
 
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [hoverSlot, setHoverSlot] = useState<string | null>(null);
+  const [showAllStats, setShowAllStats] = useState(false);
   const [customizing, setCustomizing] = useState<{ item: Item | null; slot: string } | null>(null);
   const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
   const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
@@ -144,6 +149,7 @@ export const Equipment = () => {
   };
 
   const handleMouseEnter = (slot: string, item: Item | null, e: React.MouseEvent) => {
+    setHoverSlot(slot);
     if (!item) return;
     setTooltipItem(item);
     setTooltipPos({ x: e.clientX, y: e.clientY });
@@ -155,6 +161,7 @@ export const Equipment = () => {
   };
 
   const handleMouseLeave = () => {
+    setHoverSlot(null);
     setTooltipItem(null);
   };
 
@@ -194,19 +201,25 @@ export const Equipment = () => {
   const avgLevel = equippedCount > 0 ? equippedItems.reduce((s, it) => s + (it.level || 0), 0) / equippedCount : 0;
   const avgStars = equippedCount > 0 ? equippedItems.reduce((s, it) => s + (QUALITY_STARS[it.quality || ''] || 0), 0) / equippedCount : 0;
 
-  const renderSlot = (slot: EquipmentSlot) => {
+  const renderSlotBox = (slot: EquipmentSlot, compact = false) => {
     const item = equipment[slot];
-    const pos = SLOT_POSITIONS[slot];
     const isAmmo = slot.startsWith('ammo');
-    const slotW = isAmmo ? 53 : 64;
-    const slotH = isAmmo ? 44 : 55;
+    const slotW = compact ? 60 : isAmmo ? 60 : 72;
+    const slotH = compact ? 52 : isAmmo ? 52 : 64;
     const isOccupied = !!equipment[slot];
     const isDragTarget = draggedItemId && validDropSlots.has(slot) && !isOccupied;
+    const isHover = hoverSlot === slot;
 
     const stars = item?.quality ? (QUALITY_STARS[item.quality] || 0) : 0;
+    const frame = isDragTarget
+      ? 'rgba(34,197,94,0.8)'
+      : item
+        ? (item.qualityColor || '#818cf8')
+        : 'rgba(255,255,255,0.14)';
+    const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
 
     return (
-      <div key={slot} style={{ position: 'absolute', top: pos.top, left: pos.left, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
         <div
           onDrop={(e) => handleDrop(slot, e)}
           onDragOver={handleDragOver}
@@ -215,58 +228,61 @@ export const Equipment = () => {
           onMouseLeave={handleMouseLeave}
           onClick={() => handleSlotClick(slot, item)}
           onDoubleClick={() => handleSlotDoubleClick(slot, item)}
+          title={caption}
           style={{
             width: slotW,
             height: slotH,
             background: isDragTarget
               ? 'rgba(34,197,94,0.15)'
               : item
-                ? `linear-gradient(135deg, ${item.qualityColor || '#818cf8'}22, rgba(0,0,0,0.4))`
+                ? `linear-gradient(135deg, ${item.qualityColor || '#818cf8'}26, rgba(0,0,0,0.45))`
                 : 'rgba(0,0,0,0.35)',
-            border: `2px solid ${
-              isDragTarget
-                ? 'rgba(34,197,94,0.8)'
-                : item
-                  ? (item.qualityColor || '#818cf8')
-                  : 'rgba(255,255,255,0.08)'
-            }`,
-            borderRadius: 8,
+            border: `2px ${item || isDragTarget ? 'solid' : 'dashed'} ${frame}`,
+            borderRadius: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: isDragTarget
               ? '0 0 18px rgba(34,197,94,0.5)'
-              : item
-                ? `0 0 10px ${(item.qualityColor || '#818cf8') + '66'}`
-                : 'none',
+              : isHover
+                ? `0 0 14px ${(item?.qualityColor || '#818cf8') + '88'}`
+                : item
+                  ? `0 0 10px ${(item.qualityColor || '#818cf8') + '55'}`
+                  : 'none',
             cursor: 'pointer',
             transition: 'all 120ms',
           }}
         >
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 35 : 42, height: isAmmo ? 31 : 42, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
+              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 34 : 40, height: isAmmo ? 30 : 40, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 2, textAlign: 'center' }}>
                 {item.level || 0} ур.
               </div>
               {isAmmo && (item.quantity || 0) > 1 && (
                 <div style={{
-                  position: 'absolute', bottom: 1, right: 2,
+                  position: 'absolute', bottom: 2, right: 3,
                   fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
                   color: '#fff', background: 'rgba(0,0,0,0.75)',
-                  borderRadius: 2, padding: '0 2px', lineHeight: '12px',
+                  borderRadius: 3, padding: '0 3px', lineHeight: '12px',
                 }}>
                   x{item.quantity}
                 </div>
               )}
             </div>
           ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)' }}>{SLOT_LABELS[slot]}</span>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.06)' }}>+</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', opacity: isHover ? 0.8 : 0.55 }}>
+            <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.22)' }}>+</span>
           </div>
           )}
         </div>
+        <div style={{
+          fontSize: 10, lineHeight: 1.2, textAlign: 'center',
+          color: item ? (item.qualityColor || 'var(--text-secondary)') : 'var(--text-muted)',
+          maxWidth: slotW + 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {caption}
+        </div>
         {stars > 0 && (
-          <div style={{ fontSize: 9, color: '#fbbf24', lineHeight: 1, marginTop: 1, whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 9, color: '#fbbf24', lineHeight: 1, whiteSpace: 'nowrap' }}>
             {'★'.repeat(Math.min(stars, 5))}
           </div>
         )}
@@ -314,71 +330,115 @@ export const Equipment = () => {
           '0 0 12px rgba(217,119,6,0.06)',
           'inset 0 0 30px rgba(217,119,6,0.02)',
         ].join(', '),
-        padding: '11px 15px',
-        display: 'flex', gap: 18, minWidth: 550,
+        padding: 20,
+        display: 'flex', gap: 20, minWidth: 700, maxWidth: '100%',
       }}>
-        {/* Left: stats panel */}
-        <div style={{ minWidth: 220, display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {/* Summary line */}
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', gap: 10, alignItems: 'center' }}>
-            <span style={{ background: 'rgba(251,191,36,0.1)', padding: '2px 8px', borderRadius: 4 }}>📦 {equippedCount}/10</span>
-            <span style={{ color: '#fbbf24' }}>⭐ {avgStars.toFixed(1)}</span>
-            <span>📊 {avgLevel.toFixed(1)} ур.</span>
+        {/* LEFT: hero paper-doll */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+          padding: '16px 10px', background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🛡️ ГЕРОЙ</div>
+          <div style={{ position: 'relative', width: 207, height: 396, margin: '0 66px 0 60px', flexShrink: 0 }}>
+            <div style={{
+              position: 'absolute', left: 0, top: 0, width: 207, height: 359,
+              backgroundImage: images.main ? `url(${images.main})` : 'none',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center top',
+              borderRadius: 60,
+              opacity: 0.95,
+            }} />
+            {OVERLAY_SLOTS.map((slot) => {
+              const pos = SLOT_POSITIONS[slot];
+              return (
+                <div key={slot} style={{ position: 'absolute', top: pos.top, left: pos.left }}>
+                  {renderSlotBox(slot)}
+                </div>
+              );
+            })}
           </div>
-
-          {/* Total power */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, letterSpacing: 0.5 }}>
-            <span style={{ color: 'var(--text-muted)' }}>🟡</span>
-            <span style={{ color: 'rgba(255,255,255,0.5)' }}>МОЩНОСТЬ</span>
-            <span
-              style={{ color: 'var(--wa-accent-amber)', fontWeight: 700, cursor: 'help', borderBottom: '1px dashed rgba(251,191,36,0.3)' }}
-              onMouseEnter={(e) => { setShowPowerBreakdown(true); setPowerTooltipPos({ x: e.clientX, y: e.clientY }); }}
-              onMouseMove={(e) => setPowerTooltipPos({ x: e.clientX, y: e.clientY })}
-              onMouseLeave={() => setShowPowerBreakdown(false)}
-            >
-              {(stats.power || 0).toLocaleString()}
-            </span>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🎯 АММУНИЦИЯ</div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {AMMO_SLOTS.map((slot) => renderSlotBox(slot))}
           </div>
-
-          {/* Divider */}
-          <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(217,119,6,0.3), transparent)' }} />
-
-          {/* Stat groups */}
-          {statGroups.map((g) => {
-            const entries = g.keys
-              .map((k) => ({ key: k, ...(statValue(k, stats[k] ?? 0) ?? { label: '', val: '', color: '' }) }))
-              .filter((e) => e.label);
-            if (entries.length === 0) return null;
-            return (
-              <div key={g.label} style={{ fontSize: 12, lineHeight: 1.7 }}>
-                <div style={{ color: '#a16207', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 1 }}>{g.label}</div>
-                {entries.map((e) => (
-                  <div key={e.key} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
-                    <span style={{ color: '#a0aec0' }}>{e.label}</span>
-                    <span style={{ color: e.color, fontWeight: 600 }}>{e.val}</span>
-                  </div>
-                ))}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', width: '100%' }}>
+            {[
+              { v: `${equippedCount}/10`, l: 'надето' },
+              { v: `⭐ ${avgStars.toFixed(1)}`, l: 'качество' },
+              { v: `${avgLevel.toFixed(1)}`, l: 'ср. уровень' },
+            ].map((t) => (
+              <div key={t.l} style={{
+                minWidth: 88, padding: '8px 6px', textAlign: 'center',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8,
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t.v}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.l}</div>
               </div>
-            );
-          })}
-
+            ))}
+          </div>
         </div>
 
-        {/* Right: character + slots */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 44 }}>
+        {/* RIGHT: stats */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minWidth: 280 }}>
           <div style={{
-            position: 'relative',
-            width: Math.round(150 * S),
-            height: Math.round(260 * S),
-            backgroundImage: images.main ? `url(${images.main})` : 'none',
-            backgroundSize: 'contain',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center',
-            borderRadius: Math.round(49 * S),
-            overflow: 'visible',
-            flexShrink: 0,
+            padding: 16, background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
           }}>
-            {EQUIPMENT_SLOTS.map(renderSlot)}
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)', marginBottom: 12 }}>📊 ХАРАКТЕРИСТИКИ</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, marginBottom: 10 }}>
+              <span style={{ color: 'rgba(255,255,255,0.5)' }}>Мощность</span>
+              <span
+                style={{ color: 'var(--wa-accent-amber)', fontWeight: 700, cursor: 'help', borderBottom: '1px dashed rgba(251,191,36,0.3)' }}
+                onMouseEnter={(e) => { setShowPowerBreakdown(true); setPowerTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                onMouseMove={(e) => setPowerTooltipPos({ x: e.clientX, y: e.clientY })}
+                onMouseLeave={() => setShowPowerBreakdown(false)}
+              >
+                {(stats.power || 0).toLocaleString()}
+              </span>
+            </div>
+            <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(217,119,6,0.3), transparent)', marginBottom: 8 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {KEY_STATS.map((k) => {
+                const sv = statValue(k, stats[k] ?? 0);
+                if (!sv) return null;
+                return (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#a0aec0' }}>{sv.label}</span>
+                    <span style={{ color: sv.color, fontWeight: 600 }}>{sv.val}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setShowAllStats((v) => !v)}
+              style={{
+                marginTop: 10, width: '100%', padding: '6px 0',
+                background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 6, color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12,
+              }}
+            >
+              {showAllStats ? '▴ Скрыть полное древо' : '▾ Показать все характеристики'}
+            </button>
+            {showAllStats && statGroups.map((g) => {
+              const entries = g.keys
+                .map((k) => ({ key: k, ...(statValue(k, stats[k] ?? 0) ?? { label: '', val: '', color: '' }) }))
+                .filter((e) => e.label);
+              if (entries.length === 0) return null;
+              return (
+                <div key={g.label} style={{ fontSize: 12, lineHeight: 1.7, marginTop: 8 }}>
+                  <div style={{ color: '#a16207', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 1 }}>{g.label}</div>
+                  {entries.map((e) => (
+                    <div key={e.key} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
+                      <span style={{ color: '#a0aec0' }}>{e.label}</span>
+                      <span style={{ color: e.color, fontWeight: 600 }}>{e.val}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
