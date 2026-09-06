@@ -109,6 +109,58 @@ const generateShop = (level: number): ShopItem[] => {
 
 type SortKey = 'price' | 'level' | 'name' | 'quality';
 
+// Лавки площади: секции витрины. Цвета — акценты секций.
+const STALLS = [
+  { id: 'weapons', label: 'Кузня', icon: '⚔️', flavor: 'Оружие от местных умельцев', color: '#f87171', slots: ['weapon1', 'weapon2'] },
+  { id: 'armor', label: 'Бронник', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'gloves', 'boots'] },
+  { id: 'consumables', label: 'Лавка', icon: '🧪', flavor: 'Расходники и припасы', color: '#4ade80', slots: ['ammo'] },
+  { id: 'mods', label: 'Модификации', icon: '🔩', flavor: 'Тюнинг снаряжения', color: '#c084fc', slots: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock', 'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'] },
+  { id: 'resources', label: 'Ресурсные ряды', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
+] as const;
+
+type StallId = typeof STALLS[number]['id'] | 'all';
+
+const isHighTier = (quality: string) => ['Эпический', 'Смертоносный', 'Легендарный', 'Божественный'].includes(quality);
+
+// Витринная карточка товара.
+const ProductCard = ({ item, buyPrice, canAfford, onBuy, onHover, onMove, onLeave }: {
+  item: ShopItem; buyPrice: number; canAfford: boolean;
+  onBuy: () => void;
+  onHover: (e: React.MouseEvent) => void; onMove: (e: React.MouseEvent) => void; onLeave: () => void;
+}) => {
+  const hot = isHighTier(item.quality);
+  return (
+    <div
+      onMouseEnter={onHover}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      style={{
+        padding: 6, background: 'var(--bg-glass)',
+        border: `2px solid ${item.qualityColor || 'var(--border-glass)'}`,
+        borderRadius: 8, cursor: 'pointer',
+        boxShadow: hot ? `0 0 10px ${(item.qualityColor || '#fff') + '44'}` : 'none',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+        transition: 'transform 100ms, box-shadow 120ms',
+      }}
+    >
+      {(() => { const url = getItemImage(item.resourceName || item.name, item.type !== 'material' ? item.displayName : undefined); return url ? <img src={url} alt="" style={{ width: 30, height: 30, objectFit: 'contain', imageRendering: 'pixelated', borderRadius: 4, background: 'rgba(0,0,0,0.25)' }} /> : <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📦</div>; })()}
+      <div style={{ fontSize: 10, fontWeight: 600, color: item.qualityColor || 'var(--text-primary)', lineHeight: 1.2, textAlign: 'center', overflowWrap: 'break-word', width: '100%' }}>
+        {item.displayName || item.name}
+      </div>
+      <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+        {item.type === 'material' ? `x${item.quantity || 1}` : `Lv.${item.level}`}
+      </div>
+      <Button variant="primary" size="sm"
+        onClick={onBuy}
+        disabled={!canAfford}
+        style={{ width: '100%', fontSize: 10, padding: '2px 4px', marginTop: 0 }}
+      >
+        {buyPrice} 💾
+      </Button>
+    </div>
+  );
+};
+
 export const Bazaar = () => {
   const playerLevel = usePlayerStore((s) => s.level);
   const dataChips = usePlayerStore((s) => s.dataChips);
@@ -123,7 +175,7 @@ export const Bazaar = () => {
   const applyBuyDiscount = (price: number) => Math.floor(price * (1 - getUtil().buyDiscount));
   const applySellBonus = (price: number) => Math.floor(price * (1 + getUtil().sellBonus));
   const [tab, setTab] = useState<'buy' | 'sell'>('buy');
-  const [shopTab, setShopTab] = useState<'all' | 'weapons' | 'armor' | 'consumables' | 'mods' | 'resources'>('all');
+  const [shopTab, setShopTab] = useState<StallId>('all');
   const [sortKey, setSortKey] = useState<SortKey>('price');
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -232,20 +284,13 @@ export const Bazaar = () => {
     return list;
   }, [shopItems, sortKey, sortAsc]);
 
-  const filteredShop = useMemo(() => {
-    if (shopTab === 'all') return sortedShop;
-    if (shopTab === 'resources') return sortedShop.filter((item) => item.type === 'material');
-    const slotMap: Record<string, string[]> = {
-      weapons: ['weapon1', 'weapon2'],
-      armor: ['head', 'armor', 'gloves', 'boots'],
-      consumables: ['ammo'],
-      mods: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock',
-        'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness',
-        'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
-    };
-    const validSlots = slotMap[shopTab] || [];
+  // Товары лавки из отсортированного списка.
+  const stallItems = (id: string): ShopItem[] => {
+    if (id === 'resources') return sortedShop.filter((item) => item.type === 'material');
+    const stall = STALLS.find((s) => s.id === id);
+    const validSlots = stall ? [...stall.slots] : [];
     return sortedShop.filter((item) => validSlots.includes(item.slot));
-  }, [sortedShop, shopTab]);
+  };
 
   const handleBuy = async (shopItem: ShopItem) => {
     if (!token) return;
@@ -457,26 +502,46 @@ export const Bazaar = () => {
       style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
     >
       <WapPanel variant="metal" padding="lg">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>🏪 Базар</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)' }}>
-              💾 {dataChips.toLocaleString()}
-            </span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {timerSec > 0
-                ? `${Math.floor(timerSec / 3600)}:${String(Math.floor((timerSec % 3600) / 60)).padStart(2, '0')}:${String(timerSec % 60).padStart(2, '0')}`
-                : 'обновление...'}
-            </span>
-            <Button size="sm" variant="ghost" onClick={handleRefresh} disabled={shopLoading}>
-              🔄 {Math.floor((50 + playerLevel * 10) * (1 - getUtil().refreshDiscount))}💾
-            </Button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>🏪 Барахолка</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+              Торговая площадь: лавки мастеров и ресурсные ряды.<br />
+              Новый завоз — каждые 5 часов.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+            <div style={{
+              padding: '10px 16px', textAlign: 'center',
+              background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)',
+              borderRadius: 10, minWidth: 110,
+            }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1 }}>КОШЕЛЁК</div>
+              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)' }}>
+                💾 {dataChips.toLocaleString()}
+              </div>
+            </div>
+            <div style={{
+              padding: '10px 16px', textAlign: 'center',
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 10, minWidth: 110, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6,
+            }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1 }}>ЗАВОЗ ЧЕРЕЗ</div>
+              <div style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                {timerSec > 0
+                  ? `${Math.floor(timerSec / 3600)}:${String(Math.floor((timerSec % 3600) / 60)).padStart(2, '0')}:${String(timerSec % 60).padStart(2, '0')}`
+                  : 'обновление...'}
+              </div>
+              <Button size="sm" variant="ghost" onClick={handleRefresh} disabled={shopLoading} style={{ fontSize: 10 }}>
+                📢 Позвать торговца · {Math.floor((50 + playerLevel * 10) * (1 - getUtil().refreshDiscount))}💾
+              </Button>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <Button variant={tab === 'buy' ? 'primary' : 'ghost'} size="sm" onClick={() => setTab('buy')}>🛒 Купить</Button>
-          <Button variant={tab === 'sell' ? 'primary' : 'ghost'} size="sm" onClick={() => setTab('sell')}>💰 Продать</Button>
+          <Button variant={tab === 'sell' ? 'primary' : 'ghost'} size="sm" onClick={() => setTab('sell')}>💰 Скупка</Button>
         </div>
 
         {tab === 'buy' ? (
@@ -485,10 +550,10 @@ export const Bazaar = () => {
           ) : (
             <>
               <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                {([{ id: 'all', label: 'Все', icon: '📋' }, { id: 'weapons', label: 'Кузня', icon: '⚔️' }, { id: 'armor', label: 'Броня', icon: '🛡️' }, { id: 'consumables', label: 'Лавка', icon: '🧪' }, { id: 'mods', label: 'Модификации', icon: '🔩' }, { id: 'resources', label: 'Ресурсы', icon: '📦' }] as const).map((st) => (
+                {([{ id: 'all', label: 'Вся площадь', icon: '📋' }, ...STALLS.map((s) => ({ id: s.id, label: s.label, icon: s.icon }))] as const).map((st) => (
                   <div key={st.id} onClick={() => setShopTab(st.id)}
                     style={{
-                      padding: '3px 10px', fontSize: 11, cursor: 'pointer', borderRadius: 'var(--radius-sm)',
+                      padding: '4px 12px', fontSize: 11, cursor: 'pointer', borderRadius: 'var(--radius-sm)',
                       background: shopTab === st.id ? 'var(--bg-glass-hover)' : 'transparent',
                       border: `1px solid ${shopTab === st.id ? 'var(--accent-primary)' : 'rgba(255,255,255,0.06)'}`,
                       color: shopTab === st.id ? 'var(--accent-primary)' : 'var(--text-muted)',
@@ -497,7 +562,7 @@ export const Bazaar = () => {
                   >{st.icon} {st.label}</div>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 14, alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Сортировать:</span>
                 {(['price', 'level', 'name', 'quality'] as SortKey[]).map((k) => (
                   <div key={k}
@@ -515,43 +580,58 @@ export const Bazaar = () => {
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
-                {filteredShop.map((item) => (
-                  <div key={item.id}
-                    onMouseEnter={(e) => { setHoveredShopItem(item); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
-                    onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => setHoveredShopItem(null)}
-                    style={{
-                      padding: 10, background: 'var(--bg-glass)',
-                      border: `1px solid ${item.qualityColor || 'var(--border-glass)'}`,
-                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    }}
-                  >
-                    {(() => { const url = getItemImage(item.resourceName || item.name, item.type !== 'material' ? item.displayName : undefined); return url ? <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'contain', imageRendering: 'pixelated', margin: '0 auto 4px', display: 'block', borderRadius: 3, background: 'rgba(0,0,0,0.2)' }} /> : <div style={{ width: 40, height: 40, margin: '0 auto 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📦</div>; })()}
-                    <div style={{ fontSize: 11, fontWeight: 500, color: item.qualityColor || 'var(--text-primary)', marginBottom: 2, lineHeight: 1.2 }}>
-                      {item.displayName || item.name}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {(shopTab === 'all' ? STALLS : STALLS.filter((s) => s.id === shopTab)).map((stall) => {
+                  const goods = stallItems(stall.id);
+                  if (goods.length === 0) return null;
+                  return (
+                    <div key={stall.id}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: stall.color }}>{stall.icon} {stall.label}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{stall.flavor}</span>
+                        <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginLeft: 'auto' }}>{goods.length} шт.</span>
+                      </div>
+                      <div style={{
+                        borderTop: `2px solid ${stall.color}44`, paddingTop: 10,
+                      }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 8 }}>
+                          {goods.map((item) => {
+                            const buyPrice = applyBuyDiscount(item.price);
+                            return (
+                              <ProductCard
+                                key={item.id}
+                                item={item}
+                                buyPrice={buyPrice}
+                                canAfford={dataChips >= buyPrice}
+                                onBuy={() => handleBuy(item)}
+                                onHover={(e) => { setHoveredShopItem(item); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                                onMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                                onLeave={() => setHoveredShopItem(null)}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 6 }}>
-                      {item.type === 'material' ? `x${item.quantity || 1}` : `Lv.${item.level}`}
-                    </div>
-                    <Button variant="primary" size="sm"
-                      onClick={() => handleBuy(item)}
-                      disabled={dataChips < applyBuyDiscount(item.price)}
-                      style={{ width: '100%', fontSize: 10, padding: '3px 6px' }}
-                    >
-                      {applyBuyDiscount(item.price)} 💾
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )
         ) : (
           <>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>
-              Перетащи предметы из инвентаря в слоты. Для стаковых предметов выбери количество к продаже.
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#4ade80' }}>🧑‍🌾 Скупщик</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>выложи товар на прилавок — посчитаем сразу</span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            <div style={{
+              border: '2px dashed rgba(74,222,128,0.3)', borderRadius: 12,
+              background: 'rgba(74,222,128,0.04)', padding: 14, marginBottom: 12,
+            }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.6 }}>
+                Перетащи предметы из инвентаря на прилавок. Для стаковых выбери количество, клик по слоту — убрать.
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {sellSlots.map((item, idx) => (
                 <div key={idx}
                   onDrop={(e) => handleSellDrop(idx, e)}
@@ -608,6 +688,7 @@ export const Bazaar = () => {
                   )}
                 </div>
               ))}
+              </div>
             </div>
             {sellSlots.some(Boolean) && (
               <div style={{
