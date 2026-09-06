@@ -128,6 +128,7 @@ CREATE TABLE explorations (
     time_left INT NOT NULL DEFAULT 180,
     planned_sec INT NOT NULL DEFAULT 0,
     was_cancelled TINYINT(1) NOT NULL DEFAULT 0,
+    use_materials TINYINT(1) NOT NULL DEFAULT 1,
     event_cooldown INT NOT NULL DEFAULT 12,
     micro_event_cooldown INT NOT NULL DEFAULT 5,
     has_triggered_legendary TINYINT(1) NOT NULL DEFAULT 0,

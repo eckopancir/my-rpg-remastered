@@ -7,6 +7,8 @@ $user = requireAuth();
 $userId = $user['id'];
 $zone = $_GET['zone'] ?? '';
 $hours = isset($_GET['hours']) ? (int)$_GET['hours'] : 12;
+// use_mats=0: ресурсы из инвентаря не тратятся, события идут по no-resource веткам.
+$useMats = isset($_GET['use_mats']) ? (int)$_GET['use_mats'] : 1;
 
 if (!$zone) {
   jsonResponse(['error' => 'zone required'], 400);
@@ -23,7 +25,7 @@ $upd = $pdo->prepare("UPDATE explorations SET phase = 'complete' WHERE user_id =
 $upd->execute([$userId]);
 
 try {
-  $result = startExploration($pdo, $userId, $zone, $hours);
+  $result = startExploration($pdo, $userId, $zone, $hours, $useMats);
   jsonResponse(['success' => true, 'exploration' => $result]);
 } catch (Exception $e) {
   jsonResponse(['error' => $e->getMessage()], 500);

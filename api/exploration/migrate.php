@@ -48,4 +48,10 @@ if (!count($colsW)) {
   $pdo->exec("ALTER TABLE explorations ADD COLUMN was_cancelled TINYINT(1) NOT NULL DEFAULT 0 AFTER planned_sec");
 }
 
+// Флаг трат материалов в путешествии (галочка на старте).
+$colsM = $pdo->query("SHOW COLUMNS FROM explorations LIKE 'use_materials'")->fetchAll();
+if (!count($colsM)) {
+  $pdo->exec("ALTER TABLE explorations ADD COLUMN use_materials TINYINT(1) NOT NULL DEFAULT 1 AFTER was_cancelled");
+}
+
 echo json_encode(['ok' => true]);
