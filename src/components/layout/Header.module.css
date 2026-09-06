@@ -69,6 +69,13 @@
   border-color: rgba(217, 119, 6, 0.15);
 }
 
+/* Кнопка-картинка Dashboard: высокий бокс, чтобы картинка не торчала наружу */
+.navImageLink {
+  height: 100px;
+  padding: 2px 8px;
+  overflow: visible;
+}
+
 .navLinkActive {
   color: var(--wa-accent-amber);
   background: rgba(217, 119, 6, 0.1);

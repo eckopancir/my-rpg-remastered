@@ -7,9 +7,10 @@ import { useSound } from '../../hooks/useSound';
 import { WapHudBar } from '../ui/WapHudBar';
 import { images } from '../../assets/index';
 import styles from './Header.module.css';
+import dashA2 from '../../assets/images/ui/a2.png';
+import dashA1 from '../../assets/images/ui/a1.png';
 
 const navItems = [
-  { to: '/dashboard', label: '📊 Dashboard' },
   { to: '/skills', label: '⭐ Skills' },
   { to: '/map', label: '🗺️ Map' },
   { to: '/adventure', label: '🔍 Travel' },
@@ -32,7 +33,14 @@ export const Header = () => {
   const navigate = useNavigate();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dashHover, setDashHover] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Предзагрузка ховер-картинки, чтобы не мигало при первом наведении.
+  useEffect(() => {
+    const img = new Image();
+    img.src = dashA1;
+  }, []);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -49,6 +57,21 @@ export const Header = () => {
       <div className={styles.left}>
         <div className={styles.logo}>Wasteland</div>
         <nav className={styles.nav}>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `${styles.navLink} ${styles.navImageLink} ${isActive ? styles.navLinkActive : ''}`
+            }
+            onClick={playClick}
+            onMouseEnter={() => setDashHover(true)}
+            onMouseLeave={() => setDashHover(false)}
+          >
+            <img
+              src={dashHover ? dashA1 : dashA2}
+              alt="Dashboard"
+              style={{ height: 94, width: 'auto', display: 'block' }}
+            />
+          </NavLink>
           {navItems.map((item) => (
             <NavLink
               key={item.to}

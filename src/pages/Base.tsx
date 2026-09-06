@@ -132,6 +132,27 @@ const formatDuration = (sec: number): string => {
   return `${d}д ${h}ч`;
 };
 
+// Кварталы базы — как в браузерных стратегиях: производство, хозяйство, быт, службы.
+const DISTRICTS: { id: string; label: string; icon: string; color: string; classes: string[] }[] = [
+  { id: 'prod', label: 'Производство', icon: '🏭', color: '#fb923c', classes: ['base-workbench', 'base-weapons', 'base-armor'] },
+  { id: 'farm', label: 'Хозяйство', icon: '🌾', color: '#4ade80', classes: ['base-garden', 'base-greenhouse', 'base-livestock', 'base-gym'] },
+  { id: 'life', label: 'Быт', icon: '🏠', color: '#60a5fa', classes: ['base-sleep', 'base-fun'] },
+  { id: 'service', label: 'Службы', icon: '🛡️', color: '#c084fc', classes: ['base-medbay', 'base-watchtower'] },
+];
+
+const CLASS_ICONS: Record<string, string> = {
+  'base-workbench': '🔧', 'base-garden': '🌱', 'base-greenhouse': '🌿',
+  'base-sleep': '🛌', 'base-weapons': '⚔️', 'base-armor': '🛡️',
+  'base-livestock': '🐄', 'base-medbay': '🏥', 'base-fun': '🎮',
+  'base-gym': '🏋️', 'base-watchtower': '📡',
+};
+
+// Следующий неразблокированный бонус постройки.
+const nextBonus = (name: string, level: number): LevelBonus | null => {
+  const list = BASE_BONUSES[name] || [];
+  return list.find((b) => b.level > level) || null;
+};
+
 export const Base = () => {
   const dataChips = usePlayerStore((s) => s.dataChips);
   const addLog = usePlayerStore((s) => s.addLog);
@@ -418,6 +439,13 @@ export const Base = () => {
 
   const upgradesList = useMemo(() => BASE_POINTS, []);
 
+  // Штаб: сводка по базе.
+  const avgBaseLevel = upgradesList.length > 0
+    ? upgradesList.reduce((s, bp) => s + (baseUpgrades[bp.name] || 0), 0) / upgradesList.length
+    : 0;
+  const activeBuildName = Object.keys(upgradingBases)[0] || null;
+  const activeBuildLeft = activeBuildName ? (upgradeTimers[activeBuildName] || 0) : 0;
+
   if (loading) {
     return (
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
@@ -435,30 +463,79 @@ export const Base = () => {
       style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
     >
       <WapPanel variant="metal" padding="lg">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>🏢 База</div>
-          <span style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)' }}>
-            💾 {dataChips.toLocaleString()}
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>🏢 База</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+              Укреплённый лагерь: строй, улучшай, получай бонусы
+            </div>
+          </div>
+          <div style={{
+            padding: '10px 16px', textAlign: 'center',
+            background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)',
+            borderRadius: 10, minWidth: 110,
+          }}>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1 }}>КАЗНА</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)' }}>
+              💾 {dataChips.toLocaleString()}
+            </div>
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
-          {upgradesList.map((bp) => {
+        <div style={{ display: 'flex', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+          {[
+            { v: `${upgradesList.length}`, l: 'построек' },
+            { v: `${avgBaseLevel.toFixed(1)}`, l: 'ср. уровень' },
+            activeBuildName
+              ? { v: '🔨', l: `${activeBuildName} · ${formatDuration(activeBuildLeft)}` }
+              : { v: '✅', l: 'стройка свободна' },
+          ].map((t) => (
+            <div key={t.l} style={{
+              flex: 1, minWidth: 140, padding: '10px 12px', textAlign: 'center',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{t.v}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{t.l}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 16 }}>
+          {DISTRICTS.map((d) => {
+            const districtPoints = upgradesList.filter((bp) => d.classes.includes(bp.className));
+            if (districtPoints.length === 0) return null;
+            const built = districtPoints.filter((bp) => (baseUpgrades[bp.name] || 0) > 0).length;
+            return (
+              <div key={d.id}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: d.color }}>{d.icon} {d.label}</span>
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                    {built}/{districtPoints.length}
+                  </span>
+                </div>
+                <div style={{ borderTop: `2px solid ${d.color}44`, paddingTop: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                    {districtPoints.map((bp) => {
             const currentLevel = baseUpgrades[bp.name] || 0;
             const isMaxed = currentLevel >= bp.maxLevel;
             const req = isMaxed ? null : genRequirements(bp.className, currentLevel + 1);
             const upgrading = itUpgrading(bp.name);
             const timerRemaining = upgradeTimers[bp.name] || 0;
+            const nb = nextBonus(bp.name, currentLevel);
+            const pct = bp.maxLevel > 0 ? Math.round((currentLevel / bp.maxLevel) * 100) : 0;
 
             return (
               <div key={bp.name} onClick={() => openUpgrade(bp)}
                 style={{
-                  padding: 16, cursor: 'pointer',
+                  padding: 14, cursor: 'pointer',
                   background: 'var(--bg-glass)',
-                  border: `1px solid ${upgrading ? 'var(--accent-warning)' : isMaxed ? '#fbbf24' : 'var(--border-glass)'}`,
-                  borderRadius: 'var(--radius-md)',
+                  border: `2px solid ${upgrading ? 'var(--accent-warning)' : isMaxed ? '#fbbf24' : 'var(--border-glass)'}`,
+                  boxShadow: isMaxed ? '0 0 12px rgba(251,191,36,0.15)' : 'none',
+                  borderRadius: 10,
                   display: 'flex', flexDirection: 'column', gap: 8,
                   position: 'relative', overflow: 'hidden',
+                  transition: 'transform 100ms, box-shadow 120ms',
                 }}
               >
                 {upgrading && (
@@ -471,17 +548,35 @@ export const Base = () => {
                   </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 20 }}>{
-                    bp.className === 'base-workbench' ? '🔧' : bp.className === 'base-garden' ? '🌱' : bp.className === 'base-greenhouse' ? '🌿' :
-                    bp.className === 'base-sleep' ? '🛌' : bp.className === 'base-weapons' ? '⚔️' : bp.className === 'base-armor' ? '🛡️' :
-                    bp.className === 'base-livestock' ? '🐄' : bp.className === 'base-medbay' ? '🏥' : bp.className === 'base-fun' ? '🎮' :
-                    bp.className === 'base-gym' ? '🏋️' : '📡'
-                  }</div>
-                  <div style={{ fontSize: 12 }}>{isMaxed ? 'МАКС' : `Ур.${currentLevel + 1}/${bp.maxLevel}`}</div>
+                  <div style={{ fontSize: 26 }}>{CLASS_ICONS[bp.className] || '🏚️'}</div>
+                  <div style={{
+                    fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    padding: '3px 10px', borderRadius: 20,
+                    background: isMaxed ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${isMaxed ? '#fbbf24' : 'rgba(255,255,255,0.1)'}`,
+                    color: isMaxed ? '#fbbf24' : 'var(--text-secondary)',
+                  }}>
+                    {isMaxed ? '★ МАКС' : `Ур. ${currentLevel}/${bp.maxLevel}`}
+                  </div>
                 </div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{bp.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.3 }}>{bp.description}</div>
-                <ProgressBar value={currentLevel} max={bp.maxLevel} showLabel={false} height={5} />
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{bp.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{bp.description}</div>
+                {!isMaxed && nb && (
+                  <div style={{ fontSize: 11, color: '#4ade80', lineHeight: 1.4 }}>
+                    ▲ Ур.{nb.level}: {nb.label}
+                  </div>
+                )}
+                <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <ProgressBar value={currentLevel} max={bp.maxLevel} showLabel={false} height={6} />
+                  </div>
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{pct}%</span>
+                </div>
+              </div>
+            );
+                    })}
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -489,7 +584,8 @@ export const Base = () => {
       </WapPanel>
 
       <WapPanel variant="metal" padding="lg">
-        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>🧪 Расходные баффы базы</div>
+        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>🧪 Расходные баффы базы</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>Зелья и стимуляторы от построек: открываются с уровнем, у каждого своя перезарядка</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
           {BASE_CONSUMABLES.map((con) => {
             const onCooldown = !!cooldowns[con.id];

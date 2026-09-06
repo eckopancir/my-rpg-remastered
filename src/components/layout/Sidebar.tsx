@@ -31,7 +31,19 @@ export const Sidebar = () => {
   const expTimeLeft = useExplorationStore((s) => s.timeLeft);
   const expTickCount = useExplorationStore((s) => s.tickCount);
   const expIsInfinite = useExplorationStore((s) => s.isInfinite);
+  const expPlannedSec = useExplorationStore((s) => s.plannedSec);
   const fmtSec = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+  const fmtDur = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
+  // Прошедшее время зеркально остальным экранам: дорога 120с, вылазка plannedSec, возврат 3600с.
+  const expElapsed = expIsInfinite
+    ? expTickCount
+    : phase === 'travel_out'
+      ? Math.max(0, 120 - expTimeLeft)
+      : phase === 'exploring'
+        ? (expPlannedSec > 0 ? Math.max(0, expPlannedSec - expTimeLeft) : expTickCount)
+        : phase === 'travel_back'
+          ? (expPlannedSec > 0 ? expPlannedSec + Math.max(0, 3600 - expTimeLeft) : expTickCount)
+          : expTickCount;
   const expChips = useExplorationStore((s) => s.totalChips);
   const expExp = useExplorationStore((s) => s.totalExp);
   const expItems = useExplorationStore((s) => s.totalItems);
@@ -52,7 +64,7 @@ export const Sidebar = () => {
                 📡 {expZoneName}
               </div>
               <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)', marginBottom: 2 }}>
-                ⏱ {expIsInfinite ? `прошло ${fmtSec(expTimeLeft)}` : `осталось ${expTimeLeft}с`} · {phase === 'travel_out' ? 'выезд' : phase === 'exploring' ? 'в зоне' : phase === 'travel_back' ? 'возврат' : 'завершено'}
+                ⏱ {expIsInfinite ? `прошло ${fmtSec(expTickCount)}` : `прошло ${fmtDur(expElapsed)}`} · {phase === 'travel_out' ? 'выезд' : phase === 'exploring' ? 'в зоне' : phase === 'travel_back' ? 'возврат' : 'завершено'}
               </div>
               {(expChips + expExp + expItems) > 0 && (
                 <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>

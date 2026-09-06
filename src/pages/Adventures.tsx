@@ -35,8 +35,20 @@ export const Adventures = () => {
   const phase = useExplorationStore((s) => s.phase);
   const zoneName = useExplorationStore((s) => s.zoneName);
   const timeLeft = useExplorationStore((s) => s.timeLeft);
+  const tickCount = useExplorationStore((s) => s.tickCount);
+  const plannedSec = useExplorationStore((s) => s.plannedSec);
   const isInfinite = useExplorationStore((s) => s.isInfinite);
   const fmtTime = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
+  // Прошедшее время зеркально AutoExploration: дорога 120с, вылазка plannedSec, возврат 3600с.
+  const elapsedSec = isInfinite
+    ? tickCount
+    : phase === 'travel_out'
+      ? Math.max(0, 120 - timeLeft)
+      : phase === 'exploring'
+        ? (plannedSec > 0 ? Math.max(0, plannedSec - timeLeft) : 0)
+        : phase === 'travel_back'
+          ? (plannedSec > 0 ? plannedSec + Math.max(0, 3600 - timeLeft) : 0)
+          : 0;
   const isTraveling = usePlayerStore((s) => s.travel.isTraveling);
   const isReturning = usePlayerStore((s) => s.travel.isReturning);
   const isFighting = usePlayerStore((s) => s.combat.isFighting);
@@ -48,6 +60,7 @@ export const Adventures = () => {
   // Модалка старта: выбор длительности слайдером 2-24ч.
   const [pendingZone, setPendingZone] = useState<string | null>(null);
   const [hours, setHours] = useState(12);
+  const [useMats, setUseMats] = useState(true);
 
   useEffect(() => {
     if (!token) return;
@@ -64,7 +77,7 @@ export const Adventures = () => {
 
   const confirmExplore = async () => {
     if (!pendingZone) return;
-    await useExplorationStore.getState().startExploration(pendingZone, hours);
+    await useExplorationStore.getState().startExploration(pendingZone, hours, useMats);
     const zn = pendingZone;
     setPendingZone(null);
     navigate(`/explore?zone=${encodeURIComponent(zn)}`);
@@ -131,7 +144,7 @@ export const Adventures = () => {
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
               Исследование активно
             </div>
-            <div style={{ fontSize: 13 }}>Зона: <b>{zoneName}</b> · Фаза: <b>{phase}</b> · {isInfinite ? `Прошло: ${fmtTime(timeLeft)}` : `Осталось: ${fmtTime(Math.max(0, timeLeft))}`}</div>
+            <div style={{ fontSize: 13 }}>Зона: <b>{zoneName}</b> · Фаза: <b>{phase}</b> · Прошло: {fmtTime(elapsedSec)}</div>
             <button onClick={() => navigate('/explore')} style={{
               marginTop: 8, padding: '10px 28px', borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--accent-info)', background: 'rgba(96,165,250,0.15)',
@@ -314,6 +327,25 @@ export const Adventures = () => {
             }}>
               🏆 Бонус за полную зачистку: +{durationBonusPct(hours)}% к чипам и опыту
             </div>
+            <label style={{
+              display: 'flex', gap: 8, alignItems: 'flex-start',
+              fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5,
+              cursor: 'pointer', padding: '8px 12px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)', borderRadius: 'var(--radius-sm)',
+            }}>
+              <input
+                type="checkbox" checked={useMats}
+                onChange={(e) => setUseMats(e.target.checked)}
+                style={{ marginTop: 2, accentColor: 'var(--accent-success)', cursor: 'pointer' }}
+              />
+              <span>
+                Тратить материалы из инвентаря.<br />
+                <span style={{ color: 'var(--text-muted)' }}>
+                  Выкл — и события будут считать, что ресурсов нет (бережёт запасы, но награды скромнее).
+                </span>
+              </span>
+            </label>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
               <button
                 onClick={() => setPendingZone(null)}

@@ -59,8 +59,19 @@ export const AutoExploration = () => {
     if (m > 0) return `${m}м`;
     return `${sec}с`;
   };
-  const displayTime = s.isInfinite ? fmtTime(s.tickCount) : fmtTime(Math.max(0, s.timeLeft));
-  const timeLabel = s.isInfinite ? 'прошло' : 'осталось';
+  // Показываем ПРОШЕДШЕЕ время (зеркало серверных фаз):
+  // дорога туда 120с, вылазка — plannedSec, возврат — 3600с.
+  const elapsedSec = s.isInfinite
+    ? s.tickCount
+    : s.phase === 'travel_out'
+      ? Math.max(0, 120 - s.timeLeft)
+      : s.phase === 'exploring'
+        ? (s.plannedSec > 0 ? Math.max(0, s.plannedSec - s.timeLeft) : s.tickCount)
+        : s.phase === 'travel_back'
+          ? (s.plannedSec > 0 ? s.plannedSec + Math.max(0, 3600 - s.timeLeft) : s.tickCount)
+          : s.tickCount;
+  const displayTime = fmtTime(elapsedSec);
+  const timeLabel = 'прошло';
 
   // Прогресс по плановой длительности (plannedSec со слайдера 2-24ч),
   // legacy-строкам без неё — старый фолбэк 1+180+30.

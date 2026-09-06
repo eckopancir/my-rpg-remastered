@@ -60,6 +60,7 @@ export interface ServerExploration {
   totalItems?: number;
   isInfinite: boolean;
   plannedSec?: number;
+  useMaterials?: boolean;
   legendaryId: string | null;
   legendaryStage: number | null;
 }
@@ -108,8 +109,10 @@ interface ExplorationStore {
   engineVersion: string;
   // Плановая длительность экспедиции, сек (слайдер 2-24ч). 0 = legacy.
   plannedSec: number;
+  // Тратить ли материалы из инвентаря (галочка на старте).
+  useMaterials: boolean;
 
-  startExploration: (zoneName: string, hours?: number) => Promise<void>;
+  startExploration: (zoneName: string, hours?: number, useMats?: boolean) => Promise<void>;
   cancelExploration: () => Promise<void>;
   pollServerState: () => Promise<void>;
   loadOlderEvents: () => Promise<void>;
@@ -164,13 +167,14 @@ export const useExplorationStore = create<ExplorationStore>()(
       bulkMode: 'none',
       engineVersion: '',
       plannedSec: 0,
+      useMaterials: true,
 
-      startExploration: async (zoneName, hours = 12) => {
+      startExploration: async (zoneName, hours = 12, useMats = true) => {
         const token = getToken();
         if (!token) { set({ error: 'Not authenticated' }); return; }
         const h = Math.max(2, Math.min(24, Math.round(hours)));
         try {
-          const res = await fetch(`${API_BASE}/start.php?zone=${encodeURIComponent(zoneName)}&hours=${h}`, {
+          const res = await fetch(`${API_BASE}/start.php?zone=${encodeURIComponent(zoneName)}&hours=${h}&use_mats=${useMats ? 1 : 0}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
@@ -208,6 +212,7 @@ export const useExplorationStore = create<ExplorationStore>()(
             bulkMode: 'none',
             engineVersion: '',
             plannedSec: typeof exp?.planned_sec === 'number' ? exp.planned_sec : h * 3600,
+            useMaterials: exp?.use_materials === undefined ? useMats : exp.use_materials !== 0,
           });
         } catch (e) {
           set({ error: `Network error: ${e}` });
@@ -368,6 +373,9 @@ export const useExplorationStore = create<ExplorationStore>()(
               plannedSec: typeof exp.plannedSec === 'number' && exp.plannedSec > 0
                 ? exp.plannedSec
                 : state.plannedSec,
+              useMaterials: typeof exp.useMaterials === 'boolean'
+                ? exp.useMaterials
+                : state.useMaterials,
             });
           }
           // Process pending rewards after each poll
@@ -461,6 +469,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           explorationId: null, isReturningHome: false,
           totalEvents: 0, hasMoreEvents: false,
           debtSec: 0, bulkMode: 'none',
+          useMaterials: true,
         });
         // Process pending rewards after completion
         get().processPendingRewards();
@@ -474,6 +483,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           explorationId: null, error: null,
           totalEvents: 0, hasMoreEvents: false,
           debtSec: 0, bulkMode: 'none',
+          useMaterials: true,
         });
       },
 
@@ -596,6 +606,7 @@ export const useExplorationStore = create<ExplorationStore>()(
         isInfinite: state.isInfinite,
         explorationId: state.explorationId,
         plannedSec: state.plannedSec,
+        useMaterials: state.useMaterials,
       }),
       merge: (persisted: any, current: any) => ({
         ...current,
