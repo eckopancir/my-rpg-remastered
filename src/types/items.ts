@@ -9,7 +9,7 @@ export type ItemSlot =
   | 'amulet'
   | 'backpack';
 
-export type ItemType = 'weapon' | 'armor' | 'accessory' | 'consumable' | 'mod' | 'material' | 'blueprint';
+export type ItemType = 'weapon' | 'armor' | 'accessory' | 'consumable' | 'mod' | 'material' | 'blueprint' | 'chest';
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 

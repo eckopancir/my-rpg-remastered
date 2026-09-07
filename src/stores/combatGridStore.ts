@@ -4,8 +4,8 @@ import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
-import { generateItem } from '../engine/items';
 import { GAME_ITEMS } from '../data/GameItems';
+import { createChest } from '../data/chests';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -1712,14 +1712,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     playerStore.addChips(chipReward);
     playerStore.addLog(`🏆 Победа! +${expReward} опыта, +${chipReward} чипов`, 'loot');
 
-    // Guaranteed item reward matching card rarity
+    // Награда за карту: сундук качества карты (уровень зафиксирован) вместо предмета.
     if (state.cardRarityName) {
       try {
-        const item = generateItem(GAME_ITEMS, playerStore.level, undefined, state.cardRarityName);
-        if (item) {
-          useInventoryStore.getState().addItem(item);
-          playerStore.addLog(`🎁 Награда: ${item.displayName || item.name} (${state.cardRarityName})`, 'loot');
-        }
+        const chest = createChest(state.cardRarityName, playerStore.level);
+        useInventoryStore.getState().addItem(chest);
+        playerStore.addLog(`🎁 Награда: ${chest.displayName || chest.name} — открой двойным кликом в инвентаре`, 'loot');
       } catch (e) { /* ignore */ }
     }
 

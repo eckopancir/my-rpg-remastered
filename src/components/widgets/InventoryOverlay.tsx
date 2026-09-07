@@ -9,6 +9,7 @@ import { WapHeader } from '../ui/WapHeader';
 import { WapPanel } from '../ui/WapPanel';
 import type { Item } from '../../types/items';
 import { ItemTooltip } from './ItemTooltip';
+import { ChestOpening } from './ChestOpening';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 
@@ -27,6 +28,7 @@ const SLOT_FILTERS = [
   { value: 'ammo', label: '— Амуниция' },
   { value: 'mod', label: '— Моды' },
   { value: 'material', label: '— Ресурсы' },
+  { value: 'chest', label: '— Сундуки' },
 ];
 
 const getItemTimestamp = (item: Item): number => {
@@ -97,6 +99,7 @@ const slotFilterKey = (item: Item): string => {
   if (item.type === 'mod') return 'mod';
   if (item.type === 'consumable') return 'consumable';
   if (item.type === 'material') return 'material';
+  if (item.type === 'chest') return 'chest';
   if (item.slot === 'ammo') return 'ammo';
   return item.slot || '';
 };
@@ -126,6 +129,7 @@ export const InventoryOverlay = () => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; stacked: StackedItem } | null>(null);
   const [hoveredItem, setHoveredItem] = useState<StackedItem | null>(null);
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
+  const [openingChest, setOpeningChest] = useState<Item | null>(null);
 
   const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
 
@@ -233,8 +237,16 @@ export const InventoryOverlay = () => {
     setContextMenu(null);
   };
 
-  const handleDrop = (stacked: StackedItem) => {
+  // Открытие сундука: забираем из инвентаря, дальше ведёт модалка.
+  const openChest = (stacked: StackedItem) => {
     const item = stacked.item;
+    if (item.type !== 'chest') return;
+    removeItem(item.id);
+    setContextMenu(null);
+    setOpeningChest(item);
+  };
+
+  const handleDrop = (stacked: StackedItem) => {    const item = stacked.item;
     if (item.type === 'material' && stacked.count > 1) {
       // Reduce count
       useInventoryStore.setState((s) => {
@@ -338,7 +350,7 @@ export const InventoryOverlay = () => {
                 if (!stacked) return <div key={`empty-${idx}`} style={{ width: cellSize, height: cellSize }} />;
 
                 const { item, count } = stacked;
-                const imgUrl = getItemImage(item.name, item.displayName);
+                const imgUrl = item.image || getItemImage(item.name, item.displayName);
 
                 return (
                   <div
@@ -350,6 +362,7 @@ export const InventoryOverlay = () => {
                     }}
                     onDragEnd={() => setDraggedItemId(null)}
                     onContextMenu={(e) => handleContext(e, stacked)}
+                    onDoubleClick={() => { if (item.type === 'chest') openChest(stacked); }}
                     onMouseEnter={(e) => { setHoveredItem(stacked); setHoverPos({ x: e.clientX, y: e.clientY }); }}
                     onMouseMove={(e) => setHoverPos({ x: e.clientX, y: e.clientY })}
                     onMouseLeave={() => setHoveredItem(null)}
@@ -436,6 +449,10 @@ export const InventoryOverlay = () => {
             <ItemTooltip item={hoveredItem.item} x={hoverPos.x} y={hoverPos.y} />
           )}
 
+          {openingChest && (
+            <ChestOpening chest={openingChest} onClose={() => setOpeningChest(null)} />
+          )}
+
           {/* Context menu */}
           {contextMenu && (
             <div style={{
@@ -455,6 +472,19 @@ export const InventoryOverlay = () => {
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   ⛓️ Экипировать
+                </div>
+              )}
+              {contextMenu.stacked.item.type === 'chest' && (
+                <div
+                  onClick={() => openChest(contextMenu.stacked)}
+                  style={{
+                    padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: 'var(--accent-primary)',
+                    borderRadius: 3, transition: 'background 80ms',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  📦 Открыть
                 </div>
               )}
               {contextMenu.stacked.item.type === 'consumable' && (
