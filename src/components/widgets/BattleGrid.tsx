@@ -91,6 +91,18 @@ export const BattleGrid = () => {
   const setEnemyLootById = useCombatGridStore((s) => s.setEnemyLootById);
   const { playSound } = useSound();
   const showEnemyHpNumbers = useUiStore((s) => s.showEnemyHpNumbers);
+  // Дальность для замера: базовая +3 в защитном режиме (как в attackEnemy).
+  const combatRange = useCombatGridStore((s) => s.range);
+  const isDefensiveMode = useCombatGridStore((s) => s.isDefensiveMode);
+  const effRange = combatRange + (isDefensiveMode ? 3 : 0);
+  // Замер дистанции: зажатая ЛКМ на враге показывает клеток до него.
+  const [measuring, setMeasuring] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!measuring) return;
+    const up = () => setMeasuring(null);
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, [measuring]);
   const gridRef = useRef<HTMLDivElement>(null);
   const fogCanvasRef = useRef<HTMLCanvasElement>(null);
   const isRightMouseDown = useRef(false);
@@ -190,7 +202,8 @@ export const BattleGrid = () => {
   }, [visibleSet, isActive]);
 
   // Гладкий туман: рисуем 32×32 в canvas, CSS-blur сглаживает пиксельные края.
-  // Видно = прозрачно, разведанное = лёгкая тень, невиданное = почти черное.
+  // Видно = прозрачно рядом, дальше в конусе — плавная дымка до ~25% на краю;
+  // разведанное = тень памяти; невиданное = почти черное.
   useEffect(() => {
     const cv = fogCanvasRef.current;
     if (!cv) return;
@@ -200,13 +213,19 @@ export const BattleGrid = () => {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const k = `${x},${y}`;
-        const a = visibleSet.has(k) ? 0 : exploredCells[k] ? 90 : 230;
+        let a: number;
+        if (visibleSet.has(k)) {
+          const d = Math.min(1, getDist(playerPos, { x, y }) / 24);
+          a = Math.round(64 * Math.pow(d, 1.5));
+        } else {
+          a = exploredCells[k] ? 120 : 230;
+        }
         const idx = (y * GRID_SIZE + x) * 4;
         img.data[idx] = 0; img.data[idx + 1] = 0; img.data[idx + 2] = 0; img.data[idx + 3] = a;
       }
     }
     ctx.putImageData(img, 0, 0);
-  }, [visibleSet, exploredCells, isActive]);
+  }, [visibleSet, exploredCells, isActive, playerPos]);
 
   const isCellVisible = useCallback((x: number, y: number) => {
     return visibleSet.has(`${x},${y}`);
@@ -375,7 +394,7 @@ export const BattleGrid = () => {
 
         <div className={styles.gridOverlay}
           onContextMenu={(e) => e.preventDefault()}
-          style={{ cursor: `url("${pricelImg}") 24 24, crosshair` }}
+          style={{ cursor: `url("${pricelImg}") 12 12, crosshair` }}
           onMouseDown={(e) => { if (e.button === 2) isRightMouseDown.current = true; }}
           onMouseUp={(e) => { if (e.button === 2) isRightMouseDown.current = false; }}
           onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; }}
@@ -453,6 +472,7 @@ export const BattleGrid = () => {
                   <div
                     className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered ? ` ${styles.enemyCrosshair}` : ''}${isInRange ? ` ${styles.inRangeEnemy}` : ''}`}
                     style={{ borderColor: ENEMY_COLORS[enemy.faction] || '#a1a1aa', width: enemy.bigModel || '100%', height: enemy.bigModel || '100%', zIndex: 5 }}
+                    onMouseDown={(e) => { if (e.button === 0) setMeasuring({ x, y }); }}
                   >
                     {enemy.isEnraged && <div className={styles.enemyStatusBadge}>💢</div>}
                     {enemy.isInvisible && <div className={styles.enemyStatusBadge}>👤</div>}
@@ -467,6 +487,22 @@ export const BattleGrid = () => {
                         {Math.max(0, Math.round(enemy.currentHp))}/{Math.round(enemy.maxHp)}
                       </div>
                     )}
+                    {/* Замер: зажатая ЛКМ — клеток до цели (зелёный = в дальности стрельбы) */}
+                    {measuring && measuring.x === x && measuring.y === y && (() => {
+                      const d = getDist(playerPos, { x, y });
+                      const inRange = d <= effRange;
+                      return (
+                        <div style={{
+                          position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
+                          fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700, whiteSpace: 'nowrap',
+                          color: inRange ? '#4ade80' : '#f87171', background: 'rgba(0,0,0,0.75)', padding: '0 5px',
+                          borderRadius: 4, border: `1px solid ${inRange ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'}`,
+                          zIndex: 7, pointerEvents: 'none',
+                        }}>
+                          {Number(d.toFixed(1))}
+                        </div>
+                      );
+                    })()}
 
                     <img
                       src={getEnemyImage(enemy.faction, enemy.name)}

@@ -60,6 +60,7 @@ export const Battle = () => {
   const maxAp = useCombatGridStore((s) => s.maxAp);
   const ammo = useCombatGridStore((s) => s.ammo);
   const maxAmmo = useCombatGridStore((s) => s.maxAmmo);
+  const combatRange = useCombatGridStore((s) => s.range);
   const turn = useCombatGridStore((s) => s.turn);
   const turnCount = useCombatGridStore((s) => s.turnCount);
   const message = useCombatGridStore((s) => s.message);
@@ -261,6 +262,7 @@ export const Battle = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16 }}>
                 <span>⚡ {ap}/{maxAp}</span>
                 <span>🔫 {ammo}/{maxAmmo}</span>
+                <span title="Дальность стрельбы (+3 в защитном режиме)">📏 {combatRange + (isDefensiveMode ? 3 : 0)}</span>
                 {isDefensiveMode && <span style={{ color: '#8cf' }}>🛡️</span>}
               </div>
             </div>
