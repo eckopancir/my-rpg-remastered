@@ -31,10 +31,10 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
 
   // Анимация открытия ~1.4с, затем лут.
   useEffect(() => {
-    playSound('craft', 0.5);
+    playSound('zvuk-otkrytiya-keysa-v-igre-counter-strike-16(hugesounds.com)', 0.5);
     const t = setTimeout(() => {
       setPhase('opened');
-      playSound('paySell', 0.4);
+      playSound('open-magic-reveal-002379-', 0.5);
     }, 1400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
