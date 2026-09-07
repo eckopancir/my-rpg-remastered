@@ -10,6 +10,7 @@ import styles from './Header.module.css';
 import dashA2 from '../../assets/images/ui/a2.png';
 import dashA1 from '../../assets/images/ui/a1.png';
 import hpPlateImg from '../../assets/images/ui/hp-plate.png';
+import staminaPlateImg from '../../assets/images/ui/stamina-plate.png';
 
 const navItems = [
   { to: '/skills', label: '⭐ Skills' },
@@ -142,9 +143,21 @@ export const Header = () => {
             </div>
           </div>
         </div>
-        <div className={styles.stat}>
-          <span style={{ color: 'var(--wa-accent-amber)' }}>⚡</span>
-          <span className={styles.statValue}>{Math.round(stats.stamina)}</span>
+        <div className={styles.stat} title={`Стамина ${Math.round(stats.stamina)}`}>
+          <div style={{
+            position: 'relative', height: 60, aspectRatio: '416 / 626',
+            backgroundImage: `url(${staminaPlateImg})`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+          }}>
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 11,
+              color: '#fff',
+              textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 3px rgba(0,0,0,0.9)',
+              letterSpacing: 0, whiteSpace: 'nowrap',
+            }}>
+              {Math.round(stats.stamina)}
+            </div>
+          </div>
         </div>
         <div className={styles.stat}>
           Lv.<span className={styles.statValue}>{level}</span>
