@@ -6,7 +6,7 @@ import { useSound } from '../../hooks/useSound';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
 import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
-import pricelImg from '../../assets/images/ui/pricel.png';
+import pricelImg from '../../assets/images/ui/pricel-cursor.png';
 import type { GridEnemy } from '../../stores/combatGridStore';
 import styles from './BattleGrid.module.css';
 
@@ -375,7 +375,7 @@ export const BattleGrid = () => {
 
         <div className={styles.gridOverlay}
           onContextMenu={(e) => e.preventDefault()}
-          style={{ cursor: `url(${pricelImg}) 29 29, crosshair` }}
+          style={{ cursor: `url("${pricelImg}") 24 24, crosshair` }}
           onMouseDown={(e) => { if (e.button === 2) isRightMouseDown.current = true; }}
           onMouseUp={(e) => { if (e.button === 2) isRightMouseDown.current = false; }}
           onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; }}
