@@ -206,7 +206,7 @@ export const checkVisibility = (
   obstacles: GridObstacle[],
   config?: { range?: number; fov?: number; clearRange?: number; clearFov?: number; isShallowCheck?: boolean },
 ) => {
-  const { range = 24, fov = 75, clearRange = 8, clearFov = 130, isShallowCheck = false } = config || {};
+  const { range = 24, fov = 90, clearRange = 10, clearFov = 130, isShallowCheck = false } = config || {};
   const dist = getDist(viewerPos, targetPos);
   if (dist > range) return false;
   if (dist <= 1) return true;
@@ -856,9 +856,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }));
         stopCombatSound('run');
         if (newAp <= 0) {
-          const s = get();
-          const hasEnemies = s.enemies.some((e) => !e.dead) || s.reserve.length > 0;
-          if (hasEnemies) get().endTurn();
+          // AP кончились — ход завершается сам. Одни на поле: endTurn просто
+          // вернёт полный AP и свободное перемещение; есть враги: ход врага.
+          get().endTurn();
         }
         return;
       }
@@ -897,9 +897,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     });
     playCombatSound('run', 0.15);
     if (newAp <= 0) {
-      const s = get();
-      const hasEnemies = s.enemies.some((e) => !e.dead) || s.reserve.length > 0;
-      if (hasEnemies) get().endTurn();
+      // Одни на поле — тоже самозавершение: endTurn вернёт AP и свободный бег.
+      get().endTurn();
     }
   },
 
@@ -1694,14 +1693,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }, 200);
 
-    // Auto end turn if AP runs out
+    // Auto end turn if AP runs out (одни на поле — тоже: вернёт AP и свободный бег).
     const nextAp = state.ap - shotCost;
     if (nextAp < 1) {
       setTimeout(() => {
-        const s = get();
-        const enemiesAlive = s.enemies.some((e) => !e.dead);
-        const hasReserve = s.reserve.length > 0;
-        if (enemiesAlive || hasReserve) get().endTurn();
+        get().endTurn();
       }, 800);
     }
   },

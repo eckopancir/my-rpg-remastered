@@ -168,18 +168,20 @@ export const BattleGrid = () => {
   // Видно: рядом (≤2) или конус checkVisibility. Разведанное копим в сторе
   // и подсвечиваем тускло, невиданное — почти черное (рисует canvas ниже).
   const exploredCells = useCombatGridStore((s) => s.exploredCells);
+  // Низкие объекты (машины, леса, мелочь) туману не помеха — только высокие стены.
+  const tallObstacles = useMemo(() => obstacles.filter((o) => o.isHigh), [obstacles]);
   const visibleSet = useMemo(() => {
     const set = new Set<string>();
     for (let x = 0; x < GRID_SIZE; x++) {
       for (let y = 0; y < GRID_SIZE; y++) {
         if (getDist(playerPos, { x, y }) <= 2) { set.add(`${x},${y}`); continue; }
-        if (checkVisibility(playerPos, playerRotation, { x, y }, obstacles)) {
+        if (checkVisibility(playerPos, playerRotation, { x, y }, tallObstacles)) {
           set.add(`${x},${y}`);
         }
       }
     }
     return set;
-  }, [playerPos, playerRotation, obstacles]);
+  }, [playerPos, playerRotation, tallObstacles]);
 
   // Разведанное складываем в стор (переживает ре-рендеры, новый бой сбрасывает).
   useEffect(() => {
@@ -188,7 +190,7 @@ export const BattleGrid = () => {
   }, [visibleSet, isActive]);
 
   // Гладкий туман: рисуем 32×32 в canvas, CSS-blur сглаживает пиксельные края.
-  // Видно = прозрачно, разведанное = полутьма, невиданное = почти черное.
+  // Видно = прозрачно, разведанное = лёгкая тень, невиданное = почти черное.
   useEffect(() => {
     const cv = fogCanvasRef.current;
     if (!cv) return;
@@ -198,7 +200,7 @@ export const BattleGrid = () => {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const k = `${x},${y}`;
-        const a = visibleSet.has(k) ? 0 : exploredCells[k] ? 128 : 237;
+        const a = visibleSet.has(k) ? 0 : exploredCells[k] ? 90 : 230;
         const idx = (y * GRID_SIZE + x) * 4;
         img.data[idx] = 0; img.data[idx + 1] = 0; img.data[idx + 2] = 0; img.data[idx + 3] = a;
       }
@@ -489,7 +491,7 @@ export const BattleGrid = () => {
             ref={fogCanvasRef}
             width={GRID_SIZE}
             height={GRID_SIZE}
-            style={{ width: '100%', height: '100%', filter: 'blur(9px)', transform: 'scale(1.04)' }}
+            style={{ width: '100%', height: '100%', filter: 'blur(6px)', transform: 'scale(1.04)' }}
           />
         </div>
 
