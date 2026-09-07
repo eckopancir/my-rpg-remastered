@@ -528,7 +528,22 @@ export const Battle = () => {
                         madness: '🌀', grenade: '💣', redZone: '🚨', suppression: '🔥',
                         stimulant: '💉', summoner: '👥',
                       };
-                      return (
+  // Флаг боя взведён, а сетка пуста (зависший бой) — экран восстановления вместо пустоты.
+  if (combat.isFighting && !isActive) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
+        <WapPanel variant="metal" padding="lg" glow="amber" style={{ textAlign: 'center', padding: 60 }}>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>⚠️ Бой не загрузился</div>
+          <div style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
+            Флаг боя взведён, а арена пуста — это зависший бой. Убери его и начни новый.
+          </div>
+          <Button variant="danger" onClick={resetStuckCombat}>🧹 Убрать зависший бой</Button>
+        </WapPanel>
+      </motion.div>
+    );
+  }
+
+  return (
                         <div key={i} style={{
                           display: 'flex', alignItems: 'center', gap: 6, padding: '3px 6px',
                           fontSize: 12, borderLeft: `3px solid ${cd > 0 ? '#ff4d4d' : 'rgba(255,255,255,0.2)'}`,

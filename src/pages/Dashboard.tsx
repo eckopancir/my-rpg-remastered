@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../stores/playerStore';
+import { useCombatGridStore } from '../stores/combatGridStore';
 
 import { useUiStore } from '../stores/uiStore';
 import { useInventoryStore } from '../stores/inventoryStore';
@@ -296,7 +297,21 @@ export const Dashboard = () => {
       {/* Status cards */}
       <div style={{ display: 'flex', gap: 8 }}>
         {combat.isFighting && (
-          <div style={{ flex: 1, cursor: 'pointer', background: 'rgba(18,16,14,0.88)', borderRadius: 6, border: '1px solid rgba(146,64,14,0.3)', padding: 10 }} onClick={() => navigate('/battle')}>
+          <div style={{ flex: 1, cursor: 'pointer', background: 'rgba(18,16,14,0.88)', borderRadius: 6, border: '1px solid rgba(146,64,14,0.3)', padding: 10, position: 'relative' }} onClick={() => navigate('/battle')}>
+            <span
+              title="Убрать зависший бой"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!window.confirm('Убрать зависший бой? Флаг боя будет снят, можно начать новый.')) return;
+                playClick();
+                try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
+                usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+                useUiStore.getState().addToast('🧹 Зависший бой убран', 'success');
+              }}
+              style={{ position: 'absolute', top: 4, right: 8, cursor: 'pointer', fontSize: 13, color: 'rgba(255,120,120,0.7)', padding: '0 4px' }}
+            >
+              ✕
+            </span>
             <div style={{ fontSize: 11, fontFamily: 'var(--wa-font-hud)', fontWeight: 600, marginBottom: 4, color: 'var(--wa-accent)' }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>НАЖМИТЕ ДЛЯ НАЧАЛА</div>
           </div>
