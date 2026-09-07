@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-import { useCombatGridStore, checkVisibility, getDist } from '../../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, getDist, SIGHT_RANGE } from '../../stores/combatGridStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
@@ -162,12 +162,32 @@ export const BattleGrid = () => {
   const playerXpct = (playerPos.x / 31) * 100;
   const playerYpct = (playerPos.y / 31) * 100;
 
-  // -- Per-cell visibility check (like original) --
+  // -- Круговой обзор + память тумана войны --
+  // Видно: круг радиусом SIGHT_RANGE с проверкой прямой видимости (стены закрывают).
+  // Разведанное запоминается и светится тускло, невиданное — почти черное.
+  const exploredCells = useCombatGridStore((s) => s.exploredCells);
+  const visibleSet = useMemo(() => {
+    const set = new Set<string>();
+    for (let x = 0; x < GRID_SIZE; x++) {
+      for (let y = 0; y < GRID_SIZE; y++) {
+        if (getDist(playerPos, { x, y }) > SIGHT_RANGE) continue;
+        if (checkVisibility(playerPos, playerRotation, { x, y }, obstacles, { fov: 360, range: SIGHT_RANGE })) {
+          set.add(`${x},${y}`);
+        }
+      }
+    }
+    return set;
+  }, [playerPos, obstacles]);
+
+  // Разведанное складываем в стор (переживает ре-рендеры, новый бой сбрасывает).
+  useEffect(() => {
+    if (!isActive || visibleSet.size === 0) return;
+    useCombatGridStore.getState().markExplored([...visibleSet]);
+  }, [visibleSet, isActive]);
+
   const isCellVisible = useCallback((x: number, y: number) => {
-    const dist = getDist(playerPos, { x, y });
-    if (dist <= 2) return true;
-    return checkVisibility(playerPos, playerRotation, { x, y }, obstacles);
-  }, [playerPos, playerRotation, obstacles]);
+    return visibleSet.has(`${x},${y}`);
+  }, [visibleSet]);
 
   // -- Hover state for crosshair --
   const hoveredEnemy = useMemo(() => {
@@ -381,8 +401,8 @@ export const BattleGrid = () => {
                   <div className={styles.waypointDot}>{waypointNum}</div>
                 )}
 
-                {/* Dead enemy with loot */}
-                {deadEnemy && (
+                {/* Dead enemy with loot — виден и по памяти (неподвижен) */}
+                {deadEnemy && (visible || exploredCells[`${x},${y}`]) && (
                   <div className={styles.unit} style={{ zIndex: 1, cursor: 'help' }}
                     onClick={() => handleCellClick(x, y)}
                     onMouseEnter={() => setHoveredDeadId(deadEnemy.id)}
@@ -404,8 +424,8 @@ export const BattleGrid = () => {
                   </div>
                 )}
 
-                {/* Living Enemy */}
-                {enemy && (
+                {/* Living Enemy — только в прямом обзоре (по памяти позиции не палим) */}
+                {enemy && visible && (
                   <div
                     className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered ? ` ${styles.enemyCrosshair}` : ''}${isInRange ? ` ${styles.inRangeEnemy}` : ''}`}
                     style={{ borderColor: ENEMY_COLORS[enemy.faction] || '#a1a1aa', width: enemy.bigModel || '100%', height: enemy.bigModel || '100%', zIndex: 5 }}
@@ -446,10 +466,11 @@ export const BattleGrid = () => {
           {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
             const fx = i % GRID_SIZE;
             const fy = Math.floor(i / GRID_SIZE);
-            if (!isCellVisible(fx, fy)) {
-              return <div key={`fog-${i}`} className={styles.fogCell} style={{ left: `${(fx / (GRID_SIZE - 1)) * 100}%`, top: `${(fy / (GRID_SIZE - 1)) * 100}%` }} />;
-            }
-            return null;
+            const fkey = `${fx},${fy}`;
+            // В прямом обзоре тумана нет; разведанное — тускло; невиданное — почти черное.
+            if (visibleSet.has(fkey)) return null;
+            const explored = !!exploredCells[fkey];
+            return <div key={`fog-${i}`} className={styles.fogCell} style={{ left: `${(fx / (GRID_SIZE - 1)) * 100}%`, top: `${(fy / (GRID_SIZE - 1)) * 100}%`, background: explored ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.93)' }} />;
           })}
         </div>
 

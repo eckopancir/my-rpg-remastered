@@ -15,8 +15,10 @@ const GRID = 32;
 const BASE_AP = 5;
 const MAX_AMMO = 30;
 const ATTACK_RANGE = 10;
+// Радиус кругового зрения для тумана войны (клеток, в прямой видимости).
+const SIGHT_RANGE = 12;
 
-export { GRID, BASE_AP, MAX_AMMO, ATTACK_RANGE };
+export { GRID, BASE_AP, MAX_AMMO, ATTACK_RANGE, SIGHT_RANGE };
 
 
 export interface GridEnemy {
@@ -142,6 +144,9 @@ export interface CombatGridStore {
   plannedPath: { x: number; y: number }[];
   reserve: GridEnemy[];
   battleLogs: string[];
+  // Туман войны с памятью: разведанные клетки остаются тускло видны.
+  exploredCells: Record<string, true>;
+  markExplored: (cells: string[]) => void;
 
   playerAbilities: (AccessoryAbility | null)[];
   abilityCooldowns: number[];
@@ -619,6 +624,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   plannedPath: [],
   reserve: [],
   battleLogs: [],
+  exploredCells: {},
+  markExplored: (cells) => set((s) => {
+    let changed = false;
+    const next = { ...s.exploredCells };
+    for (const c of cells) {
+      if (!next[c]) { next[c] = true; changed = true; }
+    }
+    return changed ? { exploredCells: next } : s;
+  }),
   playerAbilities: [],
   abilityCooldowns: [],
   selectedAbility: null,
@@ -796,6 +810,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       playerRotation: 90, popups: [], shotLine: null,
       flyingGrenade: null, globalEffects: [], lootingEnemy: null,
       plannedPath: [], reserve: [], battleLogs: ['⚔️ Бой начался!'],
+      exploredCells: {},
     });
     get().addBattleLog(`⚔️ Бой начался! Противников: ${enemies.length}`);
   },
@@ -1454,7 +1469,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const isBlocked = state.enemies.some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y)
       || state.obstacles.some((o: any) => o.x === x && o.y === y && o.blocks);
     if (isBlocked) { get().addMessage('❌ Клетка занята'); return; }
-    const visible = checkVisibility(state.playerPos, state.playerRotation, { x, y }, state.obstacles);
+    const visible = checkVisibility(state.playerPos, state.playerRotation, { x, y }, state.obstacles, { fov: 360, range: SIGHT_RANGE });
     if (!visible) { get().addMessage('❌ Клетка не видна'); return; }
     const angle = getAngle(state.playerPos, { x, y });
     set({ playerPos: { x, y }, playerRotation: angle, isTeleporting: false, isSelected: false, plannedPath: [], message: '✨ Телепорт!' });
@@ -1887,6 +1902,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: BASE_AP, turnCount: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
+      exploredCells: {},
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,
