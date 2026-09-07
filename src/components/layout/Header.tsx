@@ -133,7 +133,7 @@ export const Header = () => {
           }}>
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              paddingLeft: 32, fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 10,
+              paddingLeft: 37, fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 10,
               color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : '#fff',
               textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 3px rgba(0,0,0,0.9)',
               letterSpacing: 0, whiteSpace: 'nowrap',
