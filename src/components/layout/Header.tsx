@@ -138,7 +138,7 @@ export const Header = () => {
           <img src={staminaPlateImg} alt="⚡" draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
           <span className={styles.statValue} style={{ fontSize: 15 }}>{Math.round(stats.stamina)}</span>
         </div>
-        <div className={styles.stat} style={{ fontSize: 20, gap: 1 }} title={`Уровень ${level}`}>
+        <div className={styles.stat} style={{ fontSize: 20, gap: 8 }} title={`Уровень ${level}`}>
           <img src={levelIconImg} alt="Lv." draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
           <span className={styles.statValue} style={{ fontSize: 15 }}>{level}</span>
         </div>
