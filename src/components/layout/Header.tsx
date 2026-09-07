@@ -9,7 +9,7 @@ import { images } from '../../assets/index';
 import styles from './Header.module.css';
 import dashA2 from '../../assets/images/ui/a2.png';
 import dashA1 from '../../assets/images/ui/a1.png';
-import hpPlateImg from '../../assets/images/ui/hp-plate.png';
+import hpIconImg from '../../assets/images/ui/hp-icon.png';
 import staminaPlateImg from '../../assets/images/ui/stamina-plate.png';
 
 const navItems = [
@@ -128,20 +128,10 @@ export const Header = () => {
       </div>
       <div className={styles.right}>
         <div className={`${styles.stat} ${styles.hpBar}`} title={`HP ${Math.round(stats.currentHp)} / ${stats.maxHp}`}>
-          <div style={{
-            position: 'relative', width: 140, aspectRatio: '735 / 352',
-            backgroundImage: `url(${hpPlateImg})`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
-          }}>
-            <div style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              paddingLeft: 37, fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 10,
-              color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : '#fff',
-              textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 3px rgba(0,0,0,0.9)',
-              letterSpacing: 0, whiteSpace: 'nowrap',
-            }}>
-              {Math.round(stats.currentHp)} / {stats.maxHp}
-            </div>
-          </div>
+          <img src={hpIconImg} alt="HP" draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
+          <span className={styles.statValue} style={{ color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : undefined }}>
+            {Math.round(stats.currentHp)} / {stats.maxHp}
+          </span>
         </div>
         <div className={styles.stat} title={`Стамина ${Math.round(stats.stamina)}`}>
           <img src={staminaPlateImg} alt="⚡" draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
