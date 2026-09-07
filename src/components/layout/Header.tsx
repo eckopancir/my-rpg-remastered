@@ -128,17 +128,17 @@ export const Header = () => {
       <div className={styles.right}>
         <div className={`${styles.stat} ${styles.hpBar}`} title={`HP ${Math.round(stats.currentHp)} / ${stats.maxHp}`}>
           <div style={{
-            position: 'relative', width: 210, height: 46,
+            position: 'relative', width: 180, height: 40,
             backgroundImage: `url(${hpPlateImg})`, backgroundSize: 'cover', backgroundPosition: 'center',
           }}>
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              paddingLeft: 52, fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 15,
+              paddingLeft: 44, fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 12,
               color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : '#fff',
               textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 3px rgba(0,0,0,0.9)',
-              letterSpacing: 1, whiteSpace: 'nowrap',
+              letterSpacing: 0, whiteSpace: 'nowrap',
             }}>
-              {Math.round(stats.currentHp).toLocaleString()} / {stats.maxHp.toLocaleString()}
+              {Math.round(stats.currentHp)} / {stats.maxHp}
             </div>
           </div>
         </div>
