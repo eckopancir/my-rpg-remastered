@@ -128,12 +128,12 @@ export const Header = () => {
       <div className={styles.right}>
         <div className={`${styles.stat} ${styles.hpBar}`} title={`HP ${Math.round(stats.currentHp)} / ${stats.maxHp}`}>
           <div style={{
-            position: 'relative', width: 138, height: 31,
-            backgroundImage: `url(${hpPlateImg})`, backgroundSize: 'cover', backgroundPosition: 'center',
+            position: 'relative', width: 140, aspectRatio: '735 / 352',
+            backgroundImage: `url(${hpPlateImg})`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
           }}>
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              paddingLeft: 39, fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 10,
+              paddingLeft: 30, fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 10,
               color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : '#fff',
               textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 3px rgba(0,0,0,0.9)',
               letterSpacing: 0, whiteSpace: 'nowrap',
