@@ -5,11 +5,11 @@ import { useUiStore } from '../../stores/uiStore';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useSound } from '../../hooks/useSound';
-import { WapHudBar } from '../ui/WapHudBar';
 import { images } from '../../assets/index';
 import styles from './Header.module.css';
 import dashA2 from '../../assets/images/ui/a2.png';
 import dashA1 from '../../assets/images/ui/a1.png';
+import hpPlateImg from '../../assets/images/ui/hp-plate.png';
 
 const navItems = [
   { to: '/skills', label: '⭐ Skills' },
@@ -126,8 +126,21 @@ export const Header = () => {
         </nav>
       </div>
       <div className={styles.right}>
-        <div className={`${styles.stat} ${styles.hpBar}`}>
-          <WapHudBar label="HP" value={stats.currentHp} max={stats.maxHp} variant="hp" size="sm" />
+        <div className={`${styles.stat} ${styles.hpBar}`} title={`HP ${Math.round(stats.currentHp)} / ${stats.maxHp}`}>
+          <div style={{
+            position: 'relative', width: 210, height: 46,
+            backgroundImage: `url(${hpPlateImg})`, backgroundSize: 'cover', backgroundPosition: 'center',
+          }}>
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              paddingLeft: 52, fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 15,
+              color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : '#fff',
+              textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 3px rgba(0,0,0,0.9)',
+              letterSpacing: 1, whiteSpace: 'nowrap',
+            }}>
+              {Math.round(stats.currentHp).toLocaleString()} / {stats.maxHp.toLocaleString()}
+            </div>
+          </div>
         </div>
         <div className={styles.stat}>
           <span style={{ color: 'var(--wa-accent-amber)' }}>⚡</span>
