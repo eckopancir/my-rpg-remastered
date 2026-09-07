@@ -128,8 +128,8 @@ export const Header = () => {
       </div>
       <div className={styles.right}>
         <div className={`${styles.stat} ${styles.hpBar}`} title={`HP ${Math.round(stats.currentHp)} / ${stats.maxHp}`}>
-          <img src={hpIconImg} alt="HP" draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
-          <span className={styles.statValue} style={{ color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : undefined }}>
+          <img src={hpIconImg} alt="HP" draggable={false} style={{ height: 31, width: 'auto', display: 'block' }} />
+          <span className={styles.statValue} style={{ fontSize: 13, color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : undefined }}>
             {Math.round(stats.currentHp)} / {stats.maxHp}
           </span>
         </div>
