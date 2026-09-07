@@ -78,6 +78,27 @@ export const Battle = () => {
   const toggleDefense = useCombatGridStore((s) => s.toggleDefense);
   const endTurn = useCombatGridStore((s) => s.endTurn);
   const attackEnemy = useCombatGridStore((s) => s.attackEnemy);
+  const gridEnemies = useCombatGridStore((s) => s.enemies);
+  const gridReserve = useCombatGridStore((s) => s.reserve);
+
+  // Пустой активный бой (0 врагов, 0 резерва) — автовыход через победу, а не вис.
+  useEffect(() => {
+    if (isActive && gridEnemies.length === 0 && (gridReserve?.length ?? 0) === 0 && !isVictory && !isDefeat) {
+      const t = setTimeout(() => {
+        const st = useCombatGridStore.getState();
+        if (st.isActive && st.enemies.length === 0 && (st.reserve?.length ?? 0) === 0) st.finishBattle();
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [isActive, gridEnemies.length, gridReserve?.length, isVictory, isDefeat]);
+
+  // Ручной сброс зависшего боя — всегда доступен в бою.
+  const resetStuckCombat = useCallback(() => {
+    if (!window.confirm('Сбросить текущий бой? Прогресс боя будет потерян.')) return;
+    playClick();
+    useCombatGridStore.getState().cleanup();
+    usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+  }, [playClick]);
   const playerAbilities = useCombatGridStore((s) => s.playerAbilities);
   const abilityCooldowns = useCombatGridStore((s) => s.abilityCooldowns);
   const selectedAbility = useCombatGridStore((s) => s.selectedAbility);
@@ -326,6 +347,20 @@ export const Battle = () => {
                 }}
               >
                 ⏭ КОНЕЦ ХОДА [SPACE]
+              </div>
+
+              <div
+                onClick={resetStuckCombat}
+                title="Если бой завис — сбросить его и выйти"
+                style={{
+                  padding: '6px', border: '1px solid rgba(255,80,80,0.25)',
+                  background: 'rgba(255,50,50,0.04)',
+                  color: 'rgba(255,120,120,0.6)',
+                  cursor: 'pointer',
+                  fontSize: 11, textAlign: 'center', textTransform: 'uppercase',
+                }}
+              >
+                🧹 Сбросить бой
               </div>
             </div>
 

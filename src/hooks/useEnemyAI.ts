@@ -508,6 +508,15 @@ export const useEnemyAI = () => {
       });
       } catch (e) {
         console.error('[EnemyAI]', e);
+        // Одна битая итерация ИИ не должна вешать бой на «Ходе врага» навсегда.
+        try {
+          const fs = useCombatGridStore.getState();
+          useCombatGridStore.setState({
+            turn: 'player',
+            ap: fs.maxAp || BASE_AP,
+            message: '⚠️ Сбой хода врага — ход возвращён тебе',
+          });
+        } catch { /* ignore */ }
       }
       isProcessing.current = false;
     };

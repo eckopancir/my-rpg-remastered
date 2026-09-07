@@ -158,7 +158,7 @@ export interface CombatGridStore {
   immortalityTurns: number;
 
   cardRarityName: string | null;
-  initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }) => void;
+  initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }) => boolean;
   teleportTo: (x: number, y: number) => void;
   placeMine: (x: number, y: number) => void;
   checkAutoTriggers: () => void;
@@ -675,6 +675,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   findPath: (from, to) => findPath(from, to, get().obstacles),
 
   initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards) => {
+    try {
     // Reset combat-only player state
     usePlayerStore.setState((st: any) => ({
       stats: { ...st.stats, shieldCharges: 0 },
@@ -793,6 +794,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       });
     }
 
+    // Бой без врагов (битые ключи карт) — не стартуем, иначе вечный пустой бой.
+    if (enemies.length === 0) throw new Error('initCombat: no enemies generated');
+
     // Generate obstacles with safe zones around player and enemies
     const obstacles = generateObstacles(playerPos, enemies);
 
@@ -813,6 +817,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       exploredCells: {},
     });
     get().addBattleLog(`⚔️ Бой начался! Противников: ${enemies.length}`);
+    return true;
+    } catch (e) {
+      console.error('[initCombat]', e);
+      // Не оставляем полуживой бой: чистим сетку, caller решит что дальше.
+      try { get().cleanup(); } catch { /* ignore */ }
+      return false;
+    }
   },
 
   movePlayer: (x, y) => {

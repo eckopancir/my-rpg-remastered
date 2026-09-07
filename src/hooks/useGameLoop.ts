@@ -33,17 +33,26 @@ export const useGameLoop = () => {
       const freshUi = useUiStore.getState();
       const completedExp = freshUi.queue.find((e) => e.status === 'completed');
       if (completedExp && !freshPlayer.combat.isFighting && !freshPlayer.travel.isTraveling && !freshPlayer.travel.isReturning) {
-        freshPlayer.startCombat(completedExp.difficulty || 5);
-        useCombatGridStore.getState().initCombat(
-          completedExp.difficulty || 5,
-          undefined,
-          completedExp.cardData?.enemyKeys,
-          completedExp.cardData
-            ? { chipReward: completedExp.cardData.chipReward, xpReward: completedExp.cardData.xpReward, cardRarityName: completedExp.cardData.cardRarityName }
-            : undefined
-        );
-        freshUi.removeFromQueue(completedExp.id);
-        freshUi.processQueue();
+        // «Отравленная» экспедиция не должна вешать очередь: старт в try, снятие — всегда.
+        try {
+          freshPlayer.startCombat(completedExp.difficulty || 5);
+          const ok = useCombatGridStore.getState().initCombat(
+            completedExp.difficulty || 5,
+            undefined,
+            completedExp.cardData?.enemyKeys,
+            completedExp.cardData
+              ? { chipReward: completedExp.cardData.chipReward, xpReward: completedExp.cardData.xpReward, cardRarityName: completedExp.cardData.cardRarityName }
+              : undefined
+          );
+          if (!ok) throw new Error('initCombat failed');
+        } catch (e) {
+          console.error('[gameLoop] combat start failed', e);
+          usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+          useUiStore.getState().addToast('⚠️ Бой не запустился — экспедиция снята', 'error');
+        } finally {
+          freshUi.removeFromQueue(completedExp.id);
+          freshUi.processQueue();
+        }
       }
 
       // 4. Exploration tick (skip if previous poll still in-flight — avoids
