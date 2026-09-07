@@ -138,10 +138,10 @@ export const Header = () => {
           <span className={styles.statValue}>{Math.round(stats.stamina)}</span>
         </div>
         <div className={styles.stat} style={{ fontSize: 20 }}>
-          Lv.<span className={styles.statValue}>{level}</span>
+          Lv.<span className={styles.statValue} style={{ fontSize: 16 }}>{level}</span>
         </div>
         <div className={styles.stat} style={{ fontSize: 20 }}>
-          💾<span className={styles.statValue}>{dataChips}</span>
+          💾<span className={styles.statValue} style={{ fontSize: 16 }}>{dataChips}</span>
         </div>
 
         {/* User menu */}
