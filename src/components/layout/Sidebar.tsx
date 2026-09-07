@@ -32,9 +32,11 @@ export const Sidebar = () => {
   const expTickCount = useExplorationStore((s) => s.tickCount);
   const expIsInfinite = useExplorationStore((s) => s.isInfinite);
   const expPlannedSec = useExplorationStore((s) => s.plannedSec);
+  const expRetMult = useExplorationStore((s) => s.consBuffs.returnMult);
   const fmtSec = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
   const fmtDur = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
-  // Прошедшее время зеркально остальным экранам: дорога 120с, вылазка plannedSec, возврат 3600с.
+  // Прошедшее время зеркально остальным экранам: дорога 120с, вылазка plannedSec, возврат 3600с × returnMult.
+  const expBackTotal = Math.round(3600 * (expRetMult ?? 1));
   const expElapsed = expIsInfinite
     ? expTickCount
     : phase === 'travel_out'
@@ -42,7 +44,7 @@ export const Sidebar = () => {
       : phase === 'exploring'
         ? (expPlannedSec > 0 ? Math.max(0, expPlannedSec - expTimeLeft) : expTickCount)
         : phase === 'travel_back'
-          ? (expPlannedSec > 0 ? expPlannedSec + Math.max(0, 3600 - expTimeLeft) : expTickCount)
+          ? (expPlannedSec > 0 ? expPlannedSec + Math.max(0, expBackTotal - expTimeLeft) : expTickCount)
           : expTickCount;
   const expChips = useExplorationStore((s) => s.totalChips);
   const expExp = useExplorationStore((s) => s.totalExp);

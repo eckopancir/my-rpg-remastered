@@ -60,7 +60,9 @@ export const AutoExploration = () => {
     return `${sec}с`;
   };
   // Показываем ПРОШЕДШЕЕ время (зеркало серверных фаз):
-  // дорога туда 120с, вылазка — plannedSec, возврат — 3600с.
+  // дорога туда 120с, вылазка — plannedSec, возврат — 3600с × returnMult рюкзака.
+  const retMult = s.consBuffs?.returnMult ?? 1;
+  const travelBackTotal = Math.round(3600 * retMult);
   const elapsedSec = s.isInfinite
     ? s.tickCount
     : s.phase === 'travel_out'
@@ -68,7 +70,7 @@ export const AutoExploration = () => {
       : s.phase === 'exploring'
         ? (s.plannedSec > 0 ? Math.max(0, s.plannedSec - s.timeLeft) : s.tickCount)
         : s.phase === 'travel_back'
-          ? (s.plannedSec > 0 ? s.plannedSec + Math.max(0, 3600 - s.timeLeft) : s.tickCount)
+          ? (s.plannedSec > 0 ? s.plannedSec + Math.max(0, travelBackTotal - s.timeLeft) : s.tickCount)
           : s.tickCount;
   const displayTime = fmtTime(elapsedSec);
   const timeLabel = 'прошло';
@@ -77,7 +79,7 @@ export const AutoExploration = () => {
   // legacy-строкам без неё — старый фолбэк 1+180+30.
   const planned = s.plannedSec > 0 ? s.plannedSec : 180;
   const travelOut = 120;
-  const travelBack = 3600;
+  const travelBack = travelBackTotal;
   const totalTrip = travelOut + planned + travelBack;
   const showProgress = !s.isInfinite || s.phase !== 'exploring';
   const progress = !showProgress ? 0

@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
 import { ZONES } from '../data/zones';
-import { useExplorationStore } from '../stores/explorationStore';
+import { useExplorationStore, calcConsBuffs, CONS_BUFF_DEFS } from '../stores/explorationStore';
 import { usePlayerStore } from '../stores/playerStore';
+import { useInventoryStore } from '../stores/inventoryStore';
 import { useAuthStore } from '../stores/authStore';
+import { getItemImage } from '../assets/index';
 import militaryBg from '../assets/images/map/military.png';
 
 const LOCKED_ZONES = new Set([
@@ -16,6 +18,52 @@ const LOCKED_ZONES = new Set([
 // Зеркало durationBonusPct() из api/exploration/engine_config.php — для превью.
 const durationBonusPct = (hours: number) =>
   hours >= 18 ? 100 : hours >= 12 ? 60 : hours >= 6 ? 30 : 10;
+
+// Только материалы для прокачки базы (остальное в рюкзак не берём).
+const BASE_PACK_MATS = [
+  'Батарейки', 'Вода', 'Гвозди', 'Дерево', 'Железо', 'Изолента',
+  'Инструменты', 'Консервы', 'Лекарства', 'Пластмасса', 'Топливо',
+];
+
+// Что даёт материал: за штуку и за выбранное количество (зеркало expeditionBuffs).
+const packBonusText = (name: string, qty: number): string | null => {
+  switch (name) {
+    case 'Лекарства': {
+      const t = Math.min(qty, 10);
+      return t > 0 ? `+1 реген/шт → ${qty} шт = +${t} реген` : '+1 реген/шт (макс +10)';
+    }
+    case 'Вода':
+    case 'Консервы': {
+      const t = Math.min(qty, 50) * 0.1;
+      return qty > 0 ? `+0.1% хил/шт → ${qty} шт = +${t.toFixed(1)}%` : '+0.1% хил/шт (макс +5%)';
+    }
+    case 'Батарейки': {
+      const t = Math.min(qty, 30) * 0.1;
+      return qty > 0 ? `+0.1% легендарка/шт → ${qty} шт = +${t.toFixed(1)}%` : '+0.1% легендарка/шт (макс +3%)';
+    }
+    case 'Дерево':
+    case 'Гвозди': {
+      const t = Math.min(qty, 50) * 0.2;
+      return qty > 0 ? `+0.2% опыт/шт → ${qty} шт = +${t.toFixed(1)}%` : '+0.2% опыт/шт (макс +10%)';
+    }
+    case 'Инструменты':
+    case 'Пластмасса': {
+      const t = Math.min(qty, 50) * 0.2;
+      return qty > 0 ? `+0.2% чипы/шт → ${qty} шт = +${t.toFixed(1)}%` : '+0.2% чипы/шт (макс +10%)';
+    }
+    case 'Изолента':
+    case 'Железо': {
+      const t = Math.min(qty, 20);
+      return qty > 0 ? `−1% урон/шт → ${qty} шт = −${t}%` : '−1% входящего урона/шт (макс −20%)';
+    }
+    case 'Топливо': {
+      const t = Math.min(qty, 10) * 5;
+      return qty > 0 ? `−5% возврат/шт → ${qty} шт = −${t}%` : '−5% времени возврата/шт (макс −50%)';
+    }
+    default:
+      return null; // без пассивного бонуса
+  }
+};
 
 interface HistoryEntry {
   id: number;
@@ -37,9 +85,11 @@ export const Adventures = () => {
   const timeLeft = useExplorationStore((s) => s.timeLeft);
   const tickCount = useExplorationStore((s) => s.tickCount);
   const plannedSec = useExplorationStore((s) => s.plannedSec);
+  const retMult = useExplorationStore((s) => s.consBuffs.returnMult);
   const isInfinite = useExplorationStore((s) => s.isInfinite);
   const fmtTime = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}ч ${m}м` : `${m}м ${s % 60}с`; };
-  // Прошедшее время зеркально AutoExploration: дорога 120с, вылазка plannedSec, возврат 3600с.
+  // Прошедшее время зеркально AutoExploration: дорога 120с, вылазка plannedSec, возврат 3600с × returnMult.
+  const backTotal = Math.round(3600 * (retMult ?? 1));
   const elapsedSec = isInfinite
     ? tickCount
     : phase === 'travel_out'
@@ -47,7 +97,7 @@ export const Adventures = () => {
       : phase === 'exploring'
         ? (plannedSec > 0 ? Math.max(0, plannedSec - timeLeft) : 0)
         : phase === 'travel_back'
-          ? (plannedSec > 0 ? plannedSec + Math.max(0, 3600 - timeLeft) : 0)
+          ? (plannedSec > 0 ? plannedSec + Math.max(0, backTotal - timeLeft) : 0)
           : 0;
   const isTraveling = usePlayerStore((s) => s.travel.isTraveling);
   const isReturning = usePlayerStore((s) => s.travel.isReturning);
@@ -61,6 +111,9 @@ export const Adventures = () => {
   const [pendingZone, setPendingZone] = useState<string | null>(null);
   const [hours, setHours] = useState(12);
   const [useMats, setUseMats] = useState(true);
+  // Рюкзак: {name: qty} — сгорает на старте, даёт баффы на весь run.
+  const [pack, setPack] = useState<Record<string, number>>({});
+  const materials = useInventoryStore((s) => s.items);
 
   useEffect(() => {
     if (!token) return;
@@ -72,14 +125,57 @@ export const Adventures = () => {
 
   const handleStart = (name: string) => {
     setHours(12);
+    setUseMats(true);
+    setPack({});
     setPendingZone(name);
+  };
+
+  // Материалы в инвентаре, сгруппированные по имени — только базовые (для прокачки базы).
+  const packMats = (() => {
+    const map = new Map<string, { name: string; have: number; img?: string }>();
+    for (const it of materials) {
+      if (it.type !== 'material') continue;
+      if (!BASE_PACK_MATS.includes(it.name)) continue;
+      const cur = map.get(it.name);
+      const qty = it.quantity || 1;
+      if (cur) cur.have += qty;
+      else map.set(it.name, { name: it.name, have: qty, img: getItemImage(it.name) });
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  })();
+  const packBuffs = calcConsBuffs(pack);
+  const packPreview: string[] = [];
+  if (packBuffs.regen > 0) packPreview.push(`+${packBuffs.regen} реген`);
+  if (packBuffs.healPct > 0) packPreview.push(`+${(packBuffs.healPct * 100).toFixed(1)}% хил`);
+  if (packBuffs.legPct > 0) packPreview.push(`+${(packBuffs.legPct * 100).toFixed(1)}% легендарка`);
+  if (packBuffs.expPct > 0) packPreview.push(`+${Math.round(packBuffs.expPct * 100)}% опыт`);
+  if (packBuffs.chipsPct > 0) packPreview.push(`+${Math.round(packBuffs.chipsPct * 100)}% чипы`);
+  if (packBuffs.dmgTakenMult < 1) packPreview.push(`−${Math.round((1 - packBuffs.dmgTakenMult) * 100)}% урон по нам`);
+  if (packBuffs.returnMult < 1) packPreview.push(`−${Math.round((1 - packBuffs.returnMult) * 100)}% возврат`);
+
+  const stepPack = (name: string, delta: number, have: number) => {
+    setPack((prev) => {
+      const cur = prev[name] || 0;
+      const next = Math.max(0, Math.min(have, cur + delta));
+      if (next === cur) return prev;
+      if (next === 0) {
+        const nextState = { ...prev };
+        delete nextState[name];
+        return nextState;
+      }
+      return { ...prev, [name]: next };
+    });
   };
 
   const confirmExplore = async () => {
     if (!pendingZone) return;
-    await useExplorationStore.getState().startExploration(pendingZone, hours, useMats);
+    const list = Object.entries(pack)
+      .filter(([, q]) => q > 0)
+      .map(([name, qty]) => ({ name, qty }));
+    await useExplorationStore.getState().startExploration(pendingZone, hours, useMats, list);
     const zn = pendingZone;
     setPendingZone(null);
+    setPack({});
     navigate(`/explore?zone=${encodeURIComponent(zn)}`);
   };
 
@@ -302,14 +398,15 @@ export const Adventures = () => {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: 'min(440px, 100%)', background: 'var(--bg-glass)',
+              width: 'min(480px, 100%)', background: 'var(--bg-glass)',
               border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)',
               padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
+              maxHeight: '90vh', overflowY: 'auto',
             }}
           >
             <div style={{ fontSize: 17, fontWeight: 600 }}>🔍 Вылазка: {pendingZone}</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Сколько времени остаёмся в зоне? Дорога туда ~2 мин, возврат — час.
+              Сколько времени остаёмся в зоне? Дорога туда ~2 мин, возврат — {fmtDuration(Math.round(3600 * packBuffs.returnMult))}.
               Досрочный возврат — без бонуса.
             </div>
             <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -346,6 +443,65 @@ export const Adventures = () => {
                 </span>
               </span>
             </label>
+            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>
+              🎒 Рюкзак <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 11 }}>(сгорает на старте)</span>
+            </div>
+            {packMats.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                В инвентаре нет материалов — нечего взять.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
+                {packMats.map((m) => {
+                  const sel = pack[m.name] || 0;
+                  return (
+                    <div key={m.name} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '6px 8px', borderRadius: 'var(--radius-sm)',
+                      background: sel > 0 ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${sel > 0 ? 'rgba(74,222,128,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                    }}>
+                      {m.img
+                        ? <img src={m.img} alt="" style={{ width: 26, height: 26, objectFit: 'contain', imageRendering: 'pixelated', flexShrink: 0 }} />
+                        : <span style={{ fontSize: 16, width: 26, textAlign: 'center', flexShrink: 0 }}>📦</span>}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, overflowWrap: 'break-word' }}>{m.name}</div>
+                        <div style={{ fontSize: 10, color: sel > 0 ? '#4ade80' : 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                          {sel} из {m.have}
+                        </div>
+                        <div style={{ fontSize: 10, color: sel > 0 ? '#93c5fd' : 'var(--text-muted)', lineHeight: 1.4 }}>
+                          {packBonusText(m.name, sel) || 'без пассивного бонуса'}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                        <button onClick={() => stepPack(m.name, -1, m.have)} style={{
+                          width: 22, height: 22, borderRadius: 4, cursor: 'pointer',
+                          background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: 'none',
+                          fontWeight: 700, fontSize: 13, lineHeight: '20px',
+                        }}>−</button>
+                        <button onClick={() => stepPack(m.name, 1, m.have)} style={{
+                          width: 22, height: 22, borderRadius: 4, cursor: 'pointer',
+                          background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: 'none',
+                          fontWeight: 700, fontSize: 13, lineHeight: '20px',
+                        }}>+</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {packPreview.length > 0 && (
+              <div style={{
+                fontSize: 12, padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+                background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.25)',
+                color: '#93c5fd', lineHeight: 1.6,
+              }}>
+                🎒 Баффы: {packPreview.join(' · ')}
+              </div>
+            )}
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              {CONS_BUFF_DEFS.map((d) => `${d.name} — ${d.desc}`).join(' · ')}
+            </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
               <button
                 onClick={() => setPendingZone(null)}

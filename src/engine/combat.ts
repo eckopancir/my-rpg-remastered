@@ -58,6 +58,9 @@ const LOW_STAMINA_DAMAGE_PENALTY = 0.5;
 
 const getCritMultiplier = (critVal: number): number => {
   const baseTier = Math.floor(critVal);
+  // Сработавший крит всегда весомый (минимум x2), иначе метка "КРИТ"
+  // висит на обычном уроне и вводит в заблуждение.
+  if (baseTier <= 0) return 2;
   const chance = Math.min(critVal - baseTier, 1);
   return Math.random() < chance ? baseTier + 2 : baseTier + 1;
 };
@@ -133,8 +136,8 @@ export const calculateCombatStep = (
       continue;
     }
 
-    // Crit check — cascade tiers
-    if (player.crit > 0) {
+    // Crit check — cascade tiers (шанс, не гарантия)
+    if (player.crit > 0 && Math.random() < Math.min(1, player.crit)) {
       const critMult = getCritMultiplier(player.crit);
       dmg *= critMult;
       messages.push(`💥 КРИТ x${critMult}!`);
@@ -172,8 +175,8 @@ export const calculateCombatStep = (
     let dmg = enemy.dps;
     if (Math.random() > enemy.accuracy && enemy.accuracy < 1) continue;
 
-    // Crit check for enemy
-    if (enemy.crit > 0) {
+    // Crit check for enemy (шанс, не гарантия)
+    if (enemy.crit > 0 && Math.random() < Math.min(1, enemy.crit)) {
       const critMult = getCritMultiplier(enemy.crit);
       dmg *= critMult;
       messages.push(`💥 Враг критует x${critMult}!`);

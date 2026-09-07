@@ -139,11 +139,16 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
     $sd = getSaveData($pdo, $userId);
     $regenPerTick = (int)($sd['player']['stats']['regen'] ?? 0);
     $playerLevel = getPlayerLevel($pdo, $userId);
+    // Баффы рюкзака (сгораемые расходники): реген добавляется к тиковому.
+    $buffs = expeditionBuffs($exp['consumables'] ?? null);
+    $regenPerTick += (int)($buffs['regen'] ?? 0);
+    $legChancePct = LEGENDARY_CHANCE_PCT + ($buffs['legPct'] ?? 0) * 100;
 
     $died = false;
     for ($i = 0; $i < $ticksToProcess; $i++) {
-    // Passive regen per tick
-    if ($regenPerTick > 0) {
+    // Passive regen — раз в минуту (tick_count персистентен между поллами,
+    // поэтому фаза не плывёт). Кроме арены тут ничего нет.
+    if ($regenPerTick > 0 && ((($exp['tick_count'] + 1) % 60) === 0)) {
       applyEffects($pdo, $userId, ['flatHeal' => $regenPerTick]);
     }
 
@@ -180,7 +185,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       // Бонус за длительность — только за полную зачистку, не за cancel.
       if ($exp['time_left'] <= 0) {
         $exp['phase'] = 'travel_back';
-        $exp['time_left'] = TRAVEL_BACK_TICKS;
+        // Топливо из рюкзака сокращает возврат (returnMult, пол −50%).
+        $exp['time_left'] = (int)round(TRAVEL_BACK_TICKS * ($buffs['returnMult'] ?? 1.0));
         $exp['was_cancelled'] = 0;
       }
 
@@ -190,7 +196,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         $exp['legendary_auto_resolve'] = (int)($exp['legendary_auto_resolve'] ?? 0) + 1;
         if ($exp['legendary_auto_resolve'] >= LEGENDARY_STAGE_EVERY_SEC) {
           $exp['legendary_auto_resolve'] = 0;
-          $legEvent = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc);
+          $legEvent = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc, $buffs);
           $exp['legendary_auto_resolve'] = 0;
           if ($legEvent) {
             $events[] = $legEvent;
@@ -218,12 +224,12 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       $exp['micro_event_cooldown'] = (int)$exp['micro_event_cooldown'] - 1;
       if ($exp['micro_event_cooldown'] <= 0) {
         $me = generateMicroEvent($zoneDesc, '');
-        $applyResult = applyEffects($pdo, $userId, $me['effects']);
+        $applyResult = applyEffects($pdo, $userId, $me['effects'], $buffs);
         // Micro events never generate items
         unset($me['effects']['itemCount']);
         $exp['total_items'] = (int)$exp['total_items'] + (int)($me['effects']['itemCount'] ?? 0);
-        $exp['total_chips'] = (int)$exp['total_chips'] + (int)($me['effects']['chips'] ?? 0);
-        $exp['total_exp'] = (int)$exp['total_exp'] + (int)($me['effects']['exp'] ?? 0);
+        $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
+        $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
         $meEvent = [
           'text' => $me['text'],
           'type' => $me['type'],
@@ -244,8 +250,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       // Big events (активная цепочка сюда не доходит — она выше ставит continue).
       $exp['event_cooldown'] = (int)$exp['event_cooldown'] - 1;
       if ($exp['event_cooldown'] <= 0) {
-        // Ролл запуска новой цепочки (~1 за 6 часов при 2 событиях/час).
-        if (mt_rand(1, 100) <= LEGENDARY_CHANCE_PCT) {
+        // Ролл запуска новой цепочки (~1 за 6 часов при 2 событиях/час, плюс рюкзак).
+        if (mt_rand(1, 100) <= $legChancePct) {
           $legEvents = getLegendaryEvents();
           $legKeys = array_keys($legEvents);
           if (!empty($legKeys)) {
@@ -278,14 +284,14 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $itemsRef = $useMats ? loadInventoryItems($pdo, $userId) : [];
           $origIds = $useMats ? array_column($itemsRef, 'id') : [];
           $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
-          $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count']);
+          $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)));
           if (!empty($event['resourceHad'])) {
             persistInventoryItems($pdo, $userId, $itemsRef, $origIds);
           }
-          $applyResult = applyEffects($pdo, $userId, $event['effects']);
+          $applyResult = applyEffects($pdo, $userId, $event['effects'], $buffs);
           $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
-          $exp['total_chips'] = (int)$exp['total_chips'] + (int)($event['effects']['chips'] ?? 0);
-          $exp['total_exp'] = (int)$exp['total_exp'] + (int)($event['effects']['exp'] ?? 0);
+          $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
+          $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
           $ev = [
             'text' => $event['text'],
             'type' => $event['type'],
@@ -430,6 +436,14 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   $useMatsBulk = !isset($exp['use_materials']) || (int)$exp['use_materials'] === 1;
   $itemsRef = $useMatsBulk ? loadInventoryItems($pdo, $userId) : [];
   $origIds = $useMatsBulk ? array_column($itemsRef, 'id') : [];
+  // Баффы рюкзака в bulk: копим СЫРЫЕ значения (как в строках событий),
+  // баффы применяются один раз в финальном applyEffects — иначе задвоение.
+  $bBuffs = expeditionBuffs($exp['consumables'] ?? null);
+  $bChipsMult = 1 + (float)($bBuffs['chipsPct'] ?? 0);
+  $bExpMult = 1 + (float)($bBuffs['expPct'] ?? 0);
+  $bHealMult = 1 + (float)($bBuffs['healPct'] ?? 0);
+  $bDmgMult = (float)($bBuffs['dmgTakenMult'] ?? 1.0);
+  $bLegChance = LEGENDARY_CHANCE_PCT + ($bBuffs['legPct'] ?? 0) * 100;
   $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
   $cdEvent = (int)($exp['event_cooldown'] ?? 0);
   $cdMicro = (int)($exp['micro_event_cooldown'] ?? 0);
@@ -446,7 +460,8 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     if (($s & 63) === 0 && microtime(true) >= $deadline) {
       break;
     }
-    if ($regenPerTick > 0) $hp = min($maxHp, $hp + $regenPerTick);
+    // Реген раз в минуту (внутри bulk фаза не важна — ровно 1/60 темп).
+    if ($regenPerTick > 0 && ((($s + 1) % 60) === 0)) $hp = min($maxHp, $hp + $regenPerTick);
 
     // Активная легендарная цепочка: остальное на паузе, этапы тихо —
     // один в минуту. Награды этапов уже применены внутри resolveLegendaryStage.
@@ -454,7 +469,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       $exp['legendary_auto_resolve'] = (int)($exp['legendary_auto_resolve'] ?? 0) + 1;
       if ($exp['legendary_auto_resolve'] >= LEGENDARY_STAGE_EVERY_SEC) {
         $exp['legendary_auto_resolve'] = 0;
-        $row = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc);
+        $row = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc, $bBuffs);
         $exp['legendary_auto_resolve'] = 0;
         if ($row) {
           $legN++;
@@ -464,11 +479,12 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       }
     } else {
     // Микро: эффекты копим в памяти, строк не пишем.
+    // HP трекаем с баффами (как applyEffects), суммы — сырые (бафф разово в конце).
     $cdMicro--;
     if ($cdMicro <= 0) {
       $me = generateMicroEvent($zoneDesc, '');
       if (!empty($me['effects']['healPercent'])) {
-        $hp = min($maxHp, $hp + (int)round($maxHp * (float)$me['effects']['healPercent']));
+        $hp = min($maxHp, $hp + (int)round($maxHp * (float)$me['effects']['healPercent'] * $bHealMult));
       }
       $microN++;
       $cdMicro = RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX);
@@ -478,7 +494,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     // либо обычное событие. Строк не пишем — всё уходит в сводку.
     $cdEvent--;
     if ($cdEvent <= 0) {
-      if (mt_rand(1, 100) <= LEGENDARY_CHANCE_PCT) {
+      if (mt_rand(1, 100) <= $bLegChance) {
         $legEvents = getLegendaryEvents();
         $legKeys = array_keys($legEvents);
         if (!empty($legKeys)) {
@@ -494,8 +510,8 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       $eff = $event['effects'] ?? [];
       $bulkChips += (int)($eff['chips'] ?? 0);
       $bulkExp += (int)($eff['exp'] ?? 0);
-      if (!empty($eff['healPercent'])) $hp = min($maxHp, $hp + (int)round($maxHp * (float)$eff['healPercent']));
-      if (!empty($eff['damagePercent'])) $hp = max(0, $hp - (int)round($maxHp * (float)$eff['damagePercent']));
+      if (!empty($eff['healPercent'])) $hp = min($maxHp, $hp + (int)round($maxHp * (float)$eff['healPercent'] * $bHealMult));
+      if (!empty($eff['damagePercent'])) $hp = max(0, $hp - (int)round($maxHp * (float)$eff['damagePercent'] * $bDmgMult));
       if (!empty($eff['itemCount'])) {
         $bulkItems += (int)$eff['itemCount'];
         if ($itemPool === null && !empty($event['itemPool'])) $itemPool = $event['itemPool'];
@@ -507,18 +523,19 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     }
 
     // Смерть в офлайне — штатный путь с откатом и историей.
+    // Баффы применяются разово здесь; тоталы — из применённого (иначе откат разойдётся).
     if ($hp <= 0) {
-      $exp['total_chips'] = (int)$exp['total_chips'] + $bulkChips;
-      $exp['total_exp'] = (int)$exp['total_exp'] + $bulkExp;
+      $arDeath = applyEffects($pdo, $userId, ['chips' => $bulkChips, 'exp' => $bulkExp], $bBuffs);
+      $exp['total_chips'] = (int)$exp['total_chips'] + $arDeath['appliedChips'];
+      $exp['total_exp'] = (int)$exp['total_exp'] + $arDeath['appliedExp'];
       $exp['total_items'] = (int)$exp['total_items'] + $bulkItems;
       // Потиковый счётчик уже инкрементился на каждой итерации цикла —
       // добавляем только текущий (фатальный) тик, иначе задвоение.
       $exp['tick_count'] += 1;
       $exp['event_cooldown'] = $cdEvent;
       $exp['micro_event_cooldown'] = $cdMicro;
-      applyEffects($pdo, $userId, ['chips' => $bulkChips, 'exp' => $bulkExp]);
       persistInventoryItems($pdo, $userId, $itemsRef, $origIds);
-      $summary = buildBulkSummary($s + 1, $microN, $bigN, $legN, $bulkChips, $bulkExp, $bulkItems, true);
+      $summary = buildBulkSummary($s + 1, $microN, $bigN, $legN, $arDeath['appliedChips'], $arDeath['appliedExp'], $bulkItems, true);
       $events[] = $summary;
       saveEvent($pdo, $userId, $expId, $summary);
       handleExplorationDeath($pdo, $userId, $exp);
@@ -538,7 +555,8 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   if ($tl > 0 && $tl <= $seconds) {
     $over = $seconds - $tl;
     $exp['phase'] = 'travel_back';
-    $exp['time_left'] = max(1, TRAVEL_BACK_TICKS - $over);
+    $backTotal = (int)round(TRAVEL_BACK_TICKS * ($bBuffs['returnMult'] ?? 1.0));
+    $exp['time_left'] = max(1, $backTotal - $over);
     $exp['was_cancelled'] = 0;
     // Незавершённая цепочка гаснет вместе с окном (заработанные этапы уже выплачены).
     $exp['legendary_id'] = null;
@@ -555,14 +573,16 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   }
 
   // Применяем накопленное (и на полном, и на частичном проходе).
-  $exp['total_chips'] = (int)$exp['total_chips'] + $bulkChips;
-  $exp['total_exp'] = (int)$exp['total_exp'] + $bulkExp;
+  // Суммы сырые, бафф — разово здесь; тоталы — из применённого.
+  $arBulk = ['appliedChips' => 0, 'appliedExp' => 0];
+  if ($bulkChips !== 0 || $bulkExp > 0) {
+    $arBulk = applyEffects($pdo, $userId, ['chips' => $bulkChips, 'exp' => $bulkExp], $bBuffs);
+  }
+  $exp['total_chips'] = (int)$exp['total_chips'] + $arBulk['appliedChips'];
+  $exp['total_exp'] = (int)$exp['total_exp'] + $arBulk['appliedExp'];
   $exp['total_items'] = (int)$exp['total_items'] + $bulkItems;
   $exp['event_cooldown'] = $cdEvent;
   $exp['micro_event_cooldown'] = $cdMicro;
-  if ($bulkChips !== 0 || $bulkExp > 0) {
-    applyEffects($pdo, $userId, ['chips' => $bulkChips, 'exp' => $bulkExp]);
-  }
   $curHp = getPlayerHp($pdo, $userId);
   if ($curHp !== $hp) {
     $sd2 = getSaveData($pdo, $userId);
@@ -628,7 +648,7 @@ function pruneOldEvents($pdo, $expId) {
 // ---------------------------------------------------------------------------
 // Legendary stage resolution
 // ---------------------------------------------------------------------------
-function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
+function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
   $allLegends = getLegendaryEvents();
   $legKey = $exp['legendary_id'];
   if (!isset($allLegends[$legKey])) return null;
@@ -643,10 +663,10 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $fr = rollLegendaryItemDrop($fr);
     $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
     $merged = mergeEffectsArr($rewards, $fr);
-    $applyResult = applyEffects($pdo, $userId, $merged);
+    $applyResult = applyEffects($pdo, $userId, $merged, $buffs);
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
-    $exp['total_chips'] = (int)$exp['total_chips'] + (int)($fr['chips'] ?? 0);
-    $exp['total_exp'] = (int)$exp['total_exp'] + (int)($fr['exp'] ?? 0);
+    $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
+    $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
     $exp['legendary_id'] = null;
     $exp['legendary_stage'] = null;
     $exp['legendary_auto_resolve'] = null;
@@ -678,10 +698,10 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     $exp['legendary_stage'] = $stageIdx + 1;
     // Потикового auto-resolve больше нет: стадии идут по слотам крупных событий.
     $exp['legendary_auto_resolve'] = null;
-    $applyResult = applyEffects($pdo, $userId, $stageReward);
+    $applyResult = applyEffects($pdo, $userId, $stageReward, $buffs);
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
-    $exp['total_chips'] = (int)$exp['total_chips'] + (int)($stageReward['chips'] ?? 0);
-    $exp['total_exp'] = (int)$exp['total_exp'] + (int)($stageReward['exp'] ?? 0);
+    $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
+    $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
     return [
       'text' => $stage['suc'],
       'type' => 'legendary',
@@ -697,10 +717,10 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc) {
     ];
   } else {
     // Fail — chain breaks, payout accumulated rewards
-    $applyResult = applyEffects($pdo, $userId, $rewards);
+    $applyResult = applyEffects($pdo, $userId, $rewards, $buffs);
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
-    $exp['total_chips'] = (int)$exp['total_chips'] + (int)($rewards['chips'] ?? 0);
-    $exp['total_exp'] = (int)$exp['total_exp'] + (int)($rewards['exp'] ?? 0);
+    $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
+    $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
     $exp['legendary_id'] = null;
     $exp['legendary_stage'] = null;
     $exp['legendary_auto_resolve'] = null;
@@ -750,17 +770,65 @@ function handleExplorationDeath($pdo, $userId, &$exp) {
 // ---------------------------------------------------------------------------
 // Exploration start
 // ---------------------------------------------------------------------------
-function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1) {
+function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $consumables = []) {
   $zoneData = getZoneData($zone);
   $hours = max(EXP_MIN_HOURS, min(EXP_MAX_HOURS, (int)$hours));
   $plannedSec = $hours * 3600;
   $useMats = $useMats ? 1 : 0;
-  $stmt = $pdo->prepare("INSERT INTO explorations (user_id, zone, zone_difficulty, zone_factions, is_infinite, phase, time_left, planned_sec, was_cancelled, use_materials, event_cooldown, micro_event_cooldown, has_triggered_legendary, last_tick_at, started_at)
-    VALUES (?, ?, ?, ?, 0, 'travel_out', ?, ?, 0, ?, 0, 0, 0, NOW(3), NOW())");
-  $stmt->execute([$userId, $zone, (int)($zoneData['difficulty'] ?? 1),
-    json_encode($zoneData['allowedFactions'] ?? [], JSON_UNESCAPED_UNICODE),
-    TRAVEL_OUT_TICKS, $plannedSec, $useMats]);
-  $expId = $pdo->lastInsertId();
+  // Рюкзак: нормализуем [{name, qty}] и СЖИГАЕМ из инвентаря сразу.
+  $pack = [];
+  if (is_array($consumables)) {
+    foreach ($consumables as $c) {
+      if (!is_array($c)) continue;
+      $nm = trim((string)($c['name'] ?? ''));
+      $q = max(0, (int)($c['qty'] ?? $c['quantity'] ?? 0));
+      if ($nm === '' || $q <= 0) continue;
+      $pack[$nm] = ($pack[$nm] ?? 0) + $q;
+    }
+  }
+  $pdo->beginTransaction();
+  try {
+    foreach ($pack as $nm => $need) {
+      $rows = $pdo->prepare("SELECT id, quantity, data FROM inventory_items WHERE user_id = ? AND name = ? AND quantity > 0 ORDER BY id FOR UPDATE");
+      $rows->execute([$userId, $nm]);
+      $have = 0;
+      $stacks = [];
+      foreach ($rows->fetchAll() as $r) {
+        // Материалом считаем строки с type=material в data (legacy без data — тоже).
+        $d = json_decode($r['data'] ?? '', true);
+        if (is_array($d) && !empty($d) && ($d['type'] ?? '') !== 'material') continue;
+        $have += (int)$r['quantity'];
+        $stacks[] = $r;
+      }
+      if ($have < $need) {
+        throw new Exception("Не хватает {$nm}: нужно {$need}, есть {$have}");
+      }
+      $rest = $need;
+      foreach ($stacks as $st) {
+        if ($rest <= 0) break;
+        $take = min((int)$st['quantity'], $rest);
+        $rest -= $take;
+        if ((int)$st['quantity'] - $take > 0) {
+          $pdo->prepare("UPDATE inventory_items SET quantity = quantity - ? WHERE id = ?")->execute([$take, $st['id']]);
+        } else {
+          $pdo->prepare("DELETE FROM inventory_items WHERE id = ?")->execute([$st['id']]);
+        }
+      }
+    }
+    $packJson = [];
+    foreach ($pack as $nm => $q) $packJson[] = ['name' => $nm, 'qty' => $q];
+    $stmt = $pdo->prepare("INSERT INTO explorations (user_id, zone, zone_difficulty, zone_factions, is_infinite, phase, time_left, planned_sec, was_cancelled, use_materials, consumables, event_cooldown, micro_event_cooldown, has_triggered_legendary, last_tick_at, started_at)
+      VALUES (?, ?, ?, ?, 0, 'travel_out', ?, ?, 0, ?, ?, 0, 0, 0, NOW(3), NOW())");
+    $stmt->execute([$userId, $zone, (int)($zoneData['difficulty'] ?? 1),
+      json_encode($zoneData['allowedFactions'] ?? [], JSON_UNESCAPED_UNICODE),
+      TRAVEL_OUT_TICKS, $plannedSec, $useMats,
+      empty($packJson) ? null : json_encode($packJson, JSON_UNESCAPED_UNICODE)]);
+    $expId = $pdo->lastInsertId();
+    $pdo->commit();
+  } catch (Exception $e) {
+    $pdo->rollBack();
+    throw $e;
+  }
 
   return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => TRAVEL_OUT_TICKS, 'is_infinite' => false, 'planned_sec' => $plannedSec, 'use_materials' => $useMats];
 }
@@ -808,6 +876,7 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
       'currentExp' => (int)($sd['player']['currentExp'] ?? 0),
       'currentHp' => (int)($sd['player']['stats']['currentHp'] ?? 100),
     ],
+    'consBuffs' => expeditionBuffs($exp['consumables'] ?? null),
     'state' => $forceState ?? ($isActive ? 'active' : 'complete'),
     'newEvents' => $events,
   ];
@@ -821,11 +890,12 @@ function cancelExploration($pdo, $userId) {
   $stmt->execute([$userId]);
   $exp = $stmt->fetch();
   if (!$exp) return ['success' => false, 'message' => 'Нет активного исследования'];
-  // Досрочный возврат — реальная дорога домой (час), без бонуса за зачистку.
-  // История запишется по прибытии с исходом 'cancelled'.
+  // Досрочный возврат — реальная дорога домой (час минус топливо),
+  // без бонуса за зачистку. История запишется по прибытии с исходом 'cancelled'.
+  $retSec = (int)round(TRAVEL_BACK_TICKS * (expeditionBuffs($exp['consumables'] ?? null)['returnMult'] ?? 1.0));
   $upd = $pdo->prepare("UPDATE explorations SET phase = 'travel_back', time_left = ?, was_cancelled = 1 WHERE id = ?");
-  $upd->execute([TRAVEL_BACK_TICKS, $exp['id']]);
-  return ['success' => true, 'return_sec' => TRAVEL_BACK_TICKS];
+  $upd->execute([$retSec, $exp['id']]);
+  return ['success' => true, 'return_sec' => $retSec];
 }
 
 // ---------------------------------------------------------------------------
@@ -921,7 +991,7 @@ function getZoneFactions($zone) {
 // ---------------------------------------------------------------------------
 // Effects
 // ---------------------------------------------------------------------------
-function applyEffects($pdo, $userId, $effects) {
+function applyEffects($pdo, $userId, $effects, $buffs = []) {
   $sd = getSaveData($pdo, $userId);
   $changed = false;
   $chips = isset($effects['chips']) ? (int)$effects['chips'] : 0;
@@ -929,17 +999,27 @@ function applyEffects($pdo, $userId, $effects) {
   $healPct = isset($effects['healPercent']) ? (float)$effects['healPercent'] : 0;
   $dmgPct = isset($effects['damagePercent']) ? (float)$effects['damagePercent'] : 0;
   $flatHeal = isset($effects['flatHeal']) ? (int)$effects['flatHeal'] : 0;
-  $result = ['count' => 0, 'items' => []];
+  $result = ['count' => 0, 'items' => [], 'appliedChips' => 0, 'appliedExp' => 0];
+  // Баффы рюкзака: только позитивные ветки (потери не раздуваем).
+  $chipsMult = 1 + (float)($buffs['chipsPct'] ?? 0);
+  $expMult = 1 + (float)($buffs['expPct'] ?? 0);
+  $healMult = 1 + (float)($buffs['healPct'] ?? 0);
+  $dmgMult = (float)($buffs['dmgTakenMult'] ?? 1.0);
 
   if ($chips != 0) {
+    $chips = $chips > 0 ? (int)round($chips * $chipsMult) : $chips;
     $sd['player']['dataChips'] = ($sd['player']['dataChips'] ?? 0) + $chips;
+    $result['appliedChips'] = $chips;
     $changed = true;
   }
   if ($exp > 0) {
+    $exp = (int)round($exp * $expMult);
     $sd['player']['currentExp'] = ($sd['player']['currentExp'] ?? 0) + $exp;
+    $result['appliedExp'] = $exp;
     $changed = true;
   }
   if ($healPct > 0) {
+    $healPct = $healPct * $healMult;
     $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
     $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
     $sd['player']['stats']['currentHp'] = min($maxHp, $cur + (int)round($maxHp * $healPct));
@@ -952,6 +1032,7 @@ function applyEffects($pdo, $userId, $effects) {
     $changed = true;
   }
   if ($dmgPct > 0) {
+    $dmgPct = $dmgPct * $dmgMult;
     $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
     $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
     $sd['player']['stats']['currentHp'] = max(0, $cur - (int)round($maxHp * $dmgPct));
@@ -1041,12 +1122,13 @@ function pickCategory() {
   return 'combat';
 }
 
-function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCount = 0) {
+function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCount = 0, $dmgBand = null) {
   $catData = getCategoryTexts();
   $category = pickCategory();
   $zoneDesc = getZoneDesc($zone);
   $faction = $factions ? pick($factions) : 'Бандиты';
   $eventKey = $existingEventCount;
+  if ($dmgBand === null) $dmgBand = trapDmgBand(0);
 
   // Rich events (any category with hand-crafted branches)
   if (!empty($catData[$category]['rich'])) {
@@ -1056,16 +1138,15 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
     if ($branch) {
       $result = resolveBranch(['outcomes' => $branch['outcomes']], $zone, $playerLevel, $items);
       $eff = mergeEffectsArr($template['effects'] ?? [], $result['effects']);
-      // Ловушки бьют редко (2/час), поэтому каждый удар весомый:
-      // масштабируем урон в полосу 0.35-0.80 (без ресурса; с ресурсом
-      // смягчение работает и capEffects режет сильнее).
+      // Ловушки бьют редко, поэтому каждый удар весомый: масштабируем урон
+      // в полосу tier'а длительности (с ресурсом — только верхняя граница).
       if (($template['type'] ?? '') === 'trap' && !empty($eff['damagePercent']) && $eff['damagePercent'] > 0) {
         $eff['damagePercent'] = $eff['damagePercent'] * TRAP_DAMAGE_MULT;
         if (empty($result['resourceHad'])) {
-          $eff['damagePercent'] = max($eff['damagePercent'], TRAP_DAMAGE_MIN);
+          $eff['damagePercent'] = max($dmgBand[0], min($dmgBand[1], $eff['damagePercent']));
         }
       }
-      $eff = capEffects($eff, $result['resourceHad']);
+      $eff = capEffects($eff, $result['resourceHad'], $dmgBand);
       return [
         'eventKey' => $eventKey, 'text' => $text . ' → ' . implode(' → ', $result['texts']),
         'type' => $template['type'], 'effects' => $eff,
@@ -1084,17 +1165,28 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
   ];
 }
 
-function capEffects($effects, $hadResource) {
+function capEffects($effects, $hadResource, $dmgBand = null) {
+  if (!is_array($dmgBand)) $dmgBand = trapDmgBand(0);
   if (isset($effects['healPercent']) && $effects['healPercent'] > 0) {
     $effects['healPercent'] = min($effects['healPercent'], $hadResource ? 0.15 : 0.05);
   }
   if (isset($effects['damagePercent']) && $effects['damagePercent'] > 0) {
-    // Редкие удары (ловушки раз в ~30 мин) — весомые: до 0.80 без ресурса.
-    $effects['damagePercent'] = min($effects['damagePercent'], $hadResource ? 0.50 : 0.80);
+    // Полоса tier'а длительности; с ресурсом — только верхняя граница (60% max).
+    $maxRes = round($dmgBand[1] * 0.6, 2);
+    $effects['damagePercent'] = min($effects['damagePercent'], $hadResource ? $maxRes : $dmgBand[1]);
   }
   return $effects;
 }
 
-// Масштабирование урона ловушек в полосу TRAP_DAMAGE_MIN..0.80.
+// Полоса урона ловушек по плановой длительности вылазки:
+// +10% tier → 0.15–0.30, +30% → 0.30–0.55, +60% → 0.40–0.75, +100% → 0.80–0.99.
+function trapDmgBand($plannedSec) {
+  $h = $plannedSec / 3600;
+  if ($h >= 18) return [0.80, 0.99];
+  if ($h >= 12) return [0.40, 0.75];
+  if ($h >= 6) return [0.30, 0.55];
+  return [0.15, 0.30];
+}
+
+// Масштабирование базового урона исходов (0.05–0.18) к полосам выше.
 const TRAP_DAMAGE_MULT = 4;
-const TRAP_DAMAGE_MIN = 0.35;

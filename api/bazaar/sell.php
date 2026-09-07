@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/_skills.php';
 
 $user = requireAuth();
 $input = json_decode(file_get_contents('php://input'), true);
@@ -124,7 +125,9 @@ try {
         }
     }
 
-    // Add chips
+    // Add chips (бонус торговца считается сервером из скиллов)
+    $disc = traderDiscounts($pdo, $user['id']);
+    $totalChipsGained = (int)floor($totalChipsGained * (1 + $disc['sellBonus']));
     $saveData['player']['dataChips'] = $chips + $totalChipsGained;
     $updateSave = $pdo->prepare('UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?');
     $updateSave->execute([json_encode($saveData, JSON_UNESCAPED_UNICODE), $user['id']]);

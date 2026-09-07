@@ -40,6 +40,7 @@ interface UiStore {
   craftingLabel: string;
   inventoryOpen: boolean;
   equipmentOpen: boolean;
+  rangeOpen: boolean;
   draggedItemId: string | null;
   inventoryPinned: boolean;
   inventoryPinPos: { x: number; y: number };
@@ -56,6 +57,8 @@ interface UiStore {
   setInventoryOpen: (open: boolean) => void;
   toggleEquipment: () => void;
   setEquipmentOpen: (open: boolean) => void;
+  toggleRange: () => void;
+  setRangeOpen: (open: boolean) => void;
   setDraggedItemId: (id: string | null) => void;
   setInventoryPinned: (pinned: boolean) => void;
   setInventoryPinPos: (pos: { x: number; y: number }) => void;
@@ -98,6 +101,7 @@ export const useUiStore = create<UiStore>()(
       craftingLabel: '',
       inventoryOpen: false,
       equipmentOpen: false,
+      rangeOpen: false,
       draggedItemId: null,
       inventoryPinned: false,
       inventoryPinPos: { x: 60, y: 60 },
@@ -122,6 +126,8 @@ export const useUiStore = create<UiStore>()(
       toggleInventory: () => set((s) => ({ inventoryOpen: !s.inventoryOpen })),
       setEquipmentOpen: (open) => set({ equipmentOpen: open }),
       toggleEquipment: () => set((s) => ({ equipmentOpen: !s.equipmentOpen })),
+      setRangeOpen: (open) => set({ rangeOpen: open }),
+      toggleRange: () => set((s) => ({ rangeOpen: !s.rangeOpen })),
       setDraggedItemId: (id) => set({ draggedItemId: id }),
       setInventoryPinned: (pinned) => set({ inventoryPinned: pinned }),
       setInventoryPinPos: (pos) => set({ inventoryPinPos: pos }),

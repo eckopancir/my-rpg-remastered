@@ -27,6 +27,7 @@ export const Header = () => {
   const expToNext = usePlayerStore((s) => s.expToNext);
   const toggleInventory = useUiStore((s) => s.toggleInventory);
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
+  const toggleRange = useUiStore((s) => s.toggleRange);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const { playClick } = useSound();
@@ -97,6 +98,13 @@ export const Header = () => {
             style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
           >
             🎒 Inventory
+          </button>
+          <button
+            className={styles.navLink}
+            onClick={() => { playClick(); toggleRange(); }}
+            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
+          >
+            🎯 Полигон
           </button>
           <NavLink to="/settings" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`} onClick={playClick}>
             ⚙️ Settings

@@ -81,6 +81,51 @@ export interface ServerEventRow {
   created_at: string;
 }
 
+export interface ConsBuffs {
+  regen: number;
+  healPct: number;
+  legPct: number;
+  expPct: number;
+  chipsPct: number;
+  dmgTakenMult: number;
+  returnMult: number;
+}
+
+export const EMPTY_BUFFS: ConsBuffs = {
+  regen: 0, healPct: 0, legPct: 0, expPct: 0, chipsPct: 0, dmgTakenMult: 1, returnMult: 1,
+};
+
+// Зеркало expeditionBuffs() из api/exploration/engine_config.php — для превью и локал-зеркала.
+export const calcConsBuffs = (sel: Record<string, number>): ConsBuffs => {
+  const n = (name: string) => Math.max(0, Math.floor(sel[name] || 0));
+  const iz = Math.min(n('Изолента'), 20);
+  const fe = Math.min(n('Железо'), 20);
+  return {
+    regen: Math.min(n('Лекарства'), 10),
+    healPct: Math.min(n('Вода'), 50) * 0.001 + Math.min(n('Консервы'), 50) * 0.001,
+    legPct: Math.min(n('Батарейки'), 30) * 0.001,
+    expPct: Math.min(n('Дерево'), 50) * 0.002 + Math.min(n('Гвозди'), 50) * 0.002,
+    chipsPct: Math.min(n('Инструменты'), 50) * 0.002 + Math.min(n('Пластмасса'), 50) * 0.002,
+    dmgTakenMult: Math.max(0.64, (1 - iz * 0.01) * (1 - fe * 0.01)),
+    returnMult: Math.max(0.5, 1 - Math.min(n('Топливо'), 10) * 0.05),
+  };
+};
+
+// Описания для превью в модалке старта.
+export const CONS_BUFF_DEFS: { name: string; desc: string }[] = [
+  { name: 'Лекарства', desc: '+1 реген (макс +10)' },
+  { name: 'Вода', desc: '+0.1% к хилу (макс +5%)' },
+  { name: 'Консервы', desc: '+0.1% к хилу (макс +5%)' },
+  { name: 'Батарейки', desc: '+0.1% к легендарке (макс +3%)' },
+  { name: 'Дерево', desc: '+0.2% опыта (макс +10%)' },
+  { name: 'Гвозди', desc: '+0.2% опыта (макс +10%)' },
+  { name: 'Инструменты', desc: '+0.2% чипов (макс +10%)' },
+  { name: 'Пластмасса', desc: '+0.2% чипов (макс +10%)' },
+  { name: 'Изолента', desc: '−1% входящего урона (макс −20%)' },
+  { name: 'Железо', desc: '−1% входящего урона (макс −20%)' },
+  { name: 'Топливо', desc: '−5% времени возврата (макс −50%)' },
+];
+
 interface ExplorationStore {
   isExploring: boolean;
   zoneName: string | null;
@@ -111,8 +156,10 @@ interface ExplorationStore {
   plannedSec: number;
   // Тратить ли материалы из инвентаря (галочка на старте).
   useMaterials: boolean;
+  // Баффы рюкзака с сервера (зеркало expeditionBuffs) для локального применения.
+  consBuffs: ConsBuffs;
 
-  startExploration: (zoneName: string, hours?: number, useMats?: boolean) => Promise<void>;
+  startExploration: (zoneName: string, hours?: number, useMats?: boolean, consumables?: { name: string; qty: number }[]) => Promise<void>;
   cancelExploration: () => Promise<void>;
   pollServerState: () => Promise<void>;
   loadOlderEvents: () => Promise<void>;
@@ -168,24 +215,27 @@ export const useExplorationStore = create<ExplorationStore>()(
       engineVersion: '',
       plannedSec: 0,
       useMaterials: true,
+      consBuffs: { ...EMPTY_BUFFS },
 
-      startExploration: async (zoneName, hours = 12, useMats = true) => {
+      startExploration: async (zoneName, hours = 12, useMats = true, consumables = []) => {
         const token = getToken();
         if (!token) { set({ error: 'Not authenticated' }); return; }
         const h = Math.max(2, Math.min(24, Math.round(hours)));
         try {
-          const res = await fetch(`${API_BASE}/start.php?zone=${encodeURIComponent(zoneName)}&hours=${h}&use_mats=${useMats ? 1 : 0}`, {
-            headers: { Authorization: `Bearer ${token}` },
+          const res = await fetch(`${API_BASE}/start.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              zone: zoneName, hours: h, use_mats: useMats ? 1 : 0,
+              consumables: consumables
+                .filter((c) => c.name && c.qty > 0)
+                .map((c) => ({ name: c.name, qty: Math.floor(c.qty) })),
+            }),
           });
           const data = await res.json();
           if (!res.ok) { set({ error: data.error || 'Failed to start' }); return; }
 
           const exp = data.exploration;
-          console.log('[EXP_START_CLIENT] received', {
-            id: exp?.id, phase: exp?.phase, timeLeft: exp?.time_left,
-            isInfinite: exp?.is_infinite, debug: data._debug,
-            ts: Date.now()
-          });
 
           // Refresh inventory from server before starting
           syncInventoryFromServer(token);
@@ -276,6 +326,9 @@ export const useExplorationStore = create<ExplorationStore>()(
           // эффекты в сейве — локально повторяем только их, а не всю историю.
           const freshEvents: any[] = data.newEvents ?? [];
           const serverOutcome = data.state ?? 'active';
+          const consBuffs = (data.consBuffs && typeof data.consBuffs === 'object')
+            ? { ...EMPTY_BUFFS, ...data.consBuffs }
+            : state.consBuffs;
 
           // Применяем эффекты только свежих событий (обычно 0–15 шт).
           // Старый путь — дифф по всей 1000-й истории — после долгого офлайна
@@ -288,7 +341,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           const effectsSource = freshEvents.length > 0 ? freshEvents : fallbackNew;
           if (effectsSource.length > 0) {
             for (const evt of effectsSource) {
-              applyLocalEffects(evt.effects);
+              applyLocalEffects(evt.effects, consBuffs);
               if (evt.resource_had && evt.resource_cost) {
                 inv.consumeItemByName(evt.resource_cost);
               }
@@ -342,6 +395,7 @@ export const useExplorationStore = create<ExplorationStore>()(
               debtSec: 0,
               bulkMode: 'none',
               engineVersion,
+              consBuffs: { ...EMPTY_BUFFS },
             });
             return;
           }
@@ -376,6 +430,7 @@ export const useExplorationStore = create<ExplorationStore>()(
               useMaterials: typeof exp.useMaterials === 'boolean'
                 ? exp.useMaterials
                 : state.useMaterials,
+              consBuffs,
             });
           }
           // Process pending rewards after each poll
@@ -470,6 +525,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           totalEvents: 0, hasMoreEvents: false,
           debtSec: 0, bulkMode: 'none',
           useMaterials: true,
+          consBuffs: { ...EMPTY_BUFFS },
         });
         // Process pending rewards after completion
         get().processPendingRewards();
@@ -484,6 +540,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           totalEvents: 0, hasMoreEvents: false,
           debtSec: 0, bulkMode: 'none',
           useMaterials: true,
+          consBuffs: { ...EMPTY_BUFFS },
         });
       },
 
@@ -527,6 +584,14 @@ export const useExplorationStore = create<ExplorationStore>()(
                 body: JSON.stringify({ items: cached.items, rewardId }),
               });
               if (saveRes.ok) {
+                const sj = await saveRes.json().catch(() => null);
+                if (sj?.already) {
+                  // Награда уже заклеймена (вторая вкладка / повторный запрос):
+                  // наши локальные копии — дубликаты, откатываем их.
+                  for (const item of cached.items) {
+                    inv.removeItem(item.id);
+                  }
+                }
                 newItems[eventId] = { items: cached.items, saved: true };
                 changed = true;
               }
@@ -559,6 +624,14 @@ export const useExplorationStore = create<ExplorationStore>()(
             });
 
             if (saveRes.ok) {
+              const sj = await saveRes.json().catch(() => null);
+              if (sj?.already) {
+                // Гонка: другая вкладка/ретрай заклеймила раньше —
+                // только что добавленные копии лишние, убираем.
+                for (const item of items) {
+                  inv.removeItem(item.id);
+                }
+              }
               newItems[eventId] = { items, saved: true };
               changed = true;
             } else {
@@ -583,11 +656,12 @@ export const useExplorationStore = create<ExplorationStore>()(
     }),
     {
       name: 'remastered_exploration',
-      version: 7,
+      version: 8,
       migrate: (persisted: any) => {
         const clean = { ...persisted };
-        delete clean.eventRewardItems;
         delete clean.isProcessingRewards;
+        // eventRewardItems теперь персистим осознанно (см. partialize):
+        // иначе перезаход между генерацией и клеймом дублировал награды.
         return clean;
       },
       partialize: (state) => ({
@@ -607,6 +681,10 @@ export const useExplorationStore = create<ExplorationStore>()(
         explorationId: state.explorationId,
         plannedSec: state.plannedSec,
         useMaterials: state.useMaterials,
+        consBuffs: state.consBuffs,
+        // Кэш несейвленных наград: переживает перезагрузку, чтобы ретрай
+        // сейвил те же предметы, а не генерировал дубликаты.
+        eventRewardItems: state.eventRewardItems,
       }),
       merge: (persisted: any, current: any) => ({
         ...current,
@@ -642,8 +720,9 @@ export async function catchUpExploration() {
   }
 }
 
-// Apply effects from a JSON effects string to the player store (client-side safety net)
-function applyLocalEffects(effectsJson: string) {
+// Apply effects from a JSON effects string to the player store (client-side safety net).
+// Зеркало applyEffects(): баффы рюкзака применяются так же, иначе разъедется с сервером.
+function applyLocalEffects(effectsJson: string, buffs: ConsBuffs = EMPTY_BUFFS) {
   if (!effectsJson || effectsJson === '{}') return;
   try {
     const eff = JSON.parse(effectsJson);
@@ -652,19 +731,21 @@ function applyLocalEffects(effectsJson: string) {
     const patch: Record<string, any> = {};
 
     if (eff.chips && typeof eff.chips === 'number') {
-      usePlayerStore.getState().addChips(eff.chips);
+      const v = eff.chips > 0 ? Math.round(eff.chips * (1 + (buffs.chipsPct || 0))) : eff.chips;
+      usePlayerStore.getState().addChips(v);
     }
     if (eff.exp && typeof eff.exp === 'number') {
-      usePlayerStore.getState().addExp(eff.exp);
+      const v = eff.exp > 0 ? Math.round(eff.exp * (1 + (buffs.expPct || 0))) : eff.exp;
+      usePlayerStore.getState().addExp(v);
     }
     if (eff.healPercent && typeof eff.healPercent === 'number') {
       const maxHp = ps.stats.maxHp || 10000;
-      const healAmt = Math.round(maxHp * eff.healPercent);
+      const healAmt = Math.round(maxHp * eff.healPercent * (1 + (buffs.healPct || 0)));
       patch.stats = { ...ps.stats, currentHp: Math.min(maxHp, ps.stats.currentHp + healAmt) };
     }
     if (eff.damagePercent && typeof eff.damagePercent === 'number') {
       const maxHp = ps.stats.maxHp || 10000;
-      const dmgAmt = Math.round(maxHp * eff.damagePercent);
+      const dmgAmt = Math.round(maxHp * eff.damagePercent * (buffs.dmgTakenMult ?? 1));
       patch.stats = { ...(patch.stats || ps.stats), currentHp: Math.max(0, (patch.stats?.currentHp ?? ps.stats.currentHp) - dmgAmt) };
     }
 

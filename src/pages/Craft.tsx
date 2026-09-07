@@ -108,42 +108,6 @@ function removeResources(resources: Record<string, number>): boolean {
   return true;
 }
 
-function addMaterials(yields: Record<string, number>) {
-  const items = useInventoryStore.getState().items;
-  const addItem = useInventoryStore.getState().addItem;
-  for (const [mat, count] of Object.entries(yields)) {
-    if (count <= 0) continue;
-    const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
-    if (!matName) continue;
-    const existing = items.find((i) => i.name === matName && i.type === 'material');
-    if (existing) {
-      useInventoryStore.setState((s) => ({
-        items: s.items.map((i) => i.id === existing.id ? { ...i, quantity: (i.quantity || 1) + count } : i),
-      }));
-    } else {
-      addItem({
-        id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        name: matName, displayName: matName, type: 'material', slot: 'any',
-        rarity: 'common', level: 1, stats: {}, quantity: count, stackable: true,
-      });
-    }
-  }
-}
-
-function tryDropBlueprint(itemId: string): string | null {
-  const bpQuality = rollBlueprint(itemId);
-  if (!bpQuality) return null;
-  useInventoryStore.getState().addItem({
-    id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    name: `Схема: ${bpQuality}`,
-    displayName: `📜 Схема (${bpQuality})`,
-    type: 'blueprint', blueprintRarity: bpQuality, slot: 'any', rarity: bpQuality,
-    level: 1, stats: {}, quality: bpQuality,
-    qualityColor: QUALITY_COLORS[bpQuality] || '#a0a0a0', stackable: false,
-  });
-  return bpQuality;
-}
-
 function SlotIcon(item: Item): string {
   if (item.type === 'mod') return '🔩';
   if (item.slot === 'weapon1') return '⚔️';
@@ -315,7 +279,19 @@ export const Craft = () => {
     setMergeResult(resultItem);
     addLog(`⬆️ Создан: ${generated.displayName} (${nextQuality})`, 'loot');
     setMergeSlots(Array(5).fill(null));
-    try { await fetch(`${base}/craft/merge.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ consumeIds: mergeItemIdsRef.current, result: resultItem }) }); } catch {}
+    // Сервер — писатель: ждём ok, иначе результат не выдаём (иначе призрак
+    // только локально). Расходники при отказе остались в БД — вернёт синк.
+    try {
+      const res = await fetch(`${base}/craft/merge.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ consumeIds: mergeItemIdsRef.current, result: resultItem }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        addLog(`❌ Сервер отклонил улучшение: ${err?.error || res.status}`, 'warning');
+        setMergeResult(null);
+      }
+    } catch {
+      addLog('❌ Ошибка сети — результат не сохранён', 'warning');
+      setMergeResult(null);
+    }
   }
 
   function handleDropToDisassemble(itemId: string) {
@@ -340,24 +316,67 @@ export const Craft = () => {
     const filled = disassembleSlots.filter(Boolean) as Item[];
     if (filled.length === 0) return;
     const consumeIds = filled.map((i) => i.id);
-    const materials: { id: string; name: string; quantity: number }[] = [];
-    let blueprint: { id: string; name: string; slot: string; quality: string } | null = null;
+    // Один ролл на всё: те же объекты уходят на сервер и кладутся локально.
+    // Раньше роллилось дважды (серверу одно, себе другое) — дубли и рассинхрон.
+    const yields: Record<string, number> = {};
     for (const item of filled) {
       if (!item.quality) continue;
-      const yields = rollYield(item.quality);
-      for (const [mat, count] of Object.entries(yields)) {
-        const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
-        if (matName) materials.push({ id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: matName, quantity: count });
-      }
-      const bp = rollBlueprint(item.quality);
-      if (bp && !blueprint) blueprint = { id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: `Схема: ${bp}`, slot: 'any', quality: bp };
+      const y = rollYield(item.quality);
+      for (const [mat, c] of Object.entries(y)) yields[mat] = (yields[mat] || 0) + (c || 0);
     }
-    try { await fetch(`${base}/craft/disassemble.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ consumeIds, materials, blueprint }) }); } catch {}
+    const materials: Item[] = [];
+    for (const [mat, count] of Object.entries(yields)) {
+      if (count <= 0) continue;
+      const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
+      if (!matName) continue;
+      materials.push({
+        id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: matName, displayName: matName, type: 'material', slot: 'any',
+        rarity: 'common', level: 1, stats: {}, quantity: count, stackable: true,
+      } as Item);
+    }
+    let blueprint: Item | null = null;
     for (const item of filled) {
-      if (!item.quality) continue;
-      addMaterials(rollYield(item.quality));
-      const bp = tryDropBlueprint(item.quality);
-      if (bp) addLog(`📜 Схема (${bp}) при разборе ${item.displayName || item.name}`, 'loot');
+      if (!item.quality || blueprint) continue;
+      const bp = rollBlueprint(item.quality);
+      if (bp) blueprint = {
+        id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: `Схема: ${bp}`, displayName: `📜 Схема (${bp})`,
+        type: 'blueprint', blueprintRarity: bp, slot: 'any', rarity: bp,
+        level: 1, stats: {}, quality: bp,
+        qualityColor: QUALITY_COLORS[bp] || '#a0a0a0', stackable: false,
+      } as Item;
+    }
+    try {
+      const res = await fetch(`${base}/craft/disassemble.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({
+        consumeIds,
+        materials: materials.map((m) => ({ id: m.id, name: m.name, quantity: m.quantity })),
+        blueprint: blueprint ? { id: blueprint.id, name: blueprint.name, slot: blueprint.slot, quality: blueprint.quality } : null,
+      }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        addLog(`❌ Сервер отклонил разбор: ${err?.error || res.status}`, 'warning');
+        return;
+      }
+    } catch {
+      addLog('❌ Ошибка сети — разбор не сохранён', 'warning');
+      return;
+    }
+    // Сервер ok: кладём ровно те же объекты (merge в существующие стаки).
+    const curItems = useInventoryStore.getState().items;
+    for (const m of materials) {
+      const existing = curItems.find((i) => i.name === m.name && i.type === 'material');
+      if (existing) {
+        useInventoryStore.setState((s) => ({
+          items: s.items.map((i) => i.id === existing.id ? { ...i, quantity: (i.quantity || 1) + (m.quantity || 1) } : i),
+        }));
+      } else {
+        addItem(m);
+      }
+    }
+    if (blueprint) {
+      addItem(blueprint);
+      addLog(`📜 Схема (${blueprint.quality}) при разборе`, 'loot');
     }
     addLog(`🔨 Разобрано ${filled.length} предмет(ов)`, 'info');
     setDisassembleSlots(Array(5).fill(null));
@@ -465,7 +484,18 @@ export const Craft = () => {
     setCreateBlueprint(null);
     setCreateSlot(null);
     setCreateSelectedStats({});
-    try { await fetch(`${base}/craft/create.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ blueprintId: createBlueprintIdRef.current, resourceIds: createResourceIdsRef.current, result: newItem }) }); } catch {}
+    // Сервер — писатель: ждём ok, иначе результат не выдаём.
+    try {
+      const res = await fetch(`${base}/craft/create.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ blueprintId: createBlueprintIdRef.current, resourceIds: createResourceIdsRef.current, result: newItem }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        addLog(`❌ Сервер отклонил создание: ${err?.error || res.status}`, 'warning');
+        setCreateResult(null);
+      }
+    } catch {
+      addLog('❌ Ошибка сети — результат не сохранён', 'warning');
+      setCreateResult(null);
+    }
   }
 
   return (

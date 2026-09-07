@@ -1,11 +1,12 @@
 <?php
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/_skills.php';
 
 $user = requireAuth();
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($input['items']) || !isset($input['refreshAt']) || !isset($input['cost'])) {
-    jsonResponse(['error' => 'Missing items, refreshAt or cost'], 400);
+if (!isset($input['items']) || !isset($input['refreshAt'])) {
+    jsonResponse(['error' => 'Missing items or refreshAt'], 400);
 }
 
 $pdo = getDB();
@@ -24,7 +25,11 @@ try {
 
     $saveData = json_decode($saveRow['save_data'], true);
     $chips = (int)($saveData['player']['dataChips'] ?? 0);
-    $cost = (int)$input['cost'];
+    // Стоимость пересчитываем сервером (уровень + скидка торговца),
+    // клиентскому cost не доверяем.
+    $level = (int)($saveData['player']['level'] ?? 1);
+    $disc = traderDiscounts($pdo, $user['id']);
+    $cost = (int)floor((50 + $level * 10) * (1 - $disc['refreshDiscount']));
 
     if ($chips < $cost) {
         $pdo->rollBack();

@@ -57,7 +57,15 @@ export const useInventoryStore = create<InventoryStore>()(
       filterSlot: '',
 
       setItems: (items) => set({ items }),
-      addItem: (item) => set((s) => ({ items: [...s.items, item] })),
+      // Upsert по id: повторный add с тем же id обновляет, а не дублирует.
+      // Страхует от двойных выдач (покупка/крафт/награды + ретраи).
+      addItem: (item) => set((s) => {
+        const idx = s.items.findIndex((i) => i.id === item.id);
+        if (idx === -1) return { items: [...s.items, item] };
+        const updated = [...s.items];
+        updated[idx] = item;
+        return { items: updated };
+      }),
       removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
       consumeItemByName: (name) => set((s) => {
         const idx = s.items.findIndex((i) => i.name === name);

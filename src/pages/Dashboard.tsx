@@ -162,7 +162,7 @@ export const Dashboard = () => {
     { label: 'ACC', value: `${(stats.accuracy * 100).toFixed(0)}%`, desc: 'Меткость. Определяет шанс попадания.' },
     { label: 'EVA', value: `${(stats.evasion * 100).toFixed(1)}%`, desc: 'Уклонение. Шанс избежать атаки.' },
     { label: 'BLK', value: `${(stats.block * 100).toFixed(1)}%`, desc: 'Блок. Шанс заблокировать часть урона.', breakpoints: ['<200% → 50%', '≥200% → 80%', '≥300% → 90%'] },
-    { label: 'REG', value: stats.regen.toFixed(1), desc: 'Регенерация HP/сек.' },
+    { label: 'REG', value: stats.regen.toFixed(1), desc: 'Регенерация HP/мин.' },
     { label: 'VAMP', value: `${(stats.vampir * 100).toFixed(1)}%`, desc: 'Вампиризм. % урона → HP.' },
     { label: 'PCH', value: `${(stats.punching * 100).toFixed(1)}%`, desc: 'Пробитие. Игнорирует % брони врага.' },
     { label: 'SPD', value: `${(stats.speed * 100).toFixed(1)}%`, desc: 'Скорость. Каждый выстрел имеет 0.5% × скорость шанс на бесплатный повтор (100% → 50%, 200% → гарант).' },

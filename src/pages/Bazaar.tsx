@@ -30,11 +30,34 @@ interface ShopItem {
   type?: string;
   quantity?: number;
   resourceName?: string;
+  abilityId?: string;
 }
 
 const SHOP_QUALITY_MULT: Record<string, number> = {
   'Божественный': 14, 'Легендарный': 10, 'Смертоносный': 7,
   'Эпический': 5, 'Раритетный': 3, 'Редкий': 2, 'Обычный': 1,
+};
+
+// Фикс цены за редкость (плоская добавка — раньше на низких уровнях её съедал кубик 0..50).
+const RARITY_PRICE_FLAT: Record<string, number> = {
+  normal: 0, common: 0, epic: 40, superepic: 90,
+};
+
+// Вес статов в цене: здоровье идёт сотнями, шансы — долями, нормируем.
+const STAT_PRICE_W: Record<string, number> = {
+  damage: 0.75, armor: 0.75, health: 0.125, regen: 5,
+  crit: 125, evasion: 125, block: 125, vampir: 125, accuracy: 125, speed: 125,
+  punching: 0.75, dpsEmi: 0.75, dpsToxis: 0.75, dpsExtro: 0.75, dpsFire: 0.75,
+  maxHp: 0.125, maxStamina: 0.125,
+};
+
+const statPrice = (stats: Record<string, number>): number => {
+  let sum = 0;
+  for (const [k, v] of Object.entries(stats || {})) {
+    if (typeof v !== 'number' || v <= 0) continue;
+    sum += v * (STAT_PRICE_W[k] ?? 0.5);
+  }
+  return Math.floor(sum);
 };
 
 const CATEGORY_SLOTS: Record<string, string[]> = {
@@ -51,7 +74,10 @@ const generateCategoryItem = (level: number, validSlots: string[], idx: number):
     const targetSlot = validSlots[Math.floor(Math.random() * validSlots.length)];
     const single = generateItem(GAME_ITEMS, level, null, null, targetSlot);
     if (single) {
-      const basePrice = level * 10 + Math.floor(Math.random() * 50);
+      // Цена: уровень + малая случайность + фикс за редкость + вес статов, всё × качество.
+      // Раньше было level*10 + rand(0..50): на низких уровнях кубик всё решал,
+      // а статы игнорировались — эпик за 50 чипов.
+      const basePrice = level * 10 + Math.floor(Math.random() * 10);
       const qualityMultiplier = SHOP_QUALITY_MULT[single.quality] || 1;
       return {
         id: single.id + '_cat_' + idx + '_' + Date.now(),
@@ -61,10 +87,11 @@ const generateCategoryItem = (level: number, validSlots: string[], idx: number):
         rarity: single.rarity,
         quality: single.quality,
         qualityColor: single.qualityColor || 'white',
-        price: Math.floor(basePrice * qualityMultiplier),
+        price: Math.floor((basePrice + (RARITY_PRICE_FLAT[single.rarity] || 0) + statPrice(single.stats || {})) * qualityMultiplier),
         stats: single.stats || {},
         slot: single.slot,
         type: single.type,
+        abilityId: single.abilityId,
       };
     }
   }
@@ -76,7 +103,8 @@ const generateShop = (level: number): ShopItem[] => {
   let idx = 0;
   for (const cat of ['weapons', 'armor', 'consumables', 'mods'] as const) {
     const slots = CATEGORY_SLOTS[cat];
-    for (let i = 0; i < 3; i++) {
+    // По 8 товаров в категории — витрина шире.
+    for (let i = 0; i < 8; i++) {
       const item = generateCategoryItem(level, slots, idx++);
       if (item) items.push(item);
     }
@@ -85,9 +113,10 @@ const generateShop = (level: number): ShopItem[] => {
     !['Металлолом', 'Провода', 'Микросхема', 'Хим. реагент', 'Редкий сплав'].includes(r.name)
   );
   const resources = [...BASE_RESOURCES];
-  for (let i = 0; i < 8; i++) {
+  // 24 ресурса (3 ряда по 8) увеличенными стаками — материалы теперь в ходу.
+  for (let i = 0; i < 24; i++) {
     const def = resources[Math.floor(Math.random() * resources.length)];
-    const qty = 1 + Math.floor(Math.random() * 5);
+    const qty = 3 + Math.floor(Math.random() * 8);
     items.push({
       id: 'res_' + i + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 4),
       name: def.name,
@@ -314,11 +343,11 @@ export const Bazaar = () => {
       // Update client-side: remove from shop, add chips
       setShopItems((prev) => prev.filter((i) => i.id !== shopItem.id));
       usePlayerStore.setState({ dataChips: json.dataChips });
-
+      const serverItemId: string = json.itemId || `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
       // Add item to inventory
       if (shopItem.type === 'material') {
         addItemToInv({
-          id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          id: serverItemId,
           name: shopItem.resourceName || shopItem.name,
           displayName: shopItem.resourceName || shopItem.name,
           rarity: 'common', level: 1, slot: 'any', stats: {},
@@ -327,14 +356,15 @@ export const Bazaar = () => {
         });
       } else {
         addItemToInv({
-          id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          id: serverItemId,
           name: shopItem.name, displayName: shopItem.displayName,
           rarity: shopItem.rarity, level: shopItem.level, slot: shopItem.slot,
           stats: shopItem.stats, qualityColor: shopItem.qualityColor,
           quality: shopItem.quality, type: shopItem.type,
+          abilityId: shopItem.abilityId,
         });
       }
-      addLog(`🛒 Куплено: ${shopItem.displayName || shopItem.name} за ${buyPrice} 💾`, 'loot');
+      addLog(`🛒 Куплено: ${shopItem.displayName || shopItem.name} за ${json.charged ?? buyPrice} 💾`, 'loot');
     } catch {
       addLog('❌ Ошибка сети при покупке', 'warning');
     }

@@ -54,4 +54,10 @@ if (!count($colsM)) {
   $pdo->exec("ALTER TABLE explorations ADD COLUMN use_materials TINYINT(1) NOT NULL DEFAULT 1 AFTER was_cancelled");
 }
 
+// Рюкзак: взятые в дорогу расходники (сгорают на старте).
+$colsC = $pdo->query("SHOW COLUMNS FROM explorations LIKE 'consumables'")->fetchAll();
+if (!count($colsC)) {
+  $pdo->exec("ALTER TABLE explorations ADD COLUMN consumables JSON DEFAULT NULL AFTER use_materials");
+}
+
 echo json_encode(['ok' => true]);

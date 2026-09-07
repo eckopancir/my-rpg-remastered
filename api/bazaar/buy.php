@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/_skills.php';
 
 $user = requireAuth();
 $input = json_decode(file_get_contents('php://input'), true);
@@ -24,7 +25,9 @@ try {
 
     $item = json_decode($row['data'], true);
     $price = (int)($item['price'] ?? 0);
-    $buyPrice = (int)($item['_buyPrice'] ?? $price); // client can pass discounted price
+    // Скидка считается сервером из скиллов (клиентскому _buyPrice не доверяем).
+    $disc = traderDiscounts($pdo, $user['id']);
+    $buyPrice = (int)floor($price * (1 - $disc['buyDiscount']));
 
     // Read current chips from save_data
     $saveStmt = $pdo->prepare('SELECT save_data FROM saves WHERE user_id = ? FOR UPDATE');
@@ -71,6 +74,11 @@ try {
     jsonResponse([
         'ok' => true,
         'dataChips' => $saveData['player']['dataChips'],
+        // Серверный id вставленной строки: клиент обязан положить предмет
+        // именно с этим id, иначе покупка дублируется (см. Fix 2).
+        'itemId' => $invId,
+        // Фактически списанная цена (со скидкой) — клиент сверяет с витриной.
+        'charged' => $buyPrice,
     ]);
 } catch (Exception $e) {
     $pdo->rollBack();

@@ -7,11 +7,16 @@ import { useExplorationStore, catchUpExploration } from '../stores/explorationSt
 export const useGameLoop = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const exploringInFlight = useRef(false);
+  // Счётчик секунд для минутного каденса регена (кроме арены).
+  const secRef = useRef(0);
 
   useEffect(() => {
     catchUpExploration();
 
     intervalRef.current = setInterval(() => {
+      secRef.current += 1;
+      // Реген тикает раз в минуту, а не раз в секунду.
+      const isRegenTick = secRef.current % 60 === 0;
       const player = usePlayerStore.getState();
       const ui = useUiStore.getState();
 
@@ -51,8 +56,8 @@ export const useGameLoop = () => {
           .finally(() => { exploringInFlight.current = false; });
       }
 
-      // 5. Rest tick
-      if (ui.isResting) {
+      // 5. Rest tick (раз в минуту)
+      if (ui.isResting && isRegenTick) {
         const sBefore = usePlayerStore.getState().stats;
         console.log('[REST_TICK] before', { currentHp: sBefore.currentHp, maxHp: sBefore.maxHp, regen: sBefore.regen, stamina: sBefore.stamina, maxStamina: sBefore.maxStamina, ts: Date.now() });
         const done = player.restTick();
@@ -67,8 +72,9 @@ export const useGameLoop = () => {
       }
 
       // 6. Passive regen — faster at base, slower outside (skip during server-polled phase of exploration)
+      // Тикает раз в минуту (isRegenTick), кроме арены.
       const skipRegenDueToExploration = exploration.isExploring && !exploration.isReturningHome;
-      if (!skipRegenDueToExploration && !player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
+      if (isRegenTick && !skipRegenDueToExploration && !player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
         const s = player.stats;
         if (s.currentHp !== s.maxHp || s.stamina !== s.maxStamina) {
           const atBase = !player.travel.isReturning && !player.travel.isTraveling;

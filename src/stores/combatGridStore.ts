@@ -468,6 +468,16 @@ function generateObstacles(
   return list;
 }
 
+// Чистый стихийный урон по фракции цели: ТОКС — мутанты, ЭМИ — роботы,
+// ОГОНЬ — люди (Бандиты/Военные), ЭКСТРО — все. Игнорирует броню и все защиты.
+export const calcPureDamage = (pStats: any, faction?: string): number => {
+  const extro = pStats?.dpsExtro || 0;
+  if (faction === 'Мутанты') return Math.round((pStats?.dpsToxis || 0) + extro);
+  if (faction === 'Роботы') return Math.round((pStats?.dpsEmi || 0) + extro);
+  if (faction === 'Бандиты' || faction === 'Военные') return Math.round(extro + (pStats?.dpsFire || 0));
+  return Math.round(extro);
+};
+
 export const calculateCombatResult = (attacker: any, target: any) => {
   let dmg = attacker.dps || attacker.damage || 0;
   let text = '';
@@ -497,17 +507,26 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   }
   if (Math.random() < evasionChance) {
     playCombatSound('evasion', 0.3);
+    // Чистый урон пробивает уворот (броня/блок/уворот его не касаются).
+    const pureDmg = Math.round(attacker.pure || 0);
+    if (pureDmg > 0) return { damage: pureDmg, type: 'EVASION', text: `УВОРОТ −${pureDmg}`, sound: null };
     return { damage: 0, type: 'EVASION', text: 'УВОРОТ', sound: null };
   }
 
   const critVal = attacker.crit || 0;
   let critMultiplier = 1;
   let isCrit = false;
-  if (critVal > 0) {
+  // Крит — шанс, а не гарантия: ролл против min(1, crit).
+  // Мультипликатор тиров ниже не трогаем (сильные билды с crit>=1 критуют всегда).
+  if (critVal > 0 && Math.random() < Math.min(1, critVal)) {
     isCrit = true;
     const baseTier = Math.floor(critVal);
     const chance = Math.min(critVal - baseTier, 1);
-    critMultiplier = Math.random() < chance ? baseTier + 2 : baseTier + 1;
+    // Сработавший крит всегда весомый: минимум x2. Иначе метка "КРИТ"
+    // висела бы на обычном уроне (x1) и вводила в заблуждение.
+    critMultiplier = baseTier > 0
+      ? (Math.random() < chance ? baseTier + 2 : baseTier + 1)
+      : 2;
     dmg *= critMultiplier;
     type = 'CRIT';
     sound = 'crit';
@@ -531,7 +550,9 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     dmg *= target.incomingDamageMult;
   }
 
-  const displayDmg = Math.round(dmg);
+  // Чистый урон: мимо брони/блока/уворота/барьера, крит умножает всю сумму.
+  const pureTotal = Math.round((attacker.pure || 0) * critMultiplier);
+  const displayDmg = Math.round(dmg) + pureTotal;
 
   const isRealCrit = isCrit && critMultiplier > 1;
   if (isRealCrit && isBlocked) {
@@ -1490,14 +1511,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos } });
     setTimeout(() => set({ shotLine: null }), 400);
 
-    // Calculate effective DPS with faction bonus
+    // Физа идёт через формулу одна; стихия фракции — чистым уроном поверх.
     let effectiveDps = player.stats.damage;
     const faction = enemy.faction;
-    if (faction === 'Мутанты') effectiveDps = Math.max(effectiveDps, player.stats.dpsToxis || 0);
-    else if (faction === 'Роботы') effectiveDps = Math.max(effectiveDps, player.stats.dpsEmi || 0);
-    else if (['Бандиты', 'Военные'].includes(faction)) {
-      effectiveDps = Math.max(effectiveDps, player.stats.dpsExtro || 0, player.stats.dpsFire || 0);
-    }
+    const pureDmg = calcPureDamage(player.stats, faction);
     if (player.stats.stamina < 0.1 * player.stats.maxStamina) effectiveDps *= 0.5;
 
     // +30% damage for low-capacity weapons (1-3 rounds)
@@ -1508,6 +1525,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     const attackerStats = {
       dps: effectiveDps,
+      pure: pureDmg,
       crit: player.stats.crit,
       accuracy: player.stats.accuracy,
       punching: player.stats.punching,
@@ -1559,11 +1577,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const pStats = usePlayerStore.getState().stats;
         let effDps = pStats.damage;
         const fac = en.faction;
-        if (fac === 'Мутанты') effDps = Math.max(effDps, pStats.dpsToxis || 0);
-        else if (fac === 'Роботы') effDps = Math.max(effDps, pStats.dpsEmi || 0);
-        else if (['Бандиты', 'Военные'].includes(fac)) {
-          effDps = Math.max(effDps, pStats.dpsExtro || 0, pStats.dpsFire || 0);
-        }
+        const pureBonus = calcPureDamage(pStats, fac);
         if (pStats.stamina < 0.1 * pStats.maxStamina) effDps *= 0.5;
 
         // +30% damage for low-capacity weapons (1-3 rounds)
@@ -1573,7 +1587,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           effDps *= 1.3;
         }
 
-        const atkStat = { dps: effDps, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
+        const atkStat = { dps: effDps, pure: pureBonus, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
         const tgtStat = { armor: en.armor, evasion: en.evasion, block: en.block };
         const res = calculateCombatResult(atkStat, tgtStat);
         const dmg = Math.round(res.damage);

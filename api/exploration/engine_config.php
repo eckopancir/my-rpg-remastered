@@ -28,6 +28,38 @@ function durationBonusPct($plannedSec) {
   return 10;
 }
 
+// Рюкзак: стакающиеся бонусы взятых в дорогу материалов (сгорают на старте).
+// По лору: еда/вода лечат, инструменты и пластик — ценность хабара,
+// железо и изолента — броня, дерево и гвозди — опыт следопыта,
+// батарейки питают детекторы, топливо ускоряет возврат.
+// Капы не дают сломать баланс.
+function expeditionBuffs($consumables) {
+  $b = ['regen' => 0, 'healPct' => 0.0, 'legPct' => 0.0, 'expPct' => 0.0, 'chipsPct' => 0.0, 'dmgTakenMult' => 1.0, 'returnMult' => 1.0];
+  if (is_string($consumables)) $consumables = json_decode($consumables, true);
+  if (!is_array($consumables)) return $b;
+  $counts = [];
+  foreach ($consumables as $c) {
+    if (!is_array($c)) continue;
+    $n = (string)($c['name'] ?? '');
+    if ($n === '') continue;
+    $counts[$n] = ($counts[$n] ?? 0) + max(0, (int)($c['qty'] ?? $c['quantity'] ?? 0));
+  }
+  $b['regen'] += min($counts['Лекарства'] ?? 0, 10);                    // +1 реген, кап +10
+  $b['healPct'] += min($counts['Вода'] ?? 0, 50) * 0.001;               // +0.1% хила, кап +5%
+  $b['healPct'] += min($counts['Консервы'] ?? 0, 50) * 0.001;           // +0.1% хила, кап +5%
+  $b['legPct'] += min($counts['Батарейки'] ?? 0, 30) * 0.001;           // +0.1% легендарки, кап +3%
+  $b['expPct'] += min($counts['Дерево'] ?? 0, 50) * 0.002;              // +0.2% опыта, кап +10%
+  $b['expPct'] += min($counts['Гвозди'] ?? 0, 50) * 0.002;              // +0.2% опыта, кап +10%
+  $b['chipsPct'] += min($counts['Инструменты'] ?? 0, 50) * 0.002;       // +0.2% чипов, кап +10%
+  $b['chipsPct'] += min($counts['Пластмасса'] ?? 0, 50) * 0.002;        // +0.2% чипов, кап +10%
+  $iz = min($counts['Изолента'] ?? 0, 20);
+  $fe = min($counts['Железо'] ?? 0, 20);
+  $b['dmgTakenMult'] = max(0.64, (1 - $iz * 0.01) * (1 - $fe * 0.01));  // −1% урона каждый, пол −36%
+  $fuel = min($counts['Топливо'] ?? 0, 10);
+  $b['returnMult'] = max(0.5, 1 - $fuel * 0.05);                        // −5% возврата/шт, пол −50%
+  return $b;
+}
+
 function RNG($min, $max) { return mt_rand($min, $max); }
 function PICK_RAND(&$arr) { return $arr[array_rand($arr)]; }
 function rangeInt($min, $max) { return mt_rand($min, $max); }

@@ -21,6 +21,7 @@ import { Adventures } from './pages/Adventures';
 import { Admin } from './pages/Admin';
 import { MusicPlayer } from './components/widgets/MusicPlayer';
 import { InventoryOverlay } from './components/widgets/InventoryOverlay';
+import { ShootingRange } from './components/widgets/ShootingRange';
 import { useGameLoop } from './hooks/useGameLoop';
 import { usePlayerStore } from './stores/playerStore';
 import { useInventoryStore } from './stores/inventoryStore';
@@ -86,6 +87,7 @@ const SAVE_INTERVAL_MS = 60000;
 const AppContent = () => {
   useGameLoop();
   const equipmentOpen = useUiStore((s) => s.equipmentOpen);
+  const rangeOpen = useUiStore((s) => s.rangeOpen);
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
   const token = useAuthStore((s) => s.token);
   const saveGame = useAuthStore((s) => s.saveGame);
@@ -228,6 +230,7 @@ const AppContent = () => {
       <MusicPlayer />
       <InventoryOverlay />
       {equipmentOpen && <Equipment />}
+      {rangeOpen && <ShootingRange onClose={() => useUiStore.getState().setRangeOpen(false)} />}
       <AnimatePresence mode="wait">
         <Routes>
           <Route element={<PageContainer />}>
