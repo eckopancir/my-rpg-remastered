@@ -33,6 +33,15 @@ interface UiStore {
   soundEnabled: boolean;
   musicEnabled: boolean;
   musicVolume: number;
+  uiVolume: number;
+  arenaVolume: number;
+  rangeVolume: number;
+  showDamageNumbers: boolean;
+  battleLogSize: number;
+  autoReload: boolean;
+  confirmExitCombat: boolean;
+  showEnemyHpNumbers: boolean;
+  duckMusicInCombat: boolean;
   isResting: boolean;
   craftingTimer: number;
   craftingTimerMax: number;
@@ -71,6 +80,15 @@ interface UiStore {
   setSoundEnabled: (enabled: boolean) => void;
   setMusicEnabled: (enabled: boolean) => void;
   setMusicVolume: (volume: number) => void;
+  setUiVolume: (volume: number) => void;
+  setArenaVolume: (volume: number) => void;
+  setRangeVolume: (volume: number) => void;
+  setShowDamageNumbers: (v: boolean) => void;
+  setBattleLogSize: (v: number) => void;
+  setAutoReload: (v: boolean) => void;
+  setConfirmExitCombat: (v: boolean) => void;
+  setShowEnemyHpNumbers: (v: boolean) => void;
+  setDuckMusicInCombat: (v: boolean) => void;
 
   addToQueue: (entry: ExpeditionEntry) => void;
   removeFromQueue: (id: string) => void;
@@ -94,6 +112,15 @@ export const useUiStore = create<UiStore>()(
       soundEnabled: true,
       musicEnabled: true,
       musicVolume: 0.2,
+      uiVolume: 1,
+      arenaVolume: 1,
+      rangeVolume: 1,
+      showDamageNumbers: true,
+      battleLogSize: 20,
+      autoReload: true,
+      confirmExitCombat: true,
+      showEnemyHpNumbers: false,
+      duckMusicInCombat: false,
       isResting: false,
       craftingTimer: 0,
       craftingTimerMax: 0,
@@ -137,6 +164,15 @@ export const useUiStore = create<UiStore>()(
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
       setMusicEnabled: (enabled) => set({ musicEnabled: enabled }),
       setMusicVolume: (volume) => set({ musicVolume: Math.max(0, Math.min(1, volume)) }),
+      setUiVolume: (volume) => set({ uiVolume: Math.max(0, Math.min(1, volume)) }),
+      setArenaVolume: (volume) => set({ arenaVolume: Math.max(0, Math.min(1, volume)) }),
+      setRangeVolume: (volume) => set({ rangeVolume: Math.max(0, Math.min(1, volume)) }),
+      setShowDamageNumbers: (v) => set({ showDamageNumbers: v }),
+      setBattleLogSize: (v) => set({ battleLogSize: [10, 20, 50].includes(v) ? v : 20 }),
+      setAutoReload: (v) => set({ autoReload: v }),
+      setConfirmExitCombat: (v) => set({ confirmExitCombat: v }),
+      setShowEnemyHpNumbers: (v) => set({ showEnemyHpNumbers: v }),
+      setDuckMusicInCombat: (v) => set({ duckMusicInCombat: v }),
 
       addToQueue: (entry) => set((s) => ({ queue: [...s.queue, entry] })),
       removeFromQueue: (id) => set((s) => ({ queue: s.queue.filter((e) => e.id !== id) })),
@@ -217,7 +253,7 @@ export const useUiStore = create<UiStore>()(
     }),
     {
       name: 'remastered_ui',
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 4) {
@@ -227,6 +263,17 @@ export const useUiStore = create<UiStore>()(
           state.craftingLabel = '';
           state.queue = [];
         }
+        if (version < 5) {
+          if (state.uiVolume === undefined) state.uiVolume = 1;
+          if (state.arenaVolume === undefined) state.arenaVolume = 1;
+          if (state.rangeVolume === undefined) state.rangeVolume = 1;
+          if (state.showDamageNumbers === undefined) state.showDamageNumbers = true;
+          if (state.battleLogSize === undefined) state.battleLogSize = 20;
+          if (state.autoReload === undefined) state.autoReload = true;
+          if (state.confirmExitCombat === undefined) state.confirmExitCombat = true;
+          if (state.showEnemyHpNumbers === undefined) state.showEnemyHpNumbers = false;
+          if (state.duckMusicInCombat === undefined) state.duckMusicInCombat = false;
+        }
         return state as UiStore;
       },
       partialize: (state) => ({
@@ -234,6 +281,15 @@ export const useUiStore = create<UiStore>()(
         soundEnabled: state.soundEnabled,
         musicEnabled: state.musicEnabled,
         musicVolume: state.musicVolume,
+        uiVolume: state.uiVolume,
+        arenaVolume: state.arenaVolume,
+        rangeVolume: state.rangeVolume,
+        showDamageNumbers: state.showDamageNumbers,
+        battleLogSize: state.battleLogSize,
+        autoReload: state.autoReload,
+        confirmExitCombat: state.confirmExitCombat,
+        showEnemyHpNumbers: state.showEnemyHpNumbers,
+        duckMusicInCombat: state.duckMusicInCombat,
         inventoryPinned: state.inventoryPinned,
         inventoryPinPos: state.inventoryPinPos,
         equipmentPinned: state.equipmentPinned,

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useUiStore } from '../../stores/uiStore';
+import { useCombatGridStore } from '../../stores/combatGridStore';
 
 const audioModules = import.meta.glob<{ default: string }>('../../assets/audio/**/*.mp3', { eager: true });
 
@@ -13,6 +14,10 @@ const getTrackSrc = (substring: string): string | undefined => {
 export const MusicPlayer = ({ track = 'track', forcePlay }: { track?: string; forcePlay?: boolean }) => {
   const musicEnabled = useUiStore((s) => s.musicEnabled);
   const musicVolume = useUiStore((s) => s.musicVolume);
+  const duckMusicInCombat = useUiStore((s) => s.duckMusicInCombat);
+  const combatActive = useCombatGridStore((s) => s.isActive);
+  // Настройка «Тихая музыка в бою»: на арене громкость ×0.3.
+  const effVolume = duckMusicInCombat && combatActive ? musicVolume * 0.3 : musicVolume;
   const elRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -22,7 +27,7 @@ export const MusicPlayer = ({ track = 'track', forcePlay }: { track?: string; fo
     const el = document.createElement('audio');
     el.src = src;
     el.loop = true;
-    el.volume = musicVolume;
+    el.volume = effVolume;
     el.style.display = 'none';
     document.body.appendChild(el);
     elRef.current = el;
@@ -35,7 +40,7 @@ export const MusicPlayer = ({ track = 'track', forcePlay }: { track?: string; fo
 
     const onInteraction = () => {
       el.muted = false;
-      el.volume = musicVolume;
+      el.volume = effVolume;
       el.play().catch(() => {});
     };
 
@@ -57,9 +62,9 @@ export const MusicPlayer = ({ track = 'track', forcePlay }: { track?: string; fo
 
   useEffect(() => {
     if (elRef.current) {
-      elRef.current.volume = musicVolume;
+      elRef.current.volume = effVolume;
     }
-  }, [musicVolume]);
+  }, [musicVolume, effVolume]);
 
   return null;
 };

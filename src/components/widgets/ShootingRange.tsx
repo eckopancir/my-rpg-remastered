@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WapHeader } from '../ui/WapHeader';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useUiStore } from '../../stores/uiStore';
 import { playCombatSound } from '../../hooks/useSound';
 import { calculateCombatResult, calcPureDamage } from '../../stores/combatGridStore';
 import mannequinImg from '../../assets/images/ui/mannequin.png';
@@ -52,7 +53,6 @@ const FACTIONS: { id: FactionId; label: string }[] = [
 
 const RELOAD_MS = 1500;
 const MAX_DECALS = 5;
-const MAX_LOG = 20;
 const SHOT_SOUNDS = ['shot1', 'shot2'];
 
 const FLOAT_COLORS: Record<FloatNum['kind'], { color: string; size: number }> = {
@@ -67,6 +67,7 @@ const round1 = (v: number) => Math.round(v * 10) / 10;
 
 export const ShootingRange = ({ onClose }: Props) => {
   const stats = usePlayerStore((s) => s.stats);
+  const showDmgNums = useUiStore((s) => s.showDamageNumbers !== false);
   // Магазин — из надетого оружия, как в арене (initCombat: ammoCapacity || 30).
   const weapon2 = usePlayerStore((s) => s.equipment.weapon2);
   const magSize = weapon2?.ammoCapacity || 30;
@@ -149,7 +150,9 @@ export const ShootingRange = ({ onClose }: Props) => {
 
   const pushLog = (text: string, kind: LogEntry['kind']) => {
     const id = ++idRef.current;
-    setBattleLog((prev) => [...prev.slice(-(MAX_LOG - 1)), { id, text, kind }]);
+    // Размер лога — из настроек.
+    const logSize = useUiStore.getState().battleLogSize ?? 20;
+    setBattleLog((prev) => [...prev.slice(-(logSize - 1)), { id, text, kind }]);
   };
 
   const resetDummy = () => {
@@ -165,7 +168,7 @@ export const ShootingRange = ({ onClose }: Props) => {
 
   const startReload = () => {
     setReloading(true);
-    playCombatSound('reloading', 0.24);
+    playCombatSound('reloading', 0.24, 'range');
     pushFloat(50, 60, '🔁 ПЕРЕЗАРЯДКА…', 'info');
     pushLog('🔁 Перезарядка…', 'info');
     later(RELOAD_MS, () => {
@@ -203,7 +206,7 @@ export const ShootingRange = ({ onClose }: Props) => {
     // Модификаторы стамины/малокалиберности арены тут не применяем — чистый замер.
     const snd = SHOT_SOUNDS[shotAlt % SHOT_SOUNDS.length];
     setShotAlt((v) => v + 1);
-    playCombatSound(snd, 0.27);
+    playCombatSound(snd, 0.27, 'range');
 
     const attackerStats = {
       dps: attackerDps,
@@ -223,10 +226,10 @@ export const ShootingRange = ({ onClose }: Props) => {
     const shotNo = totals.shots + 1;
 
     if (result.type === 'CRIT') {
-      playCombatSound('crit', 0.27);
+      playCombatSound('crit', 0.27, 'range');
       setTotals((t) => ({ shots: t.shots + 1, dmg: t.dmg + result.damage, crits: t.crits + 1 }));
     } else if (result.type === 'BLOCK') {
-      playCombatSound('block', 0.24);
+      playCombatSound('block', 0.24, 'range');
       setTotals((t) => ({ shots: t.shots + 1, dmg: t.dmg + result.damage, crits: t.crits }));
     } else if (result.type === 'MISS' || result.type === 'EVASION') {
       setTotals((t) => ({ shots: t.shots + 1, dmg: t.dmg, crits: t.crits }));
@@ -240,7 +243,8 @@ export const ShootingRange = ({ onClose }: Props) => {
       : result.type === 'BLOCK' ? 'block'
       : result.type === 'MISS' || result.type === 'EVASION' ? 'miss'
       : 'dmg';
-    pushFloat(x, Math.max(4, y - 4), result.text, kind);
+    // Настройка «Цифры урона»: числовые всплывашки можно скрыть (служебные info остаются).
+    if (kind === 'info' || showDmgNums) pushFloat(x, Math.max(4, y - 4), result.text, kind);
     pushLog(`#${shotNo} ${result.text}`, kind);
 
     // След от выстрела: максимум 5, новый вытесняет старый.
@@ -258,7 +262,7 @@ export const ShootingRange = ({ onClose }: Props) => {
     setHp(newHp);
     if (newHp <= 0 && result.damage > 0) {
       setDead(true);
-      playCombatSound('wilhelm_scream', 0.15);
+      playCombatSound('wilhelm_scream', 0.15, 'range');
       pushFloat(50, 30, '💀 МАНЕКЕН УНИЧТОЖЕН', 'crit');
       pushLog('💀 Манекен уничтожен', 'crit');
     }

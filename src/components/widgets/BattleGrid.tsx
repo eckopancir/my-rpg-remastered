@@ -3,6 +3,7 @@ import { useCombatGridStore, checkVisibility, getDist } from '../../stores/comba
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
+import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
 import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
 import type { GridEnemy } from '../../stores/combatGridStore';
@@ -88,6 +89,7 @@ export const BattleGrid = () => {
   const setLooted = useCombatGridStore((s) => s.setLooted);
   const setEnemyLootById = useCombatGridStore((s) => s.setEnemyLootById);
   const { playSound } = useSound();
+  const showEnemyHpNumbers = useUiStore((s) => s.showEnemyHpNumbers);
   const gridRef = useRef<HTMLDivElement>(null);
   const isRightMouseDown = useRef(false);
 
@@ -411,6 +413,16 @@ export const BattleGrid = () => {
                     {enemy.isEnraged && <div className={styles.enemyStatusBadge}>💢</div>}
                     {enemy.isInvisible && <div className={styles.enemyStatusBadge}>👤</div>}
                     {isSel && <div className={styles.crosshairCircle} />}
+                    {showEnemyHpNumbers && (
+                      <div style={{
+                        position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)',
+                        fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700, whiteSpace: 'nowrap',
+                        color: '#fff', background: 'rgba(0,0,0,0.65)', padding: '0 5px', borderRadius: 4,
+                        border: '1px solid rgba(255,255,255,0.2)', zIndex: 6, pointerEvents: 'none',
+                      }}>
+                        {Math.max(0, Math.round(enemy.currentHp))}/{Math.round(enemy.maxHp)}
+                      </div>
+                    )}
 
                     <img
                       src={getEnemyImage(enemy.faction, enemy.name)}

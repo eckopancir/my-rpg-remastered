@@ -13,6 +13,8 @@ import { getEnemyImage, images } from '../assets/index';
 
 const LogPanel = () => {
   const battleLogs = useCombatGridStore((s) => s.battleLogs);
+  const logSize = useUiStore((s) => s.battleLogSize ?? 20);
+  const visible = battleLogs.slice(-logSize);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
@@ -24,8 +26,8 @@ const LogPanel = () => {
         maxHeight: 120, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2,
         padding: '4px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.3)',
       }}>
-        {battleLogs.length === 0 && <span style={{ opacity: 0.3 }}>—</span>}
-        {battleLogs.map((msg, i) => (
+        {visible.length === 0 && <span style={{ opacity: 0.3 }}>—</span>}
+        {visible.map((msg, i) => (
           <span key={i} style={{ color: msg.startsWith('💀') ? '#ff6b6b' : msg.startsWith('📦') ? '#ffd93d' : msg.startsWith('⚠️') ? '#ffa94d' : msg.startsWith('🕊️') ? '#69db7c' : 'rgba(255,255,255,0.7)' }}>
             {msg}
           </span>

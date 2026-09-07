@@ -19,16 +19,21 @@ const getAudio = (src: string): HTMLAudioElement | undefined => {
   return audio;
 };
 
-/** Standalone sound player — usable outside React hooks */
-export const playCombatSound = (name: string, volume = 0.4) => {
-  const soundEnabled = useUiStore.getState().soundEnabled;
-  if (!soundEnabled) return;
+/** Standalone sound player — usable outside React hooks.
+ * channel 'arena' — бои на 2D-карте, 'range' — полигон с манекеном. */
+export type SoundChannel = 'arena' | 'range';
+export const playCombatSound = (name: string, volume = 0.4, channel: SoundChannel = 'arena') => {
+  const ui = useUiStore.getState();
+  if (!ui.soundEnabled) return;
+  const channelVolume = channel === 'range' ? (ui.rangeVolume ?? 1) : (ui.arenaVolume ?? 1);
+  const effective = volume * channelVolume;
+  if (effective <= 0) return;
   const src = audioMap.get(name);
   if (!src) return;
   const audio = getAudio(src);
   if (!audio) return;
   audio.currentTime = 0;
-  audio.volume = volume;
+  audio.volume = Math.max(0, Math.min(1, effective));
   audio.play().catch(() => {});
 };
 
@@ -44,19 +49,22 @@ export const stopCombatSound = (name: string) => {
 
 export const useSound = () => {
   const soundEnabled = useUiStore((s) => s.soundEnabled);
+  const uiVolume = useUiStore((s) => s.uiVolume ?? 1);
 
   const playSound = useCallback(
     (name: string, volume = 0.5) => {
       if (!soundEnabled) return;
+      const effective = volume * uiVolume;
+      if (effective <= 0) return;
       const src = audioMap.get(name);
       if (!src) return;
       const audio = getAudio(src);
       if (!audio) return;
       audio.currentTime = 0;
-      audio.volume = volume;
+      audio.volume = Math.max(0, Math.min(1, effective));
       audio.play().catch(() => {});
     },
-    [soundEnabled],
+    [soundEnabled, uiVolume],
   );
 
   const stopSound = useCallback((name: string) => {

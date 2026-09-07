@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { usePlayerStore } from './playerStore';
+import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
@@ -633,6 +634,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   addBattleLog: (msg) => set((s) => ({ battleLogs: [...s.battleLogs.slice(-199), msg] })),
 
   addPopup: (x, y, text, type = 'NORMAL') => {
+    // Настройка «Цифры урона»: числовые попапы (урон/крит/блок) можно скрыть.
+    if ((type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK') && useUiStore.getState().showDamageNumbers === false) return;
     const id = `popup-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
     set((s) => ({ popups: [...s.popups, { id, x, y, text, type }] }));
     setTimeout(() => {
@@ -1492,7 +1495,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (state.turn !== 'player' || state.isMoving) return;
     const shotCost = 1;
     if (state.ap < shotCost) { get().addMessage('❌ Не хватает AP'); return; }
-    if (state.ammo <= 0) { get().addMessage('❌ Нет патронов! Нажми R для перезарядки'); return; }
+    if (state.ammo <= 0) {
+      // Настройка «Автоперезарядка»: пустой магазин — сразу перезарядка.
+      if (useUiStore.getState().autoReload !== false) { get().reload(); return; }
+      get().addMessage('❌ Нет патронов! Нажми R для перезарядки'); return;
+    }
 
     const enemy = state.enemies.find((e) => e.id === enemyId);
     if (!enemy || enemy.dead) return;

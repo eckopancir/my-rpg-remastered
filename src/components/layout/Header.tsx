@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useSound } from '../../hooks/useSound';
 import { WapHudBar } from '../ui/WapHudBar';
@@ -37,6 +38,19 @@ export const Header = () => {
   const [dashHover, setDashHover] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Настройка «Подтверждение выхода из боя»: уход с арены через навигацию — с вопросом.
+  const guardCombatNav = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    playClick();
+    const ui = useUiStore.getState();
+    const combat = useCombatGridStore.getState();
+    if (combat.isActive && (ui.confirmExitCombat ?? true)) {
+      const href = e.currentTarget.getAttribute('href');
+      if (href && window.location.pathname !== href) {
+        if (!window.confirm('Точно выйти из боя? Прогресс боя будет потерян.')) e.preventDefault();
+      }
+    }
+  };
+
   // Предзагрузка ховер-картинки, чтобы не мигало при первом наведении.
   useEffect(() => {
     const img = new Image();
@@ -63,7 +77,7 @@ export const Header = () => {
             className={({ isActive }) =>
               `${styles.navLink} ${styles.navImageLink} ${isActive ? styles.navLinkActive : ''}`
             }
-            onClick={playClick}
+            onClick={guardCombatNav}
             onMouseEnter={() => setDashHover(true)}
             onMouseLeave={() => setDashHover(false)}
           >
@@ -80,7 +94,7 @@ export const Header = () => {
               className={({ isActive }) =>
                 `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`
               }
-              onClick={playClick}
+              onClick={guardCombatNav}
             >
               {item.label}
             </NavLink>
@@ -106,7 +120,7 @@ export const Header = () => {
           >
             🎯 Полигон
           </button>
-          <NavLink to="/settings" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`} onClick={playClick}>
+          <NavLink to="/settings" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`} onClick={guardCombatNav}>
             ⚙️ Settings
           </NavLink>
         </nav>
