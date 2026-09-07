@@ -138,16 +138,9 @@ export const Header = () => {
           <img src={staminaPlateImg} alt="⚡" draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
           <span className={styles.statValue} style={{ fontSize: 15 }}>{Math.round(stats.stamina)}</span>
         </div>
-        <div className={styles.stat} style={{ fontSize: 20 }} title={`Уровень ${level}`}>
-          <div style={{ position: 'relative' }}>
-            <img src={levelIconImg} alt="Lv." draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
-            <span className={styles.statValue} style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 15, color: '#fff', textShadow: '0 0 6px rgba(0,0,0,0.9), 0 2px 3px rgba(0,0,0,0.9)',
-            }}>
-              {level}
-            </span>
-          </div>
+        <div className={styles.stat} style={{ fontSize: 20, gap: 1 }} title={`Уровень ${level}`}>
+          <img src={levelIconImg} alt="Lv." draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
+          <span className={styles.statValue} style={{ fontSize: 15 }}>{level}</span>
         </div>
         <div className={styles.stat} style={{ fontSize: 20 }}>
           💾<span className={styles.statValue} style={{ fontSize: 15 }}>{dataChips}</span>
