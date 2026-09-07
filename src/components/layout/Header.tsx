@@ -137,10 +137,10 @@ export const Header = () => {
           <img src={staminaPlateImg} alt="⚡" draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
           <span className={styles.statValue}>{Math.round(stats.stamina)}</span>
         </div>
-        <div className={styles.stat}>
+        <div className={styles.stat} style={{ fontSize: 20 }}>
           Lv.<span className={styles.statValue}>{level}</span>
         </div>
-        <div className={styles.stat}>
+        <div className={styles.stat} style={{ fontSize: 20 }}>
           💾<span className={styles.statValue}>{dataChips}</span>
         </div>
 
