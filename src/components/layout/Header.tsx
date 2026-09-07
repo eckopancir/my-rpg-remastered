@@ -129,19 +129,19 @@ export const Header = () => {
       <div className={styles.right}>
         <div className={`${styles.stat} ${styles.hpBar}`} title={`HP ${Math.round(stats.currentHp)} / ${stats.maxHp}`}>
           <img src={hpIconImg} alt="HP" draggable={false} style={{ height: 31, width: 'auto', display: 'block' }} />
-          <span className={styles.statValue} style={{ fontSize: 13, color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : undefined }}>
+          <span className={styles.statValue} style={{ fontSize: 15, color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : undefined }}>
             {Math.round(stats.currentHp)} / {stats.maxHp}
           </span>
         </div>
         <div className={styles.stat} title={`Стамина ${Math.round(stats.stamina)}`}>
           <img src={staminaPlateImg} alt="⚡" draggable={false} style={{ height: 34, width: 'auto', display: 'block' }} />
-          <span className={styles.statValue}>{Math.round(stats.stamina)}</span>
+          <span className={styles.statValue} style={{ fontSize: 15 }}>{Math.round(stats.stamina)}</span>
         </div>
         <div className={styles.stat} style={{ fontSize: 20 }}>
-          Lv.<span className={styles.statValue} style={{ fontSize: 16 }}>{level}</span>
+          Lv.<span className={styles.statValue} style={{ fontSize: 15 }}>{level}</span>
         </div>
         <div className={styles.stat} style={{ fontSize: 20 }}>
-          💾<span className={styles.statValue} style={{ fontSize: 16 }}>{dataChips}</span>
+          💾<span className={styles.statValue} style={{ fontSize: 15 }}>{dataChips}</span>
         </div>
 
         {/* User menu */}
