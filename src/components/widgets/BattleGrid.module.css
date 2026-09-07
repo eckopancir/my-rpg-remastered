@@ -546,7 +546,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 999;
-  background: radial-gradient(circle, rgba(255, 100, 0, 0.35), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 30, 30, 0.22), transparent 70%);
   animation: flashOut 0.3s ease-out forwards;
 }
 
