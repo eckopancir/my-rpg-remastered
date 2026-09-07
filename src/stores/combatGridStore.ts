@@ -15,10 +15,8 @@ const GRID = 32;
 const BASE_AP = 5;
 const MAX_AMMO = 30;
 const ATTACK_RANGE = 10;
-// Радиус кругового зрения для тумана войны (клеток, в прямой видимости).
-const SIGHT_RANGE = 12;
 
-export { GRID, BASE_AP, MAX_AMMO, ATTACK_RANGE, SIGHT_RANGE };
+export { GRID, BASE_AP, MAX_AMMO, ATTACK_RANGE };
 
 
 export interface GridEnemy {
@@ -1480,7 +1478,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const isBlocked = state.enemies.some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y)
       || state.obstacles.some((o: any) => o.x === x && o.y === y && o.blocks);
     if (isBlocked) { get().addMessage('❌ Клетка занята'); return; }
-    const visible = checkVisibility(state.playerPos, state.playerRotation, { x, y }, state.obstacles, { fov: 360, range: SIGHT_RANGE });
+    const visible = checkVisibility(state.playerPos, state.playerRotation, { x, y }, state.obstacles);
     if (!visible) { get().addMessage('❌ Клетка не видна'); return; }
     const angle = getAngle(state.playerPos, { x, y });
     set({ playerPos: { x, y }, playerRotation: angle, isTeleporting: false, isSelected: false, plannedPath: [], message: '✨ Телепорт!' });

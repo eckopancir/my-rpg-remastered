@@ -1,11 +1,12 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-import { useCombatGridStore, checkVisibility, getDist, SIGHT_RANGE } from '../../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, getDist } from '../../stores/combatGridStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
 import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
+import pricelImg from '../../assets/images/ui/pricel.png';
 import type { GridEnemy } from '../../stores/combatGridStore';
 import styles from './BattleGrid.module.css';
 
@@ -91,6 +92,7 @@ export const BattleGrid = () => {
   const { playSound } = useSound();
   const showEnemyHpNumbers = useUiStore((s) => s.showEnemyHpNumbers);
   const gridRef = useRef<HTMLDivElement>(null);
+  const fogCanvasRef = useRef<HTMLCanvasElement>(null);
   const isRightMouseDown = useRef(false);
 
   useEnemyAI();
@@ -162,28 +164,47 @@ export const BattleGrid = () => {
   const playerXpct = (playerPos.x / 31) * 100;
   const playerYpct = (playerPos.y / 31) * 100;
 
-  // -- Круговой обзор + память тумана войны --
-  // Видно: круг радиусом SIGHT_RANGE с проверкой прямой видимости (стены закрывают).
-  // Разведанное запоминается и светится тускло, невиданное — почти черное.
+  // -- Конус зрения как был (75° по направлению взгляда) + память тумана --
+  // Видно: рядом (≤2) или конус checkVisibility. Разведанное копим в сторе
+  // и подсвечиваем тускло, невиданное — почти черное (рисует canvas ниже).
   const exploredCells = useCombatGridStore((s) => s.exploredCells);
   const visibleSet = useMemo(() => {
     const set = new Set<string>();
     for (let x = 0; x < GRID_SIZE; x++) {
       for (let y = 0; y < GRID_SIZE; y++) {
-        if (getDist(playerPos, { x, y }) > SIGHT_RANGE) continue;
-        if (checkVisibility(playerPos, playerRotation, { x, y }, obstacles, { fov: 360, range: SIGHT_RANGE })) {
+        if (getDist(playerPos, { x, y }) <= 2) { set.add(`${x},${y}`); continue; }
+        if (checkVisibility(playerPos, playerRotation, { x, y }, obstacles)) {
           set.add(`${x},${y}`);
         }
       }
     }
     return set;
-  }, [playerPos, obstacles]);
+  }, [playerPos, playerRotation, obstacles]);
 
   // Разведанное складываем в стор (переживает ре-рендеры, новый бой сбрасывает).
   useEffect(() => {
     if (!isActive || visibleSet.size === 0) return;
     useCombatGridStore.getState().markExplored([...visibleSet]);
   }, [visibleSet, isActive]);
+
+  // Гладкий туман: рисуем 32×32 в canvas, CSS-blur сглаживает пиксельные края.
+  // Видно = прозрачно, разведанное = полутьма, невиданное = почти черное.
+  useEffect(() => {
+    const cv = fogCanvasRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    const img = ctx.createImageData(GRID_SIZE, GRID_SIZE);
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const k = `${x},${y}`;
+        const a = visibleSet.has(k) ? 0 : exploredCells[k] ? 128 : 237;
+        const idx = (y * GRID_SIZE + x) * 4;
+        img.data[idx] = 0; img.data[idx + 1] = 0; img.data[idx + 2] = 0; img.data[idx + 3] = a;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }, [visibleSet, exploredCells, isActive]);
 
   const isCellVisible = useCallback((x: number, y: number) => {
     return visibleSet.has(`${x},${y}`);
@@ -352,6 +373,7 @@ export const BattleGrid = () => {
 
         <div className={styles.gridOverlay}
           onContextMenu={(e) => e.preventDefault()}
+          style={{ cursor: `url(${pricelImg}) 29 29, crosshair` }}
           onMouseDown={(e) => { if (e.button === 2) isRightMouseDown.current = true; }}
           onMouseUp={(e) => { if (e.button === 2) isRightMouseDown.current = false; }}
           onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; }}
@@ -463,15 +485,12 @@ export const BattleGrid = () => {
 
         {/* Global fog overlay (above all cells, prevents obstacle overflow) */}
         <div className={styles.globalFog}>
-          {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
-            const fx = i % GRID_SIZE;
-            const fy = Math.floor(i / GRID_SIZE);
-            const fkey = `${fx},${fy}`;
-            // В прямом обзоре тумана нет; разведанное — тускло; невиданное — почти черное.
-            if (visibleSet.has(fkey)) return null;
-            const explored = !!exploredCells[fkey];
-            return <div key={`fog-${i}`} className={styles.fogCell} style={{ left: `${(fx / (GRID_SIZE - 1)) * 100}%`, top: `${(fy / (GRID_SIZE - 1)) * 100}%`, background: explored ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.93)' }} />;
-          })}
+          <canvas
+            ref={fogCanvasRef}
+            width={GRID_SIZE}
+            height={GRID_SIZE}
+            style={{ width: '100%', height: '100%', filter: 'blur(9px)', transform: 'scale(1.04)' }}
+          />
         </div>
 
         {/* Shot tracer */}
