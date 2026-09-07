@@ -202,8 +202,9 @@ export const BattleGrid = () => {
   }, [visibleSet, isActive]);
 
   // Гладкий туман: рисуем 32×32 в canvas, CSS-blur сглаживает пиксельные края.
-  // Видно = прозрачно рядом, дальше в конусе — плавная дымка до ~25% на краю;
-  // разведанное = тень памяти; невиданное = почти черное.
+  // Оттенок холодный синеватый: тёплая земля под чисто чёрным давала грязную
+  // желтизну. Видно = прозрачно рядом, дальше — плавная дымка; разведанное =
+  // тень памяти; невиданное = почти черное.
   useEffect(() => {
     const cv = fogCanvasRef.current;
     if (!cv) return;
@@ -216,12 +217,12 @@ export const BattleGrid = () => {
         let a: number;
         if (visibleSet.has(k)) {
           const d = Math.min(1, getDist(playerPos, { x, y }) / 24);
-          a = Math.round(64 * Math.pow(d, 1.5));
+          a = Math.round(40 * Math.pow(d, 1.5));
         } else {
-          a = exploredCells[k] ? 120 : 230;
+          a = exploredCells[k] ? 120 : 232;
         }
         const idx = (y * GRID_SIZE + x) * 4;
-        img.data[idx] = 0; img.data[idx + 1] = 0; img.data[idx + 2] = 0; img.data[idx + 3] = a;
+        img.data[idx] = 16; img.data[idx + 1] = 22; img.data[idx + 2] = 38; img.data[idx + 3] = a;
       }
     }
     ctx.putImageData(img, 0, 0);
