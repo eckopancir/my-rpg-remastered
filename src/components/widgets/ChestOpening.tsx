@@ -147,20 +147,59 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
             alt=""
             draggable={false}
             initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: [0.6, 1.35, 1.3], opacity: 1 }}
+            animate={{
+              scale: [0.6, 1.35, 1.3],
+              opacity: 1,
+              filter: [
+                `drop-shadow(0 0 10px ${aura})`,
+                `drop-shadow(0 0 42px ${aura})`,
+                `drop-shadow(0 0 18px ${aura})`,
+              ],
+            }}
             transition={{ duration: 1.0, ease: 'easeOut' }}
-            style={{ width: 210, filter: `drop-shadow(0 0 24px ${aura})` }}
+            style={{ width: 210 }}
           />
         ) : (
           <>
+            {/* Вращающиеся кольца ауры поверх дыхания свечения */}
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 14, ease: 'linear', repeat: Infinity }}
+              style={{
+                position: 'absolute', left: '50%', top: '50%', width: 380, height: 380,
+                x: '-50%', y: '-50%', borderRadius: '50%',
+                border: `3px dashed ${aura}55`, pointerEvents: 'none',
+              }}
+            />
+            <motion.div
+              animate={{ rotate: -360 }}
+              transition={{ duration: 22, ease: 'linear', repeat: Infinity }}
+              style={{
+                position: 'absolute', left: '50%', top: '50%', width: 460, height: 460,
+                x: '-50%', y: '-50%', borderRadius: '50%',
+                border: `2px dotted ${aura}33`, pointerEvents: 'none',
+              }}
+            />
             <motion.img
               src={art.open}
               alt=""
               draggable={false}
               initial={{ scale: 0.4, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 160, damping: 14 }}
-              style={{ width: 280, filter: `drop-shadow(0 0 34px ${aura})` }}
+              animate={{
+                scale: 1,
+                opacity: 1,
+                filter: [
+                  `drop-shadow(0 0 22px ${aura})`,
+                  `drop-shadow(0 0 52px ${aura})`,
+                  `drop-shadow(0 0 22px ${aura})`,
+                ],
+              }}
+              transition={{
+                scale: { type: 'spring', stiffness: 160, damping: 14 },
+                opacity: { duration: 0.3 },
+                filter: { duration: 2.4, ease: 'easeInOut', repeat: Infinity },
+              }}
+              style={{ width: 280 }}
             />
             {/* Орбита лута вокруг открытого сундука */}
             <motion.div
