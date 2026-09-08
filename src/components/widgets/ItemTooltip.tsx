@@ -80,7 +80,9 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
     >
       {imgUrl && (
         <div style={{ textAlign: 'center', marginBottom: 10, position: 'relative' }}>
-          <img src={imgUrl} alt="" style={{ width: 64, height: 64, objectFit: 'contain', imageRendering: 'pixelated', borderRadius: 8, background: 'rgba(0,0,0,0.3)', padding: 4 }} />
+          <img src={imgUrl} alt="" style={item.type === 'material'
+            ? { width: '100%', height: 120, objectFit: 'contain', borderRadius: 8, background: 'rgba(0,0,0,0.3)', padding: 4 }
+            : { width: 64, height: 64, objectFit: 'contain', imageRendering: 'pixelated', borderRadius: 8, background: 'rgba(0,0,0,0.3)', padding: 4 }} />
           {item.quality && QUALITY_STARS[item.quality] ? (
             <div style={{ position: 'absolute', top: -4, left: -4, display: 'flex', gap: 1 }}>
               {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (

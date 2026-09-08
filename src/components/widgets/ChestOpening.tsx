@@ -213,7 +213,8 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                           alt=""
                           draggable={false}
                           style={{
-                            width: 46, height: 46, objectFit: 'contain',
+                            width: drop.kind === 'resource' ? 64 : 46,
+                            height: drop.kind === 'resource' ? 64 : 46, objectFit: 'contain',
                             filter: `drop-shadow(0 0 8px ${drop.kind === 'item' ? (drop.item.qualityColor || '#fff') : 'rgba(255,255,255,0.4)'})`,
                           }}
                         />
