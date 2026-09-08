@@ -57,9 +57,9 @@ const debugAddAmmo = (count: number) => {
 const debugAddChests = () => {
   const addItem = useInventoryStore.getState().addItem;
   const lvl = usePlayerStore.getState().level;
-  for (let i = 0; i < 5; i++) addItem(createChest('Обычный', lvl));
-  for (let i = 0; i < 5; i++) addItem(createChest('Эпический', lvl));
-  useUiStore.getState().addToast('📦 +10 сундуков (5 обычных, 5 эпических)', 'loot');
+  const qualities = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
+  for (const q of qualities) addItem(createChest(q, lvl));
+  useUiStore.getState().addToast('📦 +7 сундуков (все качества)', 'loot');
 };
 
 const debugAddResources = (count: number) => {

@@ -6,12 +6,27 @@ import chestEpicClosed from '../assets/images/ui/chest-epic-closed.png';
 import chestEpicOpen from '../assets/images/ui/chest-epic-open.png';
 import chestNormalClosed from '../assets/images/ui/chest-normal-closed.png';
 import chestNormalOpen from '../assets/images/ui/chest-normal-open.png';
+import chestRareClosed from '../assets/images/ui/chest-rare-closed.png';
+import chestRareOpen from '../assets/images/ui/chest-rare-open.png';
+import chestRaritetClosed from '../assets/images/ui/chest-raritet-closed.png';
+import chestRaritetOpen from '../assets/images/ui/chest-raritet-open.png';
+import chestDeadlyClosed from '../assets/images/ui/chest-deadly-closed.png';
+import chestDeadlyOpen from '../assets/images/ui/chest-deadly-open.png';
+import chestLegendaryClosed from '../assets/images/ui/chest-legendary-closed.png';
+import chestLegendaryOpen from '../assets/images/ui/chest-legendary-open.png';
+import chestDivineClosed from '../assets/images/ui/chest-divine-closed.png';
+import chestDivineOpen from '../assets/images/ui/chest-divine-open.png';
 
-export type ChestArt = 'normal' | 'epic';
+export type ChestArt = 'normal' | 'rare' | 'raritet' | 'epic' | 'deadly' | 'legendary' | 'divine';
 
 export const CHEST_ART: Record<ChestArt, { closed: string; open: string }> = {
   normal: { closed: chestNormalClosed, open: chestNormalOpen },
+  rare: { closed: chestRareClosed, open: chestRareOpen },
+  raritet: { closed: chestRaritetClosed, open: chestRaritetOpen },
   epic: { closed: chestEpicClosed, open: chestEpicOpen },
+  deadly: { closed: chestDeadlyClosed, open: chestDeadlyOpen },
+  legendary: { closed: chestLegendaryClosed, open: chestLegendaryOpen },
+  divine: { closed: chestDivineClosed, open: chestDivineOpen },
 };
 
 export interface ChestConfig {
@@ -25,12 +40,12 @@ export interface ChestConfig {
 // Чем выше редкость сундука — тем больше видов ресурсов, чипов и пачек.
 export const CHEST_CONFIG: Record<string, ChestConfig> = {
   'Обычный': { art: 'normal', resTypes: 3, chipBase: 10, chipPerLevel: 5, qtyBase: 2 },
-  'Редкий': { art: 'normal', resTypes: 4, chipBase: 20, chipPerLevel: 7, qtyBase: 2 },
-  'Раритетный': { art: 'epic', resTypes: 5, chipBase: 30, chipPerLevel: 10, qtyBase: 3 },
+  'Редкий': { art: 'rare', resTypes: 4, chipBase: 20, chipPerLevel: 7, qtyBase: 2 },
+  'Раритетный': { art: 'raritet', resTypes: 5, chipBase: 30, chipPerLevel: 10, qtyBase: 3 },
   'Эпический': { art: 'epic', resTypes: 5, chipBase: 30, chipPerLevel: 10, qtyBase: 3 },
-  'Смертоносный': { art: 'epic', resTypes: 6, chipBase: 60, chipPerLevel: 15, qtyBase: 4 },
-  'Легендарный': { art: 'epic', resTypes: 7, chipBase: 100, chipPerLevel: 20, qtyBase: 5 },
-  'Божественный': { art: 'epic', resTypes: 8, chipBase: 150, chipPerLevel: 30, qtyBase: 6 },
+  'Смертоносный': { art: 'deadly', resTypes: 6, chipBase: 60, chipPerLevel: 15, qtyBase: 4 },
+  'Легендарный': { art: 'legendary', resTypes: 7, chipBase: 100, chipPerLevel: 20, qtyBase: 5 },
+  'Божественный': { art: 'divine', resTypes: 8, chipBase: 150, chipPerLevel: 30, qtyBase: 6 },
 };
 
 export const configForQuality = (qualityName: string): ChestConfig =>
@@ -60,7 +75,7 @@ export const createChest = (qualityName: string, level: number): Item => {
     qualityColor: tier?.color ?? 'white',
     level: lvl,
     stats: {},
-    image: cfg.art === 'epic' ? chestEpicClosed : chestNormalClosed,
+    image: CHEST_ART[cfg.art].closed,
     description: `Двойной клик — открыть. Предметы внутри ${lvl} уровня.`,
     chestQuality: qualityName,
     chestLevel: lvl,
