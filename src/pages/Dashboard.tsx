@@ -15,6 +15,7 @@ import { WapHudBar } from '../components/ui/WapHudBar';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { generateItem } from '../engine/items';
+import { createChest } from '../data/chests';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { getItemImage, images } from '../assets/index';
 
@@ -51,6 +52,14 @@ const debugAddAmmo = (count: number) => {
     if (drop) addItem(drop);
   }
   useUiStore.getState().addToast(`🎒 +${count} амуниции со способностями`, 'loot');
+};
+
+const debugAddChests = () => {
+  const addItem = useInventoryStore.getState().addItem;
+  const lvl = usePlayerStore.getState().level;
+  for (let i = 0; i < 5; i++) addItem(createChest('Обычный', lvl));
+  for (let i = 0; i < 5; i++) addItem(createChest('Эпический', lvl));
+  useUiStore.getState().addToast('📦 +10 сундуков (5 обычных, 5 эпических)', 'loot');
 };
 
 const debugAddResources = (count: number) => {
@@ -444,6 +453,7 @@ export const Dashboard = () => {
             <Button size="sm" variant="ghost" onClick={() => usePlayerStore.getState().addExp(5000)} style={{ fontSize: 9 }}>+5000 XP</Button>
             <Button size="sm" variant="ghost" onClick={() => debugAddMods(5)} style={{ fontSize: 9 }}>+5 модификаций</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddAmmo(4)} style={{ fontSize: 9 }}>+4 амуниции 🎒</Button>
+            <Button size="sm" variant="ghost" onClick={() => debugAddChests()} style={{ fontSize: 9 }}>+10 сундуков 📦</Button>
             <Button size="sm" variant="success" onClick={() => usePlayerStore.setState((s) => ({ stats: { ...s.stats, currentHp: s.stats.maxHp } }))} style={{ fontSize: 9 }}>❤️ Полное исцеление</Button>
             <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 9 }}>🗑️ Очистить инвентарь</Button>
             <Button size="sm" variant="danger" onClick={() => usePlayerStore.getState().resetLevel()} style={{ fontSize: 9 }}>⬇️ Сброс уровня</Button>

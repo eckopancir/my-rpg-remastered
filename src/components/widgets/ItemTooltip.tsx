@@ -57,7 +57,7 @@ const formatStat = (k: string, v: number): string => {
 export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
   const tooltipX = Math.min(x + 16, window.innerWidth - 280);
   const tooltipY = Math.min(y - 10, window.innerHeight - 340);
-  const imgUrl = getItemImage(item.name, item.displayName);
+  const imgUrl = item.image || getItemImage(item.name, item.displayName);
   const itemPower = calcItemPower(item);
   const equipment = usePlayerStore((s) => s.equipment);
   const equippedSetCount = item.set

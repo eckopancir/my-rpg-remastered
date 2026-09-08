@@ -8,6 +8,7 @@ import {
   CHEST_ART, artForQuality, getChestQuality, getChestLevel,
   rollChestLoot, makeResourceItem, type ChestDrop,
 } from '../../data/chests';
+import { ItemTooltip } from './ItemTooltip';
 import type { Item } from '../../types/items';
 
 interface Props {
@@ -21,21 +22,33 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
   const quality = getChestQuality(chest);
   const level = getChestLevel(chest);
   const art = CHEST_ART[artForQuality(quality)];
+  // Аура открытия в цвете качества (эпик — фиолетовый, а не оранжевый).
+  const aura = chest.qualityColor || '#fff';
   const drops = useMemo(() => rollChestLoot(chest), [chest]);
-  const [phase, setPhase] = useState<'opening' | 'opened'>('opening');
+  // Предметы для тултипов (ресурсы собираем в Item той же пачкой, что выпала).
+  const dropItems = useMemo(() => {
+    const m = new Map<string, Item>();
+    for (const d of drops) {
+      if (d.kind === 'item') m.set(d.key, d.item as unknown as Item);
+      else if (d.kind === 'resource') m.set(d.key, makeResourceItem(d.def, d.quantity));
+    }
+    return m;
+  }, [drops]);
+  const [tip, setTip] = useState<{ item: Item; x: number; y: number } | null>(null);
+  const [phase, setPhase] = useState<'closed' | 'opened'>('closed');
   const [remaining, setRemaining] = useState<ChestDrop[]>(drops);
   const [collected, setCollected] = useState(0);
   const { playSound } = useSound();
   const remainingRef = useRef(remaining);
   remainingRef.current = remaining;
 
-  // Анимация открытия ~1.4с, затем лут.
+  // Сначала закрытый сундук по центру ~1.1с, потом «открывается» — открытый вид + лут.
   useEffect(() => {
     playSound('zvuk-otkrytiya-keysa-v-igre-counter-strike-16(hugesounds.com)', 0.5);
     const t = setTimeout(() => {
       setPhase('opened');
       playSound('open-magic-reveal-002379-', 0.5);
-    }, 1400);
+    }, 1100);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -59,6 +72,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
     takeDrop(drop);
     setRemaining((prev) => prev.filter((d) => d.key !== key));
     setCollected((c) => c + 1);
+    setTip(null);
     playSound('clickbutton', 0.5);
   };
 
@@ -95,19 +109,19 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
         📦 {chest.displayName || chest.name}
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
-        {phase === 'opening' ? 'Открываем…' : `Собрано: ${collected}/${total} — кликай по луту`}
+        {phase === 'closed' ? 'Открываем…' : `Собрано: ${collected}/${total} — кликай по луту`}
       </div>
 
       <div style={{ position: 'relative', width: 560, height: 480, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {phase === 'opening' ? (
+        {phase === 'closed' ? (
           <motion.img
             src={art.closed}
             alt=""
             draggable={false}
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: [0.7, 1, 1.06, 1, 1.1, 1], x: [0, -10, 10, -7, 7, 0], rotate: [0, -2, 2, -1, 1, 0] }}
-            transition={{ duration: 1.4, ease: 'easeInOut' }}
-            style={{ width: 150, filter: 'drop-shadow(0 0 24px rgba(217,119,6,0.55))' }}
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: [0.6, 1.35, 1.3], opacity: 1 }}
+            transition={{ duration: 1.0, ease: 'easeOut' }}
+            style={{ width: 210, filter: `drop-shadow(0 0 24px ${aura})` }}
           />
         ) : (
           <>
@@ -118,7 +132,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
               initial={{ scale: 0.4, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 160, damping: 14 }}
-              style={{ width: 280, filter: 'drop-shadow(0 0 34px rgba(217,119,6,0.65))' }}
+              style={{ width: 280, filter: `drop-shadow(0 0 34px ${aura})` }}
             />
             {/* Орбита лута вокруг открытого сундука */}
             <motion.div
@@ -143,7 +157,15 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                       animate={{ y: [0, -7, 0] }}
                       transition={{ duration: 2.2, ease: 'easeInOut', repeat: Infinity, delay: i * 0.25 }}
                       onClick={() => collect(drop.key)}
-                      title={drop.kind === 'item' ? (drop.item.displayName || drop.item.name) : drop.kind === 'resource' ? `${drop.def.name} x${drop.quantity}` : `💾${drop.amount} чипов`}
+                      onMouseEnter={(e) => {
+                        const it = dropItems.get(drop.key);
+                        if (it) setTip({ item: it, x: e.clientX, y: e.clientY });
+                      }}
+                      onMouseMove={(e) => {
+                        if (dropItems.has(drop.key)) setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t));
+                      }}
+                      onMouseLeave={() => setTip(null)}
+                      title={drop.kind === 'chips' ? `💾${drop.amount} чипов` : undefined}
                       style={{
                         transform: 'translate(-50%, -50%)',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
@@ -207,6 +229,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
       >
         ✕
       </div>
+      {tip && <ItemTooltip item={tip.item} x={tip.x} y={tip.y} />}
     </div>
   );
 };
