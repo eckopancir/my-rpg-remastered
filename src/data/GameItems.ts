@@ -5,6 +5,15 @@ import r4Icon from '../assets/images/items/r4.png';
 import r5Icon from '../assets/images/items/r5.png';
 import r6Icon from '../assets/images/items/r6.png';
 import r7Icon from '../assets/images/items/r7.png';
+import resBatteries from '../assets/images/items/res-batteries.png';
+import resCanned from '../assets/images/items/res-canned.png';
+import resMeds from '../assets/images/items/res-meds.png';
+import resWires from '../assets/images/items/res-wires.png';
+import resAlloy from '../assets/images/items/res-alloy.png';
+import resFuel from '../assets/images/items/res-fuel.png';
+import resReagent from '../assets/images/items/res-reagent.png';
+import resScrap from '../assets/images/items/res-scrap.png';
+import resChip from '../assets/images/items/res-chip.png';
 
 export const GAME_RESOURCES: ItemDefinition[] = [
   { name: 'Вода', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r1Icon },
@@ -21,16 +30,16 @@ export const GAME_RESOURCES: ItemDefinition[] = [
   },
   { name: 'Гвозди', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r6Icon },
   { name: 'Пластмасса', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r7Icon },
-  { name: 'Металлолом', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r3Icon },
-  { name: 'Провода', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r2Icon },
-  { name: 'Микросхема', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r7Icon },
+  { name: 'Металлолом', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resScrap },
+  { name: 'Провода', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resWires },
+  { name: 'Микросхема', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resChip },
   {
     name: 'Хим. реагент',
     rarity: 'common',
     slot: 'any',
     type: 'material',
     stats: {},
-    image: r1Icon,
+    image: resReagent,
   },
   {
     name: 'Редкий сплав',
@@ -38,12 +47,12 @@ export const GAME_RESOURCES: ItemDefinition[] = [
     slot: 'any',
     type: 'material',
     stats: {},
-    image: r5Icon,
+    image: resAlloy,
   },
-  { name: 'Топливо', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r1Icon },
-  { name: 'Батарейки', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r2Icon },
-  { name: 'Консервы', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r7Icon },
-  { name: 'Лекарства', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r4Icon },
+  { name: 'Топливо', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resFuel },
+  { name: 'Батарейки', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resBatteries },
+  { name: 'Консервы', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resCanned },
+  { name: 'Лекарства', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resMeds },
 ];
 
 // Item set bonus definitions
