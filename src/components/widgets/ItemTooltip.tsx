@@ -1,5 +1,6 @@
 import { getItemImage, images } from '../../assets/index';
 import type { Item } from '../../types/items';
+import { chestImageFor } from '../../data/chests';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
@@ -57,7 +58,9 @@ const formatStat = (k: string, v: number): string => {
 export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
   const tooltipX = Math.min(x + 16, window.innerWidth - 280);
   const tooltipY = Math.min(y - 10, window.innerHeight - 340);
-  const imgUrl = item.image || getItemImage(item.name, item.displayName);
+  const imgUrl = item.image
+    || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
+    || getItemImage(item.name, item.displayName);
   const itemPower = calcItemPower(item);
   const equipment = usePlayerStore((s) => s.equipment);
   const equippedSetCount = item.set

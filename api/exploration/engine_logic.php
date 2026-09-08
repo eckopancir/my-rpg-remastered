@@ -15,13 +15,12 @@ const MICRO_COOLDOWN_MIN = 480;
 const MICRO_COOLDOWN_MAX = 720;
 const MAX_TICKS_PER_POLL = 60;
 // Шанс запуска легендарной цепочки на каждом крупном событии, %.
-// 2 крупных/час → ~12 за 6 часов → ~1 легендарка за 6 часов. Только если
-// нет активной цепочки. Латч has_triggered_legendary больше не используется.
-const LEGENDARY_CHANCE_PCT = 8;
-// Шанс дропа предмета на каждом этапе легендарки (успех и финал, не фейл).
-// Роллится поверх наград этапа: +1 предмет к itemCount.
-// Сам предмет генерирует клиент из общего пула (редкость 33/33/34).
-const LEGENDARY_ITEM_CHANCE_PCT = 25;
+// 2 крупных/час → ~12 за 6 часов → при 3% примерно 1 легендарка за ~16 часов.
+// Только если нет активной цепочки. Латч has_triggered_legendary больше не используется.
+const LEGENDARY_CHANCE_PCT = 3;
+// Предметы с этапов легендарки убраны: вместо них в конце цепочки (финал или
+// фейл) выдаётся один сундук, качество — пропорцией от пройденных этапов
+// (1 этап — Обычный, все — Божественный). Уровень сундука фиксируется.
 // Этап активной цепочки — раз в столько секунд, строго подряд:
 // пока идёт легендарка, микро и крупные события на паузе.
 const LEGENDARY_STAGE_EVERY_SEC = 60;
@@ -74,7 +73,7 @@ function generateMicroEvent($zoneDesc, $faction) {
 // ---------------------------------------------------------------------------
 // Offline reward creation
 // ---------------------------------------------------------------------------
-function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr, $itemPool = null) {
+function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr, $itemPool = null, $chest = null) {
   if ($itemCount <= 0) return;
   // Крупные суммы (например, bulk-сводка за сутки) режем на чанки, иначе
   // клиент попытается сгенерировать и POST'нуть сотни предметов одним
@@ -89,6 +88,7 @@ function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $event
     'event_type' => $eventType,
     'effects' => $effectsArr,
     'itemPool' => $itemPool,
+    'chest' => $chest,
   ], JSON_UNESCAPED_UNICODE);
   $stmt = $pdo->prepare("INSERT INTO offline_rewards (user_id, exploration_id, event_id, event_text, item_count, player_level, generation_version, reward_data)
     VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
@@ -250,7 +250,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       // Big events (активная цепочка сюда не доходит — она выше ставит continue).
       $exp['event_cooldown'] = (int)$exp['event_cooldown'] - 1;
       if ($exp['event_cooldown'] <= 0) {
-        // Ролл запуска новой цепочки (~1 за 6 часов при 2 событиях/час, плюс рюкзак).
+        // Ролл запуска новой цепочки (3% + бонус рюкзака).
         if (mt_rand(1, 100) <= $legChancePct) {
           $legEvents = getLegendaryEvents();
           $legKeys = array_keys($legEvents);
@@ -490,7 +490,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       $cdMicro = RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX);
     }
 
-    // Крупные в bulk: либо ролл запуска новой цепочки (8%),
+    // Крупные в bulk: либо ролл запуска новой цепочки (3%),
     // либо обычное событие. Строк не пишем — всё уходит в сводку.
     $cdEvent--;
     if ($cdEvent <= 0) {
@@ -658,9 +658,9 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
   $stage = $leg['stages'][$stageIdx];
   $playerLevel = getPlayerLevel($pdo, $userId);
   if (empty($stage['text'])) {
-    // Final stage — give final reward
+    // Final stage — give final reward (без предметов: вместо них сундук ниже).
     $fr = computeLegendaryReward($leg['fr_rw'], $playerLevel);
-    $fr = rollLegendaryItemDrop($fr);
+    unset($fr['itemCount']);
     $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
     $merged = mergeEffectsArr($rewards, $fr);
     $applyResult = applyEffects($pdo, $userId, $merged, $buffs);
@@ -671,6 +671,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
     $exp['legendary_stage'] = null;
     $exp['legendary_auto_resolve'] = null;
     $exp['legendary_rewards'] = null;
+    grantLegendaryChest($pdo, $userId, $exp, $legKey, $leg, $stageIdx, true);
     return [
       'text' => $leg['fr_text'],
       'type' => 'legendary',
@@ -692,7 +693,6 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
   $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
 
   if ($success) {
-    $stageReward = rollLegendaryItemDrop($stageReward);
     $merged = mergeEffectsArr($rewards, $stageReward);
     $exp['legendary_rewards'] = json_encode($merged);
     $exp['legendary_stage'] = $stageIdx + 1;
@@ -716,7 +716,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
       'legendary_result' => 'stage',
     ];
   } else {
-    // Fail — chain breaks, payout accumulated rewards
+    // Fail — chain breaks, payout accumulated rewards + сундук за прогресс.
     $applyResult = applyEffects($pdo, $userId, $rewards, $buffs);
     $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
     $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
@@ -725,6 +725,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
     $exp['legendary_stage'] = null;
     $exp['legendary_auto_resolve'] = null;
     $exp['legendary_rewards'] = null;
+    grantLegendaryChest($pdo, $userId, $exp, $legKey, $leg, $stageIdx, false);
     return [
       'text' => $stage['fail'],
       'type' => 'legendary',
@@ -1052,13 +1053,43 @@ function mergeEffectsArr($a, $b) {
   return $a;
 }
 
-// 25% дроп предмета на этапе легендарки: +1 к itemCount.
-// Вызывается для успеха и финала (фейл — этап потерян целиком).
-function rollLegendaryItemDrop($effects) {
-  if (mt_rand(1, 100) <= LEGENDARY_ITEM_CHANCE_PCT) {
-    $effects['itemCount'] = (int)($effects['itemCount'] ?? 0) + 1;
+// Качество сундука за легендарку: 1 этап — Обычный, все — Божественный,
+// между — линейно по лестнице. Фейл считает только пройденные этапы.
+function legendaryChestQuality($passedStages, $totalStages) {
+  $ladder = array('Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный');
+  $total = max(1, (int)$totalStages);
+  $passed = max(0, (int)$passedStages);
+  if ($passed >= $total) return 'Божественный';
+  if ($passed <= 1) return 'Обычный';
+  $idx = (int)round($passed / $total * 6);
+  if ($idx < 1) $idx = 1;
+  if ($idx > 5) $idx = 5;
+  return $ladder[$idx];
+}
+
+// Один сундук в конце легендарной цепочки (финал или фейл).
+// Уровень фиксируется здесь — клиент откроет предметы именно этого уровня.
+function grantLegendaryChest($pdo, $userId, $exp, $legKey, $leg, $stageIdx, $completed) {
+  $stages = isset($leg['stages']) && is_array($leg['stages']) ? $leg['stages'] : array();
+  $realTotal = 0;
+  foreach ($stages as $st) {
+    if (!empty($st['text'])) $realTotal++;
   }
-  return $effects;
+  if ($realTotal < 1) $realTotal = 1;
+  $passed = $completed ? $realTotal : max(0, (int)$stageIdx);
+  $quality = legendaryChestQuality($passed, $realTotal);
+  $level = max(1, (int)getPlayerLevel($pdo, $userId));
+  $expId = (int)($exp['id'] ?? 0);
+  if ($expId <= 0) return;
+  // Уникальный id строки: тик монотонен внутри экспедиции (UNIQUE user/exp/event).
+  $eventId = 2000000000 + (int)($exp['tick_count'] ?? 0);
+  $title = isset($leg['title']) ? $leg['title'] : $legKey;
+  createOfflineReward(
+    $pdo, $userId, $expId, $eventId,
+    '⚜ ' . $title . ' — награда: сундук (' . $quality . ')',
+    'legendary', 1, $level, array(),
+    null, array('quality' => $quality, 'level' => $level)
+  );
 }
 
 // ---------------------------------------------------------------------------

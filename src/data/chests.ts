@@ -54,6 +54,12 @@ export const configForQuality = (qualityName: string): ChestConfig =>
 export const artForQuality = (qualityName: string): ChestArt =>
   configForQuality(qualityName).art;
 
+/** Картинка сундука по качеству — для сундуков, пришедших с бэкенда без поля image. */
+export const chestImageFor = (qualityName: string, opened = false): string => {
+  const a = CHEST_ART[artForQuality(qualityName)];
+  return opened ? a.open : a.closed;
+};
+
 let chestSeq = 0;
 
 const uniqueChestId = () =>

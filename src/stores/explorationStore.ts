@@ -5,6 +5,7 @@ import { useInventoryStore } from './inventoryStore';
 import { useAuthStore } from './authStore';
 import { generateItem, type GeneratedItem } from '../engine/items';
 import { GAME_ITEMS } from '../data/GameItems';
+import { createChest } from '../data/chests';
 
 
 const API_BASE = '/api/exploration';
@@ -600,15 +601,23 @@ export const useExplorationStore = create<ExplorationStore>()(
 
             // Generate new items
             let itemPool: string | null = null;
+            let chestSpec: { quality?: string; level?: number } | null = null;
             if (reward.reward_data) {
               try {
                 const rd = typeof reward.reward_data === 'string' ? JSON.parse(reward.reward_data) : reward.reward_data;
                 itemPool = rd?.itemPool || null;
+                chestSpec = rd?.chest || null;
               } catch (_) {}
             }
             const items: GeneratedItem[] = [];
-            for (let i = 0; i < itemCount; i++) {
-              items.push(generateItem(GAME_ITEMS, rewardPlayerLevel, null, null, itemPool));
+            if (chestSpec) {
+              // Награда-сундук с легендарки: качество и уровень зафиксированы сервером.
+              const chest = createChest(chestSpec.quality || 'Обычный', chestSpec.level || rewardPlayerLevel);
+              items.push(chest as unknown as GeneratedItem);
+            } else {
+              for (let i = 0; i < itemCount; i++) {
+                items.push(generateItem(GAME_ITEMS, rewardPlayerLevel, null, null, itemPool));
+              }
             }
 
             // Add to inventory (immediate UI)

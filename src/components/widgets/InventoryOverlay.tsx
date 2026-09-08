@@ -10,6 +10,7 @@ import { WapPanel } from '../ui/WapPanel';
 import type { Item } from '../../types/items';
 import { ItemTooltip } from './ItemTooltip';
 import { ChestOpening } from './ChestOpening';
+import { chestImageFor } from '../../data/chests';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 
@@ -350,7 +351,9 @@ export const InventoryOverlay = () => {
                 if (!stacked) return <div key={`empty-${idx}`} style={{ width: cellSize, height: cellSize }} />;
 
                 const { item, count } = stacked;
-                const imgUrl = item.image || getItemImage(item.name, item.displayName);
+                const imgUrl = item.image
+                  || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
+                  || getItemImage(item.name, item.displayName);
 
                 return (
                   <div
