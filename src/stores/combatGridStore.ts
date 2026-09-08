@@ -3,7 +3,7 @@ import { usePlayerStore } from './playerStore';
 import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
-import { generateLoot } from '../engine/loot';
+import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
@@ -737,12 +737,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
       let enemyLoot: any[] = [];
       try {
-        const lu = usePlayerStore.getState().skillUtility();
         enemyLoot = generateLoot(GAME_ITEMS, player.level, {
-          bonusQuality: lu.lootQualityBonus,
-          extraItemChance: lu.extraLootChance,
-          extraResourcePct: lu.extraResourcePct,
-          doubleLootChance: lu.doubleLootChance,
+          rank: rankOfEnemy(factionKey, factionKey),
         }).map((item) => ({ ...item, parentEnemyId: i }));
       } catch (e) { /* ignore */ }
 
@@ -1666,12 +1662,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
         let freshLoot: any[] = [];
         try {
-          const lu = usePlayerStore.getState().skillUtility();
           freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
-            bonusQuality: lu.lootQualityBonus,
-            extraItemChance: lu.extraLootChance,
-            extraResourcePct: lu.extraResourcePct,
-            doubleLootChance: lu.doubleLootChance,
+            rank: rankOfEnemy((updatedEnemy as any).factionKey, updatedEnemy.name),
           });
         } catch (e) { /* ignore */ }
         const screamIdx = Math.floor(Math.random() * 5) + 1;

@@ -160,12 +160,12 @@ function generateEnemyTypes(pool: { type: EnemyShortName; weight: number }[], co
 
 function calcChipReward(totalSl: number, enemyTypes: EnemyShortName[]): number {
   const avgMult = enemyTypes.reduce((s, t) => s + ENEMY_TYPE_MULTIPLIERS[t], 0) / enemyTypes.length;
-  return Math.round(totalSl * enemyTypes.length * 0.5 * avgMult);
+  return Math.round(totalSl * enemyTypes.length * 0.3 * avgMult);
 }
 
 function calcXpReward(totalSl: number, enemyTypes: EnemyShortName[]): number {
   const avgMult = enemyTypes.reduce((s, t) => s + ENEMY_TYPE_MULTIPLIERS[t], 0) / enemyTypes.length;
-  return Math.round(totalSl * enemyTypes.length * 0.8 * avgMult);
+  return Math.round(totalSl * enemyTypes.length * 0.5 * avgMult);
 }
 
 const LS_CARDS_KEY = 'militaryCards';

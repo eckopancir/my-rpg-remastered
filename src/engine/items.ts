@@ -17,13 +17,13 @@ export interface QualityTier {
 }
 
 export const QUALITY_TIERS: QualityTier[] = [
-  { name: 'Обычный', chance: 21.39, bonusStatsCount: 0, color: 'white', timeLimitMultiplier: 1 },
-  { name: 'Редкий', chance: 20.0, bonusStatsCount: 1, color: 'lime', timeLimitMultiplier: 2 },
-  { name: 'Раритетный', chance: 25.0, bonusStatsCount: 2, color: 'deepskyblue', timeLimitMultiplier: 3 },
-  { name: 'Эпический', chance: 22.5, bonusStatsCount: 3, color: 'mediumpurple', timeLimitMultiplier: 4 },
-  { name: 'Смертоносный', chance: 21.0, bonusStatsCount: 5, color: 'red', timeLimitMultiplier: 5 },
-  { name: 'Легендарный', chance: 20.1, bonusStatsCount: 7, color: 'gold', timeLimitMultiplier: 6 },
-  { name: 'Божественный', chance: 20.01, bonusStatsCount: 10, color: 'cyan', timeLimitMultiplier: 7 },
+  { name: 'Обычный', chance: 45, bonusStatsCount: 0, color: 'white', timeLimitMultiplier: 1 },
+  { name: 'Редкий', chance: 20, bonusStatsCount: 1, color: 'lime', timeLimitMultiplier: 2 },
+  { name: 'Раритетный', chance: 15, bonusStatsCount: 2, color: 'deepskyblue', timeLimitMultiplier: 3 },
+  { name: 'Эпический', chance: 10, bonusStatsCount: 3, color: 'mediumpurple', timeLimitMultiplier: 4 },
+  { name: 'Смертоносный', chance: 6, bonusStatsCount: 5, color: 'red', timeLimitMultiplier: 5 },
+  { name: 'Легендарный', chance: 3, bonusStatsCount: 7, color: 'gold', timeLimitMultiplier: 6 },
+  { name: 'Божественный', chance: 1, bonusStatsCount: 10, color: 'cyan', timeLimitMultiplier: 7 },
 ];
 
 export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
