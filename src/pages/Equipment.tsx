@@ -339,6 +339,10 @@ export const Equipment = () => {
           padding: '16px 10px', background: 'rgba(255,255,255,0.02)',
           border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
         }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🎯 АММУНИЦИЯ</div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {AMMO_SLOTS.map((slot) => renderSlotBox(slot))}
+          </div>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🛡️ ГЕРОЙ</div>
           <div style={{ position: 'relative', width: 207, height: 396, margin: '0 66px 0 60px', flexShrink: 0 }}>
             <div style={{
@@ -358,10 +362,6 @@ export const Equipment = () => {
                 </div>
               );
             })}
-          </div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🎯 АММУНИЦИЯ</div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            {AMMO_SLOTS.map((slot) => renderSlotBox(slot))}
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', width: '100%' }}>
             {[
