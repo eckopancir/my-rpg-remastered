@@ -377,7 +377,7 @@ export const InventoryOverlay = () => {
                     }}
                   >
                     {imgUrl ? (
-                      <img src={imgUrl} alt="" style={{ width: item.type === 'material' ? 44 : 36, height: item.type === 'material' ? 44 : 36, objectFit: 'contain', imageRendering: 'pixelated' }} />
+                      <img src={imgUrl} alt="" style={{ width: 44, height: 44, objectFit: 'contain', imageRendering: 'pixelated' }} />
                     ) : (
                       <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
                     )}
