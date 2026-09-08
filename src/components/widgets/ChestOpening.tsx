@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useAuthStore } from '../../stores/authStore';
 import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import {
@@ -53,8 +54,33 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const takeDrop = (drop: ChestDrop) => {
-    if (drop.kind === 'item') {
+  // Немедленный сейв на сервер: иначе чипы/предметы живут только локально
+  // до ближайшего автосейва, а сервер при загрузке заткёт их старым значением.
+  const syncToServer = () => {
+    try {
+      const token = useAuthStore.getState().token;
+      if (!token) return;
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+      const s = usePlayerStore.getState();
+      fetch('/api/dashboard/sync.php', {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          currentHp: s.stats.currentHp,
+          stamina: s.stats.stamina,
+          currentExp: s.currentExp,
+          expToNext: s.expToNext,
+          dataChips: s.dataChips,
+          activeEffects: s.activeEffects,
+        }),
+      }).catch(() => {});
+      fetch('/api/inventory/sync.php', {
+        method: 'POST', headers,
+        body: JSON.stringify({ items: useInventoryStore.getState().items }),
+      }).catch(() => {});
+    } catch { /* ignore */ }
+  };
+
+  const takeDrop = (drop: ChestDrop) => {    if (drop.kind === 'item') {
       useInventoryStore.getState().addItem(drop.item as unknown as Item);
       usePlayerStore.getState().addLog(`📦 Из сундука: ${drop.item.displayName || drop.item.name} (${drop.item.quality})`, 'loot');
     } else if (drop.kind === 'resource') {
@@ -74,6 +100,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
     setCollected((c) => c + 1);
     setTip(null);
     playSound('clickbutton', 0.5);
+    syncToServer();
   };
 
   // Закрытие (и размонтирование) — несобранное долетает само, ничего не сгорает.
@@ -82,6 +109,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
     rest.forEach(takeDrop);
     if (rest.length > 0) setCollected((c) => c + rest.length);
     setRemaining([]);
+    if (rest.length > 0) syncToServer();
   };
   useEffect(() => () => {
     remainingRef.current.forEach(takeDrop);
