@@ -12,7 +12,7 @@ import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SKILL_CLASSES } from '../data/skills';
 import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
-import { takeAmmoFrom, countAmmo, makeBulletPack, type AmmoGroup } from '../data/ammo';
+import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, type AmmoGroup } from '../data/ammo';
 
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots', 'backpack',
@@ -148,6 +148,7 @@ interface PlayerStore {
   clearBackpack: () => void;
   ensureBackpack: () => void;
   takeAmmoFromPack: (group: AmmoGroup, n: number) => number;
+  returnAmmoToPack: (group: AmmoGroup, n: number) => number;
   ammoInPack: (group: AmmoGroup) => number;
   consumeFromPack: (itemId: string) => boolean;
   spendSkillPoint: (skillId: string) => boolean;
@@ -658,6 +659,18 @@ export const usePlayerStore = create<PlayerStore>()(
         const { items, taken } = takeAmmoFrom(s.backpackContents, group, n);
         if (taken > 0) set({ backpackContents: items });
         return taken;
+      },
+
+      // Вернуть патроны в рюкзак (остаток магазина). Не влезло — в инвентарь.
+      returnAmmoToPack: (group, n) => {
+        const s = get();
+        if (n <= 0) return 0;
+        const pack = s.equipment.backpack;
+        const maxSlots = pack ? backpackSlotsFor(pack) : 0;
+        const { items, leftover } = addAmmoToPack(s.backpackContents, group, n, maxSlots);
+        set({ backpackContents: items });
+        if (leftover > 0) useInventoryStore.getState().addItem(makeBulletPack(group, leftover));
+        return n - leftover;
       },
 
       ammoInPack: (group) => countAmmo(get().backpackContents, group),

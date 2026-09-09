@@ -95,6 +95,45 @@ export const ammoReserveIn = (contents: Pick<Item, 'type' | 'name' | 'quantity'>
   countAmmo(contents, group);
 
 /**
+ * Вернуть N патронов группы в содержимое рюкзака.
+ * Сначала досыпает в неполные стаки (слотов не требует), остаток —
+ * новыми пачками в свободные слоты. Возвращает {items, leftover} —
+ * leftover не влез (слоты кончились, caller кладёт в инвентарь).
+ */
+export const addAmmoToPack = (
+  contents: Item[],
+  group: AmmoGroup,
+  n: number,
+  maxSlots: number,
+): { items: Item[]; leftover: number } => {
+  if (n <= 0) return { items: contents, leftover: 0 };
+  const packName = AMMO_GROUP_MAP[group].packName;
+  const maxStack = maxStackFor(group);
+  let rest = n;
+  const next: Item[] = contents.map((it) => {
+    if (rest > 0 && it.type === 'bullet' && it.name === packName) {
+      const q = (it.quantity ?? 1) as number;
+      const room = maxStack - q;
+      if (room > 0) {
+        const add = Math.min(room, rest);
+        rest -= add;
+        const nq = q + add;
+        return { ...it, quantity: nq, displayName: `${packName} x${nq}` };
+      }
+    }
+    return it;
+  });
+  const freeSlots = Math.max(0, maxSlots - next.length);
+  let packs = 0;
+  while (rest > 0 && packs < freeSlots) {
+    const q = Math.min(rest, maxStack);
+    next.push(makeBulletPack(group, q));
+    rest -= q;
+    packs++;
+  }
+  return { items: next, leftover: rest };
+};
+/**
  * Забрать N патронов группы из содержимого рюкзака.
  * Возвращает {items, taken}. Чистая функция — стор обновляет вызывающий.
  */

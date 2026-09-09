@@ -173,10 +173,7 @@ export interface CombatGridStore {
   stealthKill: () => void;
   // Скрытность: моделька полупрозрачна, замечают только в упор. Слетает при выстреле/обнаружении.
   stealth: boolean;
-  toggleStealth: () => void;  // Метки укрытий после ПКМ-инспекции точки: иконки на клетках укрытий,
-  // дающих бонус этой точке. Живут до следующей инспекции / конца боя.
-  coverMarks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>;
-  setCoverMarks: (marks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>) => void;
+  toggleStealth: () => void;
 
   playerAbilities: (AccessoryAbility | null)[];
   abilityCooldowns: number[];
@@ -709,8 +706,6 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set({ stealth: true });
     get().addMessage('🕵️ Скрытность: замечают только в упор (часовые — в 6 клетках)');
   },
-  coverMarks: [],
-  setCoverMarks: (marks) => set({ coverMarks: marks }),
   markExplored: (cells) => set((s) => {
     let changed = false;
     const next = { ...s.exploredCells };
@@ -720,8 +715,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     return changed ? { exploredCells: next } : s;
   }),
   // Облачко реплики над врагом (висит 5 секунд).
+  // Спящие не болтают: их реплики глушатся.
   say: (enemyId, text, ms = 5000) => {
     const bid = get().battleId;
+    const target = get().enemies.find((e) => e.id === enemyId);
+    if (!target || target.sleeping) return;
     set((s) => ({ enemies: s.enemies.map((e) => (e.id === enemyId ? { ...e, speech: text } : e)) }));
     setTimeout(() => {
       if (get().battleId !== bid) return;
@@ -1108,6 +1106,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     return true;
     } catch (e) {
       console.error('[initCombat]', e);
+      // Магазин уже списан из рюкзака (startAmmo) — вернуть, иначе патроны сгорят.
+      try {
+        if (typeof startAmmo !== 'undefined' && startAmmo > 0 && weapon2) {
+          usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(weapon2), startAmmo);
+        }
+      } catch { /* ignore */ }
       // Не оставляем полуживой бой: чистим сетку, caller решит что дальше.
       try { get().cleanup(); } catch { /* ignore */ }
       return false;
@@ -2246,12 +2250,25 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       stats: { ...st.stats, shieldCharges: 0 },
       activeEffects: (st.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_')),
     }));
+    // Остаток магазина — обратно в рюкзак. На поражении пропуск:
+    // там рюкзак уже вайпнут, воскрешать патроны нельзя.
+    // Только если бой реально шёл (защита от двойного возврата при падении initCombat).
+    const cs = get();
+    if (!cs.isDefeat && cs.isActive && cs.ammo > 0) {
+      const w2 = usePlayerStore.getState().equipment.weapon2;
+      if (w2) {
+        try {
+          const back = usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(w2), cs.ammo);
+          if (back > 0) usePlayerStore.getState().addLog(`🔁 Магазин возвращён в рюкзак (+${back})`, 'info');
+        } catch { /* best effort */ }
+      }
+    }
     set({
       isActive: false, enemies: [], obstacles: [], turn: 'player',
       ap: BASE_AP, turnCount: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
-      exploredCells: {}, coverMarks: [], campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
+      exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,

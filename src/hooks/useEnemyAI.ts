@@ -279,6 +279,7 @@ export const useEnemyAI = () => {
           if (!enemy.sleeping && Math.random() < 0.05) {
             enemy.sleeping = true;
             enemy.sleepTurns = 3;
+            enemy.speech = null;
             updatedEnemies[i] = { ...enemy };
             useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             await new Promise((r) => setTimeout(r, 150));

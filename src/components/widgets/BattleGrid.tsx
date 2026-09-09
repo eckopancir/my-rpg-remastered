@@ -34,7 +34,7 @@ const ENEMY_COLORS: Record<string, string> = {
   Неизвестно: '#a1a1aa',
 };
 
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, terrainSummary, isCellWalkable, coverMarksFor, COVER_MARK_ICON, COVER_MARK_TITLE } from '../../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
@@ -50,13 +50,12 @@ export const BattleGrid = () => {
   const isShaking = useCombatGridStore((s) => s.isShaking);
   const reserve = useCombatGridStore((s) => s.reserve);
   const popups = useCombatGridStore((s) => s.popups);
-  const coverMarks = useCombatGridStore((s) => s.coverMarks);
   const campfire = useCombatGridStore((s) => s.campfire);
-  // Анимация костра: два кадра каждые 300мс.
+  // Анимация костра: два кадра каждые 100мс.
   const [fireFrame, setFireFrame] = useState(0);
   useEffect(() => {
     if (!isActive || !campfire) return;
-    const t = setInterval(() => setFireFrame((f) => (f + 1) % 2), 300);
+    const t = setInterval(() => setFireFrame((f) => (f + 1) % 2), 100);
     return () => clearInterval(t);
   }, [isActive, campfire]);
   const playerInvisible = useCombatGridStore((s) => s.playerInvisible);
@@ -424,14 +423,11 @@ export const BattleGrid = () => {
             if (!isCellWalkable(down.x, down.y, st.obstacles)) {
               st.addPopup(down.x, down.y, '📍 ⛔', 'ERROR');
               st.addMessage(`(${down.x},${down.y}): сюда встать нельзя`);
-              st.setCoverMarks([]);
               return;
             }
             const s = terrainSummary(down, st.obstacles);
             st.addPopup(down.x, down.y, s.text, 'BUFF');
             st.addMessage(s.detail);
-            // Подсветить укрытия, дающие бонус этой точке.
-            st.setCoverMarks(coverMarksFor(down, st.obstacles));
           }}
           onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; rmbDownCell.current = null; }}
         >
@@ -595,7 +591,7 @@ export const BattleGrid = () => {
           const d = Math.hypot(e.pos.x - playerPos.x, e.pos.y - playerPos.y);
           const susR = e.aiRole === 'sentry' ? 8 : 5;
           const detR = stealth ? (e.aiRole === 'sentry' ? 6 : 3) : 24;
-          const showQ = !e.aggro && e.faction !== 'Союзник' && d <= susR && d > detR;
+          const showQ = !e.aggro && !e.sleeping && e.faction !== 'Союзник' && d <= susR && d > detR;
           // Часовой всегда с белым «!» — его метка.
           const showExcl = e.aiRole === 'sentry';
           if (!e.speech && !e.sleeping && !showQ && !showExcl) return null;
@@ -732,23 +728,6 @@ export const BattleGrid = () => {
             </div>
           );
         })}
-
-        {/* Метки укрытий после ПКМ-инспекции: какое укрытие что даёт точке */}
-        {coverMarks.map((m, i) => (
-          <div key={`cover-${m.x}-${m.y}-${m.kind}-${i}`} title={COVER_MARK_TITLE[m.kind]} style={{
-            position: 'absolute',
-            left: `${(m.x / 31) * 100}%`,
-            top: `${(m.y / 31) * 100}%`,
-            transform: 'translate(-85%, -85%)',
-            width: '3.4%', aspectRatio: '1',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 'clamp(10px, 1.6vw, 18px)', lineHeight: 1,
-            background: 'rgba(8,12,20,0.78)', border: '1px solid rgba(74,222,128,0.8)',
-            borderRadius: '50%', pointerEvents: 'none', zIndex: 40,
-          }}>
-            {COVER_MARK_ICON[m.kind]}
-          </div>
-        ))}
 
         {/* Battle popups — offset vertically to avoid stacking */}
         {(() => {
