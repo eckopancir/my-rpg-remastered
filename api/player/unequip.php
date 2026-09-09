@@ -17,7 +17,9 @@ $stmt->execute([$user['id'], $slot]);
 $row = $stmt->fetch();
 
 if (!$row) {
-    jsonResponse(['error' => 'Nothing equipped in this slot'], 404);
+    // Идемпотентность: снимать нечего — это успех, а не 404.
+    // Иначе каждое рассинхронное снятие спамит консоль Failed to load resource.
+    jsonResponse(['ok' => true, 'slot' => $slot, 'empty' => true]);
 }
 
 $del = $pdo->prepare('DELETE FROM equipment WHERE id = ?');

@@ -136,26 +136,30 @@ export const Equipment = () => {
   const handleDrop = (slot: EquipmentSlot, e: React.DragEvent) => {
     e.preventDefault();
     const itemId = e.dataTransfer.getData('text/plain');
-    if (!itemId) return;
+    if (!itemId || itemId.startsWith('equip:')) return;
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
     if (item.slot && item.slot !== slot && !(item.slot === 'ammo' && slot.startsWith('ammo'))) return;
+    const old = equipment[slot];
+    if (old) {
+      // Замена: сначала снимаем старый, в инвентарь он уйдёт только если новый наделся.
+      if (slot === 'backpack' && backpackLocked) {
+        usePlayerStore.getState().addLog('🔒 Рюкзак под замком — сними замочек, чтобы снять.', 'warning');
+        return;
+      }
+      unequipItem(slot);
+    }
     if (equipItem(slot, item)) {
       removeItem(item.id);
+      if (old) addItem(old);
       playSound('putting-on-a-safety-belt', 0.5);
+    } else if (old) {
+      // Не наделось — вернуть старый обратно, чтобы не потерять.
+      equipItem(slot, old);
     }
   };
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
-
-  const handleUnequip = (slot: EquipmentSlot) => {
-    const item = unequipItem(slot);
-    if (item) {
-      addItem(item);
-      playSound('putting-on-a-safety-belt', 0.5);
-    }
-    setTooltipItem(null);
-  };
 
   const handleMouseEnter = (slot: string, item: Item | null, e: React.MouseEvent) => {
     setHoverSlot(slot);
@@ -188,14 +192,9 @@ export const Equipment = () => {
     }
     clickTimer.current = window.setTimeout(() => {
       clickTimer.current = null;
-      if (item) {
-        // Замочек: рюкзак кликом не снимается.
-        if (slot === 'backpack' && backpackLocked) {
-          usePlayerStore.getState().addLog('🔒 Рюкзак под замком — сними замочек, чтобы снять.', 'warning');
-          return;
-        }
-        handleUnequip(slot as EquipmentSlot);
-      } else {
+      // Одинарный клик ничего не снимает: снятие только перетаскиванием
+      // в инвентарь или заменой аналогичным предметом.
+      if (!item) {
         setCustomizing({ item: null, slot });
       }
     }, 220);
@@ -242,7 +241,9 @@ export const Equipment = () => {
           onMouseLeave={handleMouseLeave}
           onClick={() => handleSlotClick(slot, item)}
           onDoubleClick={() => handleSlotDoubleClick(slot, item)}
-          title={caption}
+          draggable={!!item}
+          onDragStart={(e) => { if (item) e.dataTransfer.setData('text/plain', `equip:${slot}`); }}
+          title={item ? `${caption} — тяни в инвентарь, чтобы снять` : caption}
           style={{
             width: slotW,
             height: slotH,
@@ -261,7 +262,7 @@ export const Equipment = () => {
                 : item
                   ? `0 0 10px ${(item.qualityColor || '#818cf8') + '55'}`
                   : 'none',
-            cursor: 'pointer',
+            cursor: item ? 'grab' : 'pointer',
             transition: 'all 120ms',
           }}
         >

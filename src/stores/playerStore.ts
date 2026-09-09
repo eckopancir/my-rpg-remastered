@@ -144,6 +144,7 @@ interface PlayerStore {
   unequipItem: (slot: EquipmentSlot) => Item | null;
   putInBackpack: (itemId: string) => string;
   takeOutBackpack: (itemId: string) => void;
+  emptyBackpackToInventory: () => number;
   clearBackpack: () => void;
   ensureBackpack: () => void;
   takeAmmoFromPack: (group: AmmoGroup, n: number) => number;
@@ -629,6 +630,17 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       clearBackpack: () => set({ backpackContents: [] }),
+
+      // Выложить всё содержимое рюкзака в инвентарь. Возвращает число предметов.
+      emptyBackpackToInventory: () => {
+        const s = get();
+        if (s.backpackContents.length === 0) return 0;
+        const inv = useInventoryStore.getState();
+        for (const it of s.backpackContents) inv.addItem(it);
+        const n = s.backpackContents.length;
+        set({ backpackContents: [] });
+        return n;
+      },
 
       ensureBackpack: () => {
         const s = get();

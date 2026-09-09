@@ -9,6 +9,7 @@ import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 import { SET_BONUSES } from '../../data/GameItems';
 import { usePlayerStore } from '../../stores/playerStore';
+import { effectiveItemStats, modStatsOf } from '../../utils/itemStats';
 
 interface ItemTooltipProps {
   item: Item;
@@ -220,20 +221,29 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
         </div>
       )}
 
-      {Object.entries(item.stats || {}).length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {Object.entries(item.stats || {}).slice(0, 10).map(([k, v]) => {
-            if (!v) return null;
-            return (
-              <div key={k} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
-                <span>{formatStat(k, typeof v === 'object' ? (v as any).base || 0 : v)}</span>
+      {(() => {
+        // Статы с учётом вставленных модов: шлем 30 + мод 1 покажет 31.
+        const eff = effectiveItemStats(item);
+        const fromMods = modStatsOf(item);
+        const keys = Object.keys(eff).filter((k) => eff[k]);
+        if (keys.length === 0) {
+          return <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Нет характеристик</div>;
+        }
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {keys.slice(0, 10).map((k) => (
+              <div key={k} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{formatStat(k, eff[k])}</span>
+                {fromMods[k] ? (
+                  <span title="Бонус от модов" style={{ fontSize: 10, color: '#4ade80', background: 'rgba(34,197,94,0.12)', padding: '0 5px', borderRadius: 3 }}>
+                    🔧+{(Math.abs(fromMods[k]) >= 1 ? Math.abs(fromMods[k]).toFixed(1) : Math.abs(fromMods[k]).toFixed(3))}
+                  </span>
+                ) : null}
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Нет характеристик</div>
-      )}
+            ))}
+          </div>
+        );
+      })()}
 
       <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: item.qualityColor }}>

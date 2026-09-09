@@ -370,6 +370,20 @@ export const InventoryOverlay = () => {
                 e.preventDefault();
                 const id = e.dataTransfer.getData('text/plain');
                 if (!id) return;
+                // Снятие экипировки перетаскиванием: equip:slot → в инвентарь.
+                if (id.startsWith('equip:')) {
+                  const eqSlot = id.slice(6);
+                  if (eqSlot === 'backpack' && useUiStore.getState().backpackLocked) {
+                    usePlayerStore.getState().addLog('🔒 Рюкзак под замком — сними замочек, чтобы снять.', 'warning');
+                    return;
+                  }
+                  const old = usePlayerStore.getState().unequipItem(eqSlot as any);
+                  if (old) {
+                    useInventoryStore.getState().addItem(old);
+                    playSound('putting-on-a-safety-belt', 0.5);
+                  }
+                  return;
+                }
                 const wasInPack = usePlayerStore.getState().backpackContents.some((i) => i.id === id);
                 takeOutBackpack(id);
                 if (wasInPack) playSound('laying-out-a-travel-mat', 0.5);

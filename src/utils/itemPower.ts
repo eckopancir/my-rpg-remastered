@@ -2,6 +2,7 @@ import { usePlayerStore, computePowerFromStats } from '../stores/playerStore';
 import type { PlayerStats } from '../stores/playerStore';
 import type { Item } from '../types/items';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
+import { effectiveItemStats } from './itemStats';
 
 const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
   health: 'maxHp',
@@ -38,8 +39,9 @@ export const calcItemPower = (item: Item): number => {
 
   const adjustedStats = { ...stats };
   const sign = isEquipped ? -1 : 1;
-  for (const [k, v] of Object.entries(item.stats || {})) {
-    const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
+  // Мощность с учётом модов: effectiveItemStats уже включает базу + моды.
+  for (const [k, v] of Object.entries(effectiveItemStats(item))) {
+    const val = v || 0;
     if (val === 0) continue;
     const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
     if (mappedKey in adjustedStats && typeof adjustedStats[mappedKey] === 'number') {

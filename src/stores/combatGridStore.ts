@@ -148,6 +148,10 @@ export interface CombatGridStore {
   // Туман войны с памятью: разведанные клетки остаются тускло видны.
   exploredCells: Record<string, true>;
   markExplored: (cells: string[]) => void;
+  // Метки укрытий после ПКМ-инспекции точки: иконки на клетках укрытий,
+  // дающих бонус этой точке. Живут до следующей инспекции / конца боя.
+  coverMarks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>;
+  setCoverMarks: (marks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>) => void;
 
   playerAbilities: (AccessoryAbility | null)[];
   abilityCooldowns: number[];
@@ -626,6 +630,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   reserve: [],
   battleLogs: [],
   exploredCells: {},
+  coverMarks: [],
+  setCoverMarks: (marks) => set({ coverMarks: marks }),
   markExplored: (cells) => set((s) => {
     let changed = false;
     const next = { ...s.exploredCells };
@@ -1958,7 +1964,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: BASE_AP, turnCount: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
-      exploredCells: {},
+      exploredCells: {}, coverMarks: [],
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,

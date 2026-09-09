@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/Button';
+import { ItemTooltip } from './ItemTooltip';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -44,12 +45,6 @@ const ARMOR_MOD_SLOTS: ModSlotPos[] = [
   { id: 'mod_utility', name: 'Система', top: Math.round(230 * SCALE), left: Math.round(190 * SCALE) },
   { id: 'mod_patch', name: 'Усиление', top: Math.round(230 * SCALE), left: Math.round(390 * SCALE) },
 ];
-
-const STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', crit: 'Крит', armor: 'Броня', regen: 'Реген',
-  evasion: 'Уклонение', block: 'Блок', punching: 'Дробящий', accuracy: 'Точность',
-  vampir: 'Вампиризм', speed: 'Скорость', maxHp: 'МаксHP', health: 'HP',
-};
 
 const SLOT_LABELS: Record<string, string> = {
   head: 'Шлем', armor: 'Броня', weapon1: 'Оружие', weapon2: 'Вторая рука',
@@ -231,9 +226,12 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
                   >
                     {modItem ? (
                       <>
-                        {modItem.image ? (
-                          <img src={modItem.image} alt={modItem.name} style={{ width: 36, height: 36, objectFit: 'contain', imageRendering: 'pixelated' }} />
-                        ) : null}
+                        {(() => {
+                          const modImg = modItem.image || getItemImage(modItem.name, modItem.displayName);
+                          return modImg ? (
+                            <img src={modImg} alt={modItem.name} style={{ width: 36, height: 36, objectFit: 'contain', imageRendering: 'pixelated' }} />
+                          ) : null;
+                        })()}
                         <span style={{ fontSize: 9, color: '#fff', fontWeight: 'bold', lineHeight: 1.1, marginTop: 2 }}>
                           {modItem.displayName || modItem.name}
                         </span>
@@ -252,32 +250,7 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
           </p>
 
           {hoverMod && (
-            <div style={{
-              position: 'fixed',
-              left: Math.min(hoverPos.x + 16, window.innerWidth - 280),
-              top: Math.min(hoverPos.y - 10, window.innerHeight - 340),
-              zIndex: 10000, width: 210,
-              padding: 8,
-              background: '#12121a',
-              border: `1px solid ${hoverMod.qualityColor || 'rgba(255,255,255,0.2)'}`,
-              borderRadius: 6, fontSize: 12, pointerEvents: 'none',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-            }}>
-              <div style={{ fontWeight: 600, color: hoverMod.qualityColor || '#fff', marginBottom: 4, fontSize: 12 }}>
-                {hoverMod.displayName || hoverMod.name}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {Object.entries(hoverMod.stats || {}).slice(0, 6).map(([k, v]) => {
-                  const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
-                  if (!val) return null;
-                  return (
-                    <span key={k} style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(34,197,94,0.12)', color: 'var(--accent-success)', fontSize: 10 }}>
-                      {STAT_LABELS[k] || k}: +{val.toFixed(val > 1 ? 1 : 3)}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
+            <ItemTooltip item={hoverMod} x={hoverPos.x} y={hoverPos.y} />
           )}
           </div>
         </motion.div>

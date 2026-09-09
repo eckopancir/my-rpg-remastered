@@ -31,6 +31,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
   const contents = usePlayerStore((s) => s.backpackContents);
   const putInBackpack = usePlayerStore((s) => s.putInBackpack);
   const takeOutBackpack = usePlayerStore((s) => s.takeOutBackpack);
+  const emptyBackpackToInventory = usePlayerStore((s) => s.emptyBackpackToInventory);
   const addLog = usePlayerStore((s) => s.addLog);
   const { playClick, playSound } = useSound();
   const [tip, setTip] = useState<{ item: Item; x: number; y: number } | null>(null);
@@ -191,6 +192,22 @@ export const BackpackWindow = ({ onClose }: Props) => {
             ? Object.entries(info.byType).map(([t, n]) => `${t} x${n}`).join(' · ')
             : 'пусто'}</div>
           <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Тяни предметы из инвентаря · двойной клик — вернуть обратно · таскается за шапку</div>
+          <button
+            onClick={() => {
+              const n = emptyBackpackToInventory();
+              if (n > 0) { playSound('laying-out-a-travel-mat', 0.5); addLog(`📤 Выложено из рюкзака: ${n} шт.`, 'info'); }
+            }}
+            disabled={contents.length === 0}
+            style={{
+              marginTop: 6, width: '100%', padding: '6px 0',
+              background: contents.length === 0 ? 'transparent' : 'rgba(217,119,6,0.15)',
+              border: '1px solid rgba(217,119,6,0.4)', borderRadius: 6,
+              color: contents.length === 0 ? 'var(--text-muted)' : '#fbbf24',
+              cursor: contents.length === 0 ? 'default' : 'pointer', fontSize: 12, fontWeight: 600,
+            }}
+          >
+            📤 Выложить всё ({contents.length})
+          </button>
         </div>
         {tip && <ItemTooltip item={tip.item} x={tip.x} y={tip.y} />}
       </motion.div>
