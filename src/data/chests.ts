@@ -37,17 +37,20 @@ export interface ChestConfig {
   chipBase: number;
   chipPerLevel: number;
   qtyBase: number;
+  /** Видов расходников [мин, макс] и пачка [мин, макс]. */
+  consTypes: [number, number];
+  consQty: [number, number];
 }
 
 // Чем выше редкость сундука — тем больше видов ресурсов, чипов и пачек.
 export const CHEST_CONFIG: Record<string, ChestConfig> = {
-  'Обычный': { art: 'normal', resTypes: 3, chipBase: 10, chipPerLevel: 5, qtyBase: 2 },
-  'Редкий': { art: 'rare', resTypes: 4, chipBase: 20, chipPerLevel: 7, qtyBase: 2 },
-  'Раритетный': { art: 'raritet', resTypes: 5, chipBase: 30, chipPerLevel: 10, qtyBase: 3 },
-  'Эпический': { art: 'epic', resTypes: 5, chipBase: 30, chipPerLevel: 10, qtyBase: 3 },
-  'Смертоносный': { art: 'deadly', resTypes: 6, chipBase: 60, chipPerLevel: 15, qtyBase: 4 },
-  'Легендарный': { art: 'legendary', resTypes: 7, chipBase: 100, chipPerLevel: 20, qtyBase: 5 },
-  'Божественный': { art: 'divine', resTypes: 8, chipBase: 150, chipPerLevel: 30, qtyBase: 6 },
+  'Обычный': { art: 'normal', resTypes: 3, chipBase: 10, chipPerLevel: 5, qtyBase: 2, consTypes: [1, 1], consQty: [1, 2] },
+  'Редкий': { art: 'rare', resTypes: 4, chipBase: 20, chipPerLevel: 7, qtyBase: 2, consTypes: [1, 2], consQty: [1, 2] },
+  'Раритетный': { art: 'raritet', resTypes: 5, chipBase: 30, chipPerLevel: 10, qtyBase: 3, consTypes: [2, 2], consQty: [2, 3] },
+  'Эпический': { art: 'epic', resTypes: 5, chipBase: 30, chipPerLevel: 10, qtyBase: 3, consTypes: [2, 3], consQty: [2, 3] },
+  'Смертоносный': { art: 'deadly', resTypes: 6, chipBase: 60, chipPerLevel: 15, qtyBase: 4, consTypes: [3, 3], consQty: [3, 4] },
+  'Легендарный': { art: 'legendary', resTypes: 7, chipBase: 100, chipPerLevel: 20, qtyBase: 5, consTypes: [3, 4], consQty: [3, 4] },
+  'Божественный': { art: 'divine', resTypes: 8, chipBase: 150, chipPerLevel: 30, qtyBase: 6, consTypes: [4, 6], consQty: [3, 5] },
 };
 
 export const configForQuality = (qualityName: string): ChestConfig =>
@@ -102,7 +105,7 @@ export type ChestDrop =
   | { key: string; kind: 'item'; item: GeneratedItem }
   | { key: string; kind: 'resource'; def: (typeof GAME_RESOURCES)[number]; quantity: number }
   | { key: string; kind: 'bullets'; group: (typeof AMMO_GROUPS)[number]['key']; quantity: number }
-  | { key: string; kind: 'consumable'; abilityId: string }
+  | { key: string; kind: 'consumable'; abilityId: string; quantity: number }
   | { key: string; kind: 'chips'; amount: number };
 
 let dropSeq = 0;
@@ -134,13 +137,23 @@ export const rollChestLoot = (chest: Item): ChestDrop[] => {
   // Чипы.
   drops.push({ key: dropKey(), kind: 'chips', amount: cfg.chipBase + level * cfg.chipPerLevel });
 
-  // Сундуки от эпического и выше: пачка патронов + расходник случайных видов.
+  // Сундуки от эпического и выше: пачка патронов случайной группы.
   const tierIdx = QUALITY_TIERS.findIndex((t) => t.name === quality);
   if (tierIdx >= 3) {
     const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
     drops.push({ key: dropKey(), kind: 'bullets', group: g.key, quantity: 15 + Math.floor(Math.random() * 16) });
-    const c = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
-    drops.push({ key: dropKey(), kind: 'consumable', abilityId: c.abilityId });
+  }
+
+  // Расходники по тиру сундука: виды и пачки растут с редкостью.
+  const consPool = [...CONSUMABLE_DEFS];
+  for (let i = consPool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [consPool[i], consPool[j]] = [consPool[j], consPool[i]];
+  }
+  const consN = cfg.consTypes[0] + Math.floor(Math.random() * (cfg.consTypes[1] - cfg.consTypes[0] + 1));
+  for (let i = 0; i < Math.min(consN, consPool.length); i++) {
+    const q = cfg.consQty[0] + Math.floor(Math.random() * (cfg.consQty[1] - cfg.consQty[0] + 1));
+    drops.push({ key: dropKey(), kind: 'consumable', abilityId: consPool[i].abilityId, quantity: q });
   }
 
   return drops;

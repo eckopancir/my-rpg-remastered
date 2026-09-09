@@ -35,7 +35,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
       if (d.kind === 'item') m.set(d.key, d.item as unknown as Item);
       else if (d.kind === 'resource') m.set(d.key, makeResourceItem(d.def, d.quantity));
       else if (d.kind === 'bullets') m.set(d.key, makeBulletPack(d.group, d.quantity));
-      else if (d.kind === 'consumable') m.set(d.key, makeConsumable(d.abilityId, 1));
+      else if (d.kind === 'consumable') m.set(d.key, makeConsumable(d.abilityId, d.quantity));
     }
     return m;
   }, [drops]);
@@ -95,9 +95,9 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
       useInventoryStore.getState().addItem(pack);
       usePlayerStore.getState().addLog(`📦 Из сундука: ${pack.displayName}`, 'loot');
     } else if (drop.kind === 'consumable') {
-      const cons = makeConsumable(drop.abilityId, 1);
+      const cons = makeConsumable(drop.abilityId, drop.quantity);
       useInventoryStore.getState().addItem(cons);
-      usePlayerStore.getState().addLog(`📦 Из сундука: ${cons.displayName || cons.name}`, 'loot');
+      usePlayerStore.getState().addLog(`📦 Из сундука: ${cons.displayName || cons.name} x${drop.quantity}`, 'loot');
     } else {
       usePlayerStore.getState().addChips(drop.amount);
       usePlayerStore.getState().addLog(`📦 Из сундука: 💾${drop.amount} чипов`, 'loot');
@@ -290,7 +290,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                             : drop.kind === 'bullets'
                               ? `${AMMO_GROUP_MAP[drop.group]?.packName ?? 'Патроны'} x${drop.quantity}`
                               : drop.kind === 'consumable'
-                                ? (CONSUMABLE_MAP[drop.abilityId]?.name ?? 'Расходник')
+                                ? `${CONSUMABLE_MAP[drop.abilityId]?.name ?? 'Расходник'} x${drop.quantity}`
                                 : `💾${drop.amount}`}
                       </div>
                     </motion.div>

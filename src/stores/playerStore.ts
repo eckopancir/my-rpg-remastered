@@ -12,7 +12,7 @@ import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SKILL_CLASSES } from '../data/skills';
 import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
-import { takeAmmoFrom, countAmmo, type AmmoGroup } from '../data/ammo';
+import { takeAmmoFrom, countAmmo, makeBulletPack, type AmmoGroup } from '../data/ammo';
 
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots', 'backpack',
@@ -635,6 +635,8 @@ export const usePlayerStore = create<PlayerStore>()(
         if (s.equipment.backpack) return;
         const pack = makeBackpack('Походный рюкзак');
         get().equipItem('backpack', pack);
+        // Стартовый боезапас, чтобы было чем воевать сразу.
+        set({ backpackContents: [makeBulletPack('rifle', 30), makeBulletPack('pistol', 12)] });
       },
 
       takeAmmoFromPack: (group, n) => {
