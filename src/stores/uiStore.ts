@@ -164,7 +164,9 @@ export const useUiStore = create<UiStore>()(
       setInventoryPinPos: (pos) => set({ inventoryPinPos: pos }),
       setEquipmentPinned: (pinned) => set({ equipmentPinned: pinned }),
       setEquipmentPinPos: (pos) => set({ equipmentPinPos: pos }),
-      setBackpackLocked: (locked) => set({ backpackLocked: locked }),
+      setBackpackLocked: (locked: any) => set((s) => ({
+        backpackLocked: typeof locked === 'function' ? !!locked(s.backpackLocked) : !!locked,
+      })),
 
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
       setMusicEnabled: (enabled) => set({ musicEnabled: enabled }),

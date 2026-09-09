@@ -378,7 +378,7 @@ export const Equipment = () => {
             })}
             {/* Замочек рюкзака — справа от слота, не под подписью */}
             <div
-              onClick={(e) => { e.stopPropagation(); setBackpackLocked((v) => !v); }}
+              onClick={(e) => { e.stopPropagation(); setBackpackLocked(!backpackLocked); }}
               title={backpackLocked ? 'Снять замочек' : 'Замочек: клик не снимет рюкзак'}
               style={{
                 position: 'absolute',
