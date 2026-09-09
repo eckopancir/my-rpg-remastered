@@ -78,6 +78,8 @@ export interface GridEnemy {
   coverSeeker?: boolean;
   patrolDir?: { dx: number; dy: number };
   speech?: string | null;
+  // Знает о игроке (видел/стрелял): стелс не включить, пока жив хоть один знающий.
+  knowsPlayer?: boolean;
 }
 
 export interface GridObstacle {
@@ -694,6 +696,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       get().addMessage('❌ Нельзя скрыться — идёт бой');
       return;
     }
+    // Раскрыли: повторно скрыться можно, только когда все свидетели мертвы.
+    const witnessed = s.enemies.some((e) => !e.dead && e.currentHp > 0 && e.knowsPlayer);
+    if (witnessed) {
+      get().addMessage('❌ Тебя раскрыли — убей тех, кто тебя видел');
+      return;
+    }
     set({ stealth: true });
     get().addMessage('🕵️ Скрытность: замечают только в упор (часовые — в 6 клетках)');
   },
@@ -732,28 +740,38 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         for (let dy = 0; dy < (o.h || 1); dy++) taken.add(`${o.x + dx},${o.y + dy}`);
       }
     }
+    const stealthOn = s.stealth;
+    const pDirs = [
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+    ];
     const placed = s.pendingReinforce.map((e) => {
       const spot = findFreeCellNear(corner.x, corner.y, taken);
       taken.add(`${spot.x},${spot.y}`);
-      return { ...e, pos: spot, aiRole: 'reinforce' as const, aggro: true, sleeping: false, speech: null };
+      // Скрытность: подкрепление не знает позицию — прибывает и ищет (патруль).
+      if (stealthOn) {
+        const d = pDirs[Math.floor(Math.random() * pDirs.length)];
+        return { ...e, pos: spot, aiRole: 'patrol' as const, aggro: false, sleeping: false, speech: null, knowsPlayer: false, patrolDir: { ...d } };
+      }
+      return { ...e, pos: spot, aiRole: 'reinforce' as const, aggro: true, sleeping: false, speech: null, knowsPlayer: true };
     });
     set((st) => ({
       enemies: [...st.enemies, ...placed],
       pendingReinforce: [],
       reinforceSpawned: true,
-      message: `⚠️ Подкрепление врага (${placed.length})!`,
-      battleLogs: [...st.battleLogs.slice(-199), `⚠️ Подкрепление (${placed.length}) прибыло с угла карты!`],
+      message: stealthOn ? `⚠️ Подкрепление врага (${placed.length})! Ищет тебя…` : `⚠️ Подкрепление врага (${placed.length})!`,
+      battleLogs: [...st.battleLogs.slice(-199), stealthOn ? `⚠️ Подкрепление (${placed.length}) прибыло — ищет тебя!` : `⚠️ Подкрепление (${placed.length}) прибыло с угла карты!`],
     }));
-    if (placed[0]) get().say(placed[0].id, pickPhrase(REINFORCE_BARK), 3200);
+    if (placed[0] && !stealthOn) get().say(placed[0].id, pickPhrase(REINFORCE_BARK), 3200);
   },
-  // Волна агро: стрельба будит всех в радиусе — бегут в бой.
+  // Волна агро: стрельба будит всех в радиусе — бегут в бой (и запоминают игрока).
   aggroWave: (center, radius = 9) => {
     set((s) => ({
       enemies: s.enemies.map((e) => {
         if (e.dead || e.currentHp <= 0 || e.faction === 'Союзник') return e;
-        if (e.aggro && !e.sleeping) return e;
+        if (e.aggro && e.knowsPlayer && !e.sleeping) return e;
         if (Math.hypot(e.pos.x - center.x, e.pos.y - center.y) > radius) return e;
-        return { ...e, aggro: true, sleeping: false };
+        return { ...e, aggro: true, sleeping: false, knowsPlayer: true };
       }),
     }));
   },
@@ -923,7 +941,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // дальше 3 патрульных, остальные — подкрепление на 20 ход. ---
     const activeEnemies = enemies.slice(0, 9);
     const pendingReinforce: GridEnemy[] = enemies.slice(9).map((e) => ({
-      ...e, aiRole: 'reinforce' as const, aggro: true, sleeping: false, speech: null,
+      ...e, aiRole: 'reinforce' as const, aggro: true, sleeping: false, speech: null, knowsPlayer: true,
     }));
     const taken = new Set<string>([`${playerPos.x},${playerPos.y}`]);
     for (const e of activeEnemies) taken.add(`${e.pos.x},${e.pos.y}`);
@@ -1836,7 +1854,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: s.ap - shotCost,
       ammo: s.ammo - 1,
       enemies: s.enemies.map((e) =>
-        e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true } : e
+        e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true } : e
       ),
       message: `💥 ${result.text}`,
       selectedEnemy: null,

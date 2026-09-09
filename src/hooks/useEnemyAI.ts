@@ -171,13 +171,24 @@ export const useEnemyAI = () => {
       useCombatGridStore.setState({ enemies: [...updatedEnemies] });
       await new Promise((r) => setTimeout(r, 200));
 
+      // saySync: облачко в стор + синк в локальную копию, чтобы поздний
+      // setState этого же хода не затёр реплику stale-копией.
+      const saySync = (id: number | string, text: string, ms?: number) => {
+        useCombatGridStore.getState().say(id, text, ms);
+        const u = updatedEnemies.find((x: any) => x.id === id);
+        if (u) u.speech = text;
+      };
+      // Болтовня слышна в пределах 15 клеток от игрока.
+      const canChatter = (pos: { x: number; y: number }) =>
+        getDist(pos, useCombatGridStore.getState().playerPos) <= 15;
+
       const playerStats = usePlayerStore.getState().stats;
       const isPlayerInvisible = useCombatGridStore.getState().playerInvisible;
 
-      // Подкрепление на 20 ходу: отложенные враги с угла карты.
+      // Подкрепление на 40 ходу: отложенные враги с угла карты.
       {
         const st0 = useCombatGridStore.getState();
-        if (!st0.reinforceSpawned && st0.pendingReinforce.length > 0 && st0.turnCount >= 19) {
+        if (!st0.reinforceSpawned && st0.pendingReinforce.length > 0 && st0.turnCount >= 39) {
           st0.spawnReinforcements();
           await new Promise((r) => setTimeout(r, 800));
           const fresh = useCombatGridStore.getState().enemies;
@@ -212,9 +223,10 @@ export const useEnemyAI = () => {
           if ((!isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= wakeR) || matesFight) {
             enemy.sleeping = false;
             enemy.aggro = true;
+            enemy.knowsPlayer = true;
             updatedEnemies[i] = { ...enemy };
             const stw = useCombatGridStore.getState();
-            stw.say(enemy.id, pickPhrase(WAKE_BARK));
+            saySync(enemy.id, pickPhrase(WAKE_BARK));
             if (stw.stealth) {
               useCombatGridStore.setState({ enemies: [...updatedEnemies], stealth: false });
               useCombatGridStore.getState().addMessage('👁️ Тебя заметили! Скрытность сорвана');
@@ -238,15 +250,15 @@ export const useEnemyAI = () => {
             && o.aggro && getDist(o.pos, enemy.pos) <= 15);
           if (spotted || matesFight) {
             enemy.aggro = true;
+            enemy.knowsPlayer = true;
             updatedEnemies[i] = { ...enemy };
-            const sts = useCombatGridStore.getState();
             if (stealthOn && spotted) {
               // Заметили скрытного: часовой с «❗», скрытность сорвана.
-              sts.say(enemy.id, enemy.aiRole === 'sentry' ? '❗' : pickPhrase(SPOT_BARK));
+              saySync(enemy.id, enemy.aiRole === 'sentry' ? '❗' : pickPhrase(SPOT_BARK));
               useCombatGridStore.setState({ enemies: [...updatedEnemies], stealth: false });
               useCombatGridStore.getState().addMessage('👁️ Тебя заметили! Скрытность сорвана');
             } else {
-              if (isMilitary(enemy)) sts.say(enemy.id, pickPhrase(spotted ? SPOT_BARK : WAKE_BARK));
+              if (isMilitary(enemy)) saySync(enemy.id, pickPhrase(spotted ? SPOT_BARK : WAKE_BARK));
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             }
           }
@@ -254,24 +266,24 @@ export const useEnemyAI = () => {
 
         // --- Camp life: жизнь вне боя по ролям ---
         if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
-          const st = useCombatGridStore.getState();
           if (enemy.aiRole === 'camp') {
             // Стоят у костра, иногда болтают.
-            if (Math.random() < 0.3) st.say(enemy.id, pickPhrase(CAMP_CHATTER));
+            if (Math.random() < 0.3 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(CAMP_CHATTER));
           } else if (enemy.aiRole === 'sentry') {
             // Часовой: вертится (новый поворот), докладывает по рации.
             const rot = Math.floor(Math.random() * 360);
             updatedEnemies[i] = { ...enemy, rotation: rot };
             useCombatGridStore.setState({ enemies: [...updatedEnemies] });
-            if (Math.random() < 0.35) st.say(enemy.id, pickPhrase(SENTRY_RADIO));
+            if (Math.random() < 0.35 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(SENTRY_RADIO));
             // Видит цель в дальности — открывает огонь, но с места не сходит.
             // Скрытного часовой замечает только в 6 клетках.
             const sDist = getDist(enemy.pos, curStore.playerPos);
             const sRange = enemy.rangeDistance || 7;
             const sInRange = sDist <= (useCombatGridStore.getState().stealth ? Math.min(sRange, 6) : sRange);
             const sCanSee = !isPlayerInvisible && checkVisibility(enemy.pos, 0, curStore.playerPos, curStore.obstacles, { range: 40, fov: 360 });
-            if (sCanSee && sInRange) {
+            if (sCanSee && sInRange && !isPlayerInvisible) {
               enemy.aggro = true;
+              enemy.knowsPlayer = true;
               updatedEnemies[i] = { ...enemy };
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             }
@@ -306,7 +318,7 @@ export const useEnemyAI = () => {
               enemy.patrolDir = pDirs[Math.floor(Math.random() * pDirs.length)];
               updatedEnemies[i] = { ...enemy };
             }
-            if (Math.random() < 0.25) st.say(enemy.id, pickPhrase(PATROL_CHATTER));
+            if (Math.random() < 0.25 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(PATROL_CHATTER));
           }
           await new Promise((r) => setTimeout(r, 150));
           // Агронуло по ходу роли (часовой увидел) — дальше обычный бой.
@@ -453,9 +465,9 @@ export const useEnemyAI = () => {
             );
             // Военные кричат в бою при стрельбе.
             if (isMilitary(enemy) && Math.random() < 0.35) {
-              useCombatGridStore.getState().say(enemy.id, pickPhrase(MILITARY_COMBAT_BARK));
+              saySync(enemy.id, pickPhrase(MILITARY_COMBAT_BARK));
             }
-            // Открыл огонь по игроку — все в радиусе 20 от стрелка бегут в бой.
+            // Открыл огонь по игроку — все в радиусе 9 от стрелка бегут в бой.
             if (targetPos.x === currentStore.playerPos.x && targetPos.y === currentStore.playerPos.y) {
               useCombatGridStore.getState().aggroWave(enemy.pos);
             }
@@ -691,7 +703,7 @@ export const useEnemyAI = () => {
                 const eDist = Math.abs(enemy.pos.x - mine.pos.x) + Math.abs(enemy.pos.y - mine.pos.y);
                 if (eDist <= 1) {
                   const dmg = Math.round(mine.damage * (1 - eDist * 0.15));
-                  updatedEnemies[ej] = { ...enemy, currentHp: Math.max(0, enemy.currentHp - dmg), isHit: true, sleeping: false, aggro: true };
+                  updatedEnemies[ej] = { ...enemy, currentHp: Math.max(0, enemy.currentHp - dmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true };
                   useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, `💥 -${dmg}`, 'DMG');
                   if (updatedEnemies[ej].currentHp <= 0) {
                     updatedEnemies[ej].dead = true;

@@ -89,6 +89,8 @@ export const Battle = () => {
   const combatRange = useCombatGridStore((s) => s.range);
   const turn = useCombatGridStore((s) => s.turn);
   const turnCount = useCombatGridStore((s) => s.turnCount);
+  const pendingReinforce = useCombatGridStore((s) => s.pendingReinforce);
+  const reinforceSpawned = useCombatGridStore((s) => s.reinforceSpawned);
   const message = useCombatGridStore((s) => s.message);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
   const enemies = useCombatGridStore((s) => s.enemies);
@@ -345,6 +347,12 @@ export const Battle = () => {
             {message && (
               <div style={{ fontSize: 12, textAlign: 'center', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(251,191,36,0.25)', background: 'rgba(217,119,6,0.08)', color: 'var(--text-primary)' }}>
                 <span style={{ animation: message ? 'pulseText 2s infinite' : 'none' }}>{message}</span>
+              </div>
+            )}
+            {/* Счётчик подкрепления (идёт на 40 ходу) */}
+            {pendingReinforce.length > 0 && !reinforceSpawned && (
+              <div style={{ fontSize: 12, textAlign: 'center', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.4)', background: 'rgba(248,113,113,0.08)', color: '#fca5a5' }}>
+                ⚠️ Подкрепление ({pendingReinforce.length}) через {Math.max(0, 39 - turnCount)} ход.
               </div>
             )}
 
