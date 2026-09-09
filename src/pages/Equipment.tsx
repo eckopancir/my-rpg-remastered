@@ -86,6 +86,8 @@ export const Equipment = () => {
   const [showAllStats, setShowAllStats] = useState(false);
   const [customizing, setCustomizing] = useState<{ item: Item | null; slot: string } | null>(null);
   const [backpackOpen, setBackpackOpen] = useState(false);
+  // Замочек рюкзака: клик по слоту не снимает его.
+  const [backpackLocked, setBackpackLocked] = useState(false);
   const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
   const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
   const [pos, setPos] = useState(equipmentPinPos);
@@ -183,6 +185,11 @@ export const Equipment = () => {
     clickTimer.current = window.setTimeout(() => {
       clickTimer.current = null;
       if (item) {
+        // Замочек: рюкзак кликом не снимается.
+        if (slot === 'backpack' && backpackLocked) {
+          usePlayerStore.getState().addLog('🔒 Рюкзак под замком — сними замочек, чтобы снять.', 'warning');
+          return;
+        }
         handleUnequip(slot as EquipmentSlot);
       } else {
         setCustomizing({ item: null, slot });
@@ -285,6 +292,19 @@ export const Equipment = () => {
         }}>
           {caption}
         </div>
+        {slot === 'backpack' && (
+          <div
+            onClick={(e) => { e.stopPropagation(); setBackpackLocked((v) => !v); }}
+            title={backpackLocked ? 'Снять замочек' : 'Замочек: клик не снимет рюкзак'}
+            style={{
+              fontSize: 13, cursor: 'pointer', lineHeight: 1, marginTop: 2,
+              opacity: backpackLocked ? 1 : 0.45,
+              filter: backpackLocked ? 'drop-shadow(0 0 4px rgba(251,191,36,0.8))' : 'none',
+            }}
+          >
+            {backpackLocked ? '🔒' : '🔓'}
+          </div>
+        )}
         {stars > 0 && (
           <div style={{ fontSize: 9, color: '#fbbf24', lineHeight: 1, whiteSpace: 'nowrap' }}>
             {'★'.repeat(Math.min(stars, 5))}
