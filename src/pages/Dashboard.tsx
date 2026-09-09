@@ -14,7 +14,7 @@ import { WapHeader } from '../components/ui/WapHeader';
 import { WapHudBar } from '../components/ui/WapHudBar';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
-import { generateItem } from '../engine/items';
+import { generateItem, getItemQuality } from '../engine/items';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
@@ -34,8 +34,11 @@ const debugAddConsumables = () => {
 
 const debugAddBackpacks = () => {
   const addItem = useInventoryStore.getState().addItem;
-  for (const d of BACKPACK_DEFS) addItem(makeBackpack(d.name));
-  useUiStore.getState().addToast(`🎒 +${BACKPACK_DEFS.length} рюкзаков`, 'loot');
+  for (const d of BACKPACK_DEFS) {
+    const q = getItemQuality();
+    addItem(makeBackpack(d.name, q.name, q.color));
+  }
+  useUiStore.getState().addToast(`🎒 +${BACKPACK_DEFS.length} рюкзаков (качества роллом)`, 'loot');
 };
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { getItemImage, images } from '../assets/index';

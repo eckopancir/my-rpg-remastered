@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
-import { generateItem } from '../engine/items';
+import { generateItem, getItemQuality } from '../engine/items';
+import { makeBackpack } from '../data/backpacks';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { AMMO_GROUPS, maxStackFor } from '../data/ammo';
 import { CONSUMABLE_DEFS } from '../data/consumables';
@@ -191,18 +192,21 @@ const generateShop = (level: number): ShopItem[] => {
       abilityId: c.abilityId,
     });
   }
-  // Рюкзаки: 2 шт, показываются в Броннике (слот backpack).
+  // Рюкзаки: 2 шт, качество — пирамидой, цена с мультипликатором качества.
+  // Показываются в Броннике (слот backpack).
   const packPick = [...BACKPACK_DEFS].sort(() => Math.random() - 0.5).slice(0, 2);
   for (const p of packPick) {
+    const pq = getItemQuality();
+    const proto = makeBackpack(p.name, pq.name, pq.color, 1);
     items.push({
       id: `pack_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
       name: p.name,
-      displayName: p.name,
+      displayName: proto.displayName,
       level: 1,
       rarity: 'common',
-      quality: 'Обычный',
-      qualityColor: '#94a3b8',
-      price: p.price + level * 3,
+      quality: pq.name,
+      qualityColor: pq.color,
+      price: Math.floor((p.price + level * 3) * (SHOP_QUALITY_MULT[pq.name] || 1)),
       stats: {},
       slot: 'backpack',
       type: 'backpack',
