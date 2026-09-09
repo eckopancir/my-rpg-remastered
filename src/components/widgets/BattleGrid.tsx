@@ -96,11 +96,13 @@ export const BattleGrid = () => {
   const combatRange = useCombatGridStore((s) => s.range);
   const isDefensiveMode = useCombatGridStore((s) => s.isDefensiveMode);
   const effRange = combatRange + (isDefensiveMode ? 3 : 0);
-  // Замер дистанции: зажатая ЛКМ на враге показывает клеток до него.
+  // Замер дистанции: зажатая ПКМ на враге показывает клеток до него.
+  // Начало нажатия на враге — замер (без поворота), иначе — поворот как раньше.
   const [measuring, setMeasuring] = useState<{ x: number; y: number } | null>(null);
+  const measureRef = useRef(false);
   useEffect(() => {
     if (!measuring) return;
-    const up = () => setMeasuring(null);
+    const up = () => { setMeasuring(null); measureRef.current = false; };
     window.addEventListener('mouseup', up);
     return () => window.removeEventListener('mouseup', up);
   }, [measuring]);
@@ -423,7 +425,7 @@ export const BattleGrid = () => {
                 onContextMenu={(e) => e.preventDefault()}
                 onMouseEnter={() => {
                   handleCellHover(x, y);
-                  if (isRightMouseDown.current) rotatePlayer(x, y);
+                  if (isRightMouseDown.current && !measureRef.current) rotatePlayer(x, y);
                 }}
                 data-invalid={pathPoint?.isInvalid ? 'true' : 'false'}
               >
@@ -474,7 +476,7 @@ export const BattleGrid = () => {
                   <div
                     className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered ? ` ${styles.enemyCrosshair}` : ''}${isInRange ? ` ${styles.inRangeEnemy}` : ''}`}
                     style={{ borderColor: ENEMY_COLORS[enemy.faction] || '#a1a1aa', width: enemy.bigModel || '100%', height: enemy.bigModel || '100%', zIndex: 5 }}
-                    onMouseDown={(e) => { if (e.button === 0) setMeasuring({ x, y }); }}
+                    onMouseDown={(e) => { if (e.button === 2) { measureRef.current = true; setMeasuring({ x, y }); } }}
                   >
                     {enemy.isEnraged && <div className={styles.enemyStatusBadge}>💢</div>}
                     {enemy.isInvisible && <div className={styles.enemyStatusBadge}>👤</div>}

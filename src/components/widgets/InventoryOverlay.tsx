@@ -123,6 +123,7 @@ export const InventoryOverlay = () => {
   const items = useInventoryStore((s) => s.items);
   const removeItem = useInventoryStore((s) => s.removeItem);
   const equipItem = usePlayerStore((s) => s.equipItem);
+  const takeOutBackpack = usePlayerStore((s) => s.takeOutBackpack);
   const equipment = usePlayerStore((s) => s.equipment);
   const useConsumable = usePlayerStore((s) => s.useConsumable);
   const addLog = usePlayerStore((s) => s.addLog);
@@ -348,12 +349,15 @@ export const InventoryOverlay = () => {
               </select>
             </div>
 
-            {/* Grid */}
+            {/* Grid (принимает возврат из рюкзака) */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
               gap: 2,
-            }}>
+            }}
+              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) takeOutBackpack(id); }}
+              onDragOver={(e) => e.preventDefault()}
+            >
               {padded.map((stacked, idx) => {
                 if (!stacked) return <div key={`empty-${idx}`} style={{ width: cellSize, height: cellSize }} />;
 

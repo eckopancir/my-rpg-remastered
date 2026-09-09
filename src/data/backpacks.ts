@@ -1,5 +1,5 @@
 import type { Item } from '../types/items';
-import { BULLET_STACK } from './ammo';
+import { maxStackFor, type AmmoGroup } from './ammo';
 
 // Каталог рюкзаков: 6 семейств × 5 градаций = 30 штук.
 // Слоты = baseSlots + индекс качества предмета (Обычный 0 … Божественный 6).
@@ -81,11 +81,12 @@ export interface InsertResult {
 export const tryInsertInto = (contents: Item[], slots: number, item: Item): InsertResult => {
   const next = contents.map((c) => ({ ...c }));
   if (item.type === 'bullet') {
+    const cap = maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle');
     let qty = (item.quantity ?? 1) as number;
     for (const c of next) {
       if (qty <= 0) break;
-      if (c.type === 'bullet' && c.name === item.name && ((c.quantity ?? 1) as number) < BULLET_STACK) {
-        const room = BULLET_STACK - ((c.quantity ?? 1) as number);
+      if (c.type === 'bullet' && c.name === item.name && ((c.quantity ?? 1) as number) < cap) {
+        const room = cap - ((c.quantity ?? 1) as number);
         const mv = Math.min(room, qty);
         c.quantity = ((c.quantity ?? 1) as number) + mv;
         qty -= mv;
@@ -93,7 +94,7 @@ export const tryInsertInto = (contents: Item[], slots: number, item: Item): Inse
     }
     while (qty > 0) {
       if (next.length >= slots) break;
-      const mv = Math.min(BULLET_STACK, qty);
+      const mv = Math.min(cap, qty);
       next.push({ ...item, id: `${item.id}_p${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, quantity: mv });
       qty -= mv;
     }

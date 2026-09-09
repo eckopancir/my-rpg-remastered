@@ -7,6 +7,7 @@ import { getConsumableIcon } from '../../data/consumables';
 import { AMMO_GROUP_MAP, type AmmoGroup } from '../../data/ammo';
 import { backpackSlotsFor, tryInsertInto } from '../../data/backpacks';
 import { ItemTooltip } from './ItemTooltip';
+import { WapHeader } from '../ui/WapHeader';
 import type { Item } from '../../types/items';
 import styles from './BattleGrid.module.css';
 
@@ -156,8 +157,11 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   return (
     <div className={styles.lootOverlay} onClick={onClose}>
-      <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ minWidth: 420 }}>
-        <div className={styles.lootHeader}>🎒 {enemy.name} — рюкзак трупа ({loot.length}/{CORPSE_SLOTS})</div>
+      <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ minWidth: 420, overflow: 'hidden', borderRadius: 8, paddingTop: 0 }}>
+        <WapHeader title={`🎒 ${enemy.name} — рюкзак трупа (${loot.length}/${CORPSE_SLOTS})`} glow="amber" onMouseDown={() => {}}
+          style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))', margin: '0 -20px 12px', width: 'calc(100% + 40px)' }}>
+          <span onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
+        </WapHeader>
         <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 6 }}>
           Тяни к себе · лишнее — обратно трупу · двойной клик — взять
         </div>

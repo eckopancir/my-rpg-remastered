@@ -27,6 +27,18 @@ export const AMMO_GROUP_MAP: Record<AmmoGroup, AmmoGroupDef> = Object.fromEntrie
 
 export const BULLET_STACK = 30;
 
+/** Размер стака по группе: энергоячейки 8, лента 100, дробь 10, пистолетные 20. */
+export const BULLET_STACKS: Record<AmmoGroup, number> = {
+  pistol: 20,
+  rifle: 30,
+  sniper: 30,
+  shell: 10,
+  mg: 100,
+  energy: 8,
+};
+
+export const maxStackFor = (group: AmmoGroup): number => BULLET_STACKS[group] ?? BULLET_STACK;
+
 /**
  * Группа патронов по имени оружия. Явное поле ammoType на предмете
  * имеет приоритет (для будущих исключений), иначе — по ключевым словам.
@@ -61,7 +73,7 @@ export const makeBulletPack = (group: AmmoGroup, quantity: number): Item => {
     qualityColor: 'white',
     level: 1,
     stats: {},
-    description: `${def.desc} Стак до ${BULLET_STACK} шт.`,
+    description: `${def.desc} Стак до ${maxStackFor(group)} шт.`,
     ammoGroup: group,
     price: Math.round(def.price * quantity / BULLET_STACK),
     quantity,

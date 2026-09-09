@@ -109,7 +109,8 @@ export const BackpackWindow = ({ onClose }: Props) => {
         transition={{ duration: 0.15 }}
         style={{ position: 'fixed', left: pos.x, top: pos.y, pointerEvents: 'auto', minWidth: 320, maxWidth: '92vw' }}
       >
-        <WapHeader title={`🎒 ${backpack.displayName || backpack.name} (${contents.length}/${slots})`} glow="amber" onMouseDown={onMouseDown}>
+        <WapHeader title={`🎒 ${backpack.displayName || backpack.name} (${contents.length}/${slots})`} glow="amber" onMouseDown={onMouseDown}
+          style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))' }}>
           <span onClick={(e) => { e.stopPropagation(); playClick(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
         </WapHeader>
         <div
@@ -147,12 +148,23 @@ export const BackpackWindow = ({ onClose }: Props) => {
               {item && (() => {
                 const emoji = cellIcon(item);
                 const url = emoji ? undefined : (item.image || getItemImage(item.name, item.displayName));
-                return emoji ? (
+                const body = emoji ? (
                   <span style={{ fontSize: 26, lineHeight: 1 }}>{emoji}</span>
                 ) : url ? (
                   <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} draggable={false} />
                 ) : (
                   <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
+                );
+                return (
+                  <div
+                    draggable
+                    onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); }}
+                    onDragEnd={() => {}}
+                    title="Тяни в инвентарь"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
+                  >
+                    {body}
+                  </div>
                 );
               })()}
               {item && ((item.quantity ?? 1) > 1 || item.type === 'bullet') && (

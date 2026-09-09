@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem } from '../engine/items';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
-import { AMMO_GROUPS } from '../data/ammo';
+import { AMMO_GROUPS, maxStackFor } from '../data/ammo';
 import { CONSUMABLE_DEFS } from '../data/consumables';
 import { BACKPACK_DEFS } from '../data/backpacks';
 
@@ -147,7 +147,7 @@ const generateShop = (level: number): ShopItem[] => {
   // 8 расходников для боя: 3 пачки патронов + 3 расходника + 2 рюкзака.
   const bulletPick = [...AMMO_GROUPS].sort(() => Math.random() - 0.5).slice(0, 3);
   for (const g of bulletPick) {
-    const qty = 30;
+    const qty = maxStackFor(g.key);
     items.push({
       id: `ammo_${g.key}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
       name: g.packName,

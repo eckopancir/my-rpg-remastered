@@ -1,7 +1,7 @@
 import { getItemImage, images } from '../../assets/index';
 import type { Item } from '../../types/items';
 import { chestImageFor } from '../../data/chests';
-import { ammoGroupName, ammoTypeForWeapon, BULLET_STACK, type AmmoGroup } from '../../data/ammo';
+import { ammoGroupName, ammoTypeForWeapon, maxStackFor, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
@@ -117,7 +117,7 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
 
       {item.type === 'bullet' && (
         <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {BULLET_STACK} шт.
+          🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle')} шт.
         </div>
       )}
       {item.slot === 'weapon2' && item.ammoCapacity && (
