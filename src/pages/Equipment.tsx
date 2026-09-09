@@ -86,8 +86,9 @@ export const Equipment = () => {
   const [showAllStats, setShowAllStats] = useState(false);
   const [customizing, setCustomizing] = useState<{ item: Item | null; slot: string } | null>(null);
   const [backpackOpen, setBackpackOpen] = useState(false);
-  // Замочек рюкзака: клик по слоту не снимает его.
-  const [backpackLocked, setBackpackLocked] = useState(false);
+  // Замочек рюкзака живёт в сторе — переживает обновление страницы.
+  const backpackLocked = useUiStore((s) => s.backpackLocked);
+  const setBackpackLocked = useUiStore((s) => s.setBackpackLocked);
   const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
   const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
   const [pos, setPos] = useState(equipmentPinPos);

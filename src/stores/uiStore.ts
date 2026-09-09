@@ -73,6 +73,8 @@ interface UiStore {
   setInventoryPinPos: (pos: { x: number; y: number }) => void;
   setEquipmentPinned: (pinned: boolean) => void;
   setEquipmentPinPos: (pos: { x: number; y: number }) => void;
+  backpackLocked: boolean;
+  setBackpackLocked: (locked: boolean) => void;
 
   addToast: (message: string, type?: Toast['type']) => void;
   removeToast: (id: string) => void;
@@ -134,6 +136,7 @@ export const useUiStore = create<UiStore>()(
       inventoryPinPos: { x: 60, y: 60 },
       equipmentPinned: false,
       equipmentPinPos: { x: 60, y: 60 },
+      backpackLocked: false,
 
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -160,6 +163,7 @@ export const useUiStore = create<UiStore>()(
       setInventoryPinPos: (pos) => set({ inventoryPinPos: pos }),
       setEquipmentPinned: (pinned) => set({ equipmentPinned: pinned }),
       setEquipmentPinPos: (pos) => set({ equipmentPinPos: pos }),
+      setBackpackLocked: (locked) => set({ backpackLocked: locked }),
 
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
       setMusicEnabled: (enabled) => set({ musicEnabled: enabled }),
@@ -253,7 +257,7 @@ export const useUiStore = create<UiStore>()(
     }),
     {
       name: 'remastered_ui',
-      version: 5,
+      version: 6,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 4) {
@@ -273,6 +277,9 @@ export const useUiStore = create<UiStore>()(
           if (state.confirmExitCombat === undefined) state.confirmExitCombat = true;
           if (state.showEnemyHpNumbers === undefined) state.showEnemyHpNumbers = false;
           if (state.duckMusicInCombat === undefined) state.duckMusicInCombat = false;
+        }
+        if (version < 6) {
+          if (state.backpackLocked === undefined) state.backpackLocked = false;
         }
         return state as UiStore;
       },
@@ -294,6 +301,7 @@ export const useUiStore = create<UiStore>()(
         inventoryPinPos: state.inventoryPinPos,
         equipmentPinned: state.equipmentPinned,
         equipmentPinPos: state.equipmentPinPos,
+        backpackLocked: state.backpackLocked,
       }),
     },
   ),
