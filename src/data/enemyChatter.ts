@@ -964,7 +964,6 @@ export const CORPSE_ALARM: string[] = [
 
 /** 5 легендарных способностей босса: id, имя, крик при использовании. */
 export const BOSS_LEGENDS: { id: string; name: string; say: string }[] = [
-  { id: 'warhorn', name: 'Боевой рёв', say: 'За мной! Рвите их!' },
   { id: 'artillery', name: 'Армагеддон', say: 'Небо падает!' },
   { id: 'leadenrain', name: 'Свинцовый дождь', say: 'Свинца не жалеть!' },
   { id: 'minefield', name: 'Минное поле', say: 'Земля горит под ногами!' },

@@ -2695,22 +2695,6 @@ export async function executeSkill(
     }
 
     // --- Легендарные способности босса (по 1 случайной в бою) ---
-    case 'warhorn': {
-      // Боевой рёв: все живые союзники впадают в ярость (реген, скорость).
-      playCombatSound('m134', 0.4);
-      get().say(enemy.id, 'За мной! Рвите их!');
-      set((s: any) => ({
-        enemies: s.enemies.map((e: GridEnemy) =>
-          e.id !== enemy.id && !e.dead && e.currentHp > 0 && e.faction === enemy.faction
-            ? { ...e, isEnraged: true, rageTurns: 3, regen: (e.regen || 0) * 3 + 2, runAp: (e.runAp || 4) + 2 }
-            : e),
-      }));
-      setCd('warhorn', 8);
-      if (!enemy.cooldowns) enemy.cooldowns = {};
-      enemy.cooldowns['warhorn'] = 8;
-      return { costAp: 2 };
-    }
-
     case 'artillery': {
       // Армагеддон: 3 артудара вокруг игрока (зоны с таймером).
       const artRange = (enemy.rangeDistance || 8) + 6;
