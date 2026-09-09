@@ -513,47 +513,6 @@ export const BattleGrid = () => {
                   >
                     {enemy.isEnraged && <div className={styles.enemyStatusBadge}>💢</div>}
                     {enemy.isInvisible && <div className={styles.enemyStatusBadge}>👤</div>}
-                    {/* Спящий: Zzz над головой */}
-                    {enemy.sleeping && (
-                      <div style={{
-                        position: 'absolute', top: -32, left: '50%', transform: 'translateX(-50%)',
-                        fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', zIndex: 8, pointerEvents: 'none',
-                        color: '#bae6fd', background: 'rgba(8,12,20,0.8)', padding: '1px 7px',
-                        borderRadius: 10, border: '1px solid rgba(186,230,253,0.5)',
-                      }}>
-                        💤 z z z
-                      </div>
-                    )}
-                    {/* Подозрение: чует рядом (5 кл., часовой 8), но не видит — «?» */}
-                    {!enemy.aggro && enemy.faction !== 'Союзник' && (() => {
-                      const d = Math.hypot(enemy.pos.x - playerPos.x, enemy.pos.y - playerPos.y);
-                      const susR = enemy.aiRole === 'sentry' ? 8 : 5;
-                      const detR = stealth ? (enemy.aiRole === 'sentry' ? 6 : 3) : 24;
-                      if (d > susR || d <= detR) return null;
-                      return (
-                        <div style={{
-                          position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
-                          fontSize: 13, fontWeight: 800, zIndex: 8, pointerEvents: 'none',
-                          color: '#fdba74', background: 'rgba(8,12,20,0.8)', padding: '1px 7px',
-                          borderRadius: 10, border: '1px solid rgba(253,186,116,0.6)',
-                        }}>
-                          ❓
-                        </div>
-                      );
-                    })()}
-                    {/* Облачко реплики */}
-                    {enemy.speech && (
-                      <div style={{
-                        position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
-                        marginBottom: 6, maxWidth: 150, minWidth: 40,
-                        background: '#f5f1e6', color: '#1a1a1a', fontSize: 10, lineHeight: 1.25,
-                        padding: '4px 8px', borderRadius: 9, border: '1px solid #8a8a8a',
-                        zIndex: 8, pointerEvents: 'none', textAlign: 'center',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-                      }}>
-                        {enemy.speech}
-                      </div>
-                    )}
                     {isSel && <div className={styles.crosshairCircle} />}
                     {showEnemyHpNumbers && (
                       <div style={{
@@ -627,6 +586,49 @@ export const BattleGrid = () => {
             />
           </div>
         )}
+
+        {/* Реплики и статусы — верхний слой: поверх тумана, костра и всех объектов */}
+        {enemies.map((e) => {
+          if (e.dead || !isCellVisible(e.pos.x, e.pos.y)) return null;
+          const left = `${(e.pos.x / 31) * 100}%`;
+          const top = `${(e.pos.y / 31) * 100}%`;
+          const d = Math.hypot(e.pos.x - playerPos.x, e.pos.y - playerPos.y);
+          const susR = e.aiRole === 'sentry' ? 8 : 5;
+          const detR = stealth ? (e.aiRole === 'sentry' ? 6 : 3) : 24;
+          const showQ = !e.aggro && e.faction !== 'Союзник' && d <= susR && d > detR;
+          if (!e.speech && !e.sleeping && !showQ) return null;
+          return (
+            <div key={`estate-${e.id}`} style={{ position: 'absolute', left, top, width: 0, height: 0, zIndex: 60, pointerEvents: 'none' }}>
+              {e.speech && (
+                <div style={{
+                  position: 'absolute', bottom: 10, left: 0, transform: 'translateX(-50%)',
+                  maxWidth: 150, minWidth: 40,
+                  background: '#f5f1e6', color: '#1a1a1a', fontSize: 10, lineHeight: 1.25,
+                  padding: '4px 8px', borderRadius: 9, border: '1px solid #8a8a8a',
+                  textAlign: 'center', whiteSpace: 'normal',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                }}>
+                  {e.speech}
+                </div>
+              )}
+              {e.sleeping && (
+                <div className={styles.zzzBubble}>
+                  💤 z z z
+                </div>
+              )}
+              {showQ && !e.speech && (
+                <div style={{
+                  position: 'absolute', bottom: 34, left: 0, transform: 'translateX(-50%)',
+                  fontSize: 13, fontWeight: 800,
+                  color: '#fdba74', background: 'rgba(8,12,20,0.85)', padding: '1px 7px',
+                  borderRadius: 10, border: '1px solid rgba(253,186,116,0.6)',
+                }}>
+                  ❓
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {/* Shot tracer */}
         {shotLine && (() => {

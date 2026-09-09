@@ -413,6 +413,30 @@
   100% { transform: translateX(-50%) scale(1); }
 }
 
+/* Zzz спящего — белый пузырь, покачивается */
+.zzzBubble {
+  position: absolute;
+  bottom: 34px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  color: #1a1a1a;
+  background: #f5f1e6;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #8a8a8a;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  animation: zzzFloat 1.6s ease-in-out infinite;
+}
+
+@keyframes zzzFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.85; }
+  50% { transform: translateX(-50%) translateY(-6px); opacity: 1; }
+}
+
 /* Player in woods — stealth opacity */
 .inWoods {
   opacity: 0.4;

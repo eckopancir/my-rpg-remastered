@@ -715,8 +715,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     return changed ? { exploredCells: next } : s;
   }),
-  // Облачко реплики над врагом на N мс (защита от чужих таймеров через battleId).
-  say: (enemyId, text, ms = 2600) => {
+  // Облачко реплики над врагом (по умолчанию висит 4 секунды).
+  say: (enemyId, text, ms = 4000) => {
     const bid = get().battleId;
     set((s) => ({ enemies: s.enemies.map((e) => (e.id === enemyId ? { ...e, speech: text } : e)) }));
     setTimeout(() => {
