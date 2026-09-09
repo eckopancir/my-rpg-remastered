@@ -228,7 +228,6 @@ export const Equipment = () => {
         ? (item.qualityColor || '#818cf8')
         : 'rgba(255,255,255,0.14)';
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
-
     return (
       <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
         <div
@@ -264,7 +263,7 @@ export const Equipment = () => {
         >
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 34 : 40, height: isAmmo ? 30 : 40, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
+              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 44 : 52, height: isAmmo ? 39 : 52, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
               <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 2, textAlign: 'center' }}>
                 {item.level || 0} ур.
               </div>
@@ -286,25 +285,12 @@ export const Equipment = () => {
           )}
         </div>
         <div style={{
-          fontSize: 10, lineHeight: 1.2, textAlign: 'center',
+          fontSize: 10, lineHeight: 1.2, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1,
           color: item ? (item.qualityColor || 'var(--text-secondary)') : 'var(--text-muted)',
           maxWidth: slotW + 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
-          {caption}
+          {SLOT_LABELS[slot] || caption}
         </div>
-        {slot === 'backpack' && (
-          <div
-            onClick={(e) => { e.stopPropagation(); setBackpackLocked((v) => !v); }}
-            title={backpackLocked ? 'Снять замочек' : 'Замочек: клик не снимет рюкзак'}
-            style={{
-              fontSize: 13, cursor: 'pointer', lineHeight: 1, marginTop: 2,
-              opacity: backpackLocked ? 1 : 0.45,
-              filter: backpackLocked ? 'drop-shadow(0 0 4px rgba(251,191,36,0.8))' : 'none',
-            }}
-          >
-            {backpackLocked ? '🔒' : '🔓'}
-          </div>
-        )}
         {stars > 0 && (
           <div style={{ fontSize: 9, color: '#fbbf24', lineHeight: 1, whiteSpace: 'nowrap' }}>
             {'★'.repeat(Math.min(stars, 5))}
@@ -386,6 +372,21 @@ export const Equipment = () => {
                 </div>
               );
             })}
+            {/* Замочек рюкзака — справа от слота, не под подписью */}
+            <div
+              onClick={(e) => { e.stopPropagation(); setBackpackLocked((v) => !v); }}
+              title={backpackLocked ? 'Снять замочек' : 'Замочек: клик не снимет рюкзак'}
+              style={{
+                position: 'absolute',
+                top: SLOT_POSITIONS.backpack.top + 18,
+                left: SLOT_POSITIONS.backpack.left + 76,
+                fontSize: 16, cursor: 'pointer', lineHeight: 1,
+                opacity: backpackLocked ? 1 : 0.45,
+                filter: backpackLocked ? 'drop-shadow(0 0 4px rgba(251,191,36,0.8))' : 'none',
+              }}
+            >
+              {backpackLocked ? '🔒' : '🔓'}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', width: '100%' }}>
             {[

@@ -905,7 +905,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   rotatePlayer: (x, y) => {
     const state = get();
-    if (state.turn !== 'player' || state.isMoving) return;
+    // Вертеться можно всегда (и на ходу врага) — остальное заблокировано как было.
+    if (state.isMoving) return;
     const angle = getAngle(state.playerPos, { x, y });
     set({ playerRotation: angle });
   },

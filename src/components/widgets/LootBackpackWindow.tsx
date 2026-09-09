@@ -234,19 +234,21 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
               </div>
             </div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 5 * (cellPx + 4) }}>
-              {packContents.length === 0 && <div className={styles.lootEmpty}>Пусто</div>}
-              {packContents.map((item: any) => (
-                <Cell
-                  key={item.id}
-                  item={item}
-                  onDrop={onPackDrop}
-                  onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `pack:${id}`); }}
-                  onDoubleClick={() => {}}
-                  onHover={showTip(item)}
-                  onMove={moveTip}
-                  onLeave={() => setTip(null)}
-                />
-              ))}
+              {Array.from({ length: Math.max(packSlots, 1) }).map((_, i) => {
+                const item = packContents[i] ?? null;
+                return (
+                  <Cell
+                    key={item ? item.id : `p-empty-${i}`}
+                    item={item}
+                    onDrop={onPackDrop}
+                    onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `pack:${id}`); }}
+                    onDoubleClick={() => {}}
+                    onHover={item ? showTip(item) : () => {}}
+                    onMove={moveTip}
+                    onLeave={() => setTip(null)}
+                  />
+                );
+              })}
             </div>
           </div>
           {/* СПРАВА: враг и его рюкзак */}
@@ -287,10 +289,18 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <div
             className={styles.lootTakeBtn}
-            style={{ flex: 1, textAlign: 'center', padding: '6px' }}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '8px 6px', fontFamily: "'Courier New', monospace", fontWeight: 700,
+              fontSize: 13, letterSpacing: 3, textTransform: 'uppercase',
+              color: '#e8e3c8', background: 'linear-gradient(180deg, #5a5a34, #3a3a22)',
+              border: '1px solid #8a8a5a', borderRadius: 4,
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.5)',
+              textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+            }}
             onClick={takeAll}
           >
-            ЗАБРАТЬ ВСЁ
+            ★ Забрать всё ★
           </div>
           <div className={styles.lootCloseBtn} onClick={onClose}>ЗАКРЫТЬ</div>
         </div>
