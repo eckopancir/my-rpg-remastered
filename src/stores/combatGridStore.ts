@@ -8,7 +8,8 @@ import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName } from '../data/ammo';
-import { applyTerrainToTarget } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
+import { REINFORCE_BARK, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -70,6 +71,13 @@ export interface GridEnemy {
   stunned?: boolean;
   stunTurns?: number;
   lifetime?: number;
+  // Camp life: роль в лагере, сон, агро, облачко реплики.
+  aiRole?: 'camp' | 'sentry' | 'patrol' | 'reinforce';
+  sleeping?: boolean;
+  aggro?: boolean;
+  coverSeeker?: boolean;
+  patrolDir?: { dx: number; dy: number };
+  speech?: string | null;
 }
 
 export interface GridObstacle {
@@ -148,6 +156,13 @@ export interface CombatGridStore {
   // Туман войны с памятью: разведанные клетки остаются тускло видны.
   exploredCells: Record<string, true>;
   markExplored: (cells: string[]) => void;
+  // Camp life: костёр лагеря, отложенное подкрепление (20 ход), id боя для таймеров.
+  campfire: { x: number; y: number } | null;
+  pendingReinforce: GridEnemy[];
+  reinforceSpawned: boolean;
+  battleId: number;
+  say: (enemyId: number | string, text: string, ms?: number) => void;
+  spawnReinforcements: () => void;
   // Метки укрытий после ПКМ-инспекции точки: иконки на клетках укрытий,
   // дающих бонус этой точке. Живут до следующей инспекции / конца боя.
   coverMarks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>;
@@ -275,6 +290,32 @@ function isCellBlockedBy(x: number, y: number, obstacles: GridObstacle[]): boole
   }
   return false;
 }
+
+/** Ближайшая свободная клетка к точке (спиралью). Занятость — множество "x,y". */
+function findFreeCellNear(
+  x: number,
+  y: number,
+  taken: Set<string>,
+): { x: number; y: number } {
+  const cx = Math.max(0, Math.min(GRID - 1, Math.round(x)));
+  const cy = Math.max(0, Math.min(GRID - 1, Math.round(y)));
+  if (!taken.has(`${cx},${cy}`)) return { x: cx, y: cy };
+  for (let r = 1; r < GRID; r++) {
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+        if (!taken.has(`${nx},${ny}`)) return { x: nx, y: ny };
+      }
+    }
+  }
+  return { x: cx, y: cy };
+}
+
+/** Ближний бой по имени (Военные (melee) и т.п.). */
+const isMeleeEnemy = (name: string): boolean => /melle|melee/i.test(name || '');
 
 export function findPath(
   from: { x: number; y: number },
@@ -630,6 +671,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   reserve: [],
   battleLogs: [],
   exploredCells: {},
+  campfire: null,
+  pendingReinforce: [],
+  reinforceSpawned: false,
+  battleId: 0,
   coverMarks: [],
   setCoverMarks: (marks) => set({ coverMarks: marks }),
   markExplored: (cells) => set((s) => {
@@ -640,6 +685,45 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     return changed ? { exploredCells: next } : s;
   }),
+  // Облачко реплики над врагом на N мс (защита от чужих таймеров через battleId).
+  say: (enemyId, text, ms = 2600) => {
+    const bid = get().battleId;
+    set((s) => ({ enemies: s.enemies.map((e) => (e.id === enemyId ? { ...e, speech: text } : e)) }));
+    setTimeout(() => {
+      if (get().battleId !== bid) return;
+      set((s) => ({
+        enemies: s.enemies.map((e) => (e.id === enemyId && e.speech === text ? { ...e, speech: null } : e)),
+      }));
+    }, ms);
+  },
+  // Подкрепление с угла карты (20 ход): отложенные в pendingReinforce враги.
+  spawnReinforcements: () => {
+    const s = get();
+    if (s.reinforceSpawned || s.pendingReinforce.length === 0) return;
+    const corners = [{ x: 1, y: 30 }, { x: 30, y: 30 }, { x: 30, y: 1 }];
+    const corner = corners[Math.floor(Math.random() * corners.length)];
+    const taken = new Set<string>();
+    taken.add(`${s.playerPos.x},${s.playerPos.y}`);
+    for (const e of s.enemies) taken.add(`${e.pos.x},${e.pos.y}`);
+    for (const o of s.obstacles) {
+      for (let dx = 0; dx < (o.w || 1); dx++) {
+        for (let dy = 0; dy < (o.h || 1); dy++) taken.add(`${o.x + dx},${o.y + dy}`);
+      }
+    }
+    const placed = s.pendingReinforce.map((e) => {
+      const spot = findFreeCellNear(corner.x, corner.y, taken);
+      taken.add(`${spot.x},${spot.y}`);
+      return { ...e, pos: spot, aiRole: 'reinforce' as const, aggro: true, sleeping: false, speech: null };
+    });
+    set((st) => ({
+      enemies: [...st.enemies, ...placed],
+      pendingReinforce: [],
+      reinforceSpawned: true,
+      message: `⚠️ Подкрепление врага (${placed.length})!`,
+      battleLogs: [...st.battleLogs.slice(-199), `⚠️ Подкрепление (${placed.length}) прибыло с угла карты!`],
+    }));
+    if (placed[0]) get().say(placed[0].id, pickPhrase(REINFORCE_BARK), 3200);
+  },
   playerAbilities: [],
   abilityCooldowns: [],
   selectedAbility: null,
@@ -802,14 +886,115 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Бой без врагов (битые ключи карт) — не стартуем, иначе вечный пустой бой.
     if (enemies.length === 0) throw new Error('initCombat: no enemies generated');
 
+    // --- Camp life: первые 4 — лагерь у костра, дальше 2 часовых,
+    // дальше 3 патрульных, остальные — подкрепление на 20 ход. ---
+    const activeEnemies = enemies.slice(0, 9);
+    const pendingReinforce: GridEnemy[] = enemies.slice(9).map((e) => ({
+      ...e, aiRole: 'reinforce' as const, aggro: true, sleeping: false, speech: null,
+    }));
+    const taken = new Set<string>([`${playerPos.x},${playerPos.y}`]);
+    for (const e of activeEnemies) taken.add(`${e.pos.x},${e.pos.y}`);
+
+    // Костёр рядом с первой четвёркой.
+    const campGroup = activeEnemies.slice(0, 4);
+    const campCx = campGroup.reduce((s, e) => s + e.pos.x, 0) / campGroup.length;
+    const campCy = campGroup.reduce((s, e) => s + e.pos.y, 0) / campGroup.length;
+    let campfire = findFreeCellNear(campCx, campCy, taken);
+
+    // Лагерь: кольцо вокруг костра.
+    const ringDirs = [
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+    ];
+    campGroup.forEach((e, k) => {
+      const d = ringDirs[k % ringDirs.length];
+      const spot = findFreeCellNear(campfire.x + d.dx, campfire.y + d.dy, taken);
+      taken.add(`${spot.x},${spot.y}`);
+      e.pos = spot;
+      e.aiRole = 'camp';
+      e.aggro = false;
+      e.sleeping = false;
+      e.speech = null;
+      e.rotation = Math.atan2(campfire.y - spot.y, campfire.x - spot.x) * (180 / Math.PI);
+    });
+    // Спящие у костра: 2 при 4+ в лагере, 1 при 2-3.
+    const sleepCount = campGroup.length >= 4 ? 2 : campGroup.length >= 2 ? 1 : 0;
+    const shuffled = [...campGroup].sort(() => Math.random() - 0.5);
+    for (let s = 0; s < sleepCount; s++) shuffled[s].sleeping = true;
+
+    // Часовые: дальние свободные точки (20+ клеток от игрока), стоят и крутятся.
+    for (let k = 4; k < Math.min(6, activeEnemies.length); k++) {
+      const e = activeEnemies[k];
+      let spot = { x: 30, y: 30 };
+      for (let a = 0; a < 80; a++) {
+        const rx = 4 + Math.floor(Math.random() * (GRID - 8));
+        const ry = 4 + Math.floor(Math.random() * (GRID - 8));
+        if (taken.has(`${rx},${ry}`)) continue;
+        if (Math.hypot(rx - playerPos.x, ry - playerPos.y) < 20) continue;
+        spot = { x: rx, y: ry };
+        break;
+      }
+      const free = findFreeCellNear(spot.x, spot.y, taken);
+      taken.add(`${free.x},${free.y}`);
+      e.pos = free;
+      e.aiRole = 'sentry';
+      e.aggro = false;
+      e.sleeping = false;
+      e.speech = null;
+      e.rotation = Math.floor(Math.random() * 360);
+    }
+
+    // Патруль: тройка рядом, одно случайное направление на всех.
+    const patrolIdx: number[] = [];
+    for (let k = 6; k < Math.min(9, activeEnemies.length); k++) patrolIdx.push(k);
+    if (patrolIdx.length > 0) {
+      const anchor = findFreeCellNear(10 + Math.floor(Math.random() * 12), 8 + Math.floor(Math.random() * 12), taken);
+      const pDirs = [
+        { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+        { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+      ];
+      const sharedDir = pDirs[Math.floor(Math.random() * pDirs.length)];
+      patrolIdx.forEach((k, j) => {
+        const e = activeEnemies[k];
+        const off = ringDirs[j % ringDirs.length];
+        const spot = findFreeCellNear(anchor.x + off.dx, anchor.y + off.dy, taken);
+        taken.add(`${spot.x},${spot.y}`);
+        e.pos = spot;
+        e.aiRole = 'patrol';
+        e.aggro = false;
+        e.sleeping = false;
+        e.speech = null;
+        e.patrolDir = { ...sharedDir };
+        e.rotation = Math.atan2(sharedDir.dy, sharedDir.dx) * (180 / Math.PI);
+      });
+    }
+
+    // Дальники (не ближний бой, не медики): 50% занимают укрытия в бою.
+    for (const e of activeEnemies) {
+      const nm = `${e.name} ${e.factionKey || ''}`;
+      const isMedic = nm.toLowerCase().includes('medic') || nm.toLowerCase().includes('медик');
+      e.coverSeeker = !isMeleeEnemy(nm) && !isMedic && (e.rangeDistance || 7) >= 5 && Math.random() < 0.5;
+    }
+
     // Generate obstacles with safe zones around player and enemies
-    const obstacles = generateObstacles(playerPos, enemies);
+    const obstacles = generateObstacles(playerPos, activeEnemies);
+
+    // Костёр не должен оказаться внутри стены: сдвигаем на свободную.
+    if (!isCellWalkable(campfire.x, campfire.y, obstacles)) {
+      const blocked = new Set<string>(taken);
+      for (const o of obstacles) {
+        for (let dx = 0; dx < (o.w || 1); dx++) {
+          for (let dy = 0; dy < (o.h || 1); dy++) blocked.add(`${o.x + dx},${o.y + dy}`);
+        }
+      }
+      campfire = findFreeCellNear(campfire.x, campfire.y, blocked);
+    }
 
     const playerAbilities = [...usePlayerStore.getState().accessoryAbilities].filter((a) => a && !a.passive);
     const abilityCooldowns = playerAbilities.map(() => 0);
 
     set({
-      isActive: true, playerPos, enemies, obstacles,
+      isActive: true, playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
@@ -821,8 +1006,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       flyingGrenade: null, globalEffects: [], lootingEnemy: null,
       plannedPath: [], reserve: [], battleLogs: ['⚔️ Бой начался!'],
       exploredCells: {},
+      campfire, pendingReinforce, reinforceSpawned: false,
+      battleId: get().battleId + 1,
     });
-    get().addBattleLog(`⚔️ Бой начался! Противников: ${enemies.length}`);
+    get().addBattleLog(`⚔️ Бой начался! Противников: ${activeEnemies.length}`);
     return true;
     } catch (e) {
       console.error('[initCombat]', e);
@@ -1615,7 +1802,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: s.ap - shotCost,
       ammo: s.ammo - 1,
       enemies: s.enemies.map((e) =>
-        e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true } : e
+        e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true } : e
       ),
       message: `💥 ${result.text}`,
       selectedEnemy: null,
@@ -1964,7 +2151,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: BASE_AP, turnCount: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
-      exploredCells: {}, coverMarks: [],
+      exploredCells: {}, coverMarks: [], campfire: null, pendingReinforce: [], reinforceSpawned: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,

@@ -1,10 +1,55 @@
 import { useEffect, useRef } from 'react';
 import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, type GlobalEffect } from '../stores/combatGridStore';
-import { applyTerrainToTarget } from '../engine/terrain';
+import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
+import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
+import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, SPOT_BARK, WAKE_BARK, pickPhrase } from '../data/enemyChatter';
+
+const isMilitary = (e: any): boolean =>
+  (e.faction || '').toLowerCase().includes('воен') || (e.factionKey || '').toLowerCase().includes('воен');
+
+/** Очки укрытия клетки: сумма бонусов брони+блока+уворота. */
+const coverScore = (x: number, y: number, obstacles: any[]): number => {
+  const b = getTerrainBonus({ x, y }, obstacles);
+  return (b.armor || 0) + (b.block || 0) + (b.evasion || 0);
+};
+
+/**
+ * Лучшая клетка для стрельбы: в радиусе R от врага, с прострелом и
+ * дальностью до цели, с максимальным укрытием. Возвращает null если
+ * текущая клетка уже не хуже.
+ */
+const findCoverCell = (
+  from: { x: number; y: number },
+  target: { x: number; y: number },
+  range: number,
+  obstacles: any[],
+  enemies: any[],
+  selfId: number | string,
+): { x: number; y: number } | null => {
+  const R = 6;
+  const cur = coverScore(from.x, from.y, obstacles);
+  let best: { x: number; y: number } | null = null;
+  let bestScore = cur;
+  for (let dx = -R; dx <= R; dx++) {
+    for (let dy = -R; dy <= R; dy++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = from.x + dx;
+      const ny = from.y + dy;
+      if (nx < 0 || ny < 0 || nx >= 32 || ny >= 32) continue;
+      if (!isCellWalkable(nx, ny, obstacles)) continue;
+      if (enemies.some((o: any) => o.id !== selfId && !o.dead && o.currentHp > 0 && o.pos.x === nx && o.pos.y === ny)) continue;
+      if (getDist({ x: nx, y: ny }, target) > range) continue;
+      if (!checkVisibility({ x: nx, y: ny }, 0, target, obstacles, { range: 40, fov: 360 })) continue;
+      const s = coverScore(nx, ny, obstacles);
+      if (s > bestScore + 0.001) { bestScore = s; best = { x: nx, y: ny }; }
+    }
+  }
+  return best;
+};
 
 export const useEnemyAI = () => {
   const turn = useCombatGridStore((s) => s.turn);
@@ -129,6 +174,20 @@ export const useEnemyAI = () => {
       const playerStats = usePlayerStore.getState().stats;
       const isPlayerInvisible = useCombatGridStore.getState().playerInvisible;
 
+      // Подкрепление на 20 ходу: отложенные враги с угла карты.
+      {
+        const st0 = useCombatGridStore.getState();
+        if (!st0.reinforceSpawned && st0.pendingReinforce.length > 0 && st0.turnCount >= 19) {
+          st0.spawnReinforcements();
+          await new Promise((r) => setTimeout(r, 800));
+          const fresh = useCombatGridStore.getState().enemies;
+          for (const ne of fresh) {
+            if (!updatedEnemies.some((u: any) => u.id === (ne as any).id)) updatedEnemies.push({ ...(ne as any) });
+          }
+          useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+        }
+      }
+
       for (let i = 0; i < updatedEnemies.length; i++) {
         const curStore = useCombatGridStore.getState();
         const enemy = updatedEnemies[i];
@@ -138,6 +197,100 @@ export const useEnemyAI = () => {
         if (enemy.stunned) {
           useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, '⚡ ОГЛУШЕН!', 'SPECIAL');
           continue;
+        }
+
+        // --- Camp life: спящие просыпаются, если игрок подошёл близко
+        // или союзники по фракции рядом уже в бою ---
+        if (enemy.sleeping) {
+          const matesFight = updatedEnemies.some((o: any) =>
+            o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
+            && o.aggro && getDist(o.pos, enemy.pos) <= 15);
+          if ((!isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= 8) || matesFight) {
+            enemy.sleeping = false;
+            enemy.aggro = true;
+            updatedEnemies[i] = { ...enemy };
+            useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            useCombatGridStore.getState().say(enemy.id, pickPhrase(WAKE_BARK));
+            await new Promise((r) => setTimeout(r, 400));
+          }
+          continue;
+        }
+
+        // --- Camp life: обнаружение игрока (12 клеток) или бой фракции рядом — агро ---
+        if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
+          const spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= 12;
+          const matesFight = !spotted && updatedEnemies.some((o: any) =>
+            o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
+            && o.aggro && getDist(o.pos, enemy.pos) <= 15);
+          if (spotted || matesFight) {
+            enemy.aggro = true;
+            updatedEnemies[i] = { ...enemy };
+            useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            if (isMilitary(enemy)) useCombatGridStore.getState().say(enemy.id, pickPhrase(spotted ? SPOT_BARK : WAKE_BARK));
+          }
+        }
+
+        // --- Camp life: жизнь вне боя по ролям ---
+        if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
+          const st = useCombatGridStore.getState();
+          if (enemy.aiRole === 'camp') {
+            // Стоят у костра, иногда болтают.
+            if (Math.random() < 0.3) st.say(enemy.id, pickPhrase(CAMP_CHATTER));
+          } else if (enemy.aiRole === 'sentry') {
+            // Часовой: вертится (новый поворот), докладывает по рации.
+            const rot = Math.floor(Math.random() * 360);
+            updatedEnemies[i] = { ...enemy, rotation: rot };
+            useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            if (Math.random() < 0.35) st.say(enemy.id, pickPhrase(SENTRY_RADIO));
+            // Видит цель в дальности — открывает огонь, но с места не сходит.
+            const sDist = getDist(enemy.pos, curStore.playerPos);
+            const sInRange = sDist <= (enemy.rangeDistance || 7);
+            const sCanSee = !isPlayerInvisible && checkVisibility(enemy.pos, 0, curStore.playerPos, curStore.obstacles, { range: 40, fov: 360 });
+            if (sCanSee && sInRange) {
+              enemy.aggro = true;
+              updatedEnemies[i] = { ...enemy };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            }
+          } else if (enemy.aiRole === 'patrol') {
+            // Патруль: шаг в общем направлении, при стене — новое направление.
+            const pDirs = [
+              { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+              { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+            ];
+            let dir = enemy.patrolDir || pDirs[0];
+            const tryStep = (d: { dx: number; dy: number }) => {
+              const nx = enemy.pos.x + d.dx;
+              const ny = enemy.pos.y + d.dy;
+              if (nx < 0 || ny < 0 || nx >= 32 || ny >= 32) return null;
+              if (!isCellWalkable(nx, ny, curStore.obstacles)) return null;
+              if (nx === curStore.playerPos.x && ny === curStore.playerPos.y) return null;
+              if (updatedEnemies.some((o: any) => o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.pos.x === nx && o.pos.y === ny)) return null;
+              return { x: nx, y: ny };
+            };
+            let step = tryStep(dir);
+            if (!step) {
+              dir = pDirs[Math.floor(Math.random() * pDirs.length)];
+              step = tryStep(dir);
+            }
+            if (step) {
+              enemy.pos = { ...step };
+              enemy.patrolDir = { ...dir };
+              enemy.rotation = getAngle({ x: step.x - dir.dx, y: step.y - dir.dy }, step);
+              updatedEnemies[i] = { ...enemy };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            } else {
+              enemy.patrolDir = pDirs[Math.floor(Math.random() * pDirs.length)];
+              updatedEnemies[i] = { ...enemy };
+            }
+            if (Math.random() < 0.25) st.say(enemy.id, pickPhrase(PATROL_CHATTER));
+          }
+          await new Promise((r) => setTimeout(r, 150));
+          // Агронуло по ходу роли (часовой увидел) — дальше обычный бой.
+          if (updatedEnemies[i]?.aggro) {
+            enemy.aggro = true;
+          } else {
+            continue;
+          }
         }
 
         let enemyAp = enemy.runAp || 5;
@@ -237,6 +390,29 @@ export const useEnemyAI = () => {
           const inRange = dist <= (enemy.rangeDistance || 7);
           const canSee = checkVisibility(enemy.pos, 0, targetPos, currentStore.obstacles, { range: 15, fov: 360 });
 
+          // --- Дальник-искатель: стоим открыто, а рядом есть укрытие с прострелом
+          // и хватает AP на шаг+выстрел — сначала шаг к укрытию, потом огонь ---
+          if (enemy.coverSeeker && !isAlly && !isMedic && canSee && inRange) {
+            const crange = enemy.rangeDistance || 7;
+            const cshot = enemy.shotPrice || 1;
+            if (coverScore(enemy.pos.x, enemy.pos.y, currentStore.obstacles) < 0.05 && enemyAp >= 1 + cshot) {
+              const best = findCoverCell(enemy.pos, targetPos, crange, currentStore.obstacles, updatedEnemies, enemy.id);
+              if (best) {
+                const cpath = findPathForEnemy(enemy.pos, best, currentStore.obstacles, updatedEnemies, enemy.id);
+                if (cpath && cpath.length > 1) {
+                  const ns = cpath[1];
+                  const cmoveAngle = getAngle(enemy.pos, ns);
+                  enemy.pos = { ...ns };
+                  updatedEnemies[i] = { ...enemy, rotation: cmoveAngle };
+                  useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                  enemyAp -= 1;
+                  await new Promise((r) => setTimeout(r, 200));
+                  continue;
+                }
+              }
+            }
+          }
+
           if (canSee && inRange && enemyAp >= (enemy.shotPrice || 1) && !isMedic) {
             const angle = getAngle(enemy.pos, targetPos);
             // Play enemy attack sound
@@ -251,6 +427,10 @@ export const useEnemyAI = () => {
             updatedEnemies = updatedEnemies.map((e: any) =>
               e.id === enemy.id ? { ...e, rotation: angle } : e
             );
+            // Военные кричат в бою при стрельбе.
+            if (isMilitary(enemy) && Math.random() < 0.35) {
+              useCombatGridStore.getState().say(enemy.id, pickPhrase(MILITARY_COMBAT_BARK));
+            }
             setTimeout(() => useCombatGridStore.setState({ shotLine: null }), 400);
             setTimeout(() => {
               useCombatGridStore.setState({
@@ -426,6 +606,26 @@ export const useEnemyAI = () => {
 
           if (enemyAp > 0) {
             const curStore2 = useCombatGridStore.getState();
+            // Часовой с места не сходит даже в бою — только стреляет.
+            if (enemy.aiRole === 'sentry') { enemyAp = 0; break; }
+            // Дальник-искатель: шаг к лучшему укрытию с прострелом по цели.
+            if (enemy.coverSeeker && !isAlly && !isMedic) {
+              const mrange = enemy.rangeDistance || 7;
+              const best = findCoverCell(enemy.pos, targetPos, mrange, curStore2.obstacles, updatedEnemies, enemy.id);
+              if (best && (best.x !== enemy.pos.x || best.y !== enemy.pos.y)) {
+                const cpath = findPathForEnemy(enemy.pos, best, curStore2.obstacles, updatedEnemies, enemy.id);
+                if (cpath && cpath.length > 1) {
+                  const ns = cpath[1];
+                  const mmoveAngle = getAngle(enemy.pos, ns);
+                  enemy.pos = { ...ns };
+                  updatedEnemies[i] = { ...enemy, rotation: mmoveAngle };
+                  useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                  enemyAp -= 1;
+                  await new Promise((r) => setTimeout(r, 200));
+                  continue;
+                }
+              }
+            }
             const path = findPathForEnemy(enemy.pos, targetPos, curStore2.obstacles, updatedEnemies, enemy.id);
             if (path && path.length > 1) {
               const nextStep = path[1];
@@ -463,7 +663,7 @@ export const useEnemyAI = () => {
                 const eDist = Math.abs(enemy.pos.x - mine.pos.x) + Math.abs(enemy.pos.y - mine.pos.y);
                 if (eDist <= 1) {
                   const dmg = Math.round(mine.damage * (1 - eDist * 0.15));
-                  updatedEnemies[ej] = { ...enemy, currentHp: Math.max(0, enemy.currentHp - dmg), isHit: true };
+                  updatedEnemies[ej] = { ...enemy, currentHp: Math.max(0, enemy.currentHp - dmg), isHit: true, sleeping: false, aggro: true };
                   useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, `💥 -${dmg}`, 'DMG');
                   if (updatedEnemies[ej].currentHp <= 0) {
                     updatedEnemies[ej].dead = true;

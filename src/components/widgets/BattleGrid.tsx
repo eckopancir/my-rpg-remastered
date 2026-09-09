@@ -51,6 +51,14 @@ export const BattleGrid = () => {
   const reserve = useCombatGridStore((s) => s.reserve);
   const popups = useCombatGridStore((s) => s.popups);
   const coverMarks = useCombatGridStore((s) => s.coverMarks);
+  const campfire = useCombatGridStore((s) => s.campfire);
+  // Анимация костра: два кадра каждые 300мс.
+  const [fireFrame, setFireFrame] = useState(0);
+  useEffect(() => {
+    if (!isActive || !campfire) return;
+    const t = setInterval(() => setFireFrame((f) => (f + 1) % 2), 300);
+    return () => clearInterval(t);
+  }, [isActive, campfire]);
   const playerInvisible = useCombatGridStore((s) => s.playerInvisible);
   const shieldCharges = usePlayerStore((s) => s.stats.shieldCharges);
   const activeEffects = usePlayerStore((s) => s.activeEffects);
@@ -502,6 +510,30 @@ export const BattleGrid = () => {
                   >
                     {enemy.isEnraged && <div className={styles.enemyStatusBadge}>💢</div>}
                     {enemy.isInvisible && <div className={styles.enemyStatusBadge}>👤</div>}
+                    {/* Спящий: Zzz над головой */}
+                    {enemy.sleeping && (
+                      <div style={{
+                        position: 'absolute', top: -32, left: '50%', transform: 'translateX(-50%)',
+                        fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', zIndex: 8, pointerEvents: 'none',
+                        color: '#bae6fd', background: 'rgba(8,12,20,0.8)', padding: '1px 7px',
+                        borderRadius: 10, border: '1px solid rgba(186,230,253,0.5)',
+                      }}>
+                        💤 z z z
+                      </div>
+                    )}
+                    {/* Облачко реплики */}
+                    {enemy.speech && (
+                      <div style={{
+                        position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+                        marginBottom: 6, maxWidth: 150, minWidth: 40,
+                        background: '#f5f1e6', color: '#1a1a1a', fontSize: 10, lineHeight: 1.25,
+                        padding: '4px 8px', borderRadius: 9, border: '1px solid #8a8a8a',
+                        zIndex: 8, pointerEvents: 'none', textAlign: 'center',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                      }}>
+                        {enemy.speech}
+                      </div>
+                    )}
                     {isSel && <div className={styles.crosshairCircle} />}
                     {showEnemyHpNumbers && (
                       <div style={{
@@ -556,6 +588,25 @@ export const BattleGrid = () => {
             style={{ width: '100%', height: '100%', filter: 'blur(6px)', transform: 'scale(1.04)' }}
           />
         </div>
+
+        {/* Костёр лагеря — виден всегда (свет видно издалека), кадры 300мс */}
+        {campfire && (images.campfire1 || images.campfire2) && (
+          <div style={{
+            position: 'absolute',
+            left: `${(campfire.x / 31) * 100}%`,
+            top: `${(campfire.y / 31) * 100}%`,
+            transform: 'translate(-50%, -62%)',
+            width: '6.5%', aspectRatio: '1',
+            zIndex: 3, pointerEvents: 'none',
+          }}>
+            <img
+              src={fireFrame === 0 ? (images.campfire1 || images.campfire2) : (images.campfire2 || images.campfire1)}
+              alt="campfire"
+              draggable={false}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </div>
+        )}
 
         {/* Shot tracer */}
         {shotLine && (() => {
