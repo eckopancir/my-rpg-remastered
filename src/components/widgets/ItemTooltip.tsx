@@ -1,6 +1,7 @@
 import { getItemImage, images } from '../../assets/index';
 import type { Item } from '../../types/items';
 import { chestImageFor } from '../../data/chests';
+import { backpackDefByName, backpackSlots, backpackSlotsFor } from '../../data/backpacks';
 import { ammoGroupName, ammoTypeForWeapon, maxStackFor, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
@@ -120,9 +121,18 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
           🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle')} шт.
         </div>
       )}
+      {item.type === 'backpack' && (() => {
+        const def = backpackDefByName(item.name || '');
+        const slots = def ? backpackSlots(def, item.quality) : backpackSlotsFor(item);
+        return (
+          <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
+            🎒 Слотов: {slots}{def ? ` (база ${def.baseSlots} + качество)` : ''}
+          </div>
+        );
+      })()}
       {item.slot === 'weapon2' && item.ammoCapacity && (
         <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          📀 Вместимость: {item.ammoCapacity} патронов ({ammoGroupName(ammoTypeForWeapon(item))})
+          📀 Вместимость: {item.ammoCapacity} ({ammoGroupName(ammoTypeForWeapon(item))})
         </div>
       )}
       {item.slot === 'mod_magazine' && item.stats?.ammoCapacity && (

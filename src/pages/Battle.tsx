@@ -66,6 +66,11 @@ export const Battle = () => {
   const battleAmmoGroup = battleWeapon ? ammoTypeForWeapon(battleWeapon) : null;
   const battleAmmoReserve = usePlayerStore((s) => (battleAmmoGroup ? countAmmo(s.backpackContents, battleAmmoGroup) : 0));
   const packContents = usePlayerStore((s) => s.backpackContents);
+  // В бою инвентарь недоступен: открыт — принудительно закрываем, открыть не даём.
+  const inventoryOpen = useUiStore((s) => s.inventoryOpen);
+  useEffect(() => {
+    if (isActive && inventoryOpen) useUiStore.getState().setInventoryOpen(false);
+  }, [isActive, inventoryOpen]);
   const consumableCount = (abilityId?: string) => {
     if (!abilityId) return -1;
     let n = 0;

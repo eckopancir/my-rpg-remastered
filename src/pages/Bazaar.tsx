@@ -23,7 +23,7 @@ import { getSellPrice } from '../utils/sellPrice';
 import type { Item } from '../types/items';
 
 const SELL_SLOT_COUNT = 12;
-const SHOP_INTERVAL_MS = 5 * 60 * 60 * 1000; // 5 hours
+const SHOP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const API_BASE = '/api';
 
 interface ShopItem {
@@ -42,6 +42,10 @@ interface ShopItem {
   resourceName?: string;
   abilityId?: string;
   ammoGroup?: string;
+  ammoCapacity?: number;
+  mods?: Record<string, unknown>;
+  set?: string;
+  damage?: string;
 }
 
 const SHOP_QUALITY_MULT: Record<string, number> = {
@@ -103,6 +107,10 @@ const generateCategoryItem = (level: number, validSlots: string[], idx: number):
         slot: single.slot,
         type: single.type,
         abilityId: single.abilityId,
+        ammoCapacity: (single as any).ammoCapacity,
+        mods: (single as any).mods,
+        set: (single as any).set,
+        damage: (single as any).damage,
       };
     }
   }
@@ -144,8 +152,9 @@ const generateShop = (level: number): ShopItem[] => {
       resourceName: def.name,
     });
   }
-  // 8 расходников для боя: 3 пачки патронов + 3 расходника + 2 рюкзака.
-  const bulletPick = [...AMMO_GROUPS].sort(() => Math.random() - 0.5).slice(0, 3);
+  // Расходники: сначала все 6 типов патронов, остаток — боевые расходники.
+  // Рюкзаки генерируются ниже отдельным блоком (витрина Бронника).
+  const bulletPick = [...AMMO_GROUPS];
   for (const g of bulletPick) {
     const qty = maxStackFor(g.key);
     items.push({
@@ -164,7 +173,7 @@ const generateShop = (level: number): ShopItem[] => {
       ammoGroup: g.key,
     });
   }
-  const consPick = [...CONSUMABLE_DEFS].sort(() => Math.random() - 0.5).slice(0, 3);
+  const consPick = [...CONSUMABLE_DEFS].sort(() => Math.random() - 0.5).slice(0, 2);
   for (const c of consPick) {
     items.push({
       id: `cons_${c.abilityId}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
@@ -182,6 +191,7 @@ const generateShop = (level: number): ShopItem[] => {
       abilityId: c.abilityId,
     });
   }
+  // Рюкзаки: 2 шт, показываются в Броннике (слот backpack).
   const packPick = [...BACKPACK_DEFS].sort(() => Math.random() - 0.5).slice(0, 2);
   for (const p of packPick) {
     items.push({
@@ -207,11 +217,11 @@ type SortKey = 'price' | 'level' | 'name' | 'quality';
 // Лавки площади: секции витрины. Цвета — акценты секций.
 const STALLS = [
   { id: 'weapons', label: 'Кузня', icon: '⚔️', flavor: 'Оружие от местных умельцев', color: '#f87171', slots: ['weapon1', 'weapon2'] },
-  { id: 'armor', label: 'Бронник', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'gloves', 'boots'] },
+  { id: 'armor', label: 'Бронник', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'gloves', 'boots', 'backpack'] },
   { id: 'consumables', label: 'Амуниция', icon: '🧪', flavor: 'Амулеты, еда и мелочи', color: '#4ade80', slots: ['ammo'] },
   { id: 'mods', label: 'Модификации', icon: '🔩', flavor: 'Тюнинг снаряжения', color: '#c084fc', slots: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock', 'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'] },
   { id: 'resources', label: 'Ресурсные ряды', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
-  { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны, аптечки и рюкзаки', color: '#fb923c', slots: ['bullet', 'consumable', 'backpack'] },
+  { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны и боевые расходники', color: '#fb923c', slots: ['bullet', 'consumable'] },
 ] as const;
 
 type StallId = typeof STALLS[number]['id'] | 'all';
@@ -440,6 +450,10 @@ export const Bazaar = () => {
           abilityId: shopItem.abilityId,
           quantity: (shopItem as any).quantity || 1,
           ammoGroup: (shopItem as any).ammoGroup,
+          ammoCapacity: (shopItem as any).ammoCapacity,
+          mods: (shopItem as any).mods,
+          set: (shopItem as any).set,
+          damage: (shopItem as any).damage,
         });
       }
       addLog(`🛒 Куплено: ${shopItem.displayName || shopItem.name} за ${json.charged ?? buyPrice} 💾`, 'loot');
@@ -572,7 +586,7 @@ export const Bazaar = () => {
 
   const handleRefresh = async () => {
     if (!token) return;
-    const baseCost = 50 + playerLevel * 10;
+    const baseCost = (50 + playerLevel * 10) * 2;
     const cost = Math.floor(baseCost * (1 - getUtil().refreshDiscount));
     if (dataChips < cost) {
       addLog(`❌ Недостаточно чипов для обновления. Нужно ${cost}`, 'warning');
@@ -615,7 +629,7 @@ export const Bazaar = () => {
             <div style={{ fontSize: 22, fontWeight: 700 }}>🏪 Барахолка</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
               Торговая площадь: лавки мастеров и ресурсные ряды.<br />
-              Новый завоз — каждые 5 часов.
+              Новый завоз — каждые 24 часа.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
