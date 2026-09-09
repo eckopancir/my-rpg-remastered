@@ -84,6 +84,8 @@ export interface GridEnemy {
   sleepTurns?: number;
   // Режим поиска трупа (!!!): идёт к найденному телу.
   searching?: boolean;
+  // Тихая смерть (скрытное убийство): без крика и звуков смерти.
+  silentDeath?: boolean;
 }
 
 export interface GridObstacle {
@@ -752,29 +754,31 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         for (let dy = 0; dy < (o.h || 1); dy++) taken.add(`${o.x + dx},${o.y + dy}`);
       }
     }
-    const stealthOn = s.stealth;
     const pDirs = [
       { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
       { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
     ];
+    // Подкрепление всегда прибывает патрулём с общим направлением:
+    // не спит, позиции игрока не знает (в стелсе — тем более), ищет по детекту.
+    const sharedDir = pDirs[Math.floor(Math.random() * pDirs.length)];
     const placed = s.pendingReinforce.map((e) => {
       const spot = findFreeCellNear(corner.x, corner.y, taken);
       taken.add(`${spot.x},${spot.y}`);
-      // Скрытность: подкрепление не знает позицию — прибывает и ищет (патруль).
-      if (stealthOn) {
-        const d = pDirs[Math.floor(Math.random() * pDirs.length)];
-        return { ...e, pos: spot, aiRole: 'patrol' as const, aggro: false, sleeping: false, speech: null, knowsPlayer: false, patrolDir: { ...d } };
-      }
-      return { ...e, pos: spot, aiRole: 'reinforce' as const, aggro: true, sleeping: false, speech: null, knowsPlayer: true };
+      return {
+        ...e, pos: spot, aiRole: 'reinforce' as const, aggro: false, sleeping: false,
+        sleepTurns: undefined, speech: null, knowsPlayer: false,
+        patrolDir: { ...sharedDir },
+        rotation: Math.atan2(sharedDir.dy, sharedDir.dx) * (180 / Math.PI),
+      };
     });
     set((st) => ({
       enemies: [...st.enemies, ...placed],
       pendingReinforce: [],
       reinforceSpawned: true,
-      message: stealthOn ? `⚠️ Подкрепление врага (${placed.length})! Ищет тебя…` : `⚠️ Подкрепление врага (${placed.length})!`,
-      battleLogs: [...st.battleLogs.slice(-199), stealthOn ? `⚠️ Подкрепление (${placed.length}) прибыло — ищет тебя!` : `⚠️ Подкрепление (${placed.length}) прибыло с угла карты!`],
+      message: `⚠️ Подкрепление врага (${placed.length})! Патрулирует карту`,
+      battleLogs: [...st.battleLogs.slice(-199), `⚠️ Подкрепление (${placed.length}) прибыло с угла карты — патрулирует!`],
     }));
-    if (placed[0] && !stealthOn) get().say(placed[0].id, pickPhrase(REINFORCE_BARK));
+    if (placed[0]) get().say(placed[0].id, pickPhrase(REINFORCE_BARK));
   },
   // Нашёл труп: общая тревога. Всех будим, переводим в поисковый патруль
   // (позиции игрока не знают), сон запрещён до конца боя.
@@ -842,7 +846,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: st.ap - 2,
       enemies: st.enemies.map((e) =>
         e.id === victim.id
-          ? { ...e, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, loot: freshLoot, looted: false, pos: corpsePos }
+          ? { ...e, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, loot: freshLoot, looted: false, pos: corpsePos }
           : e),
       message: `🔪 Скрытное убийство: ${victim.name}`,
       selectedEnemy: null,
@@ -1018,17 +1022,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Бой без врагов (битые ключи карт) — не стартуем, иначе вечный пустой бой.
     if (enemies.length === 0) throw new Error('initCombat: no enemies generated');
 
-    // --- Camp life: первые 4 — лагерь у костра, дальше 2 часовых,
-    // дальше 3 патрульных, остальные — подкрепление на 20 ход. ---
-    const activeEnemies = enemies.slice(0, 9);
-    const pendingReinforce: GridEnemy[] = enemies.slice(9).map((e) => ({
-      ...e, aiRole: 'reinforce' as const, aggro: true, sleeping: false, speech: null, knowsPlayer: true,
+    // --- Camp life: первые 3 — лагерь у костра (1 спит), дальше 2 часовых,
+    // дальше 3 патрульных, остальные — подкрепление на 40 ход. ---
+    const activeEnemies = enemies.slice(0, 8);
+    const pendingReinforce: GridEnemy[] = enemies.slice(8).map((e) => ({
+      ...e, aiRole: 'reinforce' as const, aggro: false, sleeping: false, speech: null, knowsPlayer: false,
     }));
     const taken = new Set<string>([`${playerPos.x},${playerPos.y}`]);
     for (const e of activeEnemies) taken.add(`${e.pos.x},${e.pos.y}`);
 
-    // Костёр рядом с первой четвёркой.
-    const campGroup = activeEnemies.slice(0, 4);
+    // Костёр рядом с первой тройкой.
+    const campGroup = activeEnemies.slice(0, 3);
     const campCx = campGroup.reduce((s, e) => s + e.pos.x, 0) / campGroup.length;
     const campCy = campGroup.reduce((s, e) => s + e.pos.y, 0) / campGroup.length;
     let campfire = findFreeCellNear(campCx, campCy, taken);
@@ -1055,7 +1059,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (let s = 0; s < sleepCount; s++) shuffled[s].sleeping = true;
 
     // Часовые: дальние свободные точки (20+ клеток от игрока), стоят и крутятся.
-    for (let k = 4; k < Math.min(6, activeEnemies.length); k++) {
+    for (let k = 3; k < Math.min(5, activeEnemies.length); k++) {
       const e = activeEnemies[k];
       let spot = { x: 30, y: 30 };
       for (let a = 0; a < 80; a++) {
@@ -1078,7 +1082,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // Патруль: тройка рядом, одно случайное направление на всех.
     const patrolIdx: number[] = [];
-    for (let k = 6; k < Math.min(9, activeEnemies.length); k++) patrolIdx.push(k);
+    for (let k = 5; k < Math.min(8, activeEnemies.length); k++) patrolIdx.push(k);
     if (patrolIdx.length > 0) {
       const anchor = findFreeCellNear(10 + Math.floor(Math.random() * 12), 8 + Math.floor(Math.random() * 12), taken);
       const pDirs = [

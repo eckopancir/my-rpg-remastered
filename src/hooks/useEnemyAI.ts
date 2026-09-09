@@ -249,7 +249,7 @@ export const useEnemyAI = () => {
         // --- Camp life: обнаружение игрока или бой фракции рядом — агро.
         // Вне скрытности радиус обнаружения x2 (24).
         // Скрытного замечают: обычные — в 3 клетках, часовые — в 6 (с «❗») ---
-        if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
+        if (!enemy.aggro && enemy.aiRole) {
           const stealthOn = useCombatGridStore.getState().stealth;
           const detectR = stealthOn ? (enemy.aiRole === 'sentry' ? 6 : 3) : 24;
           const spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= detectR;
@@ -274,11 +274,44 @@ export const useEnemyAI = () => {
         }
 
         // --- Camp life: жизнь вне боя по ролям ---
-        if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
-          // Труп лежит, тревоги ещё нет: 5% в ход — пойти проверить («!!!»).
+        if (!enemy.aggro && enemy.aiRole) {
+          // Шаг патруля: в общем направлении, при стене — новое. chatter — болтовня на ходу.
+          const doPatrolStep = (withChatter: boolean) => {
+            const pDirs = [
+              { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+              { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+            ];
+            let dir = enemy.patrolDir || pDirs[0];
+            const tryStep = (d: { dx: number; dy: number }) => {
+              const nx = enemy.pos.x + d.dx;
+              const ny = enemy.pos.y + d.dy;
+              if (nx < 0 || ny < 0 || nx >= 32 || ny >= 32) return null;
+              if (!isCellWalkable(nx, ny, curStore.obstacles)) return null;
+              if (nx === curStore.playerPos.x && ny === curStore.playerPos.y) return null;
+              if (updatedEnemies.some((o: any) => o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.pos.x === nx && o.pos.y === ny)) return null;
+              return { x: nx, y: ny };
+            };
+            let step = tryStep(dir);
+            if (!step) {
+              dir = pDirs[Math.floor(Math.random() * pDirs.length)];
+              step = tryStep(dir);
+            }
+            if (step) {
+              enemy.pos = { ...step };
+              enemy.patrolDir = { ...dir };
+              enemy.rotation = getAngle({ x: step.x - dir.dx, y: step.y - dir.dy }, step);
+              updatedEnemies[i] = { ...enemy };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            } else {
+              enemy.patrolDir = pDirs[Math.floor(Math.random() * pDirs.length)];
+              updatedEnemies[i] = { ...enemy };
+            }
+            if (withChatter && Math.random() < 0.25 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(PATROL_CHATTER));
+          };
+          // Труп лежит, тревоги ещё нет: бодрствующий вне боя — 10% в ход пойти проверить («!!!»).
           {
             const cs0 = useCombatGridStore.getState();
-            if (cs0.corpseSearch && !cs0.alarmRaised && !enemy.searching && Math.random() < 0.05) {
+            if (cs0.corpseSearch && !cs0.alarmRaised && !enemy.searching && Math.random() < 0.10) {
               enemy.searching = true;
               updatedEnemies[i] = { ...enemy };
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
@@ -301,22 +334,39 @@ export const useEnemyAI = () => {
               updatedEnemies = useCombatGridStore.getState().enemies.map((x: any) => ({ ...x }));
               await new Promise((r) => setTimeout(r, 500));
             } else {
-              for (let stp = 0; stp < 2; stp++) {
+              // Идёт со своей максимальной скоростью (runAp клеток/ход).
+              const maxSteps = enemy.runAp || 4;
+              for (let stp = 0; stp < maxSteps; stp++) {
+                if (Math.max(Math.abs(enemy.pos.x - target.x), Math.abs(enemy.pos.y - target.y)) <= 3) break;
                 const cpath = findPathForEnemy(enemy.pos, target, curStore.obstacles, updatedEnemies, enemy.id);
                 if (!cpath || cpath.length <= 1) break;
                 const ns = cpath[1];
                 const srot = getAngle(enemy.pos, ns);
                 enemy.pos = { ...ns };
                 enemy.rotation = srot;
+                updatedEnemies[i] = { ...enemy };
+                useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                await new Promise((r) => setTimeout(r, 120));
               }
-              updatedEnemies[i] = { ...enemy };
-              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
-              await new Promise((r) => setTimeout(r, 200));
+              // Дошёл и заметил — тревога, иначе в следующем ходу продолжит.
+              if (Math.max(Math.abs(enemy.pos.x - target.x), Math.abs(enemy.pos.y - target.y)) <= 3) {
+                enemy.searching = false;
+                updatedEnemies[i] = { ...enemy };
+                useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                useCombatGridStore.getState().raiseCorpseAlarm(enemy.id);
+                updatedEnemies = useCombatGridStore.getState().enemies.map((x: any) => ({ ...x }));
+                await new Promise((r) => setTimeout(r, 500));
+              } else {
+                updatedEnemies[i] = { ...enemy };
+                useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                await new Promise((r) => setTimeout(r, 200));
+              }
             }
             continue;
           }
           // Вне боя: 5% в ход уснуть на 3 хода (после тревоги сон запрещён).
-          if (!enemy.sleeping && !useCombatGridStore.getState().noSleep && Math.random() < 0.05) {
+          // Подкрепление не спит — патрулирует.
+          if (!enemy.sleeping && enemy.aiRole !== 'reinforce' && !useCombatGridStore.getState().noSleep && Math.random() < 0.05) {
             enemy.sleeping = true;
             enemy.sleepTurns = 3;
             enemy.speech = null;
@@ -347,37 +397,11 @@ export const useEnemyAI = () => {
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             }
           } else if (enemy.aiRole === 'patrol') {
-            // Патруль: шаг в общем направлении, при стене — новое направление.
-            const pDirs = [
-              { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
-              { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
-            ];
-            let dir = enemy.patrolDir || pDirs[0];
-            const tryStep = (d: { dx: number; dy: number }) => {
-              const nx = enemy.pos.x + d.dx;
-              const ny = enemy.pos.y + d.dy;
-              if (nx < 0 || ny < 0 || nx >= 32 || ny >= 32) return null;
-              if (!isCellWalkable(nx, ny, curStore.obstacles)) return null;
-              if (nx === curStore.playerPos.x && ny === curStore.playerPos.y) return null;
-              if (updatedEnemies.some((o: any) => o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.pos.x === nx && o.pos.y === ny)) return null;
-              return { x: nx, y: ny };
-            };
-            let step = tryStep(dir);
-            if (!step) {
-              dir = pDirs[Math.floor(Math.random() * pDirs.length)];
-              step = tryStep(dir);
-            }
-            if (step) {
-              enemy.pos = { ...step };
-              enemy.patrolDir = { ...dir };
-              enemy.rotation = getAngle({ x: step.x - dir.dx, y: step.y - dir.dy }, step);
-              updatedEnemies[i] = { ...enemy };
-              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
-            } else {
-              enemy.patrolDir = pDirs[Math.floor(Math.random() * pDirs.length)];
-              updatedEnemies[i] = { ...enemy };
-            }
-            if (Math.random() < 0.25 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(PATROL_CHATTER));
+            // Патруль: шаг в общем направлении + болтовня.
+            doPatrolStep(true);
+          } else if (enemy.aiRole === 'reinforce') {
+            // Подкрепление: патрулирует вместе (общее направление), молча, не спит.
+            doPatrolStep(false);
           }
           await new Promise((r) => setTimeout(r, 150));
           // Агронуло по ходу роли (часовой увидел) — дальше обычный бой.
