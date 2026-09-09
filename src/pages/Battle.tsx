@@ -448,9 +448,9 @@ export const Battle = () => {
                 background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
               }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 6 }}>💎 СПОСОБНОСТИ</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 56px)', gap: 4, justifyContent: 'start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 42px)', gap: 4, justifyContent: 'start' }}>
                   {playerAbilities.map((ab, i) => {
-                    if (!ab) return <div key={i} style={{ width: 56, height: 62, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6 }} />;
+                    if (!ab) return <div key={i} style={{ width: 42, height: 46, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6 }} />;
                     const cd = abilityCooldowns[i];
                     const isReady = cd <= 0 && ap >= ab.apCost;
                     const isSelected = selectedAbility === i;
@@ -465,8 +465,8 @@ export const Battle = () => {
                         onClick={() => { playClick(); selectAbility(i); }}
                         title={`[${i + 1}] ${ab.name} — ${ab.description}\n${ab.apCost} AP | КД: ${ab.cooldown} хода\n⭐ Сила: ${ab.powerRating}${consLeft >= 0 ? `\n📦 Расходник: осталось ${consLeft}` : ''}`}
                         style={{
-                          width: 56, height: 62, display: 'flex', flexDirection: 'column',
-                          alignItems: 'center', justifyContent: 'center', gap: 1,
+                          width: 42, height: 46, display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', justifyContent: 'center', gap: 0,
                           padding: '3px 2px',
                           border: `1px solid ${isSelected ? 'var(--accent-primary)' : outOfStock ? 'rgba(248,113,113,0.4)' : isReady ? 'rgba(217,119,6,0.4)' : 'rgba(255,255,255,0.06)'}`,
                           background: isSelected ? 'rgba(217,119,6,0.18)' : outOfStock ? 'rgba(248,113,113,0.05)' : isReady ? 'rgba(217,119,6,0.06)' : 'rgba(255,255,255,0.015)',
@@ -476,11 +476,11 @@ export const Battle = () => {
                           borderRadius: 6, position: 'relative',
                         }}
                       >
-                        <span style={{ fontSize: 20, lineHeight: 1 }}>{ab.icon}</span>
-                        <div style={{ fontSize: 9, color: statusColor, fontWeight: 700, lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontSize: 15, lineHeight: 1 }}>{ab.icon}</span>
+                        <div style={{ fontSize: 8, color: statusColor, fontWeight: 700, lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
                           {ab.apCost > 0 ? `${ab.apCost}AP` : 'FREE'}
                         </div>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
                           {cd > 0 ? `КД${cd}` : outOfStock ? 'НЕТ' : statusText}
                         </div>
                         <div style={{
