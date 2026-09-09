@@ -318,7 +318,7 @@ export const useEnemyAI = () => {
               enemy.patrolDir = pDirs[Math.floor(Math.random() * pDirs.length)];
               updatedEnemies[i] = { ...enemy };
             }
-            if (withChatter && Math.random() < 0.25 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(PATROL_CHATTER));
+            if (withChatter && Math.random() < 0.15 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(PATROL_CHATTER));
           };
           // Труп лежит, тревоги ещё нет: бодрствующий вне боя — 10% в ход пойти проверить («!!!»).
           {
@@ -390,13 +390,13 @@ export const useEnemyAI = () => {
           }
           if (enemy.aiRole === 'camp') {
             // Стоят у костра, иногда болтают.
-            if (Math.random() < 0.3 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(CAMP_CHATTER));
+            if (Math.random() < 0.2 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(CAMP_CHATTER));
           } else if (enemy.aiRole === 'sentry') {
             // Часовой: вертится (новый поворот), докладывает по рации.
             const rot = Math.floor(Math.random() * 360);
             updatedEnemies[i] = { ...enemy, rotation: rot };
             useCombatGridStore.setState({ enemies: [...updatedEnemies] });
-            if (Math.random() < 0.35 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(SENTRY_RADIO));
+            if (Math.random() < 0.1 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(SENTRY_RADIO));
             // Видит цель в дальности — открывает огонь, но с места не сходит.
             // Скрытного часовой замечает только в 6 клетках.
             const sDist = getDist(enemy.pos, curStore.playerPos);
@@ -560,7 +560,7 @@ export const useEnemyAI = () => {
               e.id === enemy.id ? { ...e, rotation: angle } : e
             );
             // Военные кричат в бою при стрельбе.
-            if (isMilitary(enemy) && Math.random() < 0.35) {
+            if (isMilitary(enemy) && Math.random() < 0.15) {
               saySync(enemy.id, pickPhrase(MILITARY_COMBAT_BARK));
             }
             // Открыл огонь по игроку — все в радиусе 9 от стрелка бегут в бой.
