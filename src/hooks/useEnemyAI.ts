@@ -247,6 +247,18 @@ export const useEnemyAI = () => {
         }
 
         // --- Camp life: обнаружение игрока или бой фракции рядом — агро.
+        // --- Увидел труп рядом (3 клетки), даже случайно проходя мимо: паника ---
+        // (спящие выше уже continue — они трупов не видят).
+        if (!useCombatGridStore.getState().alarmRaised && enemy.faction !== 'Союзник') {
+          const corpseNear = updatedEnemies.some((o: any) => o.dead
+            && Math.max(Math.abs(o.pos.x - enemy.pos.x), Math.abs(o.pos.y - enemy.pos.y)) <= 3);
+          if (corpseNear) {
+            useCombatGridStore.getState().raiseCorpseAlarm(enemy.id);
+            updatedEnemies = useCombatGridStore.getState().enemies.map((x: any) => ({ ...x }));
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
+
         // Вне скрытности радиус обнаружения x2 (24).
         // Скрытного замечают: обычные — в 3 клетках, часовые — в 6 (с «❗») ---
         if (!enemy.aggro && enemy.aiRole) {

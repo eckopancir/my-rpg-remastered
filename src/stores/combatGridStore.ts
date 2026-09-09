@@ -557,8 +557,10 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   const isNightTime = currentHour >= 0 && currentHour < 6 && !useUiStore.getState().forceDay;
   const nightPenalty = isNightTime && !attacker.isPlayer ? 0.2 : 0;
   const finalAccuracy = Math.max(0, (attacker.accuracy || 0) - nightPenalty);
+  // Форсированный крит (первый выстрел из скрытности): всегда попадает и критует.
+  const forcedMult = (attacker as any).forceCritMult || 0;
 
-  if (Math.random() > finalAccuracy && finalAccuracy < 1) {
+  if (Math.random() > finalAccuracy && finalAccuracy < 1 && !forcedMult) {
     return { damage: 0, type: 'MISS', text: 'ПРОМАХ', sound: null };
   }
 
@@ -574,7 +576,7 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   if (finalAccuracy > 1) {
     if (Math.random() < finalAccuracy - 1) evasionChance = 0;
   }
-  if (Math.random() < evasionChance) {
+  if (Math.random() < evasionChance && !forcedMult) {
     playCombatSound('evasion', 0.3);
     // Чистый урон пробивает уворот (броня/блок/уворот его не касаются).
     const pureDmg = Math.round(attacker.pure || 0);
@@ -585,9 +587,14 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   const critVal = attacker.crit || 0;
   let critMultiplier = 1;
   let isCrit = false;
-  // Крит — шанс, а не гарантия: ролл против min(1, crit).
-  // Мультипликатор тиров ниже не трогаем (сильные билды с crit>=1 критуют всегда).
-  if (critVal > 0 && Math.random() < Math.min(1, critVal)) {
+  // Форсированный крит xN: без ролла, сразу весомый.
+  if (forcedMult > 0) {
+    isCrit = true;
+    critMultiplier = forcedMult;
+    dmg *= critMultiplier;
+    type = 'CRIT';
+    sound = 'crit';
+  } else if (critVal > 0 && Math.random() < Math.min(1, critVal)) {
     isCrit = true;
     const baseTier = Math.floor(critVal);
     const chance = Math.min(critVal - baseTier, 1);
@@ -1022,10 +1029,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Бой без врагов (битые ключи карт) — не стартуем, иначе вечный пустой бой.
     if (enemies.length === 0) throw new Error('initCombat: no enemies generated');
 
-    // --- Camp life: первые 3 — лагерь у костра (1 спит), дальше 2 часовых,
-    // дальше 3 патрульных, остальные — подкрепление на 40 ход. ---
-    const activeEnemies = enemies.slice(0, 8);
-    const pendingReinforce: GridEnemy[] = enemies.slice(8).map((e) => ({
+    // --- Camp life: 1,2,3 — лагерь у костра (1 спит), 4,5,6 — часовые,
+    // 7,8,9 — патруль, 10+ — подкрепление на 40 ход. ---
+    const activeEnemies = enemies.slice(0, 10);
+    const pendingReinforce: GridEnemy[] = enemies.slice(10).map((e) => ({
       ...e, aiRole: 'reinforce' as const, aggro: false, sleeping: false, speech: null, knowsPlayer: false,
     }));
     const taken = new Set<string>([`${playerPos.x},${playerPos.y}`]);
@@ -1059,7 +1066,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (let s = 0; s < sleepCount; s++) shuffled[s].sleeping = true;
 
     // Часовые: дальние свободные точки (20+ клеток от игрока), стоят и крутятся.
-    for (let k = 3; k < Math.min(5, activeEnemies.length); k++) {
+    for (let k = 3; k < Math.min(6, activeEnemies.length); k++) {
       const e = activeEnemies[k];
       let spot = { x: 30, y: 30 };
       for (let a = 0; a < 80; a++) {
@@ -1082,7 +1089,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // Патруль: тройка рядом, одно случайное направление на всех.
     const patrolIdx: number[] = [];
-    for (let k = 5; k < Math.min(8, activeEnemies.length); k++) patrolIdx.push(k);
+    for (let k = 6; k < Math.min(9, activeEnemies.length); k++) patrolIdx.push(k);
     if (patrolIdx.length > 0) {
       const anchor = findFreeCellNear(10 + Math.floor(Math.random() * 12), 8 + Math.floor(Math.random() * 12), taken);
       const pDirs = [
@@ -1927,6 +1934,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       punching: player.stats.punching,
       vampir: player.stats.vampir,
       isPlayer: true,
+      // Первый выстрел из скрытности — всегда критический x5.
+      forceCritMult: state.stealth ? 5 : 0,
     };
     const targetStats = applyTerrainToTarget(
       {

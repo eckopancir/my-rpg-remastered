@@ -81,7 +81,7 @@ const CARD_TEMPLATES: CardTemplate[] = [
       { type: 'medic', weight: 25 },
     ],
     slMin: 15, slMax: 30,
-    enemyMin: 2, enemyMax: 5,
+    enemyMin: 4, enemyMax: 7,
   },
   {
     id: 'arsenal',
@@ -93,7 +93,7 @@ const CARD_TEMPLATES: CardTemplate[] = [
       { type: 'original', weight: 50 },
     ],
     slMin: 30, slMax: 45,
-    enemyMin: 2, enemyMax: 5,
+    enemyMin: 4, enemyMax: 7,
   },
   {
     id: 'warehouse',
@@ -106,7 +106,7 @@ const CARD_TEMPLATES: CardTemplate[] = [
       { type: 'medic', weight: 25 },
     ],
     slMin: 50, slMax: 70,
-    enemyMin: 2, enemyMax: 6,
+    enemyMin: 4, enemyMax: 8,
   },
   {
     id: 'lab',
@@ -132,7 +132,7 @@ const CARD_TEMPLATES: CardTemplate[] = [
       { type: 'boss', weight: 1 },
     ],
     slMin: 1, slMax: 100,
-    enemyMin: 4, enemyMax: 12,
+    enemyMin: 6, enemyMax: 14,
   },
 ];
 
