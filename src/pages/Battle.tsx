@@ -9,6 +9,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
+import { getTerrainBonus } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { getEnemyImage, images } from '../assets/index';
 
@@ -95,6 +96,14 @@ export const Battle = () => {
   const isMoving = useCombatGridStore((s) => s.isMoving);
   const isSelected = useCombatGridStore((s) => s.isSelected);
   const cursorPos = useCombatGridStore((s) => s.cursorPos);
+  const playerPos = useCombatGridStore((s) => s.playerPos);
+  const obstacles = useCombatGridStore((s) => s.obstacles);
+  const myTerrain = getTerrainBonus(playerPos, obstacles);
+  const myTerrainText = [
+    myTerrain.evasion > 0 ? `🌀+${Math.round(myTerrain.evasion * 100)}%` : '',
+    myTerrain.armor > 0 ? `🛡️+${Math.round(myTerrain.armor * 100)}%` : '',
+    myTerrain.block > 0 ? `🧱+${Math.round(myTerrain.block * 100)}%` : '',
+  ].filter(Boolean).join(' ');
   const isVictory = useCombatGridStore((s) => s.isVictory);
   const isDefeat = useCombatGridStore((s) => s.isDefeat);
 
@@ -626,6 +635,19 @@ export const Battle = () => {
                 <span>📏 Дальн. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.rangeDistance || 7}</b></span>
                 <span>💨 ОД <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.runAp || 5}</b></span>
               </div>
+              {(() => {
+                const et = getTerrainBonus(hoverTarget.pos, obstacles);
+                const etext = [
+                  et.evasion > 0 ? `🌀+${Math.round(et.evasion * 100)}%` : '',
+                  et.armor > 0 ? `🛡️+${Math.round(et.armor * 100)}%` : '',
+                  et.block > 0 ? `🧱+${Math.round(et.block * 100)}%` : '',
+                ].filter(Boolean).join(' ');
+                return etext ? (
+                  <div title={et.sources.join('; ')} style={{ fontSize: 11, color: '#4ade80', padding: '0 12px 8px' }}>
+                    🛡️ Укрытие врага: <b style={{ fontFamily: 'var(--font-mono)' }}>{etext}</b>
+                  </div>
+                ) : null;
+              })()}
               {/* Power */}
               <div style={{ padding: '0 12px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, margin: '0 12px', paddingLeft: 0, paddingRight: 0 }}>
                 <span>🟡 МОЩНОСТЬ</span>
@@ -711,6 +733,11 @@ export const Battle = () => {
                 <span>👊 Проб.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.punching || 0) * 100)}%</b></span>
                 <span>🩸 Вамп.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.vampir || 0) * 100)}%</b></span>
               </div>
+              {myTerrainText && (
+                <div title={myTerrain.sources.join('; ')} style={{ marginTop: 6, fontSize: 11, color: '#4ade80', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, textAlign: 'center' }}>
+                  🛡️ Укрытие: <b style={{ fontFamily: 'var(--font-mono)' }}>{myTerrainText}</b>
+                </div>
+              )}
               <div style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, textAlign: 'center' }}>
                 🟡 МОЩНОСТЬ:{' '}
                 <span

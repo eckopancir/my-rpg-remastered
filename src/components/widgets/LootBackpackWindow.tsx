@@ -115,6 +115,8 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   const packContents = usePlayerStore((s) => s.backpackContents);
   const { playClick, playSound } = useSound();
   const [tip, setTip] = useState<{ item: Item; x: number; y: number } | null>(null);
+  // Хинт над скрытой ячейкой: hover работает и там, учит механике обыска.
+  const [hint, setHint] = useState<{ x: number; y: number } | null>(null);
   // Идёт обыск ячеек (флаг держится 1с, потом ячейка открывается навсегда).
   const [searching, setSearching] = useState<Record<string, boolean>>({});
   const timers = useRef<number[]>([]);
@@ -211,6 +213,8 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   const showTip = (item: any) => (e: React.MouseEvent) => setTip({ item, x: e.clientX, y: e.clientY });
   const moveTip = (e: React.MouseEvent) => setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t));
+  const showHint = (e: React.MouseEvent) => setHint({ x: e.clientX, y: e.clientY });
+  const moveHint = (e: React.MouseEvent) => setHint((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t));
   const hiddenCount = loot.filter((i: any) => !(i as any).revealed).length;
   const enemyImg = getEnemyImage(enemy.faction, enemy.name);
 
@@ -269,7 +273,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                     item={item}
                     hidden={isHidden}
                     searching={!!(item && searching[item.id])}
-                    onSearch={() => { if (item) searchCell(item.id); }}
+                    onSearch={() => { if (item) { searchCell(item.id); setHint(null); } }}
                     onDrop={onCorpseDrop}
                     onDragStart={(id, e) => {
                       const it = loot.find((x: any) => x.id === id);
@@ -277,9 +281,9 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                       e.dataTransfer.setData('text/plain', `corpse:${id}`);
                     }}
                     onDoubleClick={() => { if (item) takeFromCorpse(item.id); }}
-                    onHover={item && !isHidden ? showTip(item) : () => {}}
-                    onMove={moveTip}
-                    onLeave={() => setTip(null)}
+                    onHover={item ? (isHidden ? showHint : showTip(item)) : () => {}}
+                    onMove={item ? (isHidden ? moveHint : moveTip) : () => {}}
+                    onLeave={() => { setTip(null); setHint(null); }}
                   />
                 );
               })}
@@ -305,6 +309,17 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
           <div className={styles.lootCloseBtn} onClick={onClose}>ЗАКРЫТЬ</div>
         </div>
         {tip && <ItemTooltip item={tip.item} x={tip.x} y={tip.y} />}
+        {hint && !tip && (
+          <div style={{
+            position: 'fixed', left: Math.min(hint.x + 16, window.innerWidth - 240), top: hint.y - 10,
+            zIndex: 9999, background: '#12121a', border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 6, padding: '8px 12px', pointerEvents: 'none',
+            fontSize: 12, color: 'var(--text-primary)', maxWidth: 220,
+          }}>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>❔ Неизвестно</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Кликни, чтобы обыскать (2с). После обыска здесь будет тултип предмета.</div>
+          </div>
+        )}
       </div>
     </div>
   );

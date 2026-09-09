@@ -34,7 +34,7 @@ const ENEMY_COLORS: Record<string, string> = {
   Неизвестно: '#a1a1aa',
 };
 
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, terrainSummary } from '../../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
@@ -384,7 +384,7 @@ export const BattleGrid = () => {
 
   return (
     <div className={`${styles.container}${isShaking ? ` ${styles.arenaShake}` : ''}`}>
-      <div className={styles.battleScreen} ref={gridRef} style={{ backgroundImage: `url(${images.mapBattle})` }}>
+      <div className={styles.battleScreen} ref={gridRef} style={{ backgroundImage: `url(${images.mapBattle})`, marginTop: 30 }}>
         {isNightTime && (
           <div className={styles.fogCanvas} style={{
             background: `radial-gradient(circle 202px at ${playerXpct}% ${playerYpct}%, transparent 0%, rgba(0,10,0,0.7) 60%, rgba(0,0,0,0.9) 120%)`,
@@ -408,6 +408,12 @@ export const BattleGrid = () => {
             const cur = useCombatGridStore.getState().cursorPos;
             if (!cur || cur.x !== down.x || cur.y !== down.y) return;
             const st = useCombatGridStore.getState();
+            // На клетку встать нельзя — только красная метка, без бонусов.
+            if (!isCellWalkable(down.x, down.y, st.obstacles)) {
+              st.addPopup(down.x, down.y, '📍 ⛔', 'ERROR');
+              st.addMessage(`(${down.x},${down.y}): сюда встать нельзя`);
+              return;
+            }
             const s = terrainSummary(down, st.obstacles);
             st.addPopup(down.x, down.y, s.text, 'BUFF');
             st.addMessage(s.detail);

@@ -13,7 +13,7 @@ const ARMOR_NEAR = new Set(['o24', 'o23', 'o19', 'o7', 'o6', 'o5', 'o2', 'o1']);
 const BLOCK_NEAR = new Set(['o8', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18']);
 
 export const EVASION_WOODS_BONUS = 0.05;
-export const ARMOR_NEAR_BONUS = 0.1;
+export const ARMOR_NEAR_BONUS = 0.05;
 export const BLOCK_NEAR_BONUS = 0.05;
 
 export interface TerrainBonus {
@@ -80,7 +80,7 @@ export const getTerrainBonus = (
     if (distToRect(pos.x, pos.y, o) <= 1) {
       if (ARMOR_NEAR.has(key)) {
         out.armor += ARMOR_NEAR_BONUS;
-        out.sources.push(`${label}: +10% к броне (рядом)`);
+        out.sources.push(`${label}: +5% к броне (рядом)`);
       }
       if (BLOCK_NEAR.has(key)) {
         out.block += BLOCK_NEAR_BONUS;
@@ -126,4 +126,19 @@ export const terrainSummary = (
     text: `📍 ${parts.join(' ')}`,
     detail: `(${pos.x},${pos.y}): ${b.sources.join('; ')}`,
   };
+};
+
+/** Можно ли встать на клетку (нет блокирующего препятствия). */
+export const isCellWalkable = (
+  x: number,
+  y: number,
+  obstacles: Array<TerrainObstacle & { blocks?: boolean }>,
+): boolean => {
+  for (const o of obstacles) {
+    if (!o.blocks || o.isWalkable) continue;
+    const w = o.w ?? 1;
+    const h = o.h ?? 1;
+    if (x >= o.x && x < o.x + w && y >= o.y && y < o.y + h) return false;
+  }
+  return true;
 };
