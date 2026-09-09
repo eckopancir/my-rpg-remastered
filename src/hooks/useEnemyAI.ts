@@ -200,33 +200,53 @@ export const useEnemyAI = () => {
         }
 
         // --- Camp life: спящие просыпаются, если игрок подошёл близко
-        // или союзники по фракции рядом уже в бою ---
+        // или союзники по фракции рядом уже в бою.
+        // Скрытного слышно только в упор (3 клетки вместо 8) ---
         if (enemy.sleeping) {
+          const stealthOn = useCombatGridStore.getState().stealth;
+          const wakeR = stealthOn ? 3 : 8;
           const matesFight = updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
             && o.aggro && getDist(o.pos, enemy.pos) <= 15);
-          if ((!isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= 8) || matesFight) {
+          if ((!isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= wakeR) || matesFight) {
             enemy.sleeping = false;
             enemy.aggro = true;
             updatedEnemies[i] = { ...enemy };
-            useCombatGridStore.setState({ enemies: [...updatedEnemies] });
-            useCombatGridStore.getState().say(enemy.id, pickPhrase(WAKE_BARK));
+            const stw = useCombatGridStore.getState();
+            stw.say(enemy.id, pickPhrase(WAKE_BARK));
+            if (stw.stealth) {
+              useCombatGridStore.setState({ enemies: [...updatedEnemies], stealth: false });
+              useCombatGridStore.getState().addMessage('👁️ Тебя заметили! Скрытность сорвана');
+            } else {
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            }
             await new Promise((r) => setTimeout(r, 400));
           }
           continue;
         }
 
-        // --- Camp life: обнаружение игрока (12 клеток) или бой фракции рядом — агро ---
+        // --- Camp life: обнаружение игрока или бой фракции рядом — агро.
+        // Скрытного замечают: обычные — в 3 клетках, часовые — в 6 (с «❗») ---
         if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
-          const spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= 12;
+          const stealthOn = useCombatGridStore.getState().stealth;
+          const detectR = stealthOn ? (enemy.aiRole === 'sentry' ? 6 : 3) : 12;
+          const spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= detectR;
           const matesFight = !spotted && updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
             && o.aggro && getDist(o.pos, enemy.pos) <= 15);
           if (spotted || matesFight) {
             enemy.aggro = true;
             updatedEnemies[i] = { ...enemy };
-            useCombatGridStore.setState({ enemies: [...updatedEnemies] });
-            if (isMilitary(enemy)) useCombatGridStore.getState().say(enemy.id, pickPhrase(spotted ? SPOT_BARK : WAKE_BARK));
+            const sts = useCombatGridStore.getState();
+            if (stealthOn && spotted) {
+              // Заметили скрытного: часовой с «❗», скрытность сорвана.
+              sts.say(enemy.id, enemy.aiRole === 'sentry' ? '❗' : pickPhrase(SPOT_BARK));
+              useCombatGridStore.setState({ enemies: [...updatedEnemies], stealth: false });
+              useCombatGridStore.getState().addMessage('👁️ Тебя заметили! Скрытность сорвана');
+            } else {
+              if (isMilitary(enemy)) sts.say(enemy.id, pickPhrase(spotted ? SPOT_BARK : WAKE_BARK));
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            }
           }
         }
 
@@ -243,8 +263,10 @@ export const useEnemyAI = () => {
             useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             if (Math.random() < 0.35) st.say(enemy.id, pickPhrase(SENTRY_RADIO));
             // Видит цель в дальности — открывает огонь, но с места не сходит.
+            // Скрытного часовой замечает только в 6 клетках.
             const sDist = getDist(enemy.pos, curStore.playerPos);
-            const sInRange = sDist <= (enemy.rangeDistance || 7);
+            const sRange = enemy.rangeDistance || 7;
+            const sInRange = sDist <= (useCombatGridStore.getState().stealth ? Math.min(sRange, 6) : sRange);
             const sCanSee = !isPlayerInvisible && checkVisibility(enemy.pos, 0, curStore.playerPos, curStore.obstacles, { range: 40, fov: 360 });
             if (sCanSee && sInRange) {
               enemy.aggro = true;

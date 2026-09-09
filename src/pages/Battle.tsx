@@ -111,6 +111,8 @@ export const Battle = () => {
   const selectMe = useCombatGridStore((s) => s.selectMe);
   const reload = useCombatGridStore((s) => s.reload);
   const toggleDefense = useCombatGridStore((s) => s.toggleDefense);
+  const toggleStealth = useCombatGridStore((s) => s.toggleStealth);
+  const stealth = useCombatGridStore((s) => s.stealth);
   const endTurn = useCombatGridStore((s) => s.endTurn);
   const attackEnemy = useCombatGridStore((s) => s.attackEnemy);
   const gridEnemies = useCombatGridStore((s) => s.enemies);
@@ -177,6 +179,7 @@ export const Battle = () => {
         case 'Space': e.preventDefault(); endTurn(); break;
         case 'KeyR': reload(); playSound('reload'); break;
         case 'KeyF': toggleDefense(); break;
+        case 'KeyT': playClick(); toggleStealth(); break;
         case 'Enter': e.preventDefault(); selectMe(); break;
         case 'KeyE': selectMe(); break;
         case 'Digit1': selectAbility(0); break;
@@ -227,7 +230,7 @@ export const Battle = () => {
       window.removeEventListener('keyup', onKeyUp);
       if (moveInterval.current) { clearInterval(moveInterval.current); moveInterval.current = null; }
     };
-  }, [turn, isVictory, isMoving, handleKeyboardMove, selectMe, reload, toggleDefense, endTurn, playSound, selectAbility]);
+  }, [turn, isVictory, isMoving, handleKeyboardMove, selectMe, reload, toggleDefense, toggleStealth, endTurn, playSound, playClick, selectAbility]);
 
   const selectedEnemyData = enemies.find((e) => selectedEnemy !== null && e.id === selectedEnemy);
   const hoverTarget = hoveredEnemy || selectedEnemyData;
@@ -397,6 +400,24 @@ export const Battle = () => {
               >
                 <span>🛡️ Позиция · 2 AP {isDefensiveMode ? '(АКТИВНО)' : ''}</span>
                 <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>F</span>
+              </div>
+
+              <div
+                onClick={() => { playClick(); toggleStealth(); }}
+                style={{
+                  padding: '9px', borderRadius: 6,
+                  border: `1px solid ${stealth ? 'var(--accent-primary)' : 'rgba(255,255,255,0.12)'}`,
+                  background: stealth ? 'rgba(217,119,6,0.15)' : 'rgba(255,255,255,0.03)',
+                  color: stealth ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
+                  fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
+                  opacity: turn !== 'player' ? 0.4 : 1,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}
+                title="Скрытность: замечают только в упор (часовые — в 6 клетках). Слетает при выстреле. Только вне боя."
+              >
+                <span>🥷 Скрытность {stealth ? '(АКТИВНО)' : ''}</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>T</span>
               </div>
 
               <div

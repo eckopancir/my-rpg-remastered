@@ -185,6 +185,7 @@ export const BattleGrid = () => {
   const isNightTime = useCombatGridStore((s) => s.isNightTime);
   const forceDay = useUiStore((s) => s.forceDay);
   const nightOn = isNightTime && !forceDay;
+  const stealth = useCombatGridStore((s) => s.stealth);
   const playerXpct = (playerPos.x / 31) * 100;
   const playerYpct = (playerPos.y / 31) * 100;
 
@@ -499,7 +500,7 @@ export const BattleGrid = () => {
                 {/* Player */}
                 {isPlayer && (
                   <div className={`${styles.unit} ${styles.player}${isPlayerInWoods ? ` ${styles.inWoods}` : ''}${playerLocating ? ` ${styles.locating}` : ''}${playerInvisible ? ` ${styles.invisible}` : ''}${shieldCharges > 0 ? ` ${styles.shieldActive}` : ''}${isBarrierActive ? ` ${styles.barrierActive}` : ''}${isEvasionActive ? ` ${styles.evasionActive}` : ''}`} style={{ zIndex: 10 }}>
-                    <img src={images.hero} alt="hero" className={styles.playerSprite} draggable={false} style={{ transform: `rotate(${playerRotation - 90}deg)` }} />
+                      <img src={images.hero} alt="hero" className={styles.playerSprite} draggable={false} style={{ transform: `rotate(${playerRotation - 90}deg)`, opacity: stealth ? 0.5 : 1 }} />
                   </div>
                 )}
 

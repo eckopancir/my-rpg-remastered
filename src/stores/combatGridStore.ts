@@ -164,7 +164,10 @@ export interface CombatGridStore {
   say: (enemyId: number | string, text: string, ms?: number) => void;
   spawnReinforcements: () => void;
   // Волна агро: все враги (кроме союзников) в радиусе R от точки вступают в бой.
-  aggroWave: (center: { x: number; y: number }, radius?: number) => void;  // Метки укрытий после ПКМ-инспекции точки: иконки на клетках укрытий,
+  aggroWave: (center: { x: number; y: number }, radius?: number) => void;
+  // Скрытность: моделька полупрозрачна, замечают только в упор. Слетает при выстреле/обнаружении.
+  stealth: boolean;
+  toggleStealth: () => void;  // Метки укрытий после ПКМ-инспекции точки: иконки на клетках укрытий,
   // дающих бонус этой точке. Живут до следующей инспекции / конца боя.
   coverMarks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>;
   setCoverMarks: (marks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>) => void;
@@ -677,6 +680,23 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   pendingReinforce: [],
   reinforceSpawned: false,
   battleId: 0,
+  stealth: false,
+  toggleStealth: () => {
+    const s = get();
+    if (s.turn !== 'player') return;
+    if (s.stealth) {
+      set({ stealth: false });
+      get().addMessage('👁️ Скрытность снята');
+      return;
+    }
+    const fighting = s.enemies.some((e) => !e.dead && e.currentHp > 0 && e.aggro);
+    if (fighting) {
+      get().addMessage('❌ Нельзя скрыться — идёт бой');
+      return;
+    }
+    set({ stealth: true });
+    get().addMessage('🥷 Скрытность: замечают только в упор (часовые — в 6 клетках)');
+  },
   coverMarks: [],
   setCoverMarks: (marks) => set({ coverMarks: marks }),
   markExplored: (cells) => set((s) => {
@@ -727,7 +747,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (placed[0]) get().say(placed[0].id, pickPhrase(REINFORCE_BARK), 3200);
   },
   // Волна агро: стрельба будит всех в радиусе — бегут в бой.
-  aggroWave: (center, radius = 20) => {
+  aggroWave: (center, radius = 9) => {
     set((s) => ({
       enemies: s.enemies.map((e) => {
         if (e.dead || e.currentHp <= 0 || e.faction === 'Союзник') return e;
@@ -1021,6 +1041,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       exploredCells: {},
       campfire, pendingReinforce, reinforceSpawned: false,
       battleId: get().battleId + 1,
+      stealth: false,
     });
     get().addBattleLog(`⚔️ Бой начался! Противников: ${activeEnemies.length}`);
     return true;
@@ -1819,6 +1840,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ),
       message: `💥 ${result.text}`,
       selectedEnemy: null,
+      // Выстрел срывает скрытность.
+      stealth: false,
     }));
 
     get().addPopup(enemy.pos.x, enemy.pos.y, result.text, result.type);
@@ -2167,7 +2190,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: BASE_AP, turnCount: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
-      exploredCells: {}, coverMarks: [], campfire: null, pendingReinforce: [], reinforceSpawned: false,
+      exploredCells: {}, coverMarks: [], campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,
