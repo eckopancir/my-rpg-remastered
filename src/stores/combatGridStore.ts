@@ -163,7 +163,8 @@ export interface CombatGridStore {
   battleId: number;
   say: (enemyId: number | string, text: string, ms?: number) => void;
   spawnReinforcements: () => void;
-  // Метки укрытий после ПКМ-инспекции точки: иконки на клетках укрытий,
+  // Волна агро: все враги (кроме союзников) в радиусе R от точки вступают в бой.
+  aggroWave: (center: { x: number; y: number }, radius?: number) => void;  // Метки укрытий после ПКМ-инспекции точки: иконки на клетках укрытий,
   // дающих бонус этой точке. Живут до следующей инспекции / конца боя.
   coverMarks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>;
   setCoverMarks: (marks: Array<{ x: number; y: number; kind: 'evasion' | 'armor' | 'block' }>) => void;
@@ -723,6 +724,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       battleLogs: [...st.battleLogs.slice(-199), `⚠️ Подкрепление (${placed.length}) прибыло с угла карты!`],
     }));
     if (placed[0]) get().say(placed[0].id, pickPhrase(REINFORCE_BARK), 3200);
+  },
+  // Волна агро: стрельба будит всех в радиусе — бегут в бой.
+  aggroWave: (center, radius = 20) => {
+    set((s) => ({
+      enemies: s.enemies.map((e) => {
+        if (e.dead || e.currentHp <= 0 || e.faction === 'Союзник') return e;
+        if (e.aggro && !e.sleeping) return e;
+        if (Math.hypot(e.pos.x - center.x, e.pos.y - center.y) > radius) return e;
+        return { ...e, aggro: true, sleeping: false };
+      }),
+    }));
   },
   playerAbilities: [],
   abilityCooldowns: [],
@@ -1809,6 +1821,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
 
     get().addPopup(enemy.pos.x, enemy.pos.y, result.text, result.type);
+
+    // Выстрел услышали все в радиусе 20 от жертвы — бегут в бой.
+    get().aggroWave(enemy.pos);
 
     // Vamp + regen
     usePlayerStore.setState((st) => ({

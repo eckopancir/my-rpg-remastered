@@ -431,6 +431,10 @@ export const useEnemyAI = () => {
             if (isMilitary(enemy) && Math.random() < 0.35) {
               useCombatGridStore.getState().say(enemy.id, pickPhrase(MILITARY_COMBAT_BARK));
             }
+            // Открыл огонь по игроку — все в радиусе 20 от стрелка бегут в бой.
+            if (targetPos.x === currentStore.playerPos.x && targetPos.y === currentStore.playerPos.y) {
+              useCombatGridStore.getState().aggroWave(enemy.pos);
+            }
             setTimeout(() => useCombatGridStore.setState({ shotLine: null }), 400);
             setTimeout(() => {
               useCombatGridStore.setState({
