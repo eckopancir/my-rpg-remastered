@@ -32,7 +32,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
   const putInBackpack = usePlayerStore((s) => s.putInBackpack);
   const takeOutBackpack = usePlayerStore((s) => s.takeOutBackpack);
   const addLog = usePlayerStore((s) => s.addLog);
-  const { playClick } = useSound();
+  const { playClick, playSound } = useSound();
   const [tip, setTip] = useState<{ item: Item; x: number; y: number } | null>(null);
   const [pos, setPos] = useState(() => ({
     x: Math.max(0, (window.innerWidth - 360) / 2),
@@ -92,7 +92,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
     const itemId = e.dataTransfer.getData('text/plain');
     if (!itemId) return;
     const msg = putInBackpack(itemId);
-    playClick();
+    playSound('laying-out-a-travel-mat', 0.5);
     addLog(msg, msg.startsWith('❌') || msg.startsWith('⚠️') ? 'warning' : 'info');
   };
 

@@ -129,7 +129,7 @@ export const InventoryOverlay = () => {
   const addLog = usePlayerStore((s) => s.addLog);
   const dataChips = usePlayerStore((s) => s.dataChips);
   const stats = usePlayerStore((s) => s.stats);
-  const { playClick, playEquip } = useSound();
+  const { playClick, playEquip, playSound } = useSound();
 
   const [pos, setPos] = useState(inventoryPinPos);
   const [page, setPage] = useState(0);
@@ -355,7 +355,14 @@ export const InventoryOverlay = () => {
               gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
               gap: 2,
             }}
-              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) takeOutBackpack(id); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const id = e.dataTransfer.getData('text/plain');
+                if (!id) return;
+                const wasInPack = usePlayerStore.getState().backpackContents.some((i) => i.id === id);
+                takeOutBackpack(id);
+                if (wasInPack) playSound('laying-out-a-travel-mat', 0.5);
+              }}
               onDragOver={(e) => e.preventDefault()}
             >
               {padded.map((stacked, idx) => {

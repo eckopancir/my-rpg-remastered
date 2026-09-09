@@ -136,7 +136,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
     const item = loot.find((i: any) => i.id === itemId);
     if (!item || (item as any).revealed || searching[itemId]) return;
     setSearching((s) => ({ ...s, [itemId]: true }));
-    playSound('movement_fytz-wvu', 0.5);
+    playSound('sherst--myagkiy-shoroh', 0.5);
     timers.current.push(window.setTimeout(() => {
       setSearching((s) => {
         const n = { ...s };
@@ -162,7 +162,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
     if (leftoverQty > 0) rest.push({ ...item, quantity: leftoverQty });
     refreshEnemyLoot(rest);
     usePlayerStore.setState({ backpackContents: contents });
-    playClick();
+    playSound('laying-out-a-travel-mat', 0.5);
   };
 
   // Свой рюкзак -> труп (освободить место свопом).
@@ -174,7 +174,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
     const item = ps.backpackContents[idx];
     refreshEnemyLoot([...loot, item]);
     usePlayerStore.setState({ backpackContents: ps.backpackContents.filter((_, i) => i !== idx) });
-    playClick();
+    playSound('laying-out-a-travel-mat', 0.5);
   };
 
   // Drop на ячейку трупа: принимаем только из своего рюкзака.
@@ -203,7 +203,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
       movedAny = true;
     }
     refreshEnemyLoot(cur);
-    if (movedAny) playClick();
+    if (movedAny) playSound('laying-out-a-travel-mat', 0.5);
     else say('❌ Свой рюкзак полон! Освободи место.');
   };
 

@@ -78,7 +78,7 @@ export const Equipment = () => {
   const setEquipmentPinned = useUiStore((s) => s.setEquipmentPinned);
   const equipmentPinPos = useUiStore((s) => s.equipmentPinPos);
   const setEquipmentPinPos = useUiStore((s) => s.setEquipmentPinPos);
-  const { playEquip } = useSound();
+  const { playSound } = useSound();
 
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -142,7 +142,7 @@ export const Equipment = () => {
     if (item.slot && item.slot !== slot && !(item.slot === 'ammo' && slot.startsWith('ammo'))) return;
     if (equipItem(slot, item)) {
       removeItem(item.id);
-      playEquip();
+      playSound('putting-on-a-safety-belt', 0.5);
     }
   };
 
@@ -150,7 +150,10 @@ export const Equipment = () => {
 
   const handleUnequip = (slot: EquipmentSlot) => {
     const item = unequipItem(slot);
-    if (item) addItem(item);
+    if (item) {
+      addItem(item);
+      playSound('putting-on-a-safety-belt', 0.5);
+    }
     setTooltipItem(null);
   };
 
