@@ -27,14 +27,14 @@ export const AMMO_GROUP_MAP: Record<AmmoGroup, AmmoGroupDef> = Object.fromEntrie
 
 export const BULLET_STACK = 30;
 
-/** Размер стака по группе: энергоячейки 8, лента 100, дробь 10, пистолетные 20. */
+/** Размер стака по группе: энергоячейки 15, снайперские 10, лента 100, дробь 10, пистолетные 20. */
 export const BULLET_STACKS: Record<AmmoGroup, number> = {
   pistol: 20,
   rifle: 30,
-  sniper: 30,
+  sniper: 10,
   shell: 10,
   mg: 100,
-  energy: 8,
+  energy: 15,
 };
 
 export const maxStackFor = (group: AmmoGroup): number => BULLET_STACKS[group] ?? BULLET_STACK;

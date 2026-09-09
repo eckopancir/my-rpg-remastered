@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useSound } from '../../hooks/useSound';
-import { getItemImage } from '../../assets/index';
+import { getEnemyImage, getItemImage, images } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
 import { AMMO_GROUP_MAP, type AmmoGroup } from '../../data/ammo';
 import { backpackSlotsFor, tryInsertInto } from '../../data/backpacks';
@@ -23,8 +23,11 @@ const iconFor = (item: any): string | null => {
   return null;
 };
 
-const Cell = ({ item, onDrop, onDragStart, onDoubleClick, onHover, onMove, onLeave }: {
+const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDoubleClick, onHover, onMove, onLeave }: {
   item: any | null;
+  hidden?: boolean;
+  searching?: boolean;
+  onSearch?: () => void;
   onDrop: (itemId: string) => void;
   onDragStart: (id: string, e: React.DragEvent) => void;
   onDoubleClick: () => void;
@@ -32,6 +35,35 @@ const Cell = ({ item, onDrop, onDragStart, onDoubleClick, onHover, onMove, onLea
   onMove: (e: React.MouseEvent) => void;
   onLeave: () => void;
 }) => {
+  // Скрытая ячейка трупа — туман неизвестности, клик = обыск 1с.
+  if (item && hidden) {
+    return (
+      <div
+        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const id = e.dataTransfer.getData('text/plain'); if (id) onDrop(id); }}
+        onDragOver={(e) => e.preventDefault()}
+        onClick={onSearch}
+        onMouseEnter={onHover}
+        onMouseMove={onMove}
+        onMouseLeave={onLeave}
+        title="Клик — обыскать (1с)"
+        style={{
+          width: cellPx, height: cellPx,
+          background: searching
+            ? 'rgba(217,119,6,0.18)'
+            : 'repeating-linear-gradient(45deg, rgba(0,0,0,0.75), rgba(0,0,0,0.75) 4px, rgba(60,60,70,0.5) 4px, rgba(60,60,70,0.5) 8px)',
+          border: '1px dashed rgba(255,255,255,0.3)',
+          borderRadius: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', cursor: 'pointer',
+          animation: searching ? 'lootSearchPulse 0.5s ease-in-out infinite' : 'none',
+        }}
+      >
+        <span style={{ fontSize: 20, lineHeight: 1 }}>{searching ? '🔍' : '❔'}</span>
+        <span style={{ fontSize: 8, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+          {searching ? 'поиск…' : 'обыскать'}
+        </span>
+      </div>
+    );
+  }
   const emoji = item ? iconFor(item) : null;
   const url = item && !emoji ? (item.image || getItemImage(item.name, item.displayName)) : undefined;
   return (
@@ -81,8 +113,12 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   const enemy = useCombatGridStore((s) => s.enemies.find((e: any) => e.id === enemyId));
   const pack = usePlayerStore((s) => s.equipment.backpack);
   const packContents = usePlayerStore((s) => s.backpackContents);
-  const { playClick } = useSound();
+  const { playClick, playSound } = useSound();
   const [tip, setTip] = useState<{ item: Item; x: number; y: number } | null>(null);
+  // Идёт обыск ячеек (флаг держится 1с, потом ячейка открывается навсегда).
+  const [searching, setSearching] = useState<Record<string, boolean>>({});
+  const timers = useRef<number[]>([]);
+  useEffect(() => () => { timers.current.forEach((t) => window.clearTimeout(t)); }, []);
 
   const packSlots = backpackSlotsFor(pack);
   const loot: any[] = (enemy?.loot ?? []).slice(0, CORPSE_SLOTS);
@@ -95,10 +131,30 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   const say = (msg: string) => useCombatGridStore.getState().addMessage(msg);
 
-  // Труп -> свой рюкзак.
+  // Обыск скрытой ячейки: 1с — и содержимое видно навсегда (флаг на предмете).
+  const searchCell = (itemId: string) => {
+    const item = loot.find((i: any) => i.id === itemId);
+    if (!item || (item as any).revealed || searching[itemId]) return;
+    setSearching((s) => ({ ...s, [itemId]: true }));
+    playSound('craft', 0.4);
+    timers.current.push(window.setTimeout(() => {
+      setSearching((s) => {
+        const n = { ...s };
+        delete n[itemId];
+        return n;
+      });
+      const cur = useCombatGridStore.getState().enemies.find((e: any) => e.id === enemyId);
+      const curLoot: any[] = cur?.loot ?? loot;
+      refreshEnemyLoot(curLoot.map((i: any) => (i.id === itemId ? { ...i, revealed: true } : i)));
+      playClick();
+    }, 1000));
+  };
+
+  // Труп -> свой рюкзак (только открытое).
   const takeFromCorpse = (itemId: string) => {
     const item = loot.find((i: any) => i.id === itemId);
     if (!item) return;
+    if (!(item as any).revealed) { say('🔍 Сначала обыщи ячейку!'); return; }
     if (!pack) { say('❌ Нет рюкзака!'); return; }
     const { contents, moved, leftoverQty } = tryInsertInto(packContents, packSlots, item);
     if (!moved) { say('❌ Свой рюкзак полон! Освободи место.'); return; }
@@ -134,7 +190,8 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   };
 
   const takeAll = () => {
-    let cur = [...loot];
+    // Сначала открываем всё скрытое, потом забираем.
+    let cur = loot.map((i: any) => ({ ...i, revealed: true }));
     let movedAny = false;
     for (const item of [...cur]) {
       if (!pack) { say('❌ Нет рюкзака!'); return; }
@@ -154,51 +211,78 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   const showTip = (item: any) => (e: React.MouseEvent) => setTip({ item, x: e.clientX, y: e.clientY });
   const moveTip = (e: React.MouseEvent) => setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t));
+  const hiddenCount = loot.filter((i: any) => !(i as any).revealed).length;
+  const enemyImg = getEnemyImage(enemy.faction, enemy.name);
 
   return (
     <div className={styles.lootOverlay} onClick={onClose}>
-      <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ minWidth: 420, overflow: 'hidden', borderRadius: 8, paddingTop: 0 }}>
-        <WapHeader title={`🎒 ${enemy.name} — рюкзак трупа (${loot.length}/${CORPSE_SLOTS})`} glow="amber" onMouseDown={() => {}}
+      <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ minWidth: 640, overflow: 'hidden', borderRadius: 8, paddingTop: 0 }}>
+        <WapHeader title="🎒 Обыск" glow="amber" onMouseDown={() => {}}
           style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))', margin: '0 -20px 12px', width: 'calc(100% + 40px)' }}>
           <span onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
         </WapHeader>
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 6 }}>
-          Тяни к себе · лишнее — обратно трупу · двойной клик — взять
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8 }}>
+          Тяни к себе · лишнее — обратно трупу · двойной клик — взять · скрытое — клик обыскать (1с)
         </div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
-          {Array.from({ length: CORPSE_SLOTS }).map((_, i) => {
-            const item = loot[i] ?? null;
-            return (
-              <Cell
-                key={item ? item.id : `c-empty-${i}`}
-                item={item}
-                onDrop={onCorpseDrop}
-                onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `corpse:${id}`); }}
-                onDoubleClick={() => { if (item) takeFromCorpse(item.id); }}
-                onHover={item ? showTip(item) : () => {}}
-                onMove={moveTip}
-                onLeave={() => setTip(null)}
-              />
-            );
-          })}
-        </div>
-        <div className={styles.lootHeader} style={{ marginTop: 4 }}>
-          🎒 Мой рюкзак ({packContents.length}/{packSlots})
-        </div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6, maxWidth: 5 * (cellPx + 4) }}>
-          {packContents.length === 0 && <div className={styles.lootEmpty}>Пусто</div>}
-          {packContents.map((item: any) => (
-            <Cell
-              key={item.id}
-              item={item}
-              onDrop={onPackDrop}
-              onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `pack:${id}`); }}
-              onDoubleClick={() => {}}
-              onHover={showTip(item)}
-              onMove={moveTip}
-              onLeave={() => setTip(null)}
-            />
-          ))}
+        <div style={{ display: 'flex', gap: 16 }}>
+          {/* СЛЕВА: наш герой и наш рюкзак */}
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <img src={images.hero} alt="hero" draggable={false} style={{ width: 44, height: 44, objectFit: 'contain' }} />
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                🎒 Мой рюкзак ({packContents.length}/{packSlots})
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 5 * (cellPx + 4) }}>
+              {packContents.length === 0 && <div className={styles.lootEmpty}>Пусто</div>}
+              {packContents.map((item: any) => (
+                <Cell
+                  key={item.id}
+                  item={item}
+                  onDrop={onPackDrop}
+                  onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `pack:${id}`); }}
+                  onDoubleClick={() => {}}
+                  onHover={showTip(item)}
+                  onMove={moveTip}
+                  onLeave={() => setTip(null)}
+                />
+              ))}
+            </div>
+          </div>
+          {/* СПРАВА: враг и его рюкзак */}
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              {enemyImg && <img src={enemyImg} alt={enemy.name} draggable={false} style={{ width: 44, height: 44, objectFit: 'contain' }} />}
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {enemy.name} ({loot.length}/{CORPSE_SLOTS}){hiddenCount > 0 && ` · скрыто: ${hiddenCount}`}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+              {Array.from({ length: CORPSE_SLOTS }).map((_, i) => {
+                const item = loot[i] ?? null;
+                const isHidden = !!item && !(item as any).revealed;
+                return (
+                  <Cell
+                    key={item ? item.id : `c-empty-${i}`}
+                    item={item}
+                    hidden={isHidden}
+                    searching={!!(item && searching[item.id])}
+                    onSearch={() => { if (item) searchCell(item.id); }}
+                    onDrop={onCorpseDrop}
+                    onDragStart={(id, e) => {
+                      const it = loot.find((x: any) => x.id === id);
+                      if (!(it as any)?.revealed) { e.preventDefault(); return; }
+                      e.dataTransfer.setData('text/plain', `corpse:${id}`);
+                    }}
+                    onDoubleClick={() => { if (item) takeFromCorpse(item.id); }}
+                    onHover={item && !isHidden ? showTip(item) : () => {}}
+                    onMove={moveTip}
+                    onLeave={() => setTip(null)}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <div
