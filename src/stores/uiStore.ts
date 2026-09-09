@@ -136,7 +136,8 @@ export const useUiStore = create<UiStore>()(
       inventoryPinPos: { x: 60, y: 60 },
       equipmentPinned: false,
       equipmentPinPos: { x: 60, y: 60 },
-      backpackLocked: false,
+      // Замочек НЕ персистим: каждая загрузка — заблочен по умолчанию.
+      backpackLocked: true,
 
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -301,7 +302,6 @@ export const useUiStore = create<UiStore>()(
         inventoryPinPos: state.inventoryPinPos,
         equipmentPinned: state.equipmentPinned,
         equipmentPinPos: state.equipmentPinPos,
-        backpackLocked: state.backpackLocked,
       }),
     },
   ),
