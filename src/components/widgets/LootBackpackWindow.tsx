@@ -75,8 +75,8 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
       onMouseMove={onMove}
       onMouseLeave={onLeave}
       style={{
-        width: cellPx, height: cellPx, background: '#0f0f15',
-        border: `1px solid ${item?.qualityColor || 'rgba(255,255,255,0.1)'}`,
+        width: cellPx, height: cellPx, background: '#201c17',
+        border: `1px solid ${item?.qualityColor || 'rgba(255,235,200,0.22)'}`,
         borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative',
       }}
@@ -136,7 +136,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
     const item = loot.find((i: any) => i.id === itemId);
     if (!item || (item as any).revealed || searching[itemId]) return;
     setSearching((s) => ({ ...s, [itemId]: true }));
-    playSound('craft', 0.4);
+    playSound('movement_fytz-wvu', 0.5);
     timers.current.push(window.setTimeout(() => {
       setSearching((s) => {
         const n = { ...s };

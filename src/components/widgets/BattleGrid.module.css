@@ -432,7 +432,7 @@
 }
 
 .lootWindow {
-  background: #1a1a2e;
+  background: linear-gradient(180deg, #131109, #0a0908);
   border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 20px;
   min-width: 320px;
