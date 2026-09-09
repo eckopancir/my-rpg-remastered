@@ -147,7 +147,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
       const curLoot: any[] = cur?.loot ?? loot;
       refreshEnemyLoot(curLoot.map((i: any) => (i.id === itemId ? { ...i, revealed: true } : i)));
       playClick();
-    }, 1000));
+    }, 2000));
   };
 
   // Труп -> свой рюкзак (только открытое).
