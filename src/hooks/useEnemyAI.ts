@@ -278,6 +278,15 @@ export const useEnemyAI = () => {
             enemy.aggro = true;
             enemy.knowsPlayer = true;
             updatedEnemies[i] = { ...enemy };
+            // Часовой заметил: тревога слышна всем часовым — тоже идут в бой.
+            if (spotted && enemy.aiRole === 'sentry') {
+              for (const o of updatedEnemies) {
+                if ((o as any).aiRole === 'sentry' && !o.dead && o.currentHp > 0) {
+                  (o as any).aggro = true;
+                  (o as any).knowsPlayer = true;
+                }
+              }
+            }
             if (stealthOn && spotted) {
               // Заметили скрытного: часовой — особым диалогом «заметил»,
               // скрытность сорвана.
@@ -818,8 +827,7 @@ export const useEnemyAI = () => {
 
           if (enemyAp > 0) {
             const curStore2 = useCombatGridStore.getState();
-            // Часовой с места не сходит даже в бою — только стреляет.
-            if (enemy.aiRole === 'sentry') { enemyAp = 0; break; }
+            // Часовые держат пост только вне боя; в бою идут в атаку как все.
             // Дальник-искатель: шаг к лучшему укрытию с прострелом по цели.
             if (enemy.coverSeeker && !isAlly && !isMedic) {
               const mrange = enemy.rangeDistance || 7;

@@ -627,13 +627,13 @@ export const BattleGrid = () => {
                 </div>
               )}
               {showExcl && (
-                <div title="Часовой" style={{
+                <div title={e.aggro ? 'Часовой идёт в бой!' : 'Часовой'} style={{
                   position: 'absolute', bottom: exclB, left: 0, transform: 'translateX(-50%)',
                   background: '#f5f1e6', color: '#111', fontSize: 12, fontWeight: 800,
                   padding: '1px 8px', borderRadius: 10, border: '1px solid #8a8a8a',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                 }}>
-                  !
+                  {e.aggro ? '!!!' : '!'}
                 </div>
               )}
               {e.sleeping && (

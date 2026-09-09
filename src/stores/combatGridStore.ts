@@ -999,6 +999,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     const enemies: GridEnemy[] = [];
+    // Колода позывных: тасуем, раздаём без повторов в бою.
+    const callsignDeck = [...CALLSIGNS].sort(() => Math.random() - 0.5);
+    let callsignIdx = 0;
+    const dealCallsign = (): string => {
+      const c = callsignDeck[callsignIdx % callsignDeck.length];
+      callsignIdx++;
+      return c;
+    };
     for (let i = 0; i < enemyCount; i++) {
       const factionKey = cardEnemyKeys ? cardEnemyKeys[i] : factionKeysPool[Math.floor(Math.random() * factionKeysPool.length)];
       const base = ENEMY_BASE_STATS[factionKey];
@@ -1062,7 +1070,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         avatar: base.avatar || 'enemy',
         level: base.level || 1,
         factionKey,
-        callsign: pickPhrase(CALLSIGNS),
+        callsign: dealCallsign(),
       });
     }
 
@@ -2235,6 +2243,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (let i = 0; i < count; i++) {
       const playerLevel = usePlayerStore.getState().level;
       const base = generateEnemy(playerLevel, 1);
+      // Позывной без повторов с живыми в бою (включая свою же волну).
+      const used = new Set([...state.enemies, ...newEnemies].map((e) => (e as GridEnemy).callsign));
+      const free = CALLSIGNS.filter((c) => !used.has(c));
+      const waveCallsign = free.length > 0
+        ? free[Math.floor(Math.random() * free.length)]
+        : pickPhrase(CALLSIGNS);
       let attempts = 0;
       let spawnX: number, spawnY: number;
       do {
@@ -2287,7 +2301,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         deadModel: base.dead || 'dead',
         avatar: base.avatar || 'enemy',
         level: base.level || 1,
-        callsign: pickPhrase(CALLSIGNS),
+        callsign: waveCallsign,
       });
     }
 
