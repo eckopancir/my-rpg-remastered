@@ -259,7 +259,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                 {enemy.name} ({loot.length}/{CORPSE_SLOTS}){hiddenCount > 0 && ` · скрыто: ${hiddenCount}`}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(5, ${cellPx}px)`, gap: 4, marginBottom: 10, justifyContent: 'start' }}>
               {Array.from({ length: CORPSE_SLOTS }).map((_, i) => {
                 const item = loot[i] ?? null;
                 const isHidden = !!item && !(item as any).revealed;
