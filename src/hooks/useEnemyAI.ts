@@ -147,8 +147,17 @@ export const useEnemyAI = () => {
         const losingInvis = e.isInvisible && nextInvisTurns === 0;
         const nextStunTurns = e.stunned ? Math.max(0, (e.stunTurns || 0) - 1) : 0;
         const nextLifetime = e.lifetime ? e.lifetime - 1 : 0;
+        // Тик естественного сна: уснул на N ходов — просыпается сам.
+        let nextSleeping = e.sleeping;
+        let nextSleepTurns = e.sleepTurns;
+        if (e.sleeping && typeof e.sleepTurns === 'number') {
+          nextSleepTurns = e.sleepTurns - 1;
+          if (nextSleepTurns <= 0) { nextSleeping = false; nextSleepTurns = undefined; }
+        }
         return {
           ...e,
+          sleeping: nextSleeping,
+          sleepTurns: nextSleepTurns,
           cooldowns: Object.fromEntries(
             Object.entries(e.cooldowns || {}).map(([k, v]) => [k, Math.max(0, (v as number) - 1)]),
           ),
@@ -212,11 +221,10 @@ export const useEnemyAI = () => {
 
         // --- Camp life: спящие просыпаются, если игрок подошёл близко
         // или союзники по фракции рядом уже в бою.
-        // Скрытного слышно только в упор (3 клетки вместо 8) ---
+        // Спящие скрытного НЕ слышат вовсе: будят только бой рядом и урон ---
         if (enemy.sleeping) {
           const stealthOn = useCombatGridStore.getState().stealth;
-          // Скрытного слышно в упор (3), обычного — вдвое дальше базы (16).
-          const wakeR = stealthOn ? 3 : 16;
+          const wakeR = stealthOn ? 0 : 16;
           const matesFight = updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
             && o.aggro && getDist(o.pos, enemy.pos) <= 15);
@@ -267,6 +275,15 @@ export const useEnemyAI = () => {
 
         // --- Camp life: жизнь вне боя по ролям ---
         if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
+          // Вне боя: 5% в ход уснуть на 3 хода (спящего можно тихо убрать).
+          if (!enemy.sleeping && Math.random() < 0.05) {
+            enemy.sleeping = true;
+            enemy.sleepTurns = 3;
+            updatedEnemies[i] = { ...enemy };
+            useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            await new Promise((r) => setTimeout(r, 150));
+            continue;
+          }
           if (enemy.aiRole === 'camp') {
             // Стоят у костра, иногда болтают.
             if (Math.random() < 0.3 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(CAMP_CHATTER));

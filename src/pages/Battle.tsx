@@ -115,6 +115,7 @@ export const Battle = () => {
   const toggleDefense = useCombatGridStore((s) => s.toggleDefense);
   const toggleStealth = useCombatGridStore((s) => s.toggleStealth);
   const stealth = useCombatGridStore((s) => s.stealth);
+  const stealthKill = useCombatGridStore((s) => s.stealthKill);
   const endTurn = useCombatGridStore((s) => s.endTurn);
   const attackEnemy = useCombatGridStore((s) => s.attackEnemy);
   const gridEnemies = useCombatGridStore((s) => s.enemies);
@@ -182,6 +183,7 @@ export const Battle = () => {
         case 'KeyR': reload(); playSound('reload'); break;
         case 'KeyF': toggleDefense(); break;
         case 'KeyT': playClick(); toggleStealth(); break;
+        case 'KeyQ': stealthKill(); break;
         case 'Enter': e.preventDefault(); selectMe(); break;
         case 'KeyE': selectMe(); break;
         case 'Digit1': selectAbility(0); break;
@@ -232,7 +234,7 @@ export const Battle = () => {
       window.removeEventListener('keyup', onKeyUp);
       if (moveInterval.current) { clearInterval(moveInterval.current); moveInterval.current = null; }
     };
-  }, [turn, isVictory, isMoving, handleKeyboardMove, selectMe, reload, toggleDefense, toggleStealth, endTurn, playSound, playClick, selectAbility]);
+  }, [turn, isVictory, isMoving, handleKeyboardMove, selectMe, reload, toggleDefense, toggleStealth, stealthKill, endTurn, playSound, playClick, selectAbility]);
 
   const selectedEnemyData = enemies.find((e) => selectedEnemy !== null && e.id === selectedEnemy);
   const hoverTarget = hoveredEnemy || selectedEnemyData;
@@ -427,6 +429,27 @@ export const Battle = () => {
                 <span>🕵️ Скрытность {stealth ? '(АКТИВНО)' : ''}</span>
                 <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>T</span>
               </div>
+
+              {/* Скрытное убийство — видно только в скрытности */}
+              {stealth && (
+                <div
+                  onClick={() => { playClick(); stealthKill(); }}
+                  style={{
+                    padding: '9px', borderRadius: 6,
+                    border: '1px solid rgba(248,113,113,0.4)',
+                    background: 'rgba(248,113,113,0.08)',
+                    color: turn !== 'player' ? 'rgba(255,255,255,0.2)' : '#f87171',
+                    cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
+                    fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
+                    opacity: turn !== 'player' ? 0.4 : 1,
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}
+                  title="Тихо убивает спящего врага рядом (2 AP). Стелс не слетает."
+                >
+                  <span>🔪 Скрытное убийство · 2 AP</span>
+                  <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>Q</span>
+                </div>
+              )}
 
               <div
                 onClick={() => { playClick(); handleEnemyAttack(); }}

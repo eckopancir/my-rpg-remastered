@@ -80,6 +80,8 @@ export interface GridEnemy {
   speech?: string | null;
   // Знает о игроке (видел/стрелял): стелс не включить, пока жив хоть один знающий.
   knowsPlayer?: boolean;
+  // Естественный сон: осталось ходов (undefined — спит до побудки).
+  sleepTurns?: number;
 }
 
 export interface GridObstacle {
@@ -167,6 +169,8 @@ export interface CombatGridStore {
   spawnReinforcements: () => void;
   // Волна агро: все враги (кроме союзников) в радиусе R от точки вступают в бой.
   aggroWave: (center: { x: number; y: number }, radius?: number) => void;
+  // Скрытное убийство спящего рядом (2 AP, тихо, стелс остаётся).
+  stealthKill: () => void;
   // Скрытность: моделька полупрозрачна, замечают только в упор. Слетает при выстреле/обнаружении.
   stealth: boolean;
   toggleStealth: () => void;  // Метки укрытий после ПКМ-инспекции точки: иконки на клетках укрытий,
@@ -774,6 +778,45 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         return { ...e, aggro: true, sleeping: false, knowsPlayer: true };
       }),
     }));
+  },
+  // Скрытное убийство: только в стелсе, жертва спит и стоит рядом.
+  // Тихо: без волны агро, стелс не слетает.
+  stealthKill: () => {
+    const s = get();
+    if (s.turn !== 'player' || s.isMoving) return;
+    if (!s.stealth) { get().addMessage('❌ Скрытное убийство — только в скрытности'); return; }
+    if (s.ap < 2) { get().addMessage('❌ Нужно 2 AP для скрытного убийства'); return; }
+    const isValid = (e: GridEnemy) =>
+      !e.dead && e.currentHp > 0 && e.sleeping && e.faction !== 'Союзник'
+      && Math.max(Math.abs(e.pos.x - s.playerPos.x), Math.abs(e.pos.y - s.playerPos.y)) <= 1;
+    const victim = s.enemies.find((e) => e.id === s.selectedEnemy && isValid(e))
+      || [...s.enemies].filter(isValid).sort((a, b) =>
+        Math.hypot(a.pos.x - s.playerPos.x, a.pos.y - s.playerPos.y)
+        - Math.hypot(b.pos.x - s.playerPos.x, b.pos.y - s.playerPos.y))[0];
+    if (!victim) { get().addMessage('❌ Рядом нет спящего врага'); return; }
+    let freshLoot: any[] = [];
+    try {
+      freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+        rank: rankOfEnemy((victim as any).factionKey, victim.name),
+      });
+    } catch { /* ignore */ }
+    const corpsePos = findFreeSpotForCorpse(victim.pos, s.enemies, s.obstacles, victim.id);
+    playCombatSound('1bbfc9b5f4347f2', 0.5);
+    set((st) => ({
+      ap: st.ap - 2,
+      enemies: st.enemies.map((e) =>
+        e.id === victim.id
+          ? { ...e, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, loot: freshLoot, looted: false, pos: corpsePos }
+          : e),
+      message: `🔪 Скрытное убийство: ${victim.name}`,
+      selectedEnemy: null,
+    }));
+    get().addBattleLog(`🔪 Скрытное убийство: ${victim.name}`);
+    get().addPopup(corpsePos.x, corpsePos.y, '🔪 Тихо устранён', 'SPECIAL');
+    const rest = get();
+    if (rest.enemies.every((e) => e.dead) && rest.reserve.length === 0 && rest.pendingReinforce.length === 0) {
+      get().addMessage('🕊️ Поле зачищено. Свободное перемещение.');
+    }
   },
   playerAbilities: [],
   abilityCooldowns: [],
