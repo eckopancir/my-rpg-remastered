@@ -67,7 +67,7 @@ export const getEnemyImage = (faction: string, enemyName: string): string | unde
   if (name.includes('дроб') || name.includes('drob')) return battleImageMap.get('basemilitary') || characterImageMap.get('military1');
   if (name.includes('melle') || name.includes('melee')) return characterImageMap.get('melee');
   if (name.includes('original')) return battleImageMap.get('basemilitary') || characterImageMap.get('military2');
-  if (name.includes('boss')) return battleImageMap.get('basemilitary') || characterImageMap.get('military3');
+  if (name.includes('boss')) return characterImageMap.get('boss') || battleImageMap.get('basemilitary') || characterImageMap.get('military3');
   if (name.includes('мутант') || name.includes('mutant')) return characterImageMap.get('bandit1');
   if (name.includes('робот') || name.includes('robot')) return characterImageMap.get('bandit1');
   if (name.includes('бандит') || name.includes('bandit')) return characterImageMap.get('bandit1');

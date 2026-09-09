@@ -536,11 +536,6 @@ export const Battle = () => {
       {/* Center - Battle Grid */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <BattleGrid />
-        {/* CRT scanline overlay */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,
-          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)',
-        }} />
         {/* Vignette */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,

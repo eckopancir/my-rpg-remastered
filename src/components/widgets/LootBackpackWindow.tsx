@@ -216,7 +216,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   return (
     <div className={styles.lootOverlay} onClick={onClose}>
-      <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ minWidth: 640, overflow: 'hidden', borderRadius: 8, paddingTop: 0 }}>
+      <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ minWidth: 640, overflow: 'hidden', borderRadius: 8, paddingTop: 0, transform: 'translateY(-50px)' }}>
         <WapHeader title="🎒 Обыск" glow="amber" onMouseDown={() => {}}
           style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))', margin: '0 -20px 12px', width: 'calc(100% + 40px)' }}>
           <span onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
