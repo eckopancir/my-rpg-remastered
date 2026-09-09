@@ -169,6 +169,11 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
           <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 2 }}>
             ⭐ Сила: <span style={{ color: 'rgba(255,255,255,0.6)' }}>{Math.round(ABILITY_MAP[item.abilityId].powerRating * (1 + ((item.level || 1) - 1) * 0.05) * 3)}</span>
           </div>
+          {item.type === 'consumable' && (
+            <div style={{ fontSize: 10, color: '#4ade80', marginTop: 2 }}>
+              📦 Расходует: 1 шт. за использование в бою
+            </div>
+          )}
         </div>
       )}
 

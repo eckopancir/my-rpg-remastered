@@ -16,6 +16,20 @@ import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { generateItem } from '../engine/items';
 import { createChest } from '../data/chests';
+import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
+import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
+
+const debugAddConsumables = () => {
+  const addItem = useInventoryStore.getState().addItem;
+  for (const d of CONSUMABLE_DEFS) addItem(makeConsumable(d.abilityId, 3));
+  useUiStore.getState().addToast(`🧪 +${CONSUMABLE_DEFS.length} расходников x3`, 'loot');
+};
+
+const debugAddBackpacks = () => {
+  const addItem = useInventoryStore.getState().addItem;
+  for (const d of BACKPACK_DEFS) addItem(makeBackpack(d.name));
+  useUiStore.getState().addToast(`🎒 +${BACKPACK_DEFS.length} рюкзаков`, 'loot');
+};
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { getItemImage, images } from '../assets/index';
 
@@ -454,6 +468,8 @@ export const Dashboard = () => {
             <Button size="sm" variant="ghost" onClick={() => debugAddMods(5)} style={{ fontSize: 9 }}>+5 модификаций</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddAmmo(4)} style={{ fontSize: 9 }}>+4 амуниции 🎒</Button>
             <Button size="sm" variant="ghost" onClick={() => debugAddChests()} style={{ fontSize: 9 }}>+10 сундуков 📦</Button>
+            <Button size="sm" variant="ghost" onClick={() => debugAddConsumables()} style={{ fontSize: 9 }}>+расходники 🧪</Button>
+            <Button size="sm" variant="ghost" onClick={() => debugAddBackpacks()} style={{ fontSize: 9 }}>+рюкзаки 🎒</Button>
             <Button size="sm" variant="success" onClick={() => usePlayerStore.setState((s) => ({ stats: { ...s.stats, currentHp: s.stats.maxHp } }))} style={{ fontSize: 9 }}>❤️ Полное исцеление</Button>
             <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 9 }}>🗑️ Очистить инвентарь</Button>
             <Button size="sm" variant="danger" onClick={() => usePlayerStore.getState().resetLevel()} style={{ fontSize: 9 }}>⬇️ Сброс уровня</Button>

@@ -11,6 +11,7 @@ import type { Item } from '../../types/items';
 import { ItemTooltip } from './ItemTooltip';
 import { ChestOpening } from './ChestOpening';
 import { chestImageFor } from '../../data/chests';
+import { getConsumableIcon } from '../../data/consumables';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 
@@ -30,6 +31,8 @@ const SLOT_FILTERS = [
   { value: 'mod', label: '— Моды' },
   { value: 'material', label: '— Ресурсы' },
   { value: 'chest', label: '— Сундуки' },
+  { value: 'consumable', label: '— Расходники' },
+  { value: 'backpack', label: '— Рюкзаки' },
 ];
 
 const getItemTimestamp = (item: Item): number => {
@@ -63,8 +66,8 @@ interface StackedItem {
 const stackItems = (items: Item[]): StackedItem[] => {
   const map = new Map<string, StackedItem>();
   for (const item of items) {
-    if (item.type === 'material') {
-      const key = `${item.name}_${item.rarity}`;
+    if (item.type === 'material' || item.type === 'consumable') {
+      const key = `${item.type}_${item.name}_${item.rarity}`;
       const existing = map.get(key);
       if (existing) {
         existing.count += item.quantity || 1;
@@ -101,6 +104,7 @@ const slotFilterKey = (item: Item): string => {
   if (item.type === 'consumable') return 'consumable';
   if (item.type === 'material') return 'material';
   if (item.type === 'chest') return 'chest';
+  if (item.type === 'backpack') return 'backpack';
   if (item.slot === 'ammo') return 'ammo';
   return item.slot || '';
 };
@@ -354,6 +358,10 @@ export const InventoryOverlay = () => {
                 const imgUrl = item.image
                   || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
                   || getItemImage(item.name, item.displayName);
+                // Расходники и рюкзаки пока без арта — эмодзи-заглушка из дефа.
+                const emojiIcon = item.type === 'consumable'
+                  ? getConsumableIcon(item)
+                  : item.type === 'backpack' ? '🎒' : null;
 
                 return (
                   <div
@@ -379,7 +387,9 @@ export const InventoryOverlay = () => {
                       transition: 'all 80ms',
                     }}
                   >
-                    {imgUrl ? (
+                    {emojiIcon ? (
+                      <span style={{ fontSize: 28, lineHeight: 1 }}>{emojiIcon}</span>
+                    ) : imgUrl ? (
                       <img src={imgUrl} alt="" style={{ width: 44, height: 44, objectFit: 'contain', imageRendering: 'pixelated' }} />
                     ) : (
                       <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>

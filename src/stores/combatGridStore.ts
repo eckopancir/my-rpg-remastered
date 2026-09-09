@@ -6,6 +6,7 @@ import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
+import { CONSUMABLE_MAP } from '../data/consumables';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -934,6 +935,28 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!ability) { set({ selectedAbility: null }); return; }
     if (state.abilityCooldowns[idx] > 0) { get().addMessage('❌ Способность перезаряжается'); set({ selectedAbility: null }); return; }
     if (state.ap < ability.apCost) { get().addMessage('❌ Не хватает AP'); return; }
+
+    // Активные способности требуют расходник (пассивки ammo_* — бесплатно).
+    // Временно берём из инвентаря; с вводом рюкзаков — из рюкзака.
+    if (!ability.passive) {
+      const inv = useInventoryStore.getState();
+      const stack = inv.items.find((i) => i.type === 'consumable' && (i as any).abilityId === ability.id);
+      if (!stack) {
+        const need = CONSUMABLE_MAP[ability.id]?.name || ability.name;
+        get().addMessage(`❌ Нужен расходник: ${need}`);
+        set({ selectedAbility: null });
+        return;
+      }
+      const qty = (stack as any).quantity ?? 1;
+      if (qty > 1) {
+        useInventoryStore.setState((s) => ({
+          items: s.items.map((i) => (i.id === stack.id ? { ...i, quantity: qty - 1 } : i)),
+        }));
+      } else {
+        inv.removeItem(stack.id);
+      }
+      get().addBattleLog(`🧪 Использован расходник: ${stack.displayName || stack.name}`);
+    }
 
     // Barrage: fire 20 random shots, no target needed
     if (ability.id === 'barrage') {
