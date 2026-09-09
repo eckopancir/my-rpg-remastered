@@ -103,7 +103,7 @@ const selectByChance = (chances: Record<string, number>): string => {
   return Object.keys(chances)[0];
 };
 
-const getItemQuality = (): QualityTier => {
+export const getItemQuality = (): QualityTier => {
   const totalChance = QUALITY_TIERS.reduce((sum, tier) => sum + tier.chance, 0);
   let randomValue = Math.random() * totalChance;
   for (const tier of QUALITY_TIERS) {

@@ -10,6 +10,7 @@ import {
   rollChestLoot, makeResourceItem, type ChestDrop,
 } from '../../data/chests';
 import { AMMO_GROUP_MAP, makeBulletPack } from '../../data/ammo';
+import { CONSUMABLE_MAP, makeConsumable } from '../../data/consumables';
 import { ItemTooltip } from './ItemTooltip';
 import type { Item } from '../../types/items';
 
@@ -34,6 +35,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
       if (d.kind === 'item') m.set(d.key, d.item as unknown as Item);
       else if (d.kind === 'resource') m.set(d.key, makeResourceItem(d.def, d.quantity));
       else if (d.kind === 'bullets') m.set(d.key, makeBulletPack(d.group, d.quantity));
+      else if (d.kind === 'consumable') m.set(d.key, makeConsumable(d.abilityId, 1));
     }
     return m;
   }, [drops]);
@@ -92,6 +94,10 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
       const pack = makeBulletPack(drop.group, drop.quantity);
       useInventoryStore.getState().addItem(pack);
       usePlayerStore.getState().addLog(`📦 Из сундука: ${pack.displayName}`, 'loot');
+    } else if (drop.kind === 'consumable') {
+      const cons = makeConsumable(drop.abilityId, 1);
+      useInventoryStore.getState().addItem(cons);
+      usePlayerStore.getState().addLog(`📦 Из сундука: ${cons.displayName || cons.name}`, 'loot');
     } else {
       usePlayerStore.getState().addChips(drop.amount);
       usePlayerStore.getState().addLog(`📦 Из сундука: 💾${drop.amount} чипов`, 'loot');
@@ -254,6 +260,10 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                         <div style={{ fontSize: 40, lineHeight: 1, filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}>
                           {AMMO_GROUP_MAP[drop.group]?.icon ?? '🔸'}
                         </div>
+                      ) : drop.kind === 'consumable' ? (
+                        <div style={{ fontSize: 40, lineHeight: 1, filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}>
+                          {CONSUMABLE_MAP[drop.abilityId]?.icon ?? '🧪'}
+                        </div>
                       ) : (
                         <img
                           src={drop.kind === 'item'
@@ -279,7 +289,9 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                             ? `${drop.def.name} x${drop.quantity}`
                             : drop.kind === 'bullets'
                               ? `${AMMO_GROUP_MAP[drop.group]?.packName ?? 'Патроны'} x${drop.quantity}`
-                              : `💾${drop.amount}`}
+                              : drop.kind === 'consumable'
+                                ? (CONSUMABLE_MAP[drop.abilityId]?.name ?? 'Расходник')
+                                : `💾${drop.amount}`}
                       </div>
                     </motion.div>
                   </motion.div>

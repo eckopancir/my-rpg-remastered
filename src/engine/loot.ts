@@ -1,6 +1,8 @@
-import { generateItem, QUALITY_TIERS, type ItemDefinition } from './items';
+import { generateItem, getItemQuality, QUALITY_TIERS, type ItemDefinition } from './items';
 import { GAME_RESOURCES } from '../data/GameItems';
 import { AMMO_GROUPS, makeBulletPack } from '../data/ammo';
+import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
+import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
 
 export type CorpseRank = 'mob' | 'officer' | 'boss';
 
@@ -13,10 +15,14 @@ export interface LootOptions {
   rank?: CorpseRank;
 }
 
-const RANK_TABLE: Record<CorpseRank, { itemChance: number; resTypes: number; resMin: number; resMax: number; bestOf: number; bulletChance: number; bulletPacks: number; bulletMin: number; bulletMax: number }> = {
-  mob: { itemChance: 0.15, resTypes: 1, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.2, bulletPacks: 1, bulletMin: 8, bulletMax: 12 },
-  officer: { itemChance: 0.3, resTypes: 2, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.4, bulletPacks: 2, bulletMin: 8, bulletMax: 15 },
-  boss: { itemChance: 1, resTypes: 3, resMin: 2, resMax: 4, bestOf: 2, bulletChance: 1, bulletPacks: 2, bulletMin: 15, bulletMax: 30 },
+// Рюкзак трупа — 6 ячеек: приоритет содержимого (предмет, рюкзак,
+// расходник, патроны, ресурсы), лишнее не спавнится.
+export const CORPSE_SLOTS = 6;
+
+const RANK_TABLE: Record<CorpseRank, { itemChance: number; resTypes: number; resMin: number; resMax: number; bestOf: number; bulletChance: number; bulletPacks: number; bulletMin: number; bulletMax: number; consChance: number; consMax: number; packChance: number }> = {
+  mob: { itemChance: 0.15, resTypes: 1, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.2, bulletPacks: 1, bulletMin: 8, bulletMax: 12, consChance: 0.05, consMax: 1, packChance: 0 },
+  officer: { itemChance: 0.3, resTypes: 2, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.4, bulletPacks: 2, bulletMin: 8, bulletMax: 15, consChance: 0.12, consMax: 2, packChance: 0 },
+  boss: { itemChance: 1, resTypes: 3, resMin: 2, resMax: 4, bestOf: 2, bulletChance: 1, bulletPacks: 2, bulletMin: 15, bulletMax: 30, consChance: 0.3, consMax: 2, packChance: 0.2 },
 };
 
 const tierIndex = (qualityName: string): number => {
@@ -100,7 +106,28 @@ export const generateLoot = (
         items.push(makeBulletPack(g.key, qty));
       }
     }
-    return items;
+    // Расходники с трупов.
+    for (let i = 0; i < t.consMax; i++) {
+      if (Math.random() >= t.consChance) continue;
+      const d = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
+      items.push(makeConsumable(d.abilityId, 1));
+    }
+    // Рюкзак с босса (качество — пирамидой).
+    if (t.packChance > 0 && Math.random() < t.packChance) {
+      const d = BACKPACK_DEFS[Math.floor(Math.random() * BACKPACK_DEFS.length)];
+      const q = getItemQuality();
+      items.push(makeBackpack(d.name, q.name, q.color, enemyLevel));
+    }
+    // Рюкзак трупа — 6 ячеек: приоритет (предмет, рюкзак, расходник, патроны, ресурсы).
+    const prio = (it: any): number => {
+      if (it.type === 'backpack') return 1;
+      if (it.type === 'consumable') return 2;
+      if (it.type === 'bullet') return 3;
+      if (it.type === 'material') return 4;
+      return 0;
+    };
+    items.sort((a, b) => prio(a) - prio(b));
+    return items.slice(0, CORPSE_SLOTS);
   }
 
   let count = Math.floor(Math.random() * 3) + 1;
