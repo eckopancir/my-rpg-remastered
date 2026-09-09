@@ -384,6 +384,7 @@ export const useEnemyAI = () => {
             enemy.speech = null;
             updatedEnemies[i] = { ...enemy };
             useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            useCombatGridStore.getState().addBattleLog(`😴 ${enemy.name} задремал`);
             await new Promise((r) => setTimeout(r, 150));
             continue;
           }
