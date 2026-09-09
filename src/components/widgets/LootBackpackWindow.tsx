@@ -45,7 +45,7 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
         onMouseEnter={onHover}
         onMouseMove={onMove}
         onMouseLeave={onLeave}
-        title="Клик — обыскать (1с)"
+        title="Клик — обыскать (2с)"
         style={{
           width: cellPx, height: cellPx,
           background: searching
