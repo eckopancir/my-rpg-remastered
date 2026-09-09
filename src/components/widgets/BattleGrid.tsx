@@ -616,7 +616,7 @@ export const BattleGrid = () => {
             left: `${(campfire.x / 31) * 100}%`,
             top: `${(campfire.y / 31) * 100}%`,
             transform: 'translate(-50%, -62%)',
-            width: '6.5%', aspectRatio: '1',
+            width: '3.125%', aspectRatio: '1',
             zIndex: 3, pointerEvents: 'none',
           }}>
             <img
