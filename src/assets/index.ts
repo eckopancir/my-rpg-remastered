@@ -90,6 +90,6 @@ export const images = {
   main: uiImageMap.get('main'),
   background: backgroundImageMap.get('road'),
   workshop: backgroundImageMap.get('unnamed'),
-  campfire1: battleImageMap.get('gemini_generated_image_csyso6csyso6csys-photoroom'),
-  campfire2: battleImageMap.get('gemini_generated_image_uy3pf8uy3pf8uy3p-photoroom'),
+  campfire1: battleImageMap.get('fire1'),
+  campfire2: battleImageMap.get('fire2'),
 };
