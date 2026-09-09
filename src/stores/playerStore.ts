@@ -635,8 +635,10 @@ export const usePlayerStore = create<PlayerStore>()(
         if (s.equipment.backpack) return;
         const pack = makeBackpack('Походный рюкзак');
         get().equipItem('backpack', pack);
-        // Стартовый боезапас, чтобы было чем воевать сразу.
-        set({ backpackContents: [makeBulletPack('rifle', 30), makeBulletPack('pistol', 12)] });
+        // Стартовый боезапас — только в пустой рюкзак, чужое не затираем.
+        if (s.backpackContents.length === 0) {
+          set({ backpackContents: [makeBulletPack('rifle', 30), makeBulletPack('pistol', 12)] });
+        }
       },
 
       takeAmmoFromPack: (group, n) => {
