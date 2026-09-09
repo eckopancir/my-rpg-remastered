@@ -131,7 +131,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
           {cells.map((item, i) => (
             <div
               key={item ? item.id : `empty-${i}`}
-              onDoubleClick={() => { if (item) { takeOutBackpack(item.id); playClick(); } }}
+              onDoubleClick={() => { if (item) { takeOutBackpack(item.id); playSound('laying-out-a-travel-mat', 0.5); } }}
               onMouseEnter={(e) => { if (item) setTip({ item, x: e.clientX, y: e.clientY }); }}
               onMouseMove={(e) => { if (item) setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t)); }}
               onMouseLeave={() => setTip(null)}

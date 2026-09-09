@@ -4,7 +4,7 @@ import { AMMO_GROUPS, makeBulletPack } from '../data/ammo';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
 
-export type CorpseRank = 'mob' | 'officer' | 'boss';
+export type CorpseRank = 'regular' | 'tough' | 'boss';
 
 export interface LootOptions {
   bonusQuality?: number;
@@ -19,10 +19,12 @@ export interface LootOptions {
 // расходник, патроны, ресурсы), лишнее не спавнится.
 export const CORPSE_SLOTS = 10;
 
-const RANK_TABLE: Record<CorpseRank, { itemChance: number; resTypes: number; resMin: number; resMax: number; bestOf: number; bulletChance: number; bulletPacks: number; bulletMin: number; bulletMax: number; consChance: number; consMax: number; packChance: number }> = {
-  mob: { itemChance: 0.15, resTypes: 1, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.2, bulletPacks: 1, bulletMin: 8, bulletMax: 12, consChance: 0.05, consMax: 1, packChance: 0 },
-  officer: { itemChance: 0.3, resTypes: 2, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.4, bulletPacks: 2, bulletMin: 8, bulletMax: 15, consChance: 0.12, consMax: 2, packChance: 0 },
-  boss: { itemChance: 1, resTypes: 3, resMin: 2, resMax: 4, bestOf: 2, bulletChance: 1, bulletPacks: 2, bulletMin: 15, bulletMax: 30, consChance: 0.3, consMax: 2, packChance: 0.2 },
+const RANK_TABLE: Record<CorpseRank, { itemChance: number; itemMin: number; itemMax: number; resChance: number; resTypes: number; resMin: number; resMax: number; bestOf: number; bulletChance: number; bulletPacks: number; bulletMin: number; bulletMax: number; consChance: number; consMax: number; packChance: number }> = {
+  // Обычный военный: ~3.0 в среднем.
+  regular: { itemChance: 0.6, itemMin: 1, itemMax: 2, resChance: 0.8, resTypes: 2, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.5, bulletPacks: 1, bulletMin: 8, bulletMax: 15, consChance: 0.4, consMax: 1, packChance: 0 },
+  // Сложный моб: ~3.9 в среднем.
+  tough: { itemChance: 0.8, itemMin: 1, itemMax: 2, resChance: 0.9, resTypes: 2, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.7, bulletPacks: 1, bulletMin: 8, bulletMax: 15, consChance: 0.6, consMax: 1, packChance: 0 },
+  boss: { itemChance: 1, itemMin: 2, itemMax: 4, resChance: 1, resTypes: 3, resMin: 2, resMax: 4, bestOf: 2, bulletChance: 1, bulletPacks: 2, bulletMin: 15, bulletMax: 30, consChance: 0.3, consMax: 2, packChance: 0.2 },
 };
 
 const tierIndex = (qualityName: string): number => {
@@ -30,12 +32,12 @@ const tierIndex = (qualityName: string): number => {
   return i === -1 ? 0 : i;
 };
 
-/** Ранг врага по ключу фракции: boss / medic+sniper=офицеры / остальные=мобы. */
+/** Ранг врага по ключу фракции: boss / tank+sniper+medic=сложные / остальные=обычные. */
 export const rankOfEnemy = (factionKey?: string, name?: string): CorpseRank => {
   const s = `${factionKey || ''} ${name || ''}`.toLowerCase();
   if (s.includes('boss')) return 'boss';
-  if (s.includes('medic') || s.includes('sniper')) return 'officer';
-  return 'mob';
+  if (s.includes('tank') || s.includes('sniper') || s.includes('medic')) return 'tough';
+  return 'regular';
 };
 
 export const generateLoot = (
@@ -120,20 +122,22 @@ export const generateLoot = (
       items.sort((a, b) => prio(a) - prio(b));
       return items.slice(0, CORPSE_SLOTS);
     }
+    // Обычные и сложные: шансы и количества по таблице рангов.
     if (Math.random() < t.itemChance) {
-      let best: any = null;
-      for (let i = 0; i < t.bestOf; i++) {
+      const n = t.itemMin + Math.floor(Math.random() * (t.itemMax - t.itemMin + 1));
+      for (let i = 0; i < n; i++) {
         const drop = generateItem(itemPool, enemyLevel);
-        if (drop && (!best || tierIndex(drop.quality) > tierIndex(best.quality))) best = drop;
+        if (drop) items.push(drop);
       }
-      if (best) items.push(best);
     }
-    const pool = [...GAME_RESOURCES];
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    for (let i = 0; i < Math.min(t.resTypes, pool.length); i++) {
+    if (Math.random() < t.resChance) {
+      const pool = [...GAME_RESOURCES];
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      const nTypes = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < Math.min(nTypes, t.resTypes, pool.length); i++) {
       const def = pool[i];
       const quantity = t.resMin + Math.floor(Math.random() * (t.resMax - t.resMin + 1));
       items.push({
@@ -150,6 +154,7 @@ export const generateLoot = (
         quantity,
         image: def.image,
       });
+      }
     }
     // Патроны с трупов — пачки случайной группы.
     if (Math.random() < t.bulletChance) {

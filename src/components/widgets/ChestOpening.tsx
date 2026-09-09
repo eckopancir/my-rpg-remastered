@@ -115,7 +115,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
     setRemaining((prev) => prev.filter((d) => d.key !== key));
     setCollected((c) => c + 1);
     setTip(null);
-    playSound('clickbutton', 0.5);
+    playSound('laying-out-a-travel-mat', 0.5);
     syncToServer();
   };
 
