@@ -293,9 +293,9 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
               flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: '8px 6px', fontFamily: "'Courier New', monospace", fontWeight: 700,
               fontSize: 13, letterSpacing: 3, textTransform: 'uppercase',
-              color: '#e8e3c8', background: 'linear-gradient(180deg, #5a5a34, #3a3a22)',
-              border: '1px solid #8a8a5a', borderRadius: 4,
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.5)',
+              color: '#fff', background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))',
+              border: '1px solid rgba(255,200,100,0.5)', borderRadius: 4,
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2), 0 2px 6px rgba(0,0,0,0.5)',
               textShadow: '0 1px 2px rgba(0,0,0,0.8)',
             }}
             onClick={takeAll}

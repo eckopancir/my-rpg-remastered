@@ -529,9 +529,9 @@
   filter: brightness(1.2);
 }
 
-/* In-range cell glow */
+/* In-range cell glow — едва заметный, чтобы не белил карту */
 .inRange {
-  background: rgba(50, 50, 255, 0.06) !important;
+  background: rgba(50, 50, 255, 0.02) !important;
 }
 
 /* Red glow on in-range enemies */
