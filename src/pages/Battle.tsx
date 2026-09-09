@@ -169,6 +169,7 @@ export const Battle = () => {
         case 'KeyR': reload(); playSound('reload'); break;
         case 'KeyF': toggleDefense(); break;
         case 'Enter': e.preventDefault(); selectMe(); break;
+        case 'KeyE': selectMe(); break;
         case 'Digit1': selectAbility(0); break;
         case 'Digit2': selectAbility(1); break;
         case 'Digit3': selectAbility(2); break;
@@ -351,7 +352,7 @@ export const Battle = () => {
                 }}
               >
                 <span>🎯 Выбор</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>SPACE {isSelected ? '●' : '○'}</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>E {isSelected ? '●' : '○'}</span>
               </div>
 
               <div
@@ -381,10 +382,12 @@ export const Battle = () => {
                   cursor: turn !== 'player' || ap < 2 ? 'not-allowed' : 'pointer',
                   fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
                   opacity: turn !== 'player' || ap < 2 ? 0.4 : 1,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
                 title="+3 к дальности стрельбы, сбрасывается в конце хода"
               >
-                🛡️ Позиция · 2 AP {isDefensiveMode ? '(АКТИВНО)' : ''}
+                <span>🛡️ Позиция · 2 AP {isDefensiveMode ? '(АКТИВНО)' : ''}</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>F</span>
               </div>
 
               <div
@@ -398,9 +401,11 @@ export const Battle = () => {
                   fontSize: 14, fontWeight: 800, textAlign: 'center', textTransform: 'uppercase',
                   opacity: turn !== 'player' || (selectedAbility === null && (ap < 1 || selectedEnemy === null)) ? 0.4 : 1,
                   animation: turn === 'player' && ((selectedAbility !== null) || (ap >= 1 && selectedEnemy !== null)) ? 'pulseBorder 2s infinite' : 'none',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
               >
-                {selectedAbility !== null ? '✨ ПРИМЕНИТЬ [КЛИК]' : '🔫 АТАКА · 1 AP [КЛИК]'}
+                <span>{selectedAbility !== null ? '✨ Применить' : '🔫 Атака · 1 AP'}</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>КЛИК</span>
               </div>
 
               <div
@@ -443,7 +448,7 @@ export const Battle = () => {
                 background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
               }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 6 }}>💎 СПОСОБНОСТИ</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 56px)', gap: 4, justifyContent: 'start' }}>
                   {playerAbilities.map((ab, i) => {
                     if (!ab) return <div key={i} style={{ width: 56, height: 62, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6 }} />;
                     const cd = abilityCooldowns[i];
@@ -501,26 +506,6 @@ export const Battle = () => {
               </div>
             )}
 
-            {/* Key hint badges */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center', marginBottom: 2 }}>
-              {[
-                { key: 'WASD', label: 'Ход' },
-                { key: 'SPACE', label: 'Конец' },
-                { key: 'R', label: 'Перезар.' },
-                { key: 'F', label: 'Защита' },
-                { key: 'RMB', label: 'Обзор' },
-              ].map((h) => (
-                <span key={h.key} style={{
-                  padding: '2px 5px', fontSize: 9, border: '1px solid rgba(217,119,6,0.25)',
-                  background: 'rgba(217,119,6,0.06)', fontFamily: 'var(--font-mono)',
-                  textTransform: 'uppercase', letterSpacing: 0.5, borderRadius: 3,
-                }}>
-                  <span style={{ color: 'var(--accent-primary)' }}>{h.key}</span>
-                  <span style={{ opacity: 0.45, marginLeft: 3 }}>{h.label}</span>
-                </span>
-              ))}
-            </div>
-
             {/* Battle log — таб, свёрнут по умолчанию */}
             <div style={{
               borderRadius: 8, overflow: 'hidden',
@@ -551,17 +536,6 @@ export const Battle = () => {
       {/* Center - Battle Grid */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <BattleGrid />
-        {/* Round/phase caption */}
-        <div style={{
-          position: 'absolute', top: 8, left: 12, zIndex: 1001, pointerEvents: 'none',
-          fontSize: 11, fontWeight: 800, letterSpacing: 2, fontFamily: 'var(--font-mono)',
-          color: turn === 'player' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.55)',
-          textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-          background: 'rgba(0,0,0,0.45)', padding: '3px 10px', borderRadius: 6,
-          border: '1px solid rgba(217,119,6,0.3)',
-        }}>
-          Раунд {turnCount} · {turn === 'player' ? 'Твой ход' : 'Ход врага'}
-        </div>
         {/* CRT scanline overlay */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,
@@ -644,17 +618,18 @@ export const Battle = () => {
                 </div>
               </div>
               {/* Stats */}
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', padding: '0 12px 4px' }}>📊 ВРАГ</div>
               <div style={{ padding: '0 12px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: 12 }}>
-                <span>⚔️ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.damage)}</b></span>
-                <span>🛡️ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.armor)}</b></span>
-                <span>🎯 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.accuracy || 0) * 100)}%</b></span>
-                <span>💥 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.crit || 0) * 100)}%</b></span>
-                <span>🌀 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.evasion || 0) * 100)}%</b></span>
-                <span>🧱 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.block || 0) * 100)}%</b></span>
-                <span>👊 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.punching || 0) * 100)}%</b></span>
-                <span>🩸 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.vampir || 0) * 100)}%</b></span>
-                <span>📏 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.rangeDistance || 7}</b></span>
-                <span>💨 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.runAp || 5}</b></span>
+                <span>⚔️ Атака <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.damage)}</b></span>
+                <span>🛡️ Броня <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.armor)}</b></span>
+                <span>🎯 Метк. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.accuracy || 0) * 100)}%</b></span>
+                <span>💥 Крит <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.crit || 0) * 100)}%</b></span>
+                <span>🌀 Увор. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.evasion || 0) * 100)}%</b></span>
+                <span>🧱 Блок <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.block || 0) * 100)}%</b></span>
+                <span>👊 Проб. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.punching || 0) * 100)}%</b></span>
+                <span>🩸 Вамп. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.vampir || 0) * 100)}%</b></span>
+                <span>📏 Дальн. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.rangeDistance || 7}</b></span>
+                <span>💨 ОД <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.runAp || 5}</b></span>
               </div>
               {/* Power */}
               <div style={{ padding: '0 12px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, margin: '0 12px', paddingLeft: 0, paddingRight: 0 }}>
@@ -728,17 +703,18 @@ export const Battle = () => {
                     variant={stats.currentHp / stats.maxHp < 0.3 ? 'danger' : 'hp'} />
                 </div>
               </div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 4 }}>📊 ОПЕРАТОР</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: 12 }}>
-                <span>⚡ AP: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{ap}/{maxAp}</b></span>
-                <span>🔫 <b style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>{ammo}/{maxAmmo}</b></span>
-                <span>⚔️ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.damage)}</b></span>
-                <span>🛡️ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.armor)}</b></span>
-                <span>🎯 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.accuracy || 0) * 100)}%</b></span>
-                <span>💥 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.crit || 0) * 100)}%</b></span>
-                <span>🌀 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.evasion || 0) * 100)}%</b></span>
-                <span>🧱 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.block || 0) * 100)}%</b></span>
-                <span>👊 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.punching || 0) * 100)}%</b></span>
-                <span>🩸 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.vampir || 0) * 100)}%</b></span>
+                <span>⚡ ОД: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{ap}/{maxAp}</b></span>
+                <span>🔫 Маг.: <b style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>{ammo}/{maxAmmo}</b></span>
+                <span>⚔️ Атака: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.damage)}</b></span>
+                <span>🛡️ Броня: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.armor)}</b></span>
+                <span>🎯 Метк.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.accuracy || 0) * 100)}%</b></span>
+                <span>💥 Крит: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.crit || 0) * 100)}%</b></span>
+                <span>🌀 Увор.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.evasion || 0) * 100)}%</b></span>
+                <span>🧱 Блок: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.block || 0) * 100)}%</b></span>
+                <span>👊 Проб.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.punching || 0) * 100)}%</b></span>
+                <span>🩸 Вамп.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.vampir || 0) * 100)}%</b></span>
               </div>
               <div style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, textAlign: 'center' }}>
                 🟡 МОЩНОСТЬ:{' '}
