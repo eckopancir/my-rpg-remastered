@@ -662,6 +662,11 @@ export const Battle = () => {
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: ENEMY_COLORS[hoverTarget.faction] || '#fff', marginBottom: 4 }}>
                     {hoverTarget.faction}
                   </div>
+                  {(hoverTarget as any).callsign && (
+                    <div style={{ fontSize: 11, color: '#fbbf24', marginBottom: 4 }}>
+                      🎖️ Позывной «{(hoverTarget as any).callsign}»
+                    </div>
+                  )}
                   <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', marginBottom: 4 }}>
                     {Math.max(0, Math.round(hoverTarget.currentHp))} / {hoverTarget.maxHp}
                   </div>

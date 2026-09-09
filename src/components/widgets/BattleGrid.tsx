@@ -606,7 +606,7 @@ export const BattleGrid = () => {
           const showExcl = e.aiRole === 'sentry';
           // Режим поиска трупа.
           const showSearch = !!e.searching;
-          if (!e.speech && !e.sleeping && !showQ && !showExcl && !showSearch) return null;
+          if (!e.speech && !e.sleeping && !showQ && !showExcl && !showSearch && !e.surrendering) return null;
           // Маркеры стопкой вверх (диалоги могут их перекрывать — так задумано).
           const exclB = 34;
           const zzzB = 34 + (showExcl ? 30 : 0);
@@ -659,6 +659,31 @@ export const BattleGrid = () => {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.5)', whiteSpace: 'nowrap',
                 }}>
                   !!!
+                </div>
+              )}
+              {e.surrendering && (
+                <div style={{
+                  position: 'absolute', bottom: 10, left: 0, transform: 'translateX(-50%)', zIndex: 2,
+                  display: 'flex', gap: 6, alignItems: 'center',
+                  background: '#f5f1e6', color: '#111', fontSize: 11, fontWeight: 700,
+                  padding: '4px 8px', borderRadius: 9, border: '1px solid #8a8a8a',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)', pointerEvents: 'auto', whiteSpace: 'nowrap',
+                }}>
+                  <span>🏳️ Сдаюсь!</span>
+                  <button
+                    onClick={() => useCombatGridStore.getState().acceptSurrender(e.id)}
+                    title="Принять плен (забрать лут)"
+                    style={{ cursor: 'pointer', fontSize: 14, background: 'rgba(34,197,94,0.2)', border: '1px solid #22c55e', borderRadius: 6, padding: '0 6px' }}
+                  >
+                    ✅
+                  </button>
+                  <button
+                    onClick={() => useCombatGridStore.getState().refuseSurrender(e.id)}
+                    title="Отказать (бой продолжается)"
+                    style={{ cursor: 'pointer', fontSize: 14, background: 'rgba(248,113,113,0.2)', border: '1px solid #f87171', borderRadius: 6, padding: '0 6px' }}
+                  >
+                    ❌
+                  </button>
                 </div>
               )}
             </div>

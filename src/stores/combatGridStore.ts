@@ -9,7 +9,7 @@ import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName } from '../data/ammo';
 import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
-import { REINFORCE_BARK, CORPSE_ALARM, pickPhrase } from '../data/enemyChatter';
+import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -86,6 +86,11 @@ export interface GridEnemy {
   searching?: boolean;
   // Тихая смерть (скрытное убийство): без крика и звуков смерти.
   silentDeath?: boolean;
+  // Позывной (досье), отступление к медику/костру, сдача в плен.
+  callsign?: string;
+  retreating?: boolean;
+  surrendering?: boolean;
+  surrenderOffered?: boolean;
 }
 
 export interface GridObstacle {
@@ -175,6 +180,9 @@ export interface CombatGridStore {
   aggroWave: (center: { x: number; y: number }, radius?: number) => void;
   // Скрытное убийство спящего рядом (2 AP, тихо, стелс остаётся).
   stealthKill: () => void;
+  // Сдача в плен: принять (лут как с трупа) / отказаться (бой дальше).
+  acceptSurrender: (id: number | string) => void;
+  refuseSurrender: (id: number | string) => void;
   // Поиск трупа: точка найденного тела, флаг общей тревоги, запрет сна до конца боя.
   corpseSearch: { x: number; y: number } | null;
   alarmRaised: boolean;
@@ -332,6 +340,10 @@ function findFreeCellNear(
 
 /** Ближний бой по имени (Военные (melee) и т.п.). */
 const isMeleeEnemy = (name: string): boolean => /melle|melee/i.test(name || '');
+
+/** Босс по имени/ключу фракции. */
+export const isBossEnemy = (name: string, factionKey?: string): boolean =>
+  /boss|босс/i.test(`${name || ''} ${factionKey || ''}`);
 
 export function findPath(
   from: { x: number; y: number },
@@ -867,6 +879,33 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       get().addMessage('🕊️ Поле зачищено. Свободное перемещение.');
     }
   },
+  // Пленник сдался: забираем лут как с трупа (тихо), открываем окно обыска.
+  acceptSurrender: (id) => {
+    const s = get();
+    const captive = s.enemies.find((e) => e.id === id);
+    if (!captive || captive.dead) return;
+    let freshLoot: any[] = [];
+    try {
+      freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+        rank: rankOfEnemy((captive as any).factionKey, captive.name),
+      });
+    } catch { /* ignore */ }
+    const done = { ...captive, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, surrendering: false, loot: freshLoot, looted: false };
+    set((st) => ({
+      enemies: st.enemies.map((e) => (e.id === id ? done : e)),
+      lootingEnemy: done,
+      message: `🏳️ ${captive.name} сдался в плен! Забирай лут`,
+    }));
+    get().addBattleLog(`🏳️ ${captive.name} сдался в плен`);
+  },
+  // Отказ: бой продолжается, больше не предлагать.
+  refuseSurrender: (id) => {
+    set((s) => ({
+      enemies: s.enemies.map((e) => (e.id === id ? { ...e, surrendering: false, surrenderOffered: true } : e)),
+      message: '⚔️ Пощады не будет!',
+    }));
+    get().addBattleLog('⚔️ Пленник отвергнут — бой продолжается');
+  },
   playerAbilities: [],
   abilityCooldowns: [],
   selectedAbility: null,
@@ -1023,6 +1062,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         avatar: base.avatar || 'enemy',
         level: base.level || 1,
         factionKey,
+        callsign: pickPhrase(CALLSIGNS),
       });
     }
 
@@ -1040,9 +1080,18 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // Костёр рядом с первой тройкой.
     const campGroup = activeEnemies.slice(0, 3);
-    const campCx = campGroup.reduce((s, e) => s + e.pos.x, 0) / campGroup.length;
-    const campCy = campGroup.reduce((s, e) => s + e.pos.y, 0) / campGroup.length;
-    let campfire = findFreeCellNear(campCx, campCy, taken);
+    // Костёр — в любом месте карты, но не ближе 20 клеток от героя.
+    // Первая тройка встаёт кольцом уже вокруг него.
+    let fireSpot = { x: 20, y: 20 };
+    for (let a = 0; a < 80; a++) {
+      const rx = 2 + Math.floor(Math.random() * (GRID - 4));
+      const ry = 2 + Math.floor(Math.random() * (GRID - 4));
+      if (taken.has(`${rx},${ry}`)) continue;
+      if (Math.hypot(rx - playerPos.x, ry - playerPos.y) < 20) continue;
+      fireSpot = { x: rx, y: ry };
+      break;
+    }
+    let campfire = findFreeCellNear(fireSpot.x, fireSpot.y, taken);
 
     // Лагерь: кольцо вокруг костра.
     const ringDirs = [
@@ -1117,6 +1166,26 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const nm = `${e.name} ${e.factionKey || ''}`;
       const isMedic = nm.toLowerCase().includes('medic') || nm.toLowerCase().includes('медик');
       e.coverSeeker = !isMeleeEnemy(nm) && !isMedic && (e.rangeDistance || 7) >= 5 && Math.random() < 0.5;
+    }
+
+    // Боссы: всегда патрулируют (не спят, не сидят, не сторожат),
+    // скиллы — шквал+рейдж и 1 случайная легендарка (всего 3, суммон удалён).
+    const bossDirs = [
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+    ];
+    for (const e of activeEnemies) {
+      if (!isBossEnemy(e.name, (e as any).factionKey)) continue;
+      const d = bossDirs[Math.floor(Math.random() * bossDirs.length)];
+      e.aiRole = 'patrol';
+      e.sleeping = false;
+      e.sleepTurns = undefined;
+      e.aggro = false;
+      e.speech = null;
+      e.searching = false;
+      e.patrolDir = { ...d };
+      e.rotation = Math.atan2(d.dy, d.dx) * (180 / Math.PI);
+      e.skillUse = ['madness', 'rage', LEGENDARY_BOSS_SKILLS[Math.floor(Math.random() * LEGENDARY_BOSS_SKILLS.length)]];
     }
 
     // Generate obstacles with safe zones around player and enemies
@@ -2218,7 +2287,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         deadModel: base.dead || 'dead',
         avatar: base.avatar || 'enemy',
         level: base.level || 1,
+        callsign: pickPhrase(CALLSIGNS),
       });
+    }
+
+    // Боссы из волн: тоже патруль + легендарка, без сна.
+    for (const e of newEnemies) {
+      if (!isBossEnemy(e.name, (e as any).factionKey)) continue;
+      const d = { dx: 1, dy: 0 };
+      e.aiRole = 'patrol';
+      e.sleeping = false;
+      e.aggro = false;
+      e.patrolDir = { ...d };
+      e.skillUse = ['madness', 'rage', LEGENDARY_BOSS_SKILLS[Math.floor(Math.random() * LEGENDARY_BOSS_SKILLS.length)]];
     }
 
     set((s) => ({
@@ -2611,6 +2692,134 @@ export async function executeSkill(
         }));
       }
       return { costAp: 0 };
+    }
+
+    // --- Легендарные способности босса (по 1 случайной в бою) ---
+    case 'warhorn': {
+      // Боевой рёв: все живые союзники впадают в ярость (реген, скорость).
+      playCombatSound('m134', 0.4);
+      get().say(enemy.id, 'За мной! Рвите их!');
+      set((s: any) => ({
+        enemies: s.enemies.map((e: GridEnemy) =>
+          e.id !== enemy.id && !e.dead && e.currentHp > 0 && e.faction === enemy.faction
+            ? { ...e, isEnraged: true, rageTurns: 3, regen: (e.regen || 0) * 3 + 2, runAp: (e.runAp || 4) + 2 }
+            : e),
+      }));
+      setCd('warhorn', 8);
+      if (!enemy.cooldowns) enemy.cooldowns = {};
+      enemy.cooldowns['warhorn'] = 8;
+      return { costAp: 2 };
+    }
+
+    case 'artillery': {
+      // Армагеддон: 3 артудара вокруг игрока (зоны с таймером).
+      const artRange = (enemy.rangeDistance || 8) + 6;
+      if (dist > artRange || enemy.cooldowns?.['artillery'] > 0) return null;
+      playCombatSound('grenadeBoom', 0.5);
+      get().say(enemy.id, 'Небо падает!');
+      get().triggerShake();
+      const spots = [{ ...pPos }];
+      for (let k = 0; k < 2; k++) {
+        spots.push({
+          x: Math.max(0, Math.min(31, pPos.x + Math.floor(Math.random() * 5) - 2)),
+          y: Math.max(0, Math.min(31, pPos.y + Math.floor(Math.random() * 5) - 2)),
+        });
+      }
+      set((s: any) => ({
+        globalEffects: [
+          ...s.globalEffects,
+          ...spots.map((pos) => ({ type: 'REDZONE' as const, pos, damage: enemy.damage * 6, ownerId: enemy.id, timer: 2 })),
+        ],
+      }));
+      setCd('artillery', 8);
+      if (!enemy.cooldowns) enemy.cooldowns = {};
+      enemy.cooldowns['artillery'] = 8;
+      return { costAp: 3 };
+    }
+
+    case 'leadenrain': {
+      // Свинцовый дождь: 4 прицельных выстрела подряд.
+      if (dist > (enemy.rangeDistance || 8) + 2 || enemy.cooldowns?.['leadenrain'] > 0) return null;
+      playCombatSound('m134', 0.4);
+      get().say(enemy.id, 'Свинца не жалеть!');
+      set({ shotLine: { from: enemy.pos, to: { ...pPos } } });
+      const rainDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 1.2;
+      for (let k = 0; k < 4; k++) {
+        const result = calculateCombatResult(
+          { dps: rainDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
+          { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult },
+        );
+        if (result.damage > 0 && !absorbWithShield(pPos)) {
+          const finalDmg = Math.round(result.damage);
+          usePlayerStore.setState((st: any) => ({
+            stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
+          }));
+          get().addPopup(pPos.x, pPos.y, result.text, result.type);
+        }
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      setTimeout(() => set({ shotLine: null }), 200);
+      setCd('leadenrain', 7);
+      if (!enemy.cooldowns) enemy.cooldowns = {};
+      enemy.cooldowns['leadenrain'] = 7;
+      return { costAp: 3 };
+    }
+
+    case 'minefield': {
+      // Минное поле: 3 мины вокруг игрока.
+      if (enemy.cooldowns?.['minefield'] > 0) return null;
+      playCombatSound('install', 0.4);
+      get().say(enemy.id, 'Земля горит под ногами!');
+      const st = get();
+      const taken = new Set(st.enemies.filter((e: GridEnemy) => !e.dead).map((e: GridEnemy) => `${e.pos.x},${e.pos.y}`));
+      taken.add(`${st.playerPos.x},${st.playerPos.y}`);
+      const mines: { x: number; y: number }[] = [];
+      for (let k = 0; k < 3; k++) {
+        const spot = findFreeCellNear(
+          Math.max(0, Math.min(31, pPos.x + Math.floor(Math.random() * 11) - 5)),
+          Math.max(0, Math.min(31, pPos.y + Math.floor(Math.random() * 11) - 5)),
+          taken,
+        );
+        taken.add(`${spot.x},${spot.y}`);
+        mines.push(spot);
+      }
+      set((s: any) => ({
+        globalEffects: [
+          ...s.globalEffects,
+          ...mines.map((pos) => ({ type: 'MINE' as const, pos, damage: enemy.damage * 8, timer: 999 })),
+        ],
+      }));
+      get().addBattleLog('💣 Босс заминировал местность!');
+      setCd('minefield', 8);
+      if (!enemy.cooldowns) enemy.cooldowns = {};
+      enemy.cooldowns['minefield'] = 8;
+      return { costAp: 2 };
+    }
+
+    case 'shockwave': {
+      // Ударная волна: тяжёлый удар + сброс AP игрока.
+      if (dist > 10 || enemy.cooldowns?.['shockwave'] > 0) return null;
+      playCombatSound('grenadeBoom', 0.5);
+      get().say(enemy.id, 'Лежать!');
+      get().triggerShake();
+      const waveDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 3;
+      const result = calculateCombatResult(
+        { dps: waveDps, accuracy: (enemy.accuracy || 1) + 1.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
+        { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult },
+      );
+      if (result.damage > 0 && !absorbWithShield(pPos)) {
+        const finalDmg = Math.round(result.damage);
+        usePlayerStore.setState((st: any) => ({
+          stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
+        }));
+        get().addPopup(pPos.x, pPos.y, `💥 УДАРНАЯ ВОЛНА! ${result.text}`, result.type);
+      }
+      set((s: any) => ({ ap: 0 }));
+      get().addPopup(pPos.x, pPos.y, '😵 Оглушение: AP 0', 'SPECIAL');
+      setCd('shockwave', 7);
+      if (!enemy.cooldowns) enemy.cooldowns = {};
+      enemy.cooldowns['shockwave'] = 7;
+      return { costAp: 2 };
     }
   }
   return null;

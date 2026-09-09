@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, type GlobalEffect } from '../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, isBossEnemy, type GlobalEffect } from '../stores/combatGridStore';
 import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
 import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
-import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, pickPhrase } from '../data/enemyChatter';
+import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, BOSS_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, pickPhrase } from '../data/enemyChatter';
 
 const isMilitary = (e: any): boolean =>
   (e.faction || '').toLowerCase().includes('воен') || (e.factionKey || '').toLowerCase().includes('воен');
@@ -263,9 +263,13 @@ export const useEnemyAI = () => {
         // Скрытного замечают: обычные — в 3 клетках, часовые — в 6 (с «❗») ---
         if (!enemy.aggro && enemy.aiRole) {
           const stealthOn = useCombatGridStore.getState().stealth;
-          const detectR = stealthOn
-            ? (enemy.aiRole === 'sentry' ? 10 : 3)
-            : (enemy.aiRole === 'sentry' ? 15 : 24);
+          // Босс видит дальше всех: 24 без скрытности, 12 в скрытности.
+          const eIsBoss = isBossEnemy(enemy.name, (enemy as any).factionKey);
+          const detectR = eIsBoss
+            ? (stealthOn ? 12 : 24)
+            : stealthOn
+              ? (enemy.aiRole === 'sentry' ? 10 : 3)
+              : (enemy.aiRole === 'sentry' ? 15 : 24);
           const spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= detectR;
           const matesFight = !spotted && updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
@@ -379,8 +383,8 @@ export const useEnemyAI = () => {
             continue;
           }
           // Вне боя: 5% в ход уснуть на 3 хода (после тревоги сон запрещён).
-          // Подкрепление не спит — патрулирует.
-          if (!enemy.sleeping && enemy.aiRole !== 'reinforce' && !useCombatGridStore.getState().noSleep && Math.random() < 0.05) {
+          // Подкрепление не спит — патрулирует. Боссы не спят никогда.
+          if (!enemy.sleeping && enemy.aiRole !== 'reinforce' && !isBossEnemy(enemy.name, (enemy as any).factionKey) && !useCombatGridStore.getState().noSleep && Math.random() < 0.05) {
             enemy.sleeping = true;
             enemy.sleepTurns = 3;
             enemy.speech = null;
@@ -428,6 +432,74 @@ export const useEnemyAI = () => {
         }
 
         let enemyAp = enemy.runAp || 5;
+
+        const isBoss = isBossEnemy(enemy.name, (enemy as any).factionKey);
+        const hpFrac = enemy.currentHp / Math.max(1, enemy.maxHp);
+
+        // --- Раненый (HP<25%, не босс, не сдающийся): к медику, иначе к костру ---
+        if (!isBoss && !enemy.surrendering) {
+          if (!enemy.retreating && enemy.currentHp > 0 && hpFrac < 0.25) {
+            enemy.retreating = true;
+            updatedEnemies[i] = { ...enemy };
+          }
+          if (enemy.retreating) {
+            if (hpFrac >= 0.5) {
+              // Подлечился — снова в бой.
+              enemy.retreating = false;
+              updatedEnemies[i] = { ...enemy };
+            } else {
+              const st = useCombatGridStore.getState();
+              const medic = updatedEnemies.find((o: any) => o.id !== enemy.id && !o.dead && o.currentHp > 0
+                && /medic|медик/i.test(`${o.name} ${o.factionKey || ''}`) && o.faction === enemy.faction);
+              const dest = medic ? { ...medic.pos } : st.campfire ? { ...st.campfire } : null;
+              if (!dest) {
+                enemy.retreating = false;
+                updatedEnemies[i] = { ...enemy };
+              } else if (Math.max(Math.abs(enemy.pos.x - dest.x), Math.abs(enemy.pos.y - dest.y)) <= 2) {
+                // На месте: у костра +25% HP в ход (медик лечит сам), стоим.
+                if (!medic && st.campfire) {
+                  const heal = Math.round(enemy.maxHp * 0.25);
+                  enemy.currentHp = Math.min(enemy.maxHp, enemy.currentHp + heal);
+                  updatedEnemies[i] = { ...enemy };
+                  useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                  useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, `+${heal} HP 🔥`, 'HEAL');
+                }
+                await new Promise((r) => setTimeout(r, 150));
+                continue;
+              } else {
+                // Бежит лечиться (3 клетки/ход), не стреляет.
+                for (let stp = 0; stp < 3; stp++) {
+                  const rpath = findPathForEnemy(enemy.pos, dest, curStore.obstacles, updatedEnemies, enemy.id);
+                  if (!rpath || rpath.length <= 1) break;
+                  const ns = rpath[1];
+                  const rrot = getAngle(enemy.pos, ns);
+                  enemy.pos = { ...ns };
+                  enemy.rotation = rrot;
+                }
+                updatedEnemies[i] = { ...enemy };
+                useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                await new Promise((r) => setTimeout(r, 200));
+                continue;
+              }
+            }
+          }
+        }
+
+        // --- Сдача в плен: последний живой противник при HP<25% (не босс) ---
+        if (!isBoss && !enemy.surrenderOffered && !enemy.surrendering && enemy.currentHp > 0) {
+          const alive = updatedEnemies.filter((o: any) => !o.dead && o.currentHp > 0 && o.faction !== 'Союзник');
+          if (alive.length === 1 && alive[0].id === enemy.id && hpFrac < 0.25) {
+            enemy.surrendering = true;
+            updatedEnemies[i] = { ...enemy };
+            useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            useCombatGridStore.getState().addBattleLog(`🏳️ ${enemy.name} хочет сдаться!`);
+          }
+        }
+        // Сдающийся не действует, ждёт решения игрока.
+        if (enemy.surrendering) {
+          await new Promise((r) => setTimeout(r, 150));
+          continue;
+        }
 
         const isMedic = enemy.name.toLowerCase().includes('medic') || enemy.factionKey?.toLowerCase().includes('medic');
 
@@ -561,8 +633,10 @@ export const useEnemyAI = () => {
             updatedEnemies = updatedEnemies.map((e: any) =>
               e.id === enemy.id ? { ...e, rotation: angle } : e
             );
-            // Военные кричат в бою при стрельбе.
-            if (isMilitary(enemy) && Math.random() < 0.15) {
+            // Крики при стрельбе: у босса свои, у военных — свои.
+            if (isBossEnemy(enemy.name, (enemy as any).factionKey) && Math.random() < 0.4) {
+              saySync(enemy.id, pickPhrase(BOSS_COMBAT_BARK));
+            } else if (isMilitary(enemy) && Math.random() < 0.15) {
               saySync(enemy.id, pickPhrase(MILITARY_COMBAT_BARK));
             }
             // Открыл огонь по игроку — все в радиусе 9 от стрелка бегут в бой.
