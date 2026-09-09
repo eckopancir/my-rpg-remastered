@@ -524,6 +524,23 @@ export const BattleGrid = () => {
                         💤 z z z
                       </div>
                     )}
+                    {/* Подозрение: чует рядом (5 кл., часовой 8), но не видит — «?» */}
+                    {!enemy.aggro && enemy.faction !== 'Союзник' && (() => {
+                      const d = Math.hypot(enemy.pos.x - playerPos.x, enemy.pos.y - playerPos.y);
+                      const susR = enemy.aiRole === 'sentry' ? 8 : 5;
+                      const detR = stealth ? (enemy.aiRole === 'sentry' ? 6 : 3) : 24;
+                      if (d > susR || d <= detR) return null;
+                      return (
+                        <div style={{
+                          position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
+                          fontSize: 13, fontWeight: 800, zIndex: 8, pointerEvents: 'none',
+                          color: '#fdba74', background: 'rgba(8,12,20,0.8)', padding: '1px 7px',
+                          borderRadius: 10, border: '1px solid rgba(253,186,116,0.6)',
+                        }}>
+                          ❓
+                        </div>
+                      );
+                    })()}
                     {/* Облачко реплики */}
                     {enemy.speech && (
                       <div style={{

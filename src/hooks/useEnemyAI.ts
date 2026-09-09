@@ -204,7 +204,8 @@ export const useEnemyAI = () => {
         // Скрытного слышно только в упор (3 клетки вместо 8) ---
         if (enemy.sleeping) {
           const stealthOn = useCombatGridStore.getState().stealth;
-          const wakeR = stealthOn ? 3 : 8;
+          // Скрытного слышно в упор (3), обычного — вдвое дальше базы (16).
+          const wakeR = stealthOn ? 3 : 16;
           const matesFight = updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
             && o.aggro && getDist(o.pos, enemy.pos) <= 15);
@@ -226,10 +227,11 @@ export const useEnemyAI = () => {
         }
 
         // --- Camp life: обнаружение игрока или бой фракции рядом — агро.
+        // Вне скрытности радиус обнаружения x2 (24).
         // Скрытного замечают: обычные — в 3 клетках, часовые — в 6 (с «❗») ---
         if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
           const stealthOn = useCombatGridStore.getState().stealth;
-          const detectR = stealthOn ? (enemy.aiRole === 'sentry' ? 6 : 3) : 12;
+          const detectR = stealthOn ? (enemy.aiRole === 'sentry' ? 6 : 3) : 24;
           const spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= detectR;
           const matesFight = !spotted && updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
