@@ -7,6 +7,7 @@ import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP } from '../data/consumables';
+import { ammoTypeForWeapon, ammoGroupName } from '../data/ammo';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -685,6 +686,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Read weapon ammo capacity from equipped weapon2
     const weapon2 = player.equipment.weapon2;
     let ammoCap = weapon2?.ammoCapacity || 30;
+    // Предзарядка магазина из рюкзака (с оружием); без патронов — старт пустым.
+    const startAmmo = weapon2 ? usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(weapon2), ammoCap) : ammoCap;
 
     // Override rewards with card values when in card mode
     if (cardRewards) {
@@ -802,9 +805,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       isActive: true, playerPos, enemies, obstacles,
       playerAbilities, abilityCooldowns, selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0,
-      turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: ammoCap, maxAmmo: ammoCap,
+      turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
       range: ATTACK_RANGE, isDefensiveMode: false,
-      turnCount: 0, selectedEnemy: null, message: '⚔️ Твой ход',
+      turnCount: 0, selectedEnemy: null,
+      message: weapon2 && startAmmo <= 0 ? `❌ Нет патронов (${ammoGroupName(ammoTypeForWeapon(weapon2))})!` : '⚔️ Твой ход',
       isVictory: false, isDefeat: false, isMoving: false, isSelected: false,
       playerRotation: 90, popups: [], shotLine: null,
       flyingGrenade: null, globalEffects: [], lootingEnemy: null,
@@ -936,24 +940,20 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (state.abilityCooldowns[idx] > 0) { get().addMessage('❌ Способность перезаряжается'); set({ selectedAbility: null }); return; }
     if (state.ap < ability.apCost) { get().addMessage('❌ Не хватает AP'); return; }
 
-    // Активные способности требуют расходник (пассивки ammo_* — бесплатно).
-    // Временно берём из инвентаря; с вводом рюкзаков — из рюкзака.
+    // Активные способности требуют расходник из рюкзака (пассивки ammo_* — бесплатно).
     if (!ability.passive) {
-      const inv = useInventoryStore.getState();
-      const stack = inv.items.find((i) => i.type === 'consumable' && (i as any).abilityId === ability.id);
+      const ps = usePlayerStore.getState();
+      const stack = ps.backpackContents.find((i) => i.type === 'consumable' && (i as any).abilityId === ability.id);
       if (!stack) {
         const need = CONSUMABLE_MAP[ability.id]?.name || ability.name;
         get().addMessage(`❌ Нужен расходник: ${need}`);
         set({ selectedAbility: null });
         return;
       }
-      const qty = (stack as any).quantity ?? 1;
-      if (qty > 1) {
-        useInventoryStore.setState((s) => ({
-          items: s.items.map((i) => (i.id === stack.id ? { ...i, quantity: qty - 1 } : i)),
-        }));
-      } else {
-        inv.removeItem(stack.id);
+      if (!ps.consumeFromPack(stack.id)) {
+        get().addMessage(`❌ Нужен расходник: ${stack.displayName || stack.name}`);
+        set({ selectedAbility: null });
+        return;
       }
       get().addBattleLog(`🧪 Использован расходник: ${stack.displayName || stack.name}`);
     }
@@ -1538,9 +1538,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const shotCost = 1;
     if (state.ap < shotCost) { get().addMessage('❌ Не хватает AP'); return; }
     if (state.ammo <= 0) {
-      // Настройка «Автоперезарядка»: пустой магазин — сразу перезарядка.
-      if (useUiStore.getState().autoReload !== false) { get().reload(); return; }
-      get().addMessage('❌ Нет патронов! Нажми R для перезарядки'); return;
+      // Магазин пуст: без оружия — кулаки (бесплатно), с оружием — нужны патроны группы.
+      const w0 = usePlayerStore.getState().equipment.weapon2;
+      const grp0 = w0 ? ammoTypeForWeapon(w0) : null;
+      if (grp0) {
+        if (useUiStore.getState().autoReload !== false) get().reload();
+        if (get().ammo <= 0) {
+          get().addMessage(`❌ Нет патронов (${ammoGroupName(grp0)})!`);
+          return;
+        }
+      } else if (useUiStore.getState().autoReload !== false) { get().reload(); return; }
+      else { get().addMessage('❌ Нет патронов! Нажми R для перезарядки'); return; }
     }
 
     const enemy = state.enemies.find((e) => e.id === enemyId);
@@ -1622,6 +1630,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const st = get();
         const en = st.enemies.find((en) => en.id === enemyId);
         if (!en || en.dead || en.currentHp <= 0) return;
+        // Бонус-выстрел тоже ест патрон из магазина (с оружием); пусто — пропуск.
+        const w2b = usePlayerStore.getState().equipment.weapon2;
+        if (w2b) {
+          if (get().ammo <= 0) return;
+          set((s) => ({ ammo: s.ammo - 1 }));
+        }
 
         const pStats = usePlayerStore.getState().stats;
         let effDps = pStats.damage;
@@ -1861,7 +1875,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (state.turn !== 'player') return;
     if (state.ap < 2) { get().addMessage('❌ Нужно 2 AP для перезарядки'); return; }
     if (state.ammo >= state.maxAmmo) { get().addMessage('✅ Патроны полны'); return; }
-    set((s) => ({ ap: s.ap - 2, ammo: s.maxAmmo, message: '🔁 Перезарядился (AP -2)' }));
+    // Дозарядка из запаса: без оружия — бесплатно (кулаки), иначе — патроны группы.
+    const w2 = usePlayerStore.getState().equipment.weapon2;
+    if (!w2) {
+      set((s) => ({ ap: s.ap - 2, ammo: s.maxAmmo, message: '🔁 Перезарядился (AP -2)' }));
+      get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
+      return;
+    }
+    const group = ammoTypeForWeapon(w2);
+    const need = state.maxAmmo - state.ammo;
+    const took = usePlayerStore.getState().takeAmmoFromPack(group, need);
+    if (took <= 0) {
+      get().addMessage(`❌ Нет патронов (${ammoGroupName(group)})!`);
+      return;
+    }
+    set((s) => ({ ap: s.ap - 2, ammo: s.ammo + took, message: `🔁 +${took} (AP -2)` }));
     get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
   },
 

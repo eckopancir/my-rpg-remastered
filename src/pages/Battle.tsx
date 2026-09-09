@@ -8,6 +8,7 @@ import { BattleGrid } from '../components/widgets/BattleGrid';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
+import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { getEnemyImage, images } from '../assets/index';
 
@@ -60,6 +61,19 @@ export const Battle = () => {
   const maxAp = useCombatGridStore((s) => s.maxAp);
   const ammo = useCombatGridStore((s) => s.ammo);
   const maxAmmo = useCombatGridStore((s) => s.maxAmmo);
+  // Запас патронов группы надетого оружия (живой подсчёт из инвентаря).
+  const battleWeapon = usePlayerStore((s) => s.equipment.weapon2);
+  const battleAmmoGroup = battleWeapon ? ammoTypeForWeapon(battleWeapon) : null;
+  const battleAmmoReserve = usePlayerStore((s) => (battleAmmoGroup ? countAmmo(s.backpackContents, battleAmmoGroup) : 0));
+  const packContents = usePlayerStore((s) => s.backpackContents);
+  const consumableCount = (abilityId?: string) => {
+    if (!abilityId) return -1;
+    let n = 0;
+    for (const i of packContents) {
+      if (i.type === 'consumable' && (i as any).abilityId === abilityId) n += ((i as any).quantity ?? 1);
+    }
+    return n;
+  };
   const combatRange = useCombatGridStore((s) => s.range);
   const turn = useCombatGridStore((s) => s.turn);
   const turnCount = useCombatGridStore((s) => s.turnCount);
@@ -262,6 +276,7 @@ export const Battle = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16 }}>
                 <span>⚡ {ap}/{maxAp}</span>
                 <span>🔫 {ammo}/{maxAmmo}</span>
+                <span title={battleAmmoGroup ? `Запас: ${ammoGroupName(battleAmmoGroup)}` : 'Без оружия'}>📦 {battleAmmoReserve}</span>
                 <span title="Дальность стрельбы (+3 в защитном режиме)">📏 {combatRange + (isDefensiveMode ? 3 : 0)}</span>
                 {isDefensiveMode && <span style={{ color: '#8cf' }}>🛡️</span>}
               </div>
@@ -379,6 +394,8 @@ export const Battle = () => {
                     const canAfford = ap >= ab.apCost;
                     const statusText = cd > 0 ? `КД: ${cd}` : !canAfford ? `нужно ${ab.apCost}AP` : 'ГОТОВО';
                     const statusColor = cd > 0 ? '#ff6b6b' : !canAfford ? 'rgba(255,255,255,0.3)' : '#69db7c';
+                    // Остаток расходника в рюкзаке (-1 = пассивка, бесплатно).
+                    const consLeft = ab.passive ? -1 : consumableCount(ab.id);
                     return (
                       <div key={i}
                         onClick={() => { playClick(); selectAbility(i); }}
@@ -407,6 +424,16 @@ export const Battle = () => {
                         }}>
                           {i + 1}
                         </div>
+                        {consLeft >= 0 && (
+                          <div style={{
+                            position: 'absolute', top: 1, right: 3,
+                            fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                            color: consLeft > 0 ? '#4ade80' : '#f87171',
+                            background: 'rgba(0,0,0,0.65)', padding: '0 4px', borderRadius: 3,
+                          }}>
+                            x{consLeft}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -727,7 +754,10 @@ export const Battle = () => {
             <div
               onClick={() => {
                 const player = usePlayerStore.getState();
+                const lost = player.backpackContents.length;
                 player.addLog('💀 Поражение... Возвращение на базу.', 'warning');
+                if (lost > 0) player.addLog(`🎒 Рюкзак потерян в бою: вещей ${lost} сгинуло!`, 'warning');
+                player.clearBackpack();
                 usePlayerStore.setState((st: any) => ({
                   stats: { ...st.stats, currentHp: 1 },
                   combat: { ...st.combat, isFighting: false },

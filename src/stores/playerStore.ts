@@ -11,9 +11,11 @@ import type { ActiveEffect } from '../types/player';
 import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SKILL_CLASSES } from '../data/skills';
+import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
+import { takeAmmoFrom, countAmmo, type AmmoGroup } from '../data/ammo';
 
 const EQUIPMENT_SLOTS = [
-  'head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots',
+  'head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots', 'backpack',
   'ammo1', 'ammo2', 'ammo3', 'ammo4',
 ] as const;
 export type EquipmentSlot = typeof EQUIPMENT_SLOTS[number];
@@ -117,6 +119,7 @@ interface PlayerStore {
   level: number; currentExp: number; expToNext: number;
   dataChips: number; baseHealth: number; stats: PlayerStats;
   equipment: EquipmentStore;
+  backpackContents: Item[];
   activeEffects: ActiveEffect[];
   baseUpgrades: Record<string, number>;
   skillPoints: number;
@@ -139,6 +142,13 @@ interface PlayerStore {
 
   equipItem: (slot: EquipmentSlot, item: Item) => boolean;
   unequipItem: (slot: EquipmentSlot) => Item | null;
+  putInBackpack: (itemId: string) => string;
+  takeOutBackpack: (itemId: string) => void;
+  clearBackpack: () => void;
+  ensureBackpack: () => void;
+  takeAmmoFromPack: (group: AmmoGroup, n: number) => number;
+  ammoInPack: (group: AmmoGroup) => number;
+  consumeFromPack: (itemId: string) => boolean;
   spendSkillPoint: (skillId: string) => boolean;
   allocateSkill: (skillId: string) => void;
   deallocateSkill: (skillId: string) => void;
@@ -295,6 +305,7 @@ export const usePlayerStore = create<PlayerStore>()(
       dataChips: 100, baseHealth: 20000,
       stats: { ...BASE_STATS },
       equipment: emptyEquipment(),
+      backpackContents: [] as Item[],
       activeEffects: [] as ActiveEffect[],
       travel: { isTraveling: false, isReturning: false, destination: null, remaining: 0, total: 0 },
       combat: {
@@ -589,6 +600,64 @@ export const usePlayerStore = create<PlayerStore>()(
         } catch { /* best effort */ }
 
         return item;
+      },
+
+      putInBackpack: (itemId) => {
+        const s = get();
+        const pack = s.equipment.backpack;
+        if (!pack) return '❌ Нет рюкзака!';
+        const inv = useInventoryStore.getState();
+        const item = inv.items.find((i) => i.id === itemId);
+        if (!item) return '❌ Нет предмета!';
+        const maxSlots = backpackSlotsFor(pack);
+        const { contents, moved, leftoverQty } = tryInsertInto(s.backpackContents, maxSlots, item);
+        if (!moved) return '❌ Рюкзак полон!';
+        inv.removeItem(item.id);
+        if (leftoverQty > 0) inv.addItem({ ...item, quantity: leftoverQty });
+        set({ backpackContents: contents });
+        return leftoverQty > 0 ? `⚠️ Влезло частично, в рюкзаке нет места!` : `🎒 В рюкзаке`;
+      },
+
+      takeOutBackpack: (itemId) => {
+        const s = get();
+        const idx = s.backpackContents.findIndex((i) => i.id === itemId);
+        if (idx === -1) return;
+        const [item] = s.backpackContents.slice(idx, idx + 1);
+        const contents = s.backpackContents.filter((_, i) => i !== idx);
+        set({ backpackContents: contents });
+        useInventoryStore.getState().addItem(item);
+      },
+
+      clearBackpack: () => set({ backpackContents: [] }),
+
+      ensureBackpack: () => {
+        const s = get();
+        if (s.equipment.backpack) return;
+        const pack = makeBackpack('Походный рюкзак');
+        get().equipItem('backpack', pack);
+      },
+
+      takeAmmoFromPack: (group, n) => {
+        const s = get();
+        const { items, taken } = takeAmmoFrom(s.backpackContents, group, n);
+        if (taken > 0) set({ backpackContents: items });
+        return taken;
+      },
+
+      ammoInPack: (group) => countAmmo(get().backpackContents, group),
+
+      // Съесть 1 шт. предмета из рюкзака (расходники). false — нет такого.
+      consumeFromPack: (itemId) => {
+        const s = get();
+        const idx = s.backpackContents.findIndex((i) => i.id === itemId);
+        if (idx === -1) return false;
+        const it = s.backpackContents[idx];
+        const q = (it.quantity ?? 1) as number;
+        const contents = [...s.backpackContents];
+        if (q > 1) contents[idx] = { ...it, quantity: q - 1 };
+        else contents.splice(idx, 1);
+        set({ backpackContents: contents });
+        return true;
       },
 
       spendSkillPoint: (skillId) => {
@@ -1180,6 +1249,7 @@ export const usePlayerStore = create<PlayerStore>()(
         level: state.level, currentExp: state.currentExp, expToNext: state.expToNext,
         dataChips: state.dataChips, baseHealth: state.baseHealth,
         stats: state.stats, equipment: state.equipment,
+        backpackContents: state.backpackContents,
         activeEffects: state.activeEffects,
         skillPoints: state.skillPoints,
         logs: pruneLogs(state.logs).slice(-LOG_MAX_SAVED), logIdCounter: state.logIdCounter,

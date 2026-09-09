@@ -18,6 +18,13 @@ import { generateItem } from '../engine/items';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
+import { AMMO_GROUPS, makeBulletPack } from '../data/ammo';
+
+const debugAddBullets = () => {
+  const addItem = useInventoryStore.getState().addItem;
+  for (const g of AMMO_GROUPS) addItem(makeBulletPack(g.key, 60));
+  useUiStore.getState().addToast('🔸 +60 патронов каждого типа', 'loot');
+};
 
 const debugAddConsumables = () => {
   const addItem = useInventoryStore.getState().addItem;
@@ -138,7 +145,7 @@ export const Dashboard = () => {
       .then(r => r.json())
       .then(data => {
         if (data.error) return;
-        const slots = ['head','armor','weapon1','weapon2','gloves','boots','ammo1','ammo2','ammo3','ammo4'];
+        const slots = ['head','armor','weapon1','weapon2','gloves','boots','backpack','ammo1','ammo2','ammo3','ammo4'];
         const eq: Record<string, any> = {};
         slots.forEach((s) => { eq[s] = data.equipment[s] ?? null; });
         usePlayerStore.setState({
@@ -153,6 +160,7 @@ export const Dashboard = () => {
           skillPoints: data.skillPoints,
         });
         usePlayerStore.getState().recalcStats();
+        usePlayerStore.getState().ensureBackpack();
       })
       .catch(() => {});
 
@@ -470,6 +478,7 @@ export const Dashboard = () => {
             <Button size="sm" variant="ghost" onClick={() => debugAddChests()} style={{ fontSize: 9 }}>+10 сундуков 📦</Button>
             <Button size="sm" variant="ghost" onClick={() => debugAddConsumables()} style={{ fontSize: 9 }}>+расходники 🧪</Button>
             <Button size="sm" variant="ghost" onClick={() => debugAddBackpacks()} style={{ fontSize: 9 }}>+рюкзаки 🎒</Button>
+            <Button size="sm" variant="ghost" onClick={() => debugAddBullets()} style={{ fontSize: 9 }}>+патроны 🔸</Button>
             <Button size="sm" variant="success" onClick={() => usePlayerStore.setState((s) => ({ stats: { ...s.stats, currentHp: s.stats.maxHp } }))} style={{ fontSize: 9 }}>❤️ Полное исцеление</Button>
             <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 9 }}>🗑️ Очистить инвентарь</Button>
             <Button size="sm" variant="danger" onClick={() => usePlayerStore.getState().resetLevel()} style={{ fontSize: 9 }}>⬇️ Сброс уровня</Button>

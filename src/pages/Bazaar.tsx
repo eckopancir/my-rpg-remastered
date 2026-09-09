@@ -5,6 +5,16 @@ import { Button } from '../components/ui/Button';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem } from '../engine/items';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
+import { AMMO_GROUPS } from '../data/ammo';
+import { CONSUMABLE_DEFS } from '../data/consumables';
+import { BACKPACK_DEFS } from '../data/backpacks';
+
+const AMMO_GROUP_ICONS: Record<string, string> = Object.fromEntries(
+  AMMO_GROUPS.map((g) => [g.key, g.icon]),
+);
+const CONSUMABLE_ICONS: Record<string, string> = Object.fromEntries(
+  CONSUMABLE_DEFS.map((c) => [c.abilityId, c.icon]),
+);
 import { usePlayerStore } from '../stores/playerStore';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useAuthStore } from '../stores/authStore';
@@ -31,6 +41,7 @@ interface ShopItem {
   quantity?: number;
   resourceName?: string;
   abilityId?: string;
+  ammoGroup?: string;
 }
 
 const SHOP_QUALITY_MULT: Record<string, number> = {
@@ -133,6 +144,61 @@ const generateShop = (level: number): ShopItem[] => {
       resourceName: def.name,
     });
   }
+  // 8 расходников для боя: 3 пачки патронов + 3 расходника + 2 рюкзака.
+  const bulletPick = [...AMMO_GROUPS].sort(() => Math.random() - 0.5).slice(0, 3);
+  for (const g of bulletPick) {
+    const qty = 30;
+    items.push({
+      id: `ammo_${g.key}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
+      name: g.packName,
+      displayName: `${g.packName} x${qty}`,
+      level: 1,
+      rarity: 'common',
+      quality: 'Обычный',
+      qualityColor: '#94a3b8',
+      price: g.price + level * 2,
+      stats: {},
+      slot: 'bullet',
+      type: 'bullet',
+      quantity: qty,
+      ammoGroup: g.key,
+    });
+  }
+  const consPick = [...CONSUMABLE_DEFS].sort(() => Math.random() - 0.5).slice(0, 3);
+  for (const c of consPick) {
+    items.push({
+      id: `cons_${c.abilityId}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
+      name: c.name,
+      displayName: c.name,
+      level: 1,
+      rarity: 'common',
+      quality: 'Обычный',
+      qualityColor: '#94a3b8',
+      price: c.price + level,
+      stats: {},
+      slot: 'consumable',
+      type: 'consumable',
+      quantity: 1,
+      abilityId: c.abilityId,
+    });
+  }
+  const packPick = [...BACKPACK_DEFS].sort(() => Math.random() - 0.5).slice(0, 2);
+  for (const p of packPick) {
+    items.push({
+      id: `pack_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
+      name: p.name,
+      displayName: p.name,
+      level: 1,
+      rarity: 'common',
+      quality: 'Обычный',
+      qualityColor: '#94a3b8',
+      price: p.price + level * 3,
+      stats: {},
+      slot: 'backpack',
+      type: 'backpack',
+      quantity: 1,
+    });
+  }
   return items;
 };
 
@@ -142,9 +208,10 @@ type SortKey = 'price' | 'level' | 'name' | 'quality';
 const STALLS = [
   { id: 'weapons', label: 'Кузня', icon: '⚔️', flavor: 'Оружие от местных умельцев', color: '#f87171', slots: ['weapon1', 'weapon2'] },
   { id: 'armor', label: 'Бронник', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'gloves', 'boots'] },
-  { id: 'consumables', label: 'Лавка', icon: '🧪', flavor: 'Расходники и припасы', color: '#4ade80', slots: ['ammo'] },
+  { id: 'consumables', label: 'Амуниция', icon: '🧪', flavor: 'Амулеты, еда и мелочи', color: '#4ade80', slots: ['ammo'] },
   { id: 'mods', label: 'Модификации', icon: '🔩', flavor: 'Тюнинг снаряжения', color: '#c084fc', slots: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock', 'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'] },
   { id: 'resources', label: 'Ресурсные ряды', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
+  { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны, аптечки и рюкзаки', color: '#fb923c', slots: ['bullet', 'consumable', 'backpack'] },
 ] as const;
 
 type StallId = typeof STALLS[number]['id'] | 'all';
@@ -172,12 +239,21 @@ const ProductCard = ({ item, buyPrice, canAfford, onBuy, onHover, onMove, onLeav
         transition: 'transform 100ms, box-shadow 120ms',
       }}
     >
-      {(() => { const url = getItemImage(item.resourceName || item.name, item.type !== 'material' ? item.displayName : undefined); return url ? <img src={url} alt="" style={{ width: 30, height: 30, objectFit: 'contain', imageRendering: 'pixelated', borderRadius: 4, background: 'rgba(0,0,0,0.25)' }} /> : <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📦</div>; })()}
+      {(() => {
+        const emoji = item.type === 'bullet'
+          ? (AMMO_GROUP_ICONS[(item as any).ammoGroup] ?? '🔸')
+          : item.type === 'consumable' && item.abilityId
+            ? (CONSUMABLE_ICONS[item.abilityId] ?? '📦')
+            : item.type === 'backpack' ? '🎒' : null;
+        if (emoji) return <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{emoji}</div>;
+        const url = getItemImage(item.resourceName || item.name, item.type !== 'material' ? item.displayName : undefined);
+        return url ? <img src={url} alt="" style={{ width: 30, height: 30, objectFit: 'contain', imageRendering: 'pixelated', borderRadius: 4, background: 'rgba(0,0,0,0.25)' }} /> : <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📦</div>;
+      })()}
       <div style={{ fontSize: 10, fontWeight: 600, color: item.qualityColor || 'var(--text-primary)', lineHeight: 1.2, textAlign: 'center', overflowWrap: 'break-word', width: '100%' }}>
         {item.displayName || item.name}
       </div>
       <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
-        {item.type === 'material' ? `x${item.quantity || 1}` : `Lv.${item.level}`}
+        {item.type === 'material' || item.type === 'bullet' ? `x${item.quantity || 1}` : `Lv.${item.level}`}
       </div>
       <Button variant="primary" size="sm"
         onClick={onBuy}
@@ -362,6 +438,8 @@ export const Bazaar = () => {
           stats: shopItem.stats, qualityColor: shopItem.qualityColor,
           quality: shopItem.quality, type: shopItem.type,
           abilityId: shopItem.abilityId,
+          quantity: (shopItem as any).quantity || 1,
+          ammoGroup: (shopItem as any).ammoGroup,
         });
       }
       addLog(`🛒 Куплено: ${shopItem.displayName || shopItem.name} за ${json.charged ?? buyPrice} 💾`, 'loot');

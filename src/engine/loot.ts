@@ -1,5 +1,6 @@
 import { generateItem, QUALITY_TIERS, type ItemDefinition } from './items';
 import { GAME_RESOURCES } from '../data/GameItems';
+import { AMMO_GROUPS, makeBulletPack } from '../data/ammo';
 
 export type CorpseRank = 'mob' | 'officer' | 'boss';
 
@@ -12,10 +13,10 @@ export interface LootOptions {
   rank?: CorpseRank;
 }
 
-const RANK_TABLE: Record<CorpseRank, { itemChance: number; resTypes: number; resMin: number; resMax: number; bestOf: number }> = {
-  mob: { itemChance: 0.15, resTypes: 1, resMin: 1, resMax: 3, bestOf: 1 },
-  officer: { itemChance: 0.3, resTypes: 2, resMin: 1, resMax: 3, bestOf: 1 },
-  boss: { itemChance: 1, resTypes: 3, resMin: 2, resMax: 4, bestOf: 2 },
+const RANK_TABLE: Record<CorpseRank, { itemChance: number; resTypes: number; resMin: number; resMax: number; bestOf: number; bulletChance: number; bulletPacks: number; bulletMin: number; bulletMax: number }> = {
+  mob: { itemChance: 0.15, resTypes: 1, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.2, bulletPacks: 1, bulletMin: 8, bulletMax: 12 },
+  officer: { itemChance: 0.3, resTypes: 2, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.4, bulletPacks: 2, bulletMin: 8, bulletMax: 15 },
+  boss: { itemChance: 1, resTypes: 3, resMin: 2, resMax: 4, bestOf: 2, bulletChance: 1, bulletPacks: 2, bulletMin: 15, bulletMax: 30 },
 };
 
 const tierIndex = (qualityName: string): number => {
@@ -90,6 +91,14 @@ export const generateLoot = (
         quantity,
         image: def.image,
       });
+    }
+    // Патроны с трупов — пачки случайной группы.
+    if (Math.random() < t.bulletChance) {
+      for (let i = 0; i < t.bulletPacks; i++) {
+        const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
+        const qty = t.bulletMin + Math.floor(Math.random() * (t.bulletMax - t.bulletMin + 1));
+        items.push(makeBulletPack(g.key, qty));
+      }
     }
     return items;
   }

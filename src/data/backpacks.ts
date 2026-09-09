@@ -1,4 +1,5 @@
 import type { Item } from '../types/items';
+import { BULLET_STACK } from './ammo';
 
 // Каталог рюкзаков: 6 семейств × 5 градаций = 30 штук.
 // Слоты = baseSlots + индекс качества предмета (Обычный 0 … Божественный 6).
@@ -55,6 +56,53 @@ const QUALITY_SLOT_BONUS: Record<string, number> = {
 /** Итоговые слоты рюкзака с учётом качества. */
 export const backpackSlots = (def: BackpackDef, qualityName?: string): number =>
   def.baseSlots + (QUALITY_SLOT_BONUS[qualityName ?? 'Обычный'] ?? 0);
+
+/** Слоты надетого рюкзака; неизвестный — 4 как у походного. */
+export const backpackSlotsFor = (item: { name?: string; quality?: string } | null | undefined): number => {
+  if (!item) return 0;
+  const def = backpackDefByName(item.name || '');
+  if (!def) return 4;
+  return backpackSlots(def, item.quality);
+};
+
+export interface InsertResult {
+  contents: Item[];
+  /** Что-то переехало (целиком или частично). */
+  moved: boolean;
+  /** Остаток количества, не влезший (для патронов). 0 — влезло всё. */
+  leftoverQty: number;
+}
+
+/**
+ * Положить предмет в содержимое рюкзака.
+ * Патроны добивают неполные стаки (до 30) и занимают новые ячейки;
+ * остальное — по 1 ячейке. Чистая функция.
+ */
+export const tryInsertInto = (contents: Item[], slots: number, item: Item): InsertResult => {
+  const next = contents.map((c) => ({ ...c }));
+  if (item.type === 'bullet') {
+    let qty = (item.quantity ?? 1) as number;
+    for (const c of next) {
+      if (qty <= 0) break;
+      if (c.type === 'bullet' && c.name === item.name && ((c.quantity ?? 1) as number) < BULLET_STACK) {
+        const room = BULLET_STACK - ((c.quantity ?? 1) as number);
+        const mv = Math.min(room, qty);
+        c.quantity = ((c.quantity ?? 1) as number) + mv;
+        qty -= mv;
+      }
+    }
+    while (qty > 0) {
+      if (next.length >= slots) break;
+      const mv = Math.min(BULLET_STACK, qty);
+      next.push({ ...item, id: `${item.id}_p${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, quantity: mv });
+      qty -= mv;
+    }
+    return { contents: next, moved: qty < ((item.quantity ?? 1) as number), leftoverQty: qty };
+  }
+  if (next.length >= slots) return { contents: next, moved: false, leftoverQty: (item.quantity ?? 1) as number };
+  next.push(item);
+  return { contents: next, moved: true, leftoverQty: 0 };
+};
 
 export const backpackDefByName = (name: string): BackpackDef | undefined =>
   BACKPACK_DEFS.find((d) => d.name === name);

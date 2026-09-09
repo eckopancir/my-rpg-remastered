@@ -122,6 +122,7 @@ const AppContent = () => {
           const equipJson = await equipRes.json();
           if (equipJson.equipment && Object.keys(equipJson.equipment).length > 0) {
             usePlayerStore.setState({ equipment: equipJson.equipment });
+            usePlayerStore.getState().ensureBackpack();
           }
         }
       } catch { /* fallback to blob */ }
@@ -151,6 +152,8 @@ const AppContent = () => {
       // Don't overwrite exploration state from server — persist middleware handles it
       // and server may re-trigger stale event processing
       usePlayerStore.getState().recalcStats();
+      // Новичкам и старым сейвам без рюкзака — бесплатный походный.
+      usePlayerStore.getState().ensureBackpack();
 
       // Restore active base upgrade in sidebar (works on any page)
       try {

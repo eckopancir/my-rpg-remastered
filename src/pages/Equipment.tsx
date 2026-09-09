@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { CustomizationModal } from '../components/widgets/CustomizationModal';
+import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
 import { usePlayerStore, EQUIPMENT_SLOTS, type EquipmentSlot } from '../stores/playerStore';
 import { useInventoryStore } from '../stores/inventoryStore';
@@ -24,11 +25,12 @@ const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   weapon2: { top: Math.round(120 * S), left: Math.round(125 * S) },
   gloves: { top: Math.round(60 * S), left: Math.round(-20 * S) },
   boots: { top: Math.round(170 * S), left: Math.round(45 * S) },
+  backpack: { top: Math.round(60 * S), left: Math.round(125 * S) },
 };
 
 const SLOT_LABELS: Record<string, string> = {
   head: 'Шлем', armor: 'Броня', weapon1: 'Оружие', weapon2: 'Вторая рука',
-  gloves: 'Перчатки', boots: 'Ботинки',
+  gloves: 'Перчатки', boots: 'Ботинки', backpack: '🎒 Рюкзак',
   ammo1: 'Патроны', ammo2: 'Патроны', ammo3: 'Патроны', ammo4: 'Патроны',
 };
 
@@ -83,6 +85,7 @@ export const Equipment = () => {
   const [hoverSlot, setHoverSlot] = useState<string | null>(null);
   const [showAllStats, setShowAllStats] = useState(false);
   const [customizing, setCustomizing] = useState<{ item: Item | null; slot: string } | null>(null);
+  const [backpackOpen, setBackpackOpen] = useState(false);
   const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
   const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
   const [pos, setPos] = useState(equipmentPinPos);
@@ -192,6 +195,7 @@ export const Equipment = () => {
       clearTimeout(clickTimer.current);
       clickTimer.current = null;
     }
+    if (slot === 'backpack' && item) { setBackpackOpen(true); return; }
     if (item) setCustomizing({ item, slot });
   };
 
@@ -365,7 +369,7 @@ export const Equipment = () => {
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', width: '100%' }}>
             {[
-              { v: `${equippedCount}/10`, l: 'надето' },
+              { v: `${equippedCount}/${EQUIPMENT_SLOTS.length}`, l: 'надето' },
               { v: `⭐ ${avgStars.toFixed(1)}`, l: 'качество' },
               { v: `${avgLevel.toFixed(1)}`, l: 'ср. уровень' },
             ].map((t) => (
@@ -504,6 +508,7 @@ export const Equipment = () => {
           onClose={() => setCustomizing(null)}
         />
       )}
+      {backpackOpen && <BackpackWindow onClose={() => setBackpackOpen(false)} />}
     </motion.div>
   );
 };

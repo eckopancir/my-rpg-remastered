@@ -1,6 +1,7 @@
 import { getItemImage, images } from '../../assets/index';
 import type { Item } from '../../types/items';
 import { chestImageFor } from '../../data/chests';
+import { ammoGroupName, ammoTypeForWeapon, BULLET_STACK, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
@@ -114,9 +115,14 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
         )}
       </div>
 
+      {item.type === 'bullet' && (
+        <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
+          🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {BULLET_STACK} шт.
+        </div>
+      )}
       {item.slot === 'weapon2' && item.ammoCapacity && (
         <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          📀 Вместимость: {item.ammoCapacity} патронов
+          📀 Вместимость: {item.ammoCapacity} патронов ({ammoGroupName(ammoTypeForWeapon(item))})
         </div>
       )}
       {item.slot === 'mod_magazine' && item.stats?.ammoCapacity && (

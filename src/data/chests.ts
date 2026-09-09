@@ -1,5 +1,6 @@
 import { GAME_ITEMS, GAME_RESOURCES } from './GameItems';
 import { generateItem, QUALITY_TIERS } from '../engine/items';
+import { AMMO_GROUPS, makeBulletPack } from './ammo';
 import type { Item } from '../types/items';
 import type { GeneratedItem } from '../engine/items';
 import chestEpicClosed from '../assets/images/ui/chest-epic-closed.png';
@@ -99,6 +100,7 @@ export const getChestLevel = (chest: Item): number => {
 export type ChestDrop =
   | { key: string; kind: 'item'; item: GeneratedItem }
   | { key: string; kind: 'resource'; def: (typeof GAME_RESOURCES)[number]; quantity: number }
+  | { key: string; kind: 'bullets'; group: (typeof AMMO_GROUPS)[number]['key']; quantity: number }
   | { key: string; kind: 'chips'; amount: number };
 
 let dropSeq = 0;
@@ -129,6 +131,13 @@ export const rollChestLoot = (chest: Item): ChestDrop[] => {
 
   // Чипы.
   drops.push({ key: dropKey(), kind: 'chips', amount: cfg.chipBase + level * cfg.chipPerLevel });
+
+  // Сундуки от эпического и выше: пачка патронов случайной группы.
+  const tierIdx = QUALITY_TIERS.findIndex((t) => t.name === quality);
+  if (tierIdx >= 3) {
+    const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
+    drops.push({ key: dropKey(), kind: 'bullets', group: g.key, quantity: 15 + Math.floor(Math.random() * 16) });
+  }
 
   return drops;
 };

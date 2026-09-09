@@ -12,6 +12,7 @@ import { ItemTooltip } from './ItemTooltip';
 import { ChestOpening } from './ChestOpening';
 import { chestImageFor } from '../../data/chests';
 import { getConsumableIcon } from '../../data/consumables';
+import { AMMO_GROUP_MAP, type AmmoGroup } from '../../data/ammo';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 
@@ -33,6 +34,7 @@ const SLOT_FILTERS = [
   { value: 'chest', label: '— Сундуки' },
   { value: 'consumable', label: '— Расходники' },
   { value: 'backpack', label: '— Рюкзаки' },
+  { value: 'bullet', label: '— Патроны' },
 ];
 
 const getItemTimestamp = (item: Item): number => {
@@ -66,7 +68,7 @@ interface StackedItem {
 const stackItems = (items: Item[]): StackedItem[] => {
   const map = new Map<string, StackedItem>();
   for (const item of items) {
-    if (item.type === 'material' || item.type === 'consumable') {
+    if (item.type === 'material' || item.type === 'consumable' || item.type === 'bullet') {
       const key = `${item.type}_${item.name}_${item.rarity}`;
       const existing = map.get(key);
       if (existing) {
@@ -105,6 +107,7 @@ const slotFilterKey = (item: Item): string => {
   if (item.type === 'material') return 'material';
   if (item.type === 'chest') return 'chest';
   if (item.type === 'backpack') return 'backpack';
+  if (item.type === 'bullet') return 'bullet';
   if (item.slot === 'ammo') return 'ammo';
   return item.slot || '';
 };
@@ -358,10 +361,12 @@ export const InventoryOverlay = () => {
                 const imgUrl = item.image
                   || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
                   || getItemImage(item.name, item.displayName);
-                // Расходники и рюкзаки пока без арта — эмодзи-заглушка из дефа.
+                // Расходники, рюкзаки и патроны пока без арта — эмодзи-заглушка из дефа.
                 const emojiIcon = item.type === 'consumable'
                   ? getConsumableIcon(item)
-                  : item.type === 'backpack' ? '🎒' : null;
+                  : item.type === 'backpack' ? '🎒'
+                  : item.type === 'bullet' ? (AMMO_GROUP_MAP[(item as any).ammoGroup as AmmoGroup]?.icon ?? '🔸')
+                  : null;
 
                 return (
                   <div

@@ -3,6 +3,7 @@ import { useCombatGridStore, checkVisibility, getDist } from '../../stores/comba
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
+import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
 import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
@@ -648,38 +649,12 @@ export const BattleGrid = () => {
           </div>
         )}
 
-        {/* Loot window */}
+        {/* Loot window — рюкзак трупа (6 слотов) <-> рюкзак игрока */}
         {lootingEnemy && (
-          <div className={styles.lootOverlay} onClick={closeLoot}>
-            <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()}>
-              <div className={styles.lootHeader}>📦 {lootingEnemy.name} — лут</div>
-              {lootingEnemy.loot.length === 0 ? (
-                <div className={styles.lootEmpty}>Пусто</div>
-              ) : (
-                lootingEnemy.loot.map((item: any, idx: number) => (
-                  <div key={item.id || idx} className={styles.lootRow} onClick={() => {
-                    const realEnemyId = item.parentEnemyId ?? lootingEnemy.id;
-                    useInventoryStore.getState().addItem(item);
-                    setEnemyLootById(realEnemyId, item.id);
-                    setLooted(realEnemyId);
-                    // Update the local looting window state
-                    setLootingEnemy({
-                      ...lootingEnemy,
-                      loot: lootingEnemy.loot.filter((_: any, i: number) => i !== idx),
-                    });
-                    if (!(lootingEnemy.loot.length > 1)) closeLoot();
-                  }}>
-                    <span className={styles.lootName} style={{ color: item.qualityColor || '#fff' }}>
-                      {item.displayName || item.name}
-                    </span>
-                    <span className={styles.lootQty}>{item.quantity > 1 ? `x${item.quantity}` : ''}</span>
-                    <button className={styles.lootTakeBtn}>ВЗЯТЬ</button>
-                  </div>
-                ))
-              )}
-              <div className={styles.lootCloseBtn} onClick={closeLoot}>ЗАКРЫТЬ</div>
-            </div>
-          </div>
+          <LootBackpackWindow
+            enemyId={lootingEnemy.id}
+            onClose={closeLoot}
+          />
         )}
       </div>
     </div>

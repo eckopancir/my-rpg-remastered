@@ -46,6 +46,7 @@ export interface Item {
   set?: string;
   abilityId?: string;
   ammoCapacity?: number;
+  ammoGroup?: string;
 }
 
 

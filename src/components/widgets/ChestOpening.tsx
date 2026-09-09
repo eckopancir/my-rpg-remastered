@@ -9,6 +9,7 @@ import {
   CHEST_ART, artForQuality, getChestQuality, getChestLevel,
   rollChestLoot, makeResourceItem, type ChestDrop,
 } from '../../data/chests';
+import { AMMO_GROUP_MAP, makeBulletPack } from '../../data/ammo';
 import { ItemTooltip } from './ItemTooltip';
 import type { Item } from '../../types/items';
 
@@ -26,12 +27,13 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
   // Аура открытия в цвете качества (эпик — фиолетовый, а не оранжевый).
   const aura = chest.qualityColor || '#fff';
   const drops = useMemo(() => rollChestLoot(chest), [chest]);
-  // Предметы для тултипов (ресурсы собираем в Item той же пачкой, что выпала).
+  // Предметы для тултипов (ресурсы и патроны собираем в Item той же пачкой, что выпала).
   const dropItems = useMemo(() => {
     const m = new Map<string, Item>();
     for (const d of drops) {
       if (d.kind === 'item') m.set(d.key, d.item as unknown as Item);
       else if (d.kind === 'resource') m.set(d.key, makeResourceItem(d.def, d.quantity));
+      else if (d.kind === 'bullets') m.set(d.key, makeBulletPack(d.group, d.quantity));
     }
     return m;
   }, [drops]);
@@ -86,6 +88,10 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
     } else if (drop.kind === 'resource') {
       useInventoryStore.getState().addItem(makeResourceItem(drop.def, drop.quantity));
       usePlayerStore.getState().addLog(`📦 Из сундука: ${drop.def.name} x${drop.quantity}`, 'loot');
+    } else if (drop.kind === 'bullets') {
+      const pack = makeBulletPack(drop.group, drop.quantity);
+      useInventoryStore.getState().addItem(pack);
+      usePlayerStore.getState().addLog(`📦 Из сундука: ${pack.displayName}`, 'loot');
     } else {
       usePlayerStore.getState().addChips(drop.amount);
       usePlayerStore.getState().addLog(`📦 Из сундука: 💾${drop.amount} чипов`, 'loot');
@@ -244,6 +250,10 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                     >
                       {drop.kind === 'chips' ? (
                         <div style={{ fontSize: 34, lineHeight: 1, filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.7))' }}>💾</div>
+                      ) : drop.kind === 'bullets' ? (
+                        <div style={{ fontSize: 40, lineHeight: 1, filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}>
+                          {AMMO_GROUP_MAP[drop.group]?.icon ?? '🔸'}
+                        </div>
                       ) : (
                         <img
                           src={drop.kind === 'item'
@@ -267,7 +277,9 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                           ? (drop.item.displayName || drop.item.name)
                           : drop.kind === 'resource'
                             ? `${drop.def.name} x${drop.quantity}`
-                            : `💾${drop.amount}`}
+                            : drop.kind === 'bullets'
+                              ? `${AMMO_GROUP_MAP[drop.group]?.packName ?? 'Патроны'} x${drop.quantity}`
+                              : `💾${drop.amount}`}
                       </div>
                     </motion.div>
                   </motion.div>
