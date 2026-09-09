@@ -610,7 +610,7 @@ export const BattleGrid = () => {
               {e.speech && (
                 <div style={{
                   position: 'absolute', bottom: 10, left: 0, transform: 'translateX(-50%)',
-                  maxWidth: 150, minWidth: 40,
+                  maxWidth: 150, minWidth: 40, zIndex: 2,
                   background: '#f5f1e6', color: '#1a1a1a', fontSize: 10, lineHeight: 1.25,
                   padding: '4px 8px', borderRadius: 9, border: '1px solid #8a8a8a',
                   textAlign: 'center', whiteSpace: 'normal',
