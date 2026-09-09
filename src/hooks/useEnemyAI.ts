@@ -275,8 +275,48 @@ export const useEnemyAI = () => {
 
         // --- Camp life: жизнь вне боя по ролям ---
         if (!enemy.aggro && enemy.aiRole && enemy.aiRole !== 'reinforce') {
-          // Вне боя: 5% в ход уснуть на 3 хода (спящего можно тихо убрать).
-          if (!enemy.sleeping && Math.random() < 0.05) {
+          // Труп лежит, тревоги ещё нет: 5% в ход — пойти проверить («!!!»).
+          {
+            const cs0 = useCombatGridStore.getState();
+            if (cs0.corpseSearch && !cs0.alarmRaised && !enemy.searching && Math.random() < 0.05) {
+              enemy.searching = true;
+              updatedEnemies[i] = { ...enemy };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            }
+          }
+          // --- Режим «!!!»: идёт к трупу, заметил (3 клетки) — общая тревога ---
+          if (enemy.searching) {
+            const css = useCombatGridStore.getState();
+            const target = css.corpseSearch;
+            if (!target || css.alarmRaised) {
+              enemy.searching = false;
+              updatedEnemies[i] = { ...enemy };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            } else if (Math.max(Math.abs(enemy.pos.x - target.x), Math.abs(enemy.pos.y - target.y)) <= 3) {
+              enemy.searching = false;
+              updatedEnemies[i] = { ...enemy };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+              css.raiseCorpseAlarm(enemy.id);
+              // Тревога перемаппила врагов — синкаем локальную копию.
+              updatedEnemies = useCombatGridStore.getState().enemies.map((x: any) => ({ ...x }));
+              await new Promise((r) => setTimeout(r, 500));
+            } else {
+              for (let stp = 0; stp < 2; stp++) {
+                const cpath = findPathForEnemy(enemy.pos, target, curStore.obstacles, updatedEnemies, enemy.id);
+                if (!cpath || cpath.length <= 1) break;
+                const ns = cpath[1];
+                const srot = getAngle(enemy.pos, ns);
+                enemy.pos = { ...ns };
+                enemy.rotation = srot;
+              }
+              updatedEnemies[i] = { ...enemy };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+              await new Promise((r) => setTimeout(r, 200));
+            }
+            continue;
+          }
+          // Вне боя: 5% в ход уснуть на 3 хода (после тревоги сон запрещён).
+          if (!enemy.sleeping && !useCombatGridStore.getState().noSleep && Math.random() < 0.05) {
             enemy.sleeping = true;
             enemy.sleepTurns = 3;
             enemy.speech = null;

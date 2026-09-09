@@ -594,11 +594,14 @@ export const BattleGrid = () => {
           const showQ = !e.aggro && !e.sleeping && e.faction !== 'Союзник' && d <= susR && d > detR;
           // Часовой всегда с белым «!» — его метка.
           const showExcl = e.aiRole === 'sentry';
-          if (!e.speech && !e.sleeping && !showQ && !showExcl) return null;
+          // Режим поиска трупа.
+          const showSearch = !!e.searching;
+          if (!e.speech && !e.sleeping && !showQ && !showExcl && !showSearch) return null;
           // Маркеры стопкой вверх (диалоги могут их перекрывать — так задумано).
           const exclB = 34;
           const zzzB = 34 + (showExcl ? 30 : 0);
           const qB = 34 + (showExcl ? 30 : 0) + (e.sleeping ? 30 : 0);
+          const sB = 34 + (showExcl ? 30 : 0) + (e.sleeping ? 30 : 0) + (showQ ? 30 : 0);
           return (
             <div key={`estate-${e.id}`} style={{ position: 'absolute', left, top, width: 0, height: 0, zIndex: 60, pointerEvents: 'none' }}>
               {e.speech && (
@@ -636,6 +639,16 @@ export const BattleGrid = () => {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                 }}>
                   ?
+                </div>
+              )}
+              {showSearch && (
+                <div title="Ищет труп" style={{
+                  position: 'absolute', bottom: sB, left: 0, transform: 'translateX(-50%)',
+                  background: '#7f1d1d', color: '#fff', fontSize: 12, fontWeight: 800,
+                  padding: '1px 8px', borderRadius: 10, border: '1px solid rgba(248,113,113,0.8)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)', whiteSpace: 'nowrap',
+                }}>
+                  !!!
                 </div>
               )}
             </div>

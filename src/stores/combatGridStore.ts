@@ -9,7 +9,7 @@ import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName } from '../data/ammo';
 import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
-import { REINFORCE_BARK, pickPhrase } from '../data/enemyChatter';
+import { REINFORCE_BARK, CORPSE_ALARM, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -82,6 +82,8 @@ export interface GridEnemy {
   knowsPlayer?: boolean;
   // Естественный сон: осталось ходов (undefined — спит до побудки).
   sleepTurns?: number;
+  // Режим поиска трупа (!!!): идёт к найденному телу.
+  searching?: boolean;
 }
 
 export interface GridObstacle {
@@ -171,6 +173,11 @@ export interface CombatGridStore {
   aggroWave: (center: { x: number; y: number }, radius?: number) => void;
   // Скрытное убийство спящего рядом (2 AP, тихо, стелс остаётся).
   stealthKill: () => void;
+  // Поиск трупа: точка найденного тела, флаг общей тревоги, запрет сна до конца боя.
+  corpseSearch: { x: number; y: number } | null;
+  alarmRaised: boolean;
+  noSleep: boolean;
+  raiseCorpseAlarm: (finderId: number | string) => void;
   // Скрытность: моделька полупрозрачна, замечают только в упор. Слетает при выстреле/обнаружении.
   stealth: boolean;
   toggleStealth: () => void;
@@ -683,6 +690,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   pendingReinforce: [],
   reinforceSpawned: false,
   battleId: 0,
+  corpseSearch: null,
+  alarmRaised: false,
+  noSleep: false,
   stealth: false,
   toggleStealth: () => {
     const s = get();
@@ -766,6 +776,34 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     if (placed[0] && !stealthOn) get().say(placed[0].id, pickPhrase(REINFORCE_BARK));
   },
+  // Нашёл труп: общая тревога. Всех будим, переводим в поисковый патруль
+  // (позиции игрока не знают), сон запрещён до конца боя.
+  raiseCorpseAlarm: (finderId) => {
+    const s = get();
+    if (s.alarmRaised) return;
+    const pDirs = [
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+    ];
+    set((st) => ({
+      alarmRaised: true,
+      noSleep: true,
+      enemies: st.enemies.map((e) => {
+        if (e.dead || e.currentHp <= 0) return e;
+        const next: GridEnemy = { ...e, sleeping: false, sleepTurns: undefined, searching: false };
+        // Не в бою — в поисковый патруль (лагерь и часовые тоже ищут).
+        if (!e.aggro && e.aiRole && e.aiRole !== 'reinforce') {
+          const d = pDirs[Math.floor(Math.random() * pDirs.length)];
+          next.aiRole = 'patrol';
+          next.patrolDir = { ...d };
+        }
+        return next;
+      }),
+      message: '🚨 Тревога! Враги прочёсывают карту!',
+      battleLogs: [...st.battleLogs.slice(-199), '🚨 Враг нашёл труп! Все ищут тебя!'],
+    }));
+    get().say(finderId, pickPhrase(CORPSE_ALARM));
+  },
   // Волна агро: стрельба будит всех в радиусе — бегут в бой (и запоминают игрока).
   aggroWave: (center, radius = 9) => {
     set((s) => ({
@@ -811,6 +849,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     get().addBattleLog(`🔪 Скрытное убийство: ${victim.name}`);
     get().addPopup(corpsePos.x, corpsePos.y, '🔪 Тихо устранён', 'SPECIAL');
+    // Тело найдут: точка поиска трупа для режима «!!!».
+    set({ corpseSearch: { ...corpsePos } });
     const rest = get();
     if (rest.enemies.every((e) => e.dead) && rest.reserve.length === 0 && rest.pendingReinforce.length === 0) {
       get().addMessage('🕊️ Поле зачищено. Свободное перемещение.');
@@ -1009,8 +1049,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       e.speech = null;
       e.rotation = Math.atan2(campfire.y - spot.y, campfire.x - spot.x) * (180 / Math.PI);
     });
-    // Спящие у костра: 2 при 4+ в лагере, 1 при 2-3.
-    const sleepCount = campGroup.length >= 4 ? 2 : campGroup.length >= 2 ? 1 : 0;
+    // Спящий у костра: всегда 1 (если лагерь не пуст).
+    const sleepCount = campGroup.length >= 1 ? 1 : 0;
     const shuffled = [...campGroup].sort(() => Math.random() - 0.5);
     for (let s = 0; s < sleepCount; s++) shuffled[s].sleeping = true;
 
@@ -1099,6 +1139,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       plannedPath: [], reserve: [], battleLogs: ['⚔️ Бой начался!'],
       exploredCells: {},
       campfire, pendingReinforce, reinforceSpawned: false,
+      corpseSearch: null, alarmRaised: false, noSleep: false,
       battleId: get().battleId + 1,
       stealth: false,
     });
@@ -2269,6 +2310,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
       exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
+      corpseSearch: null, alarmRaised: false, noSleep: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,
