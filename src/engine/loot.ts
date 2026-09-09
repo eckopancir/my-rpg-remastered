@@ -15,9 +15,9 @@ export interface LootOptions {
   rank?: CorpseRank;
 }
 
-// Рюкзак трупа — 6 ячеек: приоритет содержимого (предмет, рюкзак,
+// Рюкзак трупа — 10 ячеек: приоритет содержимого (предмет, рюкзак,
 // расходник, патроны, ресурсы), лишнее не спавнится.
-export const CORPSE_SLOTS = 6;
+export const CORPSE_SLOTS = 10;
 
 const RANK_TABLE: Record<CorpseRank, { itemChance: number; resTypes: number; resMin: number; resMax: number; bestOf: number; bulletChance: number; bulletPacks: number; bulletMin: number; bulletMax: number; consChance: number; consMax: number; packChance: number }> = {
   mob: { itemChance: 0.15, resTypes: 1, resMin: 1, resMax: 3, bestOf: 1, bulletChance: 0.2, bulletPacks: 1, bulletMin: 8, bulletMax: 12, consChance: 0.05, consMax: 1, packChance: 0 },
@@ -67,6 +67,59 @@ export const generateLoot = (
   // Ранговый режим: скупой лут по рангу трупа.
   if (options?.rank) {
     const t = RANK_TABLE[options.rank];
+    // Босс: жирный гарант — 2-4 вещи, 1-2 ресурса, 1-2 расходника, 1 пачка, 1% рюкзак.
+    if (options.rank === 'boss') {
+      const eqN = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < eqN; i++) {
+        const drop = generateItem(itemPool, enemyLevel);
+        if (drop) items.push(drop);
+      }
+      const pool = [...GAME_RESOURCES];
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      const resN = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < Math.min(resN, pool.length); i++) {
+        const def = pool[i];
+        const quantity = 2 + Math.floor(Math.random() * 3);
+        items.push({
+          id: `res_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          name: def.name,
+          displayName: def.name,
+          rarity: def.rarity,
+          slot: def.slot,
+          stats: {},
+          quality: 'Обычный',
+          qualityColor: '#a0a0a0',
+          level: 1,
+          type: 'material',
+          quantity,
+          image: def.image,
+        });
+      }
+      const consN = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < consN; i++) {
+        const d = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
+        items.push(makeConsumable(d.abilityId, 1));
+      }
+      const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
+      items.push(makeBulletPack(g.key, 15 + Math.floor(Math.random() * 16)));
+      if (Math.random() < 0.01) {
+        const d = BACKPACK_DEFS[Math.floor(Math.random() * BACKPACK_DEFS.length)];
+        const q = getItemQuality();
+        items.push(makeBackpack(d.name, q.name, q.color, enemyLevel));
+      }
+      const prio = (it: any): number => {
+        if (it.type === 'backpack') return 1;
+        if (it.type === 'consumable') return 2;
+        if (it.type === 'bullet') return 3;
+        if (it.type === 'material') return 4;
+        return 0;
+      };
+      items.sort((a, b) => prio(a) - prio(b));
+      return items.slice(0, CORPSE_SLOTS);
+    }
     if (Math.random() < t.itemChance) {
       let best: any = null;
       for (let i = 0; i < t.bestOf; i++) {

@@ -58,7 +58,16 @@ const SORT_OPTIONS = [
   { value: 'block', label: 'Блок' },
   { value: 'vampir', label: 'Вампиризм' },
   { value: 'price', label: 'Цена' },
+  { value: 'rarity', label: 'Редкость' },
 ];
+
+const RARITY_ORDER: Record<string, number> = {
+  'Божественный': 7, 'Легендарный': 6, 'Смертоносный': 5, 'Эпический': 4,
+  'Раритетный': 3, 'Редкий': 2, 'Обычный': 1,
+};
+
+const rarityRank = (item: Item): number =>
+  RARITY_ORDER[item.quality || ''] ?? RARITY_ORDER[item.rarity || ''] ?? 0;
 
 interface StackedItem {
   item: Item;
@@ -90,7 +99,7 @@ const STAT_ALIASES: Record<string, string[]> = {
 
 const getStatValue = (item: Item, stat: string): number => {
   if (stat === 'level') return item.level || 1;
-  if (stat === 'price') return item.price || 0;
+  if (stat === 'price') return item.price || getSellPrice(item);
   const stats = item.stats || {};
   const keys = STAT_ALIASES[stat] || [stat];
   for (const key of keys) {
@@ -195,6 +204,8 @@ export const InventoryOverlay = () => {
       list = [...list].sort((a, b) => calcItemPower(b.item) - calcItemPower(a.item));
     } else if (sortBy === 'recent') {
       list = [...list].sort((a, b) => getItemTimestamp(b.item) - getItemTimestamp(a.item));
+    } else if (sortBy === 'rarity') {
+      list = [...list].sort((a, b) => rarityRank(b.item) - rarityRank(a.item));
     } else if (sortBy) {
       list = [...list].sort((a, b) => {
         const va = getStatValue(a.item, sortBy);

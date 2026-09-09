@@ -19,7 +19,7 @@ try {
     $level = (int)($sd['player']['level'] ?? 1);
     $chips = (int)($sd['player']['dataChips'] ?? 0);
 
-    $cost = 50 + $level * 10;
+    $cost = $level * 100;
     if ($chips < $cost) {
         $pdo->rollBack();
         jsonResponse(['error' => "Not enough chips, need $cost"], 400);

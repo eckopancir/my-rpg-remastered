@@ -11,7 +11,7 @@ import { WapHeader } from '../ui/WapHeader';
 import type { Item } from '../../types/items';
 import styles from './BattleGrid.module.css';
 
-const CORPSE_SLOTS = 6;
+import { CORPSE_SLOTS } from '../../engine/loot';
 const cellPx = 52;
 
 const iconFor = (item: any): string | null => {

@@ -60,8 +60,8 @@ export const Skills = () => {
                 </Button>
               </>
             )}
-            <Button size="sm" variant="ghost" onClick={resetSkills}>
-              🔄 Сброс
+            <Button size="sm" variant="ghost" onClick={resetSkills} title={`Сброс навыков за ${level * 100} 💾`}>
+              🔄 Сброс · {level * 100}💾
             </Button>
           </div>
         </div>

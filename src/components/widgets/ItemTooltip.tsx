@@ -1,6 +1,7 @@
 import { getItemImage, images } from '../../assets/index';
 import type { Item } from '../../types/items';
-import { chestImageFor } from '../../data/chests';
+import { chestImageFor, configForQuality } from '../../data/chests';
+import { QUALITY_TIERS } from '../../engine/items';
 import { backpackDefByName, backpackSlots, backpackSlotsFor } from '../../data/backpacks';
 import { ammoGroupName, ammoTypeForWeapon, maxStackFor, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
@@ -121,6 +122,32 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
           🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle')} шт.
         </div>
       )}
+      {item.type === 'chest' && (() => {
+        const qn = item.quality || 'Обычный';
+        const cfg = configForQuality(qn);
+        const tierIdx = QUALITY_TIERS.findIndex((t) => t.name === qn);
+        const lines = [
+          `⚔️ 1 предмет · 100% ${qn}`,
+          `📦 Ресурсы: ${cfg.resTypes} видов`,
+          `💾 Чипы: ${cfg.chipBase}+`,
+        ];
+        if (tierIdx >= 3) lines.push('🔸 Пачка патронов');
+        lines.push(`🧪 Расходники: ${cfg.consTypes[0]}–${cfg.consTypes[1]} видов`);
+        lines.push('🎒 Рюкзак: шанс 1%');
+        return (
+          <div style={{
+            background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)',
+            borderRadius: 6, padding: '6px 8px', marginBottom: 8,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#fbbf24', marginBottom: 4 }}>
+              📦 Может выпасть:
+            </div>
+            {lines.map((l, i) => (
+              <div key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{l}</div>
+            ))}
+          </div>
+        );
+      })()}
       {item.type === 'backpack' && (() => {
         const def = backpackDefByName(item.name || '');
         const slots = def ? backpackSlots(def, item.quality) : backpackSlotsFor(item);

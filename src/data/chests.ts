@@ -2,6 +2,7 @@ import { GAME_ITEMS, GAME_RESOURCES } from './GameItems';
 import { generateItem, QUALITY_TIERS } from '../engine/items';
 import { AMMO_GROUPS, makeBulletPack } from './ammo';
 import { CONSUMABLE_DEFS, makeConsumable } from './consumables';
+import { BACKPACK_DEFS, makeBackpack } from './backpacks';
 import type { Item } from '../types/items';
 import type { GeneratedItem } from '../engine/items';
 import chestEpicClosed from '../assets/images/ui/chest-epic-closed.png';
@@ -106,6 +107,7 @@ export type ChestDrop =
   | { key: string; kind: 'resource'; def: (typeof GAME_RESOURCES)[number]; quantity: number }
   | { key: string; kind: 'bullets'; group: (typeof AMMO_GROUPS)[number]['key']; quantity: number }
   | { key: string; kind: 'consumable'; abilityId: string; quantity: number }
+  | { key: string; kind: 'backpack'; pack: Item }
   | { key: string; kind: 'chips'; amount: number };
 
 let dropSeq = 0;
@@ -119,8 +121,21 @@ export const rollChestLoot = (chest: Item): ChestDrop[] => {
   const drops: ChestDrop[] = [];
 
   // 1 предмет гарантированного качества, уровня сундука.
-  const item = generateItem(GAME_ITEMS, level, null, quality);
+  // Только снаряжение из GAME_ITEMS (тип material исключён явно — ресурсом
+  // гарант быть не может, ресурсы идут отдельными дропами ниже).
+  const gearPool = GAME_ITEMS.filter((d) => (d as any).type !== 'material');
+  const item = generateItem(gearPool, level, null, quality);
   drops.push({ key: dropKey(), kind: 'item', item });
+
+  // 1% — рюкзак редкостью как сундук.
+  if (Math.random() < 0.01) {
+    const d = BACKPACK_DEFS[Math.floor(Math.random() * BACKPACK_DEFS.length)];
+    const tier = QUALITY_TIERS.find((t) => t.name === quality);
+    drops.push({
+      key: dropKey(), kind: 'backpack',
+      pack: makeBackpack(d.name, quality, tier?.color ?? 'white', level),
+    });
+  }
 
   // N разных ресурсов, пачка растёт с уровнем сундука.
   const pool = [...GAME_RESOURCES];

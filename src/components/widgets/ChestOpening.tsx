@@ -36,6 +36,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
       else if (d.kind === 'resource') m.set(d.key, makeResourceItem(d.def, d.quantity));
       else if (d.kind === 'bullets') m.set(d.key, makeBulletPack(d.group, d.quantity));
       else if (d.kind === 'consumable') m.set(d.key, makeConsumable(d.abilityId, d.quantity));
+      else if (d.kind === 'backpack') m.set(d.key, d.pack);
     }
     return m;
   }, [drops]);
@@ -98,6 +99,9 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
       const cons = makeConsumable(drop.abilityId, drop.quantity);
       useInventoryStore.getState().addItem(cons);
       usePlayerStore.getState().addLog(`📦 Из сундука: ${cons.displayName || cons.name} x${drop.quantity}`, 'loot');
+    } else if (drop.kind === 'backpack') {
+      useInventoryStore.getState().addItem(drop.pack);
+      usePlayerStore.getState().addLog(`📦 Из сундука: ${drop.pack.displayName || drop.pack.name} (${drop.pack.quality})`, 'loot');
     } else {
       usePlayerStore.getState().addChips(drop.amount);
       usePlayerStore.getState().addLog(`📦 Из сундука: 💾${drop.amount} чипов`, 'loot');
@@ -134,6 +138,11 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
   };
 
   const total = drops.length;
+  // Главный предмет (гарант качества сундука) — в центр с лучами, не на орбиту.
+  const mainDrop = drops.find((d) => d.kind === 'item');
+  const orbitDrops = drops.filter((d) => d.kind !== 'item');
+  const mainTaken = !mainDrop || !remaining.some((d) => d.key === mainDrop.key);
+  const mainItem = mainDrop ? dropItems.get(mainDrop.key) : undefined;
 
   return (
     <div
@@ -213,14 +222,58 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
               }}
               style={{ width: 280 }}
             />
-            {/* Орбита лута вокруг открытого сундука */}
+            {/* Главный предмет — в центре над сундуком, в ауре лучей цвета сундука */}
+            {mainDrop && !mainTaken && mainItem && (
+              <div style={{ position: 'absolute', left: '50%', top: '1%', transform: 'translateX(-50%)', zIndex: 5 }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 16, ease: 'linear', repeat: Infinity }}
+                    style={{
+                      position: 'absolute', width: 190, height: 190, borderRadius: '50%',
+                      background: `repeating-conic-gradient(from 0deg, ${aura}66 0deg 7deg, transparent 7deg 22deg)`,
+                      WebkitMaskImage: 'radial-gradient(circle, black 25%, transparent 68%)',
+                      maskImage: 'radial-gradient(circle, black 25%, transparent 68%)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <motion.div
+                    animate={{ y: [0, -9, 0] }}
+                    transition={{ duration: 2.4, ease: 'easeInOut', repeat: Infinity }}
+                    onClick={() => collect(mainDrop.key)}
+                    onMouseEnter={(e) => setTip({ item: mainItem, x: e.clientX, y: e.clientY })}
+                    onMouseMove={(e) => setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t))}
+                    onMouseLeave={() => setTip(null)}
+                    style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+                  >
+                    <img
+                      src={mainItem.image || getItemImage(mainItem.name, mainItem.displayName)}
+                      alt=""
+                      draggable={false}
+                      style={{
+                        width: 84, height: 84, objectFit: 'contain',
+                        filter: `drop-shadow(0 0 16px ${aura})`,
+                      }}
+                    />
+                    <div style={{
+                      fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap',
+                      color: aura, background: 'rgba(0,0,0,0.75)', padding: '1px 8px', borderRadius: 4,
+                      border: `1px solid ${aura}88`,
+                    }}>
+                      {mainItem.displayName || mainItem.name}
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+            )}
+            {/* Орбита лута вокруг открытого сундука (без главного предмета — он в центре) */}
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: RING_SECONDS, ease: 'linear', repeat: Infinity }}
               style={{ position: 'absolute', left: '50%', top: '50%', width: 0, height: 0 }}
             >
-              {drops.map((drop, i) => {
-                const angle = (-90 + (i * 360) / Math.max(1, drops.length)) * (Math.PI / 180);
+              {orbitDrops.map((drop, i) => {
+                const angle = (-90 + (i * 360) / Math.max(1, orbitDrops.length)) * (Math.PI / 180);
                 const r = 195;
                 const x = Math.cos(angle) * r;
                 const y = Math.sin(angle) * r * 0.82;
@@ -264,6 +317,10 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                         <div style={{ fontSize: 40, lineHeight: 1, filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}>
                           {CONSUMABLE_MAP[drop.abilityId]?.icon ?? '🧪'}
                         </div>
+                      ) : drop.kind === 'backpack' ? (
+                        <div style={{ fontSize: 40, lineHeight: 1, filter: `drop-shadow(0 0 10px ${drop.pack.qualityColor || '#fff'})` }}>
+                          🎒
+                        </div>
                       ) : (
                         <img
                           src={drop.kind === 'item'
@@ -291,7 +348,9 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                               ? `${AMMO_GROUP_MAP[drop.group]?.packName ?? 'Патроны'} x${drop.quantity}`
                               : drop.kind === 'consumable'
                                 ? `${CONSUMABLE_MAP[drop.abilityId]?.name ?? 'Расходник'} x${drop.quantity}`
-                                : `💾${drop.amount}`}
+                                : drop.kind === 'backpack'
+                                  ? (drop.pack.displayName || drop.pack.name)
+                                  : `💾${drop.amount}`}
                       </div>
                     </motion.div>
                   </motion.div>

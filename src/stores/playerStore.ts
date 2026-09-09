@@ -746,7 +746,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
       resetSkills: async () => {
         const s = get();
-        const cost = 50 + s.level * 10;
+        const cost = s.level * 100;
         const token = useAuthStore.getState().token;
         if (!token) return;
         // Clear skills immediately on client, don't wait for server

@@ -590,7 +590,7 @@ export const Bazaar = () => {
 
   const handleRefresh = async () => {
     if (!token) return;
-    const baseCost = (50 + playerLevel * 10) * 2;
+    const baseCost = playerLevel * 100;
     const cost = Math.floor(baseCost * (1 - getUtil().refreshDiscount));
     if (dataChips < cost) {
       addLog(`❌ Недостаточно чипов для обновления. Нужно ${cost}`, 'warning');
@@ -659,7 +659,7 @@ export const Bazaar = () => {
                   : 'обновление...'}
               </div>
               <Button size="sm" variant="ghost" onClick={handleRefresh} disabled={shopLoading} style={{ fontSize: 10 }}>
-                📢 Позвать торговца · {Math.floor((50 + playerLevel * 10) * (1 - getUtil().refreshDiscount))}💾
+                🔄 Обновить товары · {Math.floor(playerLevel * 100 * (1 - getUtil().refreshDiscount))}💾
               </Button>
             </div>
           </div>
