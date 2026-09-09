@@ -424,7 +424,7 @@ export const Battle = () => {
                   opacity: turn !== 'player' ? 0.4 : 1,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
-                title="Скрытность: замечают только в упор (часовые — в 6 клетках). Слетает при выстреле. Только вне боя."
+                title="Скрытность: обычные замечают в 3, часовые — в 10 клетках. Слетает при выстреле. Только вне боя."
               >
                 <span>🕵️ Скрытность {stealth ? '(АКТИВНО)' : ''}</span>
                 <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>T</span>

@@ -263,7 +263,9 @@ export const useEnemyAI = () => {
         // Скрытного замечают: обычные — в 3 клетках, часовые — в 6 (с «❗») ---
         if (!enemy.aggro && enemy.aiRole) {
           const stealthOn = useCombatGridStore.getState().stealth;
-          const detectR = stealthOn ? (enemy.aiRole === 'sentry' ? 6 : 3) : 24;
+          const detectR = stealthOn
+            ? (enemy.aiRole === 'sentry' ? 10 : 3)
+            : (enemy.aiRole === 'sentry' ? 15 : 24);
           const spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= detectR;
           const matesFight = !spotted && updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
@@ -398,10 +400,10 @@ export const useEnemyAI = () => {
             useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             if (Math.random() < 0.1 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(SENTRY_RADIO));
             // Видит цель в дальности — открывает огонь, но с места не сходит.
-            // Скрытного часовой замечает только в 6 клетках.
+            // Скрытного часовой замечает только в 10 клетках.
             const sDist = getDist(enemy.pos, curStore.playerPos);
             const sRange = enemy.rangeDistance || 7;
-            const sInRange = sDist <= (useCombatGridStore.getState().stealth ? Math.min(sRange, 6) : sRange);
+            const sInRange = sDist <= (useCombatGridStore.getState().stealth ? Math.min(sRange, 10) : sRange);
             const sCanSee = !isPlayerInvisible && checkVisibility(enemy.pos, 0, curStore.playerPos, curStore.obstacles, { range: 40, fov: 360 });
             if (sCanSee && sInRange && !isPlayerInvisible) {
               enemy.aggro = true;

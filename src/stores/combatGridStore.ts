@@ -723,7 +723,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return;
     }
     set({ stealth: true });
-    get().addMessage('🕵️ Скрытность: замечают только в упор (часовые — в 6 клетках)');
+    get().addMessage('🕵️ Скрытность: обычные замечают в 3, часовые — в 10 клетках');
   },
   markExplored: (cells) => set((s) => {
     let changed = false;

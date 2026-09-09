@@ -545,7 +545,11 @@ export const BattleGrid = () => {
                       alt={enemy.name}
                       className={`${styles.humanSprite}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
                       draggable={false}
-                      style={{ transform: `rotate(${enemy.rotation - 90}deg)` }}
+                      style={{
+                        transform: `rotate(${enemy.rotation - 90}deg)`,
+                        // Патруль вне боя — полупрозрачный (еле видно); в бою — 100%.
+                        opacity: ((enemy.aiRole === 'patrol' || enemy.aiRole === 'reinforce') && !enemy.aggro) ? 0.5 : 1,
+                      }}
                     />
                   </div>
                 )}
@@ -592,8 +596,11 @@ export const BattleGrid = () => {
           const left = `${(e.pos.x / 31) * 100}%`;
           const top = `${(e.pos.y / 31) * 100}%`;
           const d = Math.hypot(e.pos.x - playerPos.x, e.pos.y - playerPos.y);
-          const susR = e.aiRole === 'sentry' ? 8 : 5;
-          const detR = stealth ? (e.aiRole === 'sentry' ? 6 : 3) : 24;
+          // Подозрение: обычные 5 (в стелсе), часовые — 8, в стелсе 11-12.
+          const susR = e.aiRole === 'sentry' ? (stealth ? 12 : 8) : 5;
+          const detR = stealth
+            ? (e.aiRole === 'sentry' ? 10 : 3)
+            : (e.aiRole === 'sentry' ? 15 : 24);
           const showQ = !e.aggro && !e.sleeping && e.faction !== 'Союзник' && d <= susR && d > detR;
           // Часовой всегда с белым «!» — его метка.
           const showExcl = e.aiRole === 'sentry';
