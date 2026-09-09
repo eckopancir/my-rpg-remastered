@@ -538,7 +538,8 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   let sound: string | null = null;
 
   const currentHour = new Date().getHours();
-  const isNightTime = currentHour >= 0 && currentHour < 6;
+  // DEBUG forceDay: для тестов всегда день (без ночного штрафа).
+  const isNightTime = currentHour >= 0 && currentHour < 6 && !useUiStore.getState().forceDay;
   const nightPenalty = isNightTime && !attacker.isPlayer ? 0.2 : 0;
   const finalAccuracy = Math.max(0, (attacker.accuracy || 0) - nightPenalty);
 
@@ -657,7 +658,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   message: '',
   isVictory: false,
   isDefeat: false,
-  isNightTime: new Date().getHours() >= 0 && new Date().getHours() < 6,
+  isNightTime: !useUiStore.getState().forceDay && new Date().getHours() >= 0 && new Date().getHours() < 6,
   isPlayerHit: false,
   isShaking: false,
   isMoving: false,

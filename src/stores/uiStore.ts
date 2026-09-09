@@ -41,8 +41,7 @@ interface UiStore {
   autoReload: boolean;
   confirmExitCombat: boolean;
   showEnemyHpNumbers: boolean;
-  duckMusicInCombat: boolean;
-  isResting: boolean;
+  duckMusicInCombat: boolean;  isResting: boolean;
   craftingTimer: number;
   craftingTimerMax: number;
   craftingType: 'merge' | 'create' | 'upgrade' | null;
@@ -91,6 +90,8 @@ interface UiStore {
   setConfirmExitCombat: (v: boolean) => void;
   setShowEnemyHpNumbers: (v: boolean) => void;
   setDuckMusicInCombat: (v: boolean) => void;
+  forceDay: boolean;
+  setForceDay: (v: boolean) => void;
 
   addToQueue: (entry: ExpeditionEntry) => void;
   removeFromQueue: (id: string) => void;
@@ -123,6 +124,8 @@ export const useUiStore = create<UiStore>()(
       confirmExitCombat: true,
       showEnemyHpNumbers: false,
       duckMusicInCombat: false,
+      // DEBUG: всегда день (для тестов билдов ночью). Персистим.
+      forceDay: false,
       isResting: false,
       craftingTimer: 0,
       craftingTimerMax: 0,
@@ -180,6 +183,7 @@ export const useUiStore = create<UiStore>()(
       setConfirmExitCombat: (v) => set({ confirmExitCombat: v }),
       setShowEnemyHpNumbers: (v) => set({ showEnemyHpNumbers: v }),
       setDuckMusicInCombat: (v) => set({ duckMusicInCombat: v }),
+      setForceDay: (v) => set({ forceDay: v }),
 
       addToQueue: (entry) => set((s) => ({ queue: [...s.queue, entry] })),
       removeFromQueue: (id) => set((s) => ({ queue: s.queue.filter((e) => e.id !== id) })),
@@ -260,7 +264,7 @@ export const useUiStore = create<UiStore>()(
     }),
     {
       name: 'remastered_ui',
-      version: 6,
+      version: 7,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 4) {
@@ -284,6 +288,9 @@ export const useUiStore = create<UiStore>()(
         if (version < 6) {
           if (state.backpackLocked === undefined) state.backpackLocked = false;
         }
+        if (version < 7) {
+          if (state.forceDay === undefined) state.forceDay = false;
+        }
         return state as UiStore;
       },
       partialize: (state) => ({
@@ -300,6 +307,7 @@ export const useUiStore = create<UiStore>()(
         confirmExitCombat: state.confirmExitCombat,
         showEnemyHpNumbers: state.showEnemyHpNumbers,
         duckMusicInCombat: state.duckMusicInCombat,
+        forceDay: state.forceDay,
         inventoryPinned: state.inventoryPinned,
         inventoryPinPos: state.inventoryPinPos,
         equipmentPinned: state.equipmentPinned,

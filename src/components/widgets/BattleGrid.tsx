@@ -183,6 +183,8 @@ export const BattleGrid = () => {
   }, [obstacles]);
 
   const isNightTime = useCombatGridStore((s) => s.isNightTime);
+  const forceDay = useUiStore((s) => s.forceDay);
+  const nightOn = isNightTime && !forceDay;
   const playerXpct = (playerPos.x / 31) * 100;
   const playerYpct = (playerPos.y / 31) * 100;
 
@@ -394,7 +396,7 @@ export const BattleGrid = () => {
   return (
     <div className={`${styles.container}${isShaking ? ` ${styles.arenaShake}` : ''}`}>
       <div className={styles.battleScreen} ref={gridRef} style={{ backgroundImage: `url(${images.mapBattle})`, marginTop: 30 }}>
-        {isNightTime && (
+        {nightOn && (
           <div className={styles.fogCanvas} style={{
             background: `radial-gradient(circle 202px at ${playerXpct}% ${playerYpct}%, transparent 0%, rgba(0,10,0,0.7) 60%, rgba(0,0,0,0.9) 120%)`,
           }} />

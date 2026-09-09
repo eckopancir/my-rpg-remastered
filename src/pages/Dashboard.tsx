@@ -136,6 +136,8 @@ export const Dashboard = () => {
   const activeEffects = usePlayerStore((s) => s.activeEffects);
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
   const toggleInventory = useUiStore((s) => s.toggleInventory);
+  const forceDay = useUiStore((s) => s.forceDay);
+  const setForceDay = useUiStore((s) => s.setForceDay);
   const powerBreakdown = usePlayerStore((s) => s.powerBreakdown);
   const { playClick } = useSound();
 
@@ -486,6 +488,10 @@ export const Dashboard = () => {
             <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 9 }}>🗑️ Очистить инвентарь</Button>
             <Button size="sm" variant="danger" onClick={() => usePlayerStore.getState().resetLevel()} style={{ fontSize: 9 }}>⬇️ Сброс уровня</Button>
             <Button size="sm" variant="danger" onClick={() => { useExplorationStore.getState().resetExploration(); usePlayerStore.getState().addLog('🔄 Экспедиция сброшена', 'system'); }} style={{ fontSize: 9 }}>🔄 Сброс экспедиции</Button>
+            <label style={{ fontSize: 9, display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '4px 8px' }} title="Для тестов: ночь отключается везде">
+              <input type="checkbox" checked={forceDay} onChange={(e) => setForceDay(e.target.checked)} style={{ cursor: 'pointer' }} />
+              ☀️ Всегда день
+            </label>
           </div>
         </WapPanel>
       </div>
