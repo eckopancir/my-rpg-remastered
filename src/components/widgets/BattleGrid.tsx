@@ -34,11 +34,7 @@ const ENEMY_COLORS: Record<string, string> = {
   Неизвестно: '#a1a1aa',
 };
 
-const BIG_BUILDING_IMAGES = ['o8', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o27'];
-const CAR_IMAGES = ['o6', 'o7', 'o22', 'o23', 'o24'];
-const WOOD_IMAGES = ['o3', 'o4', 'o25', 'o26'];
-const SMALL_OBSTACLE_IMAGES = ['o1', 'o2', 'o19', 'o20', 'o21'];
-const FENCE_IMAGE = 'o5';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, terrainSummary } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
@@ -109,6 +105,8 @@ export const BattleGrid = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const fogCanvasRef = useRef<HTMLCanvasElement>(null);
   const isRightMouseDown = useRef(false);
+  // Клетка нажатия ПКМ — для инспекции точки при клике без протяжки.
+  const rmbDownCell = useRef<{ x: number; y: number } | null>(null);
 
   useEnemyAI();
 
@@ -400,8 +398,21 @@ export const BattleGrid = () => {
           onContextMenu={(e) => e.preventDefault()}
           style={{ cursor: `url("${pricelImg}") 12 12, crosshair` }}
           onMouseDown={(e) => { if (e.button === 2) isRightMouseDown.current = true; }}
-          onMouseUp={(e) => { if (e.button === 2) isRightMouseDown.current = false; }}
-          onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; }}
+          onMouseUp={(e) => {
+            if (e.button !== 2) return;
+            isRightMouseDown.current = false;
+            // ПКМ-клик без протяжки — инспекция укрытий точки под курсором.
+            const down = rmbDownCell.current;
+            rmbDownCell.current = null;
+            if (!down) return;
+            const cur = useCombatGridStore.getState().cursorPos;
+            if (!cur || cur.x !== down.x || cur.y !== down.y) return;
+            const st = useCombatGridStore.getState();
+            const s = terrainSummary(down, st.obstacles);
+            st.addPopup(down.x, down.y, s.text, 'BUFF');
+            st.addMessage(s.detail);
+          }}
+          onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; rmbDownCell.current = null; }}
         >
           {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
             const x = i % GRID_SIZE;
@@ -423,6 +434,7 @@ export const BattleGrid = () => {
                 className={`${styles.cell}${isSel ? ` ${styles.cellActive}` : ''}${pathPoint ? ` ${styles.pathActive}` : ''}${obstacle ? ` ${styles.obstacleCell}` : ''}${isPlayer ? ` ${styles.playerCell}` : ''}${isInRange && turn === 'player' ? ` ${styles.inRange}` : ''}${hovered ? ` ${styles.cellCrosshair}` : ''}`}
                 onClick={() => handleCellClick(x, y)}
                 onContextMenu={(e) => e.preventDefault()}
+                onMouseDown={(e) => { if (e.button === 2) rmbDownCell.current = { x, y }; }}
                 onMouseEnter={() => {
                   handleCellHover(x, y);
                   if (isRightMouseDown.current && !measureRef.current) rotatePlayer(x, y);

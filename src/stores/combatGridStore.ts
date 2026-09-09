@@ -8,6 +8,7 @@ import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName } from '../data/ammo';
+import { applyTerrainToTarget } from '../engine/terrain';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -1590,11 +1591,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       vampir: player.stats.vampir,
       isPlayer: true,
     };
-    const targetStats = {
-      armor: enemy.armor,
-      evasion: enemy.evasion,
-      block: enemy.block,
-    };
+    const targetStats = applyTerrainToTarget(
+      {
+        armor: enemy.armor,
+        evasion: enemy.evasion,
+        block: enemy.block,
+      },
+      enemy.pos,
+      state.obstacles,
+    );
 
     const result = calculateCombatResult(attackerStats, targetStats);
     const actualDmg = Math.round(result.damage);
@@ -1652,7 +1657,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }
 
         const atkStat = { dps: effDps, pure: pureBonus, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
-        const tgtStat = { armor: en.armor, evasion: en.evasion, block: en.block };
+        const tgtStat = applyTerrainToTarget(
+          { armor: en.armor, evasion: en.evasion, block: en.block },
+          en.pos,
+          st.obstacles,
+        );
         const res = calculateCombatResult(atkStat, tgtStat);
         const dmg = Math.round(res.damage);
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, type GlobalEffect } from '../stores/combatGridStore';
+import { applyTerrainToTarget } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound } from './useSound';
@@ -263,7 +264,11 @@ export const useEnemyAI = () => {
             const enemyDps = enemy.dps || enemy.damage * (1 + (enemy.speed || 0));
             const result = calculateCombatResult(
               { dps: enemyDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
-              { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult },
+              applyTerrainToTarget(
+                { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult },
+                targetPos,
+                currentStore.obstacles,
+              ),
             );
 
             // Sound from result (crit/block)
@@ -361,7 +366,11 @@ export const useEnemyAI = () => {
               const tgtIncoming = extraTargetAlly ? 1 : curAfter.incomingDamageMult;
               const result2 = calculateCombatResult(
                 { dps: enemyDps2, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
-                { armor: tgtArmor, evasion: tgtEvasion, block: tgtBlock, incomingDamageMult: tgtIncoming },
+                applyTerrainToTarget(
+                  { armor: tgtArmor, evasion: tgtEvasion, block: tgtBlock, incomingDamageMult: tgtIncoming },
+                  targetPos,
+                  useCombatGridStore.getState().obstacles,
+                ),
               );
 
               if (result2.sound) playCombatSound(result2.sound, 0.4);
