@@ -416,7 +416,7 @@ export const Battle = () => {
                 }}
                 title="Скрытность: замечают только в упор (часовые — в 6 клетках). Слетает при выстреле. Только вне боя."
               >
-                <span>🥷 Скрытность {stealth ? '(АКТИВНО)' : ''}</span>
+                <span>🕵️ Скрытность {stealth ? '(АКТИВНО)' : ''}</span>
                 <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>T</span>
               </div>
 

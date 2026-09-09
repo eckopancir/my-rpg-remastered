@@ -695,7 +695,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return;
     }
     set({ stealth: true });
-    get().addMessage('🥷 Скрытность: замечают только в упор (часовые — в 6 клетках)');
+    get().addMessage('🕵️ Скрытность: замечают только в упор (часовые — в 6 клетках)');
   },
   coverMarks: [],
   setCoverMarks: (marks) => set({ coverMarks: marks }),
