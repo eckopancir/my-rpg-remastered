@@ -45,6 +45,12 @@ const ENEMY_COLORS: Record<string, string> = {
   Военные: '#16a34a',
 };
 
+const SKILL_ICONS: Record<string, string> = {
+  rage: '💢', aimShot: '🎯', invisibility: '👤', ram: '🏃',
+  madness: '🌀', grenade: '💣', redZone: '🚨', suppression: '🔥',
+  stimulant: '💉', summoner: '👥',
+};
+
 export const Battle = () => {
   const navigate = useNavigate();
   const combat = usePlayerStore((s) => s.combat);
@@ -127,6 +133,7 @@ export const Battle = () => {
 
   // Hovered enemy for Intel panel
   const [hoveredEnemy, setHoveredEnemy] = useState<typeof enemies[0] | null>(null);
+  const [showLog, setShowLog] = useState(false);
   const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
   const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
   useEffect(() => {
@@ -247,49 +254,83 @@ export const Battle = () => {
     );
   }
 
+  // Флаг боя взведён, а сетка пуста (зависший бой) — экран восстановления вместо пустоты.
+  if (combat.isFighting && !isActive) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
+        <WapPanel variant="metal" padding="lg" glow="amber" style={{ textAlign: 'center', padding: 60 }}>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>⚠️ Бой не загрузился</div>
+          <div style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
+            Флаг боя взведён, а арена пуста — это зависший бой. Убери его и начни новый.
+          </div>
+          <Button variant="danger" onClick={resetStuckCombat}>🧹 Убрать зависший бой</Button>
+        </WapPanel>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', gap: 0, alignItems: 'flex-start' }}>
       {/* Left PDA Control Panel */}
       {isActive && (
         <div style={{
-          width: 260, flexShrink: 0,
-          background: 'rgba(10,10,12,0.95)', border: '1px solid rgba(255,255,255,0.1)',
-          fontFamily: "'Courier New', monospace", color: '#ccc',
+          width: 264, flexShrink: 0,
+          background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
+          border: '2px solid rgba(217,119,6,0.2)',
+          borderRadius: 8,
+          boxShadow: '0 0 0 1px rgba(217,119,6,0.3), 0 12px 48px rgba(0,0,0,0.6)',
+          color: 'var(--text-secondary)',
           position: 'relative', overflow: 'hidden',
+          fontFamily: 'var(--font-sans)',
         }}>
           {/* Header */}
-          <div style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
-            <div style={{ fontSize: 13, fontWeight: 'bold', letterSpacing: 1, textTransform: 'uppercase' }}>
-              {turn === 'player' ? '⭐ ТВОЙ ХОД' : '⏳ ХОД ВРАГА'}
+          <div style={{
+            background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))',
+            padding: '8px 10px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+              {turn === 'player' ? '⭐ Твой ход' : '⏳ Ход врага'}
             </div>
-            <div style={{ fontSize: 12, opacity: 0.5 }}>РАУНД #{turnCount}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-mono)' }}>Раунд #{turnCount}</div>
           </div>
 
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* AP + Ammo */}
-            <div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>AP</div>
-              <div style={{ display: 'flex', gap: 2, height: 10, marginBottom: 6 }}>
+          <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* AP + боезапас */}
+            <div style={{
+              padding: '10px 12px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 6 }}>⚡ Очки действий</div>
+              <div style={{ display: 'flex', gap: 2, height: 10, marginBottom: 8 }}>
                 {Array.from({ length: maxAp }).map((_, i) => (
                   <div key={i} style={{
-                    flex: 1, background: i < ap ? '#fff' : 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
+                    flex: 1, background: i < ap ? 'linear-gradient(180deg,#fbbf24,#d97706)' : 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(217,119,6,0.35)', borderRadius: 2,
+                    boxShadow: i < ap ? '0 0 6px rgba(251,191,36,0.5)' : 'none',
                     transition: 'all 0.3s ease',
                   }} />
                 ))}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16 }}>
-                <span>⚡ {ap}/{maxAp}</span>
-                <span>🔫 {ammo}/{maxAmmo}</span>
-                <span title={battleAmmoGroup ? `Запас: ${ammoGroupName(battleAmmoGroup)}` : 'Без оружия'}>📦 {battleAmmoReserve}</span>
-                <span title="Дальность стрельбы (+3 в защитном режиме)">📏 {combatRange + (isDefensiveMode ? 3 : 0)}</span>
-                {isDefensiveMode && <span style={{ color: '#8cf' }}>🛡️</span>}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13 }}>
+                <span title="Очки действий">⚡ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{ap}/{maxAp}</b></span>
+                <span title="Дальность стрельбы (+3 в защитном режиме)">📏 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{combatRange + (isDefensiveMode ? 3 : 0)}</b></span>
+                <span title={battleAmmoGroup ? `Магазин · ${ammoGroupName(battleAmmoGroup)}` : 'Без оружия'}>🔫 <b style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>{ammo}/{maxAmmo}</b></span>
+                <span title={battleAmmoGroup ? `Запас: ${ammoGroupName(battleAmmoGroup)}` : 'Без оружия'}>📦 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{battleAmmoReserve}</b></span>
               </div>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <span>🔋 Энергия (стамина)</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{Math.round(stats.stamina || 0)}/{stats.maxStamina || 100}</span>
+                </div>
+                <ProgressBar value={Math.round(stats.stamina || 0)} max={stats.maxStamina || 100}
+                  variant={(stats.stamina || 0) / (stats.maxStamina || 100) < 0.1 ? 'danger' : 'stamina'} />
+              </div>
+              {isDefensiveMode && <div style={{ marginTop: 6, fontSize: 11, color: '#8cf' }}>🛡️ Защитная позиция (+3 к дальности)</div>}
             </div>
 
-            {/* Message */}
+            {/* Message — бегущая строка вместо лога */}
             {message && (
-              <div style={{ fontSize: 13, textAlign: 'center', padding: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
+              <div style={{ fontSize: 12, textAlign: 'center', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(251,191,36,0.25)', background: 'rgba(217,119,6,0.08)', color: 'var(--text-primary)' }}>
                 <span style={{ animation: message ? 'pulseText 2s infinite' : 'none' }}>{message}</span>
               </div>
             )}
@@ -299,76 +340,85 @@ export const Battle = () => {
               <div
                 onClick={() => { playClick(); selectMe(); }}
                 style={{
-                  padding: '9px', border: `1px solid ${isSelected ? '#fff' : 'rgba(255,255,255,0.15)'}`,
-                  background: isSelected ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.03)',
-                  color: isSelected ? '#fff' : '#aaa',
+                  padding: '9px', borderRadius: 6,
+                  border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'rgba(255,255,255,0.12)'}`,
+                  background: isSelected ? 'rgba(217,119,6,0.15)' : 'rgba(255,255,255,0.03)',
+                  color: isSelected ? 'var(--accent-primary)' : 'var(--text-secondary)',
                   cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
-                  fontSize: 14, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
                   opacity: turn !== 'player' ? 0.4 : 1,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
               >
-                🎯 ВЫБОР [SPACE] {isSelected ? '(ВКЛ)' : '(ВЫКЛ)'}
+                <span>🎯 Выбор</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>SPACE {isSelected ? '●' : '○'}</span>
               </div>
 
               <div
                 onClick={() => { playClick(); playSound('reload'); reload(); }}
                 style={{
-                  padding: '9px', border: `1px solid ${turn !== 'player' || ap < 2 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)'}`,
+                  padding: '9px', borderRadius: 6,
+                  border: '1px solid rgba(255,255,255,0.12)',
                   background: 'rgba(255,255,255,0.03)',
-                  color: turn !== 'player' || ap < 2 ? 'rgba(255,255,255,0.2)' : '#aaa',
+                  color: turn !== 'player' || ap < 2 ? 'rgba(255,255,255,0.2)' : 'var(--text-secondary)',
                   cursor: turn !== 'player' || ap < 2 ? 'not-allowed' : 'pointer',
-                  fontSize: 14, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
                   opacity: turn !== 'player' || ap < 2 ? 0.4 : 1,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
               >
-                🔁 ПЕРЕЗАРЯДКА (2 AP) [R]
+                <span>🔁 Перезарядка · 2 AP</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>R</span>
               </div>
 
               <div
                 onClick={() => { playClick(); toggleDefense(); }}
                 style={{
-                  padding: '9px', border: `1px solid ${isDefensiveMode ? '#fff' : 'rgba(255,255,255,0.15)'}`,
-                  background: isDefensiveMode ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.03)',
-                  color: isDefensiveMode ? '#fff' : '#aaa',
+                  padding: '9px', borderRadius: 6,
+                  border: `1px solid ${isDefensiveMode ? 'var(--accent-primary)' : 'rgba(255,255,255,0.12)'}`,
+                  background: isDefensiveMode ? 'rgba(217,119,6,0.15)' : 'rgba(255,255,255,0.03)',
+                  color: isDefensiveMode ? 'var(--accent-primary)' : 'var(--text-secondary)',
                   cursor: turn !== 'player' || ap < 2 ? 'not-allowed' : 'pointer',
-                  fontSize: 14, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
                   opacity: turn !== 'player' || ap < 2 ? 0.4 : 1,
                 }}
+                title="+3 к дальности стрельбы, сбрасывается в конце хода"
               >
-                🛡️ ЗАНЯТЬ ПОЗИЦИЮ (2 AP) [F] {isDefensiveMode ? '(АКТИВНО)' : ''}
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 3, textTransform: 'none' }}>
-                  +3 к дальности стрельбы, сбрасывается в конце хода
-                </div>
+                🛡️ Позиция · 2 AP {isDefensiveMode ? '(АКТИВНО)' : ''}
               </div>
 
               <div
                 onClick={() => { playClick(); handleEnemyAttack(); }}
                 style={{
-                  padding: '9px', border: '1px solid rgba(255,255,255,0.15)',
-                  background: selectedAbility !== null ? 'rgba(255,255,50,0.08)' : 'rgba(255,255,255,0.03)',
-                  color: turn !== 'player' || (selectedAbility === null && (ap < 1 || selectedEnemy === null)) ? 'rgba(255,255,255,0.2)' : '#ccc',
+                  padding: '9px', borderRadius: 6,
+                  border: '1px solid rgba(248,113,113,0.4)',
+                  background: selectedAbility !== null ? 'rgba(251,191,36,0.12)' : 'rgba(248,113,113,0.08)',
+                  color: turn !== 'player' || (selectedAbility === null && (ap < 1 || selectedEnemy === null)) ? 'rgba(255,255,255,0.2)' : '#f87171',
                   cursor: turn !== 'player' || (selectedAbility === null && (ap < 1 || selectedEnemy === null)) ? 'not-allowed' : 'pointer',
-                  fontSize: 14, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 14, fontWeight: 800, textAlign: 'center', textTransform: 'uppercase',
                   opacity: turn !== 'player' || (selectedAbility === null && (ap < 1 || selectedEnemy === null)) ? 0.4 : 1,
                   animation: turn === 'player' && ((selectedAbility !== null) || (ap >= 1 && selectedEnemy !== null)) ? 'pulseBorder 2s infinite' : 'none',
                 }}
               >
-                {selectedAbility !== null ? '✨ ПРИМЕНИТЬ [КЛИК]' : '🔫 АТАКА (1 AP) [КЛИК]'}
+                {selectedAbility !== null ? '✨ ПРИМЕНИТЬ [КЛИК]' : '🔫 АТАКА · 1 AP [КЛИК]'}
               </div>
 
               <div
                 onClick={() => { playClick(); endTurn(); }}
                 style={{
-                  padding: '12px', border: '1px solid rgba(255,255,255,0.15)',
-                  background: 'rgba(255,255,255,0.06)',
-                  color: '#ccc', fontWeight: 'bold',
+                  padding: '10px', borderRadius: 6,
+                  border: '1px solid rgba(217,119,6,0.4)',
+                  background: 'linear-gradient(180deg, rgb(180,100,10), rgb(120,60,8))',
+                  color: '#fff', fontWeight: 800,
                   cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
-                  fontSize: 16, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 13, textAlign: 'center', textTransform: 'uppercase',
                   letterSpacing: 1, opacity: turn !== 'player' ? 0.4 : 1,
-                  marginTop: 6,
+                  marginTop: 2,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
               >
-                ⏭ КОНЕЦ ХОДА [SPACE]
+                <span>⏭ Конец хода</span>
+                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: 'var(--font-mono)' }}>SPACE</span>
               </div>
 
               <div
@@ -388,44 +438,49 @@ export const Battle = () => {
 
             {/* Ability panel */}
             {playerAbilities.some((a) => a !== null) && (
-              <div>
-                <div style={{ fontSize: 10, opacity: 0.4, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 1 }}>💎 Способности</div>
-                <div style={{ display: 'flex', gap: 4 }}>
+              <div style={{
+                padding: '10px 12px', borderRadius: 8,
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 6 }}>💎 СПОСОБНОСТИ</div>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {playerAbilities.map((ab, i) => {
-                    if (!ab) return <div key={i} style={{ width: 64, height: 72, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4 }} />;
+                    if (!ab) return <div key={i} style={{ width: 56, height: 62, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6 }} />;
                     const cd = abilityCooldowns[i];
                     const isReady = cd <= 0 && ap >= ab.apCost;
                     const isSelected = selectedAbility === i;
                     const canAfford = ap >= ab.apCost;
-                    const statusText = cd > 0 ? `КД: ${cd}` : !canAfford ? `нужно ${ab.apCost}AP` : 'ГОТОВО';
+                    const statusText = cd > 0 ? `КД ${cd}` : !canAfford ? `${ab.apCost}AP` : '●';
                     const statusColor = cd > 0 ? '#ff6b6b' : !canAfford ? 'rgba(255,255,255,0.3)' : '#69db7c';
                     // Остаток расходника в рюкзаке (-1 = пассивка, бесплатно).
                     const consLeft = ab.passive ? -1 : consumableCount(ab.id);
+                    const outOfStock = consLeft === 0;
                     return (
                       <div key={i}
                         onClick={() => { playClick(); selectAbility(i); }}
-                        title={`[${i + 1}] ${ab.name} — ${ab.description}\n${ab.apCost} AP | КД: ${ab.cooldown} хода\n⭐ Сила: ${ab.powerRating}`}
+                        title={`[${i + 1}] ${ab.name} — ${ab.description}\n${ab.apCost} AP | КД: ${ab.cooldown} хода\n⭐ Сила: ${ab.powerRating}${consLeft >= 0 ? `\n📦 Расходник: осталось ${consLeft}` : ''}`}
                         style={{
-                          width: 64, height: 72, display: 'flex', flexDirection: 'column',
-                          alignItems: 'center', justifyContent: 'space-between',
-                          padding: '4px 2px',
-                          border: `1px solid ${isSelected ? '#fbbf24' : isReady ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)'}`,
-                          background: isSelected ? 'rgba(251,191,36,0.12)' : isReady ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.015)',
+                          width: 56, height: 62, display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', justifyContent: 'center', gap: 1,
+                          padding: '3px 2px',
+                          border: `1px solid ${isSelected ? 'var(--accent-primary)' : outOfStock ? 'rgba(248,113,113,0.4)' : isReady ? 'rgba(217,119,6,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                          background: isSelected ? 'rgba(217,119,6,0.18)' : outOfStock ? 'rgba(248,113,113,0.05)' : isReady ? 'rgba(217,119,6,0.06)' : 'rgba(255,255,255,0.015)',
+                          boxShadow: isSelected ? '0 0 10px rgba(217,119,6,0.4)' : 'none',
                           cursor: turn !== 'player' || !isReady ? 'not-allowed' : 'pointer',
                           opacity: turn !== 'player' || !isReady ? 0.35 : 1,
-                          borderRadius: 4, position: 'relative',
+                          borderRadius: 6, position: 'relative',
                         }}
                       >
                         <span style={{ fontSize: 20, lineHeight: 1 }}>{ab.icon}</span>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.1, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {ab.name}
+                        <div style={{ fontSize: 9, color: statusColor, fontWeight: 700, lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
+                          {ab.apCost > 0 ? `${ab.apCost}AP` : 'FREE'}
                         </div>
-                        <div style={{ fontSize: 8, color: statusColor, fontWeight: cd > 0 ? 'bold' : 400, lineHeight: 1 }}>
-                          {statusText}
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
+                          {cd > 0 ? `КД${cd}` : outOfStock ? 'НЕТ' : statusText}
                         </div>
                         <div style={{
-                          position: 'absolute', bottom: 1, right: 3,
-                          fontSize: 8, color: 'rgba(255,255,255,0.2)',
+                          position: 'absolute', bottom: 1, left: 3,
+                          fontSize: 8, color: 'rgba(255,255,255,0.25)', fontFamily: 'var(--font-mono)',
                         }}>
                           {i + 1}
                         </div>
@@ -447,32 +502,47 @@ export const Battle = () => {
             )}
 
             {/* Key hint badges */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center', marginBottom: 6 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center', marginBottom: 2 }}>
               {[
-                { key: 'WASD', label: 'Движение' },
-                { key: 'SPACE', label: 'Конец хода' },
-                { key: 'R', label: 'Перезарядка' },
+                { key: 'WASD', label: 'Ход' },
+                { key: 'SPACE', label: 'Конец' },
+                { key: 'R', label: 'Перезар.' },
                 { key: 'F', label: 'Защита' },
-                { key: 'ENTER', label: 'Выбор' },
-                { key: 'RMB', label: 'Поворот' },
+                { key: 'RMB', label: 'Обзор' },
               ].map((h) => (
                 <span key={h.key} style={{
-                  padding: '2px 5px', fontSize: 9, border: '1px solid rgba(255,255,255,0.15)',
-                  background: 'rgba(255,255,255,0.05)', fontFamily: "'Courier New', monospace",
-                  textTransform: 'uppercase', letterSpacing: 0.5,
+                  padding: '2px 5px', fontSize: 9, border: '1px solid rgba(217,119,6,0.25)',
+                  background: 'rgba(217,119,6,0.06)', fontFamily: 'var(--font-mono)',
+                  textTransform: 'uppercase', letterSpacing: 0.5, borderRadius: 3,
                 }}>
-                  <span style={{ color: 'rgba(255,255,255,0.6)' }}>{h.key}</span>
-                  <span style={{ opacity: 0.4, marginLeft: 3 }}>{h.label}</span>
+                  <span style={{ color: 'var(--accent-primary)' }}>{h.key}</span>
+                  <span style={{ opacity: 0.45, marginLeft: 3 }}>{h.label}</span>
                 </span>
               ))}
             </div>
 
-            {/* Battle Logs */}
-            <LogPanel />
+            {/* Battle log — таб, свёрнут по умолчанию */}
+            <div style={{
+              borderRadius: 8, overflow: 'hidden',
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+            }}>
+              <div
+                onClick={() => { playClick(); setShowLog((v) => !v); }}
+                style={{
+                  padding: '6px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                  letterSpacing: 1, color: 'var(--text-muted)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}
+              >
+                <span>📋 ЛОГ БОЯ</span>
+                <span style={{ fontSize: 10 }}>{showLog ? '▲' : '▼'}</span>
+              </div>
+              {showLog && <div style={{ padding: '0 8px 8px' }}><LogPanel /></div>}
+            </div>
 
             {/* Enemies count */}
-            <div style={{ fontSize: 12, opacity: 0.5, marginTop: 'auto' }}>
-              👾 Противников: {aliveEnemies.length}
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 'auto', textAlign: 'center' }}>
+              👾 Противников: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{aliveEnemies.length}</b>
             </div>
           </div>
         </div>
@@ -481,112 +551,141 @@ export const Battle = () => {
       {/* Center - Battle Grid */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <BattleGrid />
+        {/* Round/phase caption */}
+        <div style={{
+          position: 'absolute', top: 8, left: 12, zIndex: 1001, pointerEvents: 'none',
+          fontSize: 11, fontWeight: 800, letterSpacing: 2, fontFamily: 'var(--font-mono)',
+          color: turn === 'player' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.55)',
+          textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+          background: 'rgba(0,0,0,0.45)', padding: '3px 10px', borderRadius: 6,
+          border: '1px solid rgba(217,119,6,0.3)',
+        }}>
+          Раунд {turnCount} · {turn === 'player' ? 'Твой ход' : 'Ход врага'}
+        </div>
         {/* CRT scanline overlay */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,
           background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)',
+        }} />
+        {/* Vignette */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,
+          background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%)',
         }} />
       </div>
 
       {/* Right Enemy Intel Panel */}
       {isActive && (
         <div style={{
-          width: 273, flexShrink: 0,
-          background: 'rgba(10,10,12,0.95)', border: '1px solid rgba(255,255,255,0.1)',
-          fontFamily: "'Courier New', monospace", color: '#ccc',
+          width: 276, flexShrink: 0,
+          background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
+          border: '2px solid rgba(217,119,6,0.2)',
+          borderRadius: 8,
+          boxShadow: '0 0 0 1px rgba(217,119,6,0.3), 0 12px 48px rgba(0,0,0,0.6)',
+          color: 'var(--text-secondary)',
+          fontFamily: 'var(--font-sans)',
         }}>
-          {hoverTarget ? (
+          {hoverTarget ? (() => {
+            const ePow = Math.round(hoverTarget.damage) * 3 +
+              Math.round(hoverTarget.maxHp / 10) +
+              Math.round(hoverTarget.armor) * 2 +
+              Math.round((hoverTarget.evasion || 0) * 100) * 5 +
+              Math.round((hoverTarget.block || 0) * 100) * 3 +
+              Math.round((hoverTarget.crit || 0) * 100) * 2 +
+              Math.round((hoverTarget.punching || 0) * 100) * 2;
+            const ratio = ePow / Math.max(1, Math.round(stats.power || 0));
+            const threat = ratio < 0.4 ? { t: 'D', c: '#4ade80' }
+              : ratio < 0.8 ? { t: 'C', c: '#a3e635' }
+              : ratio < 1.2 ? { t: 'B', c: '#fbbf24' }
+              : ratio < 2 ? { t: 'A', c: '#fb923c' }
+              : { t: 'S', c: '#f87171' };
+            const eShots = Math.max(1, Math.floor((hoverTarget.runAp || 5) / (hoverTarget.shotPrice || 1)));
+            const myTurnDmg = Math.max(1, Math.round((stats.damage || 0) * Math.max(1, ap)));
+            const turnsToKill = Math.max(1, Math.ceil(Math.max(0, hoverTarget.currentHp) / myTurnDmg));
+            return (
             <div style={{ position: 'relative', overflow: 'hidden' }}>
-              {/* Intel scanline */}
-              <div style={{
-                position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
-                background: 'linear-gradient(90deg, transparent, rgba(0,255,0,0.3), transparent)',
-                zIndex: 5, pointerEvents: 'none',
-                animation: 'scanlineMove 2s ease-in-out infinite',
-              }} />
               {/* Header */}
-              <div style={{ padding: '8px 13px', borderBottom: '1px solid rgba(255,255,255,0.1)', fontSize: 13, textTransform: 'uppercase', background: 'rgba(255,255,255,0.03)' }}>
-                🎯 СКАНИРОВАНИЕ: {hoverTarget.name}
+              <div style={{
+                background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))',
+                padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, color: '#fff', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  🎯 {hoverTarget.name}
+                </span>
+                <span title={`Угроза относительно твоей мощи (${Math.round(stats.power || 0)})`} style={{
+                  fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-mono)',
+                  color: threat.c, border: `1px solid ${threat.c}`, borderRadius: 4,
+                  padding: '0 6px', background: 'rgba(0,0,0,0.4)', flexShrink: 0, marginLeft: 6,
+                }}>
+                  {threat.t}
+                </span>
               </div>
-              {/* Avatar */}
-              <div style={{ textAlign: 'center', padding: '13px' }}>
+              {/* Avatar + HP */}
+              <div style={{ display: 'flex', gap: 10, padding: '10px 12px 8px', alignItems: 'center' }}>
                 <img src={getEnemyImage(hoverTarget.faction, hoverTarget.name)} alt={hoverTarget.name}
-                  style={{ width: 64, height: 64, objectFit: 'contain' }} />
-              </div>
-              {/* HP */}
-              <div style={{ padding: '0 13px 10px' }}>
-                <div style={{ fontSize: 13, marginBottom: 3 }}>❤️ HP</div>
-                <ProgressBar value={Math.max(0, Math.round(hoverTarget.currentHp))} max={hoverTarget.maxHp}
-                  variant={hoverTarget.currentHp / hoverTarget.maxHp < 0.3 ? 'danger' : 'hp'} />
-                <div style={{ fontSize: 13, marginTop: 3 }}>{Math.max(0, Math.round(hoverTarget.currentHp))} / {hoverTarget.maxHp}</div>
+                  style={{
+                    width: 84, height: 84, objectFit: 'contain', flexShrink: 0,
+                    border: `2px solid ${ENEMY_COLORS[hoverTarget.faction] || '#a1a1aa'}`,
+                    borderRadius: 8, background: 'rgba(0,0,0,0.4)',
+                  }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: ENEMY_COLORS[hoverTarget.faction] || '#fff', marginBottom: 4 }}>
+                    {hoverTarget.faction}
+                  </div>
+                  <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', marginBottom: 4 }}>
+                    {Math.max(0, Math.round(hoverTarget.currentHp))} / {hoverTarget.maxHp}
+                  </div>
+                  <ProgressBar value={Math.max(0, Math.round(hoverTarget.currentHp))} max={hoverTarget.maxHp}
+                    variant={hoverTarget.currentHp / hoverTarget.maxHp < 0.3 ? 'danger' : 'hp'} />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 10, color: 'var(--text-muted)' }}>
+                    <span title="Примерно выстрелов за ход врага">🔫≈{eShots}/ход</span>
+                    <span title="Примерно твоих ходов до убийства">💀≈{turnsToKill} {turnsToKill === 1 ? 'ход' : 'хода'}</span>
+                  </div>
+                </div>
               </div>
               {/* Stats */}
-              <div style={{ padding: '0 13px 13px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px', fontSize: 13 }}>
-                <span>⚔️ DPS: {Math.round(hoverTarget.damage)}</span>
-                <span>🛡️ Броня: {Math.round(hoverTarget.armor)}</span>
-                <span>🎯 Метк: {Math.round((hoverTarget.accuracy || 0) * 100)}%</span>
-                <span>💥 Крит: {Math.round((hoverTarget.crit || 0) * 100)}%</span>
-                <span>🌀 Уворот: {Math.round((hoverTarget.evasion || 0) * 100)}%</span>
-                <span>🛡️ Блок: {Math.round((hoverTarget.block || 0) * 100)}%</span>
-                <span>👊 Пробив: {Math.round((hoverTarget.punching || 0) * 100)}%</span>
-                <span>🩸 Вампир: {Math.round((hoverTarget.vampir || 0) * 100)}%</span>
-                <span>📏 Дальн: {hoverTarget.rangeDistance || 7}</span>
-                <span>💨 AP: {hoverTarget.runAp || 5}</span>
+              <div style={{ padding: '0 12px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: 12 }}>
+                <span>⚔️ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.damage)}</b></span>
+                <span>🛡️ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.armor)}</b></span>
+                <span>🎯 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.accuracy || 0) * 100)}%</b></span>
+                <span>💥 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.crit || 0) * 100)}%</b></span>
+                <span>🌀 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.evasion || 0) * 100)}%</b></span>
+                <span>🧱 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.block || 0) * 100)}%</b></span>
+                <span>👊 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.punching || 0) * 100)}%</b></span>
+                <span>🩸 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.vampir || 0) * 100)}%</b></span>
+                <span>📏 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.rangeDistance || 7}</b></span>
+                <span>💨 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.runAp || 5}</b></span>
               </div>
               {/* Power */}
-              <div style={{ padding: '0 13px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, marginTop: 4 }}>
+              <div style={{ padding: '0 12px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, margin: '0 12px', paddingLeft: 0, paddingRight: 0 }}>
                 <span>🟡 МОЩНОСТЬ</span>
-                <span>{(
-                  Math.round(hoverTarget.damage) * 3 +
-                  Math.round(hoverTarget.maxHp / 10) +
-                  Math.round(hoverTarget.armor) * 2 +
-                  Math.round((hoverTarget.evasion || 0) * 100) * 5 +
-                  Math.round((hoverTarget.block || 0) * 100) * 3 +
-                  Math.round((hoverTarget.crit || 0) * 100) * 2 +
-                  Math.round((hoverTarget.punching || 0) * 100) * 2
-                ).toLocaleString()}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{ePow.toLocaleString()}</span>
               </div>
-              {/* Faction */}
-              <div style={{ padding: '0 13px 13px', fontSize: 13, color: ENEMY_COLORS[hoverTarget.faction] || '#fff' }}>
-                {hoverTarget.faction}
-              </div>
-              {/* Skills */}
+              {/* Skills — иконки в ряд */}
               {hoverTarget.skillUse && hoverTarget.skillUse.length > 0 && (
-                <div style={{ padding: '0 13px 13px' }}>
-                  <div style={{ fontSize: 12, textTransform: 'uppercase', marginBottom: 6, opacity: 0.5 }}>🧠 Способности</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ padding: '0 12px 12px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 6 }}>🧠 СПОСОБНОСТИ</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
                     {hoverTarget.skillUse.map((sk: string, i: number) => {
                       const cd = hoverTarget.cooldowns?.[sk] || 0;
-                      const SKILL_ICONS: Record<string, string> = {
-                        rage: '💢', aimShot: '🎯', invisibility: '👤', ram: '🏃',
-                        madness: '🌀', grenade: '💣', redZone: '🚨', suppression: '🔥',
-                        stimulant: '💉', summoner: '👥',
-                      };
-  // Флаг боя взведён, а сетка пуста (зависший бой) — экран восстановления вместо пустоты.
-  if (combat.isFighting && !isActive) {
-    return (
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
-        <WapPanel variant="metal" padding="lg" glow="amber" style={{ textAlign: 'center', padding: 60 }}>
-          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>⚠️ Бой не загрузился</div>
-          <div style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
-            Флаг боя взведён, а арена пуста — это зависший бой. Убери его и начни новый.
-          </div>
-          <Button variant="danger" onClick={resetStuckCombat}>🧹 Убрать зависший бой</Button>
-        </WapPanel>
-      </motion.div>
-    );
-  }
-
-  return (
-                        <div key={i} style={{
-                          display: 'flex', alignItems: 'center', gap: 6, padding: '3px 6px',
-                          fontSize: 12, borderLeft: `3px solid ${cd > 0 ? '#ff4d4d' : 'rgba(255,255,255,0.2)'}`,
-                          background: cd > 0 ? 'rgba(255,77,77,0.05)' : 'transparent',
-                        }}>
-                          <span>{SKILL_ICONS[sk] || '❓'}</span>
-                          <span style={{ flex: 1 }}>{sk}</span>
-                          {cd > 0 && <span style={{ color: '#ff4d4d', fontSize: 10 }}>⏳{cd}</span>}
-                          {cd === 0 && <span style={{ color: '#4ade80', fontSize: 10 }}>ГОТОВ</span>}
+                      return (
+                        <div key={i} title={`${sk}${cd > 0 ? ` — КД ${cd}` : ' — готов'}`}
+                          style={{
+                            width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 20, borderRadius: 6, position: 'relative',
+                            border: `1px solid ${cd > 0 ? 'rgba(255,77,77,0.4)' : 'rgba(74,222,128,0.4)'}`,
+                            background: cd > 0 ? 'rgba(255,77,77,0.06)' : 'rgba(74,222,128,0.06)',
+                          }}>
+                          <span style={{ opacity: cd > 0 ? 0.4 : 1 }}>{SKILL_ICONS[sk] || '❓'}</span>
+                          {cd > 0 && (
+                            <span style={{
+                              position: 'absolute', bottom: -4, right: -4, fontSize: 9, fontWeight: 700,
+                              fontFamily: 'var(--font-mono)', color: '#fff', background: '#dc2626',
+                              borderRadius: 6, padding: '0 4px',
+                            }}>
+                              {cd}
+                            </span>
+                          )}
                         </div>
                       );
                     })}
@@ -594,8 +693,9 @@ export const Battle = () => {
                 </div>
               )}
             </div>
-          ) : (
-            <div style={{ padding: 26, textAlign: 'center', fontSize: 13, opacity: 0.4, position: 'relative', overflow: 'hidden' }}>
+            );
+          })() : (
+            <div style={{ padding: 26, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', position: 'relative', overflow: 'hidden' }}>
               {/* Scanner line */}
               <div style={{
                 position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
@@ -608,46 +708,39 @@ export const Battle = () => {
           )}
 
           {/* Player Status */}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: 'auto' }}>
-            <div style={{ padding: '8px 13px', fontSize: 13, textTransform: 'uppercase', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.1)', position: 'relative', overflow: 'hidden' }}>
-              {/* Scanner line */}
-              <div style={{
-                position: 'absolute', bottom: 0, left: 0, right: 0, height: '1px',
-                background: 'linear-gradient(90deg, transparent, rgba(0,255,100,0.4), transparent)',
-                pointerEvents: 'none', zIndex: 5,
-                animation: 'scanlineMove 2.5s ease-in-out infinite',
-              }} />
-              👤 СТАТУС: ОПЕРАТОР
+          <div style={{ borderTop: '1px solid rgba(217,119,6,0.25)', marginTop: 'auto' }}>
+            <div style={{
+              padding: '7px 12px', fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase',
+              background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))', color: '#fff',
+              textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+            }}>
+              👤 Оператор
             </div>
-            <div style={{ padding: 13 }}>
-              <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                <img src={images.hero} alt="hero" style={{ width: 64, height: 64, objectFit: 'contain' }} />
+            <div style={{ padding: 12 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                <img src={images.hero} alt="hero" style={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0, border: '2px solid rgba(217,119,6,0.5)', borderRadius: 8, background: 'rgba(0,0,0,0.4)' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>
+                    <span>❤️ HP</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{Math.round(stats.currentHp)} / {stats.maxHp}</span>
+                  </div>
+                  <ProgressBar value={Math.round(stats.currentHp)} max={stats.maxHp}
+                    variant={stats.currentHp / stats.maxHp < 0.3 ? 'danger' : 'hp'} />
+                </div>
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 13, marginBottom: 3 }}>❤️ HP</div>
-                <ProgressBar value={Math.round(stats.currentHp)} max={stats.maxHp}
-                  variant={stats.currentHp / stats.maxHp < 0.3 ? 'danger' : 'hp'} />
-                <div style={{ fontSize: 13, marginTop: 3 }}>{Math.round(stats.currentHp)} / {stats.maxHp}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: 12 }}>
+                <span>⚡ AP: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{ap}/{maxAp}</b></span>
+                <span>🔫 <b style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>{ammo}/{maxAmmo}</b></span>
+                <span>⚔️ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.damage)}</b></span>
+                <span>🛡️ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.armor)}</b></span>
+                <span>🎯 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.accuracy || 0) * 100)}%</b></span>
+                <span>💥 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.crit || 0) * 100)}%</b></span>
+                <span>🌀 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.evasion || 0) * 100)}%</b></span>
+                <span>🧱 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.block || 0) * 100)}%</b></span>
+                <span>👊 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.punching || 0) * 100)}%</b></span>
+                <span>🩸 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.vampir || 0) * 100)}%</b></span>
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 13, marginBottom: 3 }}>⚡ Стамина</div>
-                <ProgressBar value={Math.round(stats.stamina || 0)} max={stats.maxStamina || 100}
-                  variant={(stats.stamina || 0) / (stats.maxStamina || 100) < 0.1 ? 'danger' : 'stamina'} />
-                <div style={{ fontSize: 13, marginTop: 3 }}>{Math.round(stats.stamina || 0)} / {stats.maxStamina || 100}</div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px', fontSize: 13 }}>
-                <span>⚡ AP: {ap}/{maxAp}</span>
-                <span>🔫 {ammo}/{maxAmmo}</span>
-                <span>⚔️ {Math.round(stats.damage)}</span>
-                <span>🛡️ {Math.round(stats.armor)}</span>
-                <span>🎯 {Math.round((stats.accuracy || 0) * 100)}%</span>
-                <span>💥 {Math.round((stats.crit || 0) * 100)}%</span>
-                <span>🌀 {Math.round((stats.evasion || 0) * 100)}%</span>
-                <span>🛡️ {Math.round((stats.block || 0) * 100)}%</span>
-                <span>👊 {Math.round((stats.punching || 0) * 100)}%</span>
-                <span>🩸 {Math.round((stats.vampir || 0) * 100)}%</span>
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 4, textAlign: 'center' }}>
+              <div style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, textAlign: 'center' }}>
                 🟡 МОЩНОСТЬ:{' '}
                 <span
                   style={{ fontWeight: 700, cursor: 'help', borderBottom: '1px dashed rgba(251,191,36,0.3)' }}
@@ -660,7 +753,7 @@ export const Battle = () => {
               </div>
               {activeEffects.length > 0 && (
                 <div style={{ marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6 }}>
-                  <div style={{ fontSize: 10, opacity: 0.4, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>✨ Эффекты</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 4 }}>✨ ЭФФЕКТЫ</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {activeEffects.map((ef) => (
                       <div key={ef.id} style={{
@@ -678,7 +771,11 @@ export const Battle = () => {
                   </div>
                 </div>
               )}
-              <div style={{ fontSize: 13, marginTop: 8, textAlign: 'center', opacity: 0.6, animation: turn === 'player' ? 'pulseText 2s infinite' : 'none' }}>
+              <div style={{
+                fontSize: 12, fontWeight: 700, marginTop: 8, textAlign: 'center', letterSpacing: 1,
+                color: turn === 'player' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                animation: turn === 'player' ? 'pulseText 2s infinite' : 'none',
+              }}>
                 {turn === 'player' ? '>>> ВАШ ХОД <<<' : 'ОЖИДАНИЕ ХОДА...'}
               </div>
             </div>
