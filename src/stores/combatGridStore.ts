@@ -715,8 +715,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     return changed ? { exploredCells: next } : s;
   }),
-  // Облачко реплики над врагом (по умолчанию висит 4 секунды).
-  say: (enemyId, text, ms = 4000) => {
+  // Облачко реплики над врагом (висит 5 секунд).
+  say: (enemyId, text, ms = 5000) => {
     const bid = get().battleId;
     set((s) => ({ enemies: s.enemies.map((e) => (e.id === enemyId ? { ...e, speech: text } : e)) }));
     setTimeout(() => {
@@ -762,7 +762,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       message: stealthOn ? `⚠️ Подкрепление врага (${placed.length})! Ищет тебя…` : `⚠️ Подкрепление врага (${placed.length})!`,
       battleLogs: [...st.battleLogs.slice(-199), stealthOn ? `⚠️ Подкрепление (${placed.length}) прибыло — ищет тебя!` : `⚠️ Подкрепление (${placed.length}) прибыло с угла карты!`],
     }));
-    if (placed[0] && !stealthOn) get().say(placed[0].id, pickPhrase(REINFORCE_BARK), 3200);
+    if (placed[0] && !stealthOn) get().say(placed[0].id, pickPhrase(REINFORCE_BARK));
   },
   // Волна агро: стрельба будит всех в радиусе — бегут в бой (и запоминают игрока).
   aggroWave: (center, radius = 9) => {

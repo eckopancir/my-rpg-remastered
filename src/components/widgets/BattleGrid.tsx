@@ -575,7 +575,7 @@ export const BattleGrid = () => {
             left: `${(campfire.x / 31) * 100}%`,
             top: `${(campfire.y / 31) * 100}%`,
             transform: 'translate(-50%, -62%)',
-            width: '3.125%', aspectRatio: '1',
+            width: '6.25%', aspectRatio: '1',
             zIndex: 3, pointerEvents: 'none',
           }}>
             <img
@@ -596,7 +596,13 @@ export const BattleGrid = () => {
           const susR = e.aiRole === 'sentry' ? 8 : 5;
           const detR = stealth ? (e.aiRole === 'sentry' ? 6 : 3) : 24;
           const showQ = !e.aggro && e.faction !== 'Союзник' && d <= susR && d > detR;
-          if (!e.speech && !e.sleeping && !showQ) return null;
+          // Часовой всегда с белым «!» — его метка.
+          const showExcl = e.aiRole === 'sentry';
+          if (!e.speech && !e.sleeping && !showQ && !showExcl) return null;
+          // Маркеры стопкой вверх (диалоги могут их перекрывать — так задумано).
+          const exclB = 34;
+          const zzzB = 34 + (showExcl ? 30 : 0);
+          const qB = 34 + (showExcl ? 30 : 0) + (e.sleeping ? 30 : 0);
           return (
             <div key={`estate-${e.id}`} style={{ position: 'absolute', left, top, width: 0, height: 0, zIndex: 60, pointerEvents: 'none' }}>
               {e.speech && (
@@ -611,19 +617,29 @@ export const BattleGrid = () => {
                   {e.speech}
                 </div>
               )}
+              {showExcl && (
+                <div title="Часовой" style={{
+                  position: 'absolute', bottom: exclB, left: 0, transform: 'translateX(-50%)',
+                  background: '#f5f1e6', color: '#111', fontSize: 12, fontWeight: 800,
+                  padding: '1px 8px', borderRadius: 10, border: '1px solid #8a8a8a',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                }}>
+                  !
+                </div>
+              )}
               {e.sleeping && (
-                <div className={styles.zzzBubble}>
+                <div className={styles.zzzBubble} style={{ bottom: zzzB }}>
                   💤 z z z
                 </div>
               )}
-              {showQ && !e.speech && (
+              {showQ && (
                 <div style={{
-                  position: 'absolute', bottom: 34, left: 0, transform: 'translateX(-50%)',
-                  fontSize: 13, fontWeight: 800,
-                  color: '#fdba74', background: 'rgba(8,12,20,0.85)', padding: '1px 7px',
-                  borderRadius: 10, border: '1px solid rgba(253,186,116,0.6)',
+                  position: 'absolute', bottom: qB, left: 0, transform: 'translateX(-50%)',
+                  background: '#f5f1e6', color: '#111', fontSize: 13, fontWeight: 800,
+                  padding: '1px 8px', borderRadius: 10, border: '1px solid #8a8a8a',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                 }}>
-                  ❓
+                  ?
                 </div>
               )}
             </div>

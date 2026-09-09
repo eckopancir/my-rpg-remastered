@@ -6,7 +6,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
-import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, SPOT_BARK, WAKE_BARK, pickPhrase } from '../data/enemyChatter';
+import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, pickPhrase } from '../data/enemyChatter';
 
 const isMilitary = (e: any): boolean =>
   (e.faction || '').toLowerCase().includes('воен') || (e.factionKey || '').toLowerCase().includes('воен');
@@ -253,8 +253,9 @@ export const useEnemyAI = () => {
             enemy.knowsPlayer = true;
             updatedEnemies[i] = { ...enemy };
             if (stealthOn && spotted) {
-              // Заметили скрытного: часовой с «❗», скрытность сорвана.
-              saySync(enemy.id, enemy.aiRole === 'sentry' ? '❗' : pickPhrase(SPOT_BARK));
+              // Заметили скрытного: часовой — особым диалогом «заметил»,
+              // скрытность сорвана.
+              saySync(enemy.id, enemy.aiRole === 'sentry' ? pickPhrase(SENTRY_NOTICED) : pickPhrase(SPOT_BARK));
               useCombatGridStore.setState({ enemies: [...updatedEnemies], stealth: false });
               useCombatGridStore.getState().addMessage('👁️ Тебя заметили! Скрытность сорвана');
             } else {
