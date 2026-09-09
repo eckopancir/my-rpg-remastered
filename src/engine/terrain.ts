@@ -128,65 +128,6 @@ export const terrainSummary = (
   };
 };
 
-/** Иконка-бейдж на клетке укрытия, влияющего на инспектируемую точку. */
-export interface CoverMark {
-  x: number;
-  y: number;
-  kind: 'evasion' | 'armor' | 'block';
-}
-
-export const COVER_MARK_ICON: Record<CoverMark['kind'], string> = {
-  evasion: '🌀',
-  armor: '🛡️',
-  block: '🧱',
-};
-
-export const COVER_MARK_TITLE: Record<CoverMark['kind'], string> = {
-  evasion: '+5% к уклонению (точка внутри леса)',
-  armor: '+5% к броне (укрытие рядом)',
-  block: '+5% к блоку (укрытие рядом)',
-};
-
-/**
- * Какие клетки укрытий дают бонус точке: на каждую такую клетку —
- * метка с иконкой. Уворот — сама точка (стоит внутри леса),
- * броня/блок — соседние клетки укрытий (ring вокруг точки).
- */
-export const coverMarksFor = (
-  pos: { x: number; y: number },
-  obstacles: TerrainObstacle[],
-): CoverMark[] => {
-  const marks: CoverMark[] = [];
-  const seen = new Set<string>();
-  const push = (x: number, y: number, kind: CoverMark['kind']) => {
-    const k = `${x},${y},${kind}`;
-    if (seen.has(k)) return;
-    seen.add(k);
-    marks.push({ x, y, kind });
-  };
-  for (const o of obstacles) {
-    const key = obstacleImageKey(o);
-    if (!key) continue;
-    // Точка внутри леса — метка на саму точку.
-    if (EVADE_INSIDE.has(key) && distToRect(pos.x, pos.y, o) <= 0) {
-      push(pos.x, pos.y, 'evasion');
-    }
-    if (distToRect(pos.x, pos.y, o) <= 1) {
-      const kind: CoverMark['kind'] | null = ARMOR_NEAR.has(key) ? 'armor' : BLOCK_NEAR.has(key) ? 'block' : null;
-      if (!kind) continue;
-      // Только клетки укрытия, соседние с точкой (кольцо вокруг неё).
-      const w = o.w ?? 1;
-      const h = o.h ?? 1;
-      for (let cx = o.x; cx < o.x + w; cx++) {
-        for (let cy = o.y; cy < o.y + h; cy++) {
-          if (Math.max(Math.abs(cx - pos.x), Math.abs(cy - pos.y)) <= 1) push(cx, cy, kind);
-        }
-      }
-    }
-  }
-  return marks;
-};
-
 /** Можно ли встать на клетку (нет блокирующего препятствия). */
 export const isCellWalkable = (
   x: number,
