@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useUiStore } from '../../stores/uiStore';
 import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
@@ -90,7 +91,9 @@ export const BackpackWindow = ({ onClose }: Props) => {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const itemId = e.dataTransfer.getData('text/plain');
+    // dataTransfer иногда пуст (браузер/iframe) — фолбэк на draggedItemId из стора.
+    const dtId = e.dataTransfer.getData('text/plain');
+    const itemId = dtId || useUiStore.getState().draggedItemId;
     if (!itemId) return;
     const msg = putInBackpack(itemId);
     playSound('laying-out-a-travel-mat', 0.5);

@@ -421,7 +421,13 @@ export const InventoryOverlay = () => {
                     }}
                     onDragEnd={() => setDraggedItemId(null)}
                     onContextMenu={(e) => handleContext(e, stacked)}
-                    onDoubleClick={() => { if (item.type === 'chest') openChest(stacked); }}
+                    onDoubleClick={() => {
+                      if (item.type === 'chest') { openChest(stacked); return; }
+                      // Двойной клик — в рюкзак (не ждёт перетаскивания).
+                      const msg = usePlayerStore.getState().putInBackpack(item.id);
+                      playSound('laying-out-a-travel-mat', 0.5);
+                      addLog(msg, msg.startsWith('❌') || msg.startsWith('⚠️') ? 'warning' : 'info');
+                    }}
                     onMouseEnter={(e) => { setHoveredItem(stacked); setHoverPos({ x: e.clientX, y: e.clientY }); }}
                     onMouseMove={(e) => setHoverPos({ x: e.clientX, y: e.clientY })}
                     onMouseLeave={() => setHoveredItem(null)}
