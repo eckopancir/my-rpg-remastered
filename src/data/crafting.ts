@@ -18,6 +18,7 @@ export const SLOT_STAT_POOL: Record<string, string[]> = {
   weapon2: ['damage', 'crit', 'speed', 'accuracy', 'punching', 'vampir'],
   head: ['armor', 'evasion', 'regen', 'maxHp', 'accuracy'],
   armor: ['armor', 'evasion', 'regen', 'maxHp', 'block'],
+  pants: ['armor', 'evasion', 'regen', 'maxHp', 'speed'],
   gloves: ['damage', 'crit', 'speed', 'block', 'armor'],
   boots: ['speed', 'evasion', 'armor', 'block', 'regen'],
 };
@@ -27,6 +28,7 @@ export const SLOT_LABELS: Record<string, string> = {
   weapon2: 'Огнестрел',
   head: 'Шлем',
   armor: 'Броня',
+  pants: 'Штаны',
   gloves: 'Перчатки',
   boots: 'Ботинки',
 };
@@ -36,6 +38,7 @@ export const SLOT_ICONS: Record<string, string> = {
   weapon2: '🔫',
   head: '⛑️',
   armor: '🛡️',
+  pants: '👖',
   gloves: '🧤',
   boots: '👢',
 };

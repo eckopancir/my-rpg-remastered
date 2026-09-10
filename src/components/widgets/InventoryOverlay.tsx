@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useUiStore } from '../../stores/uiStore';
-import { usePlayerStore } from '../../stores/playerStore';
+import { usePlayerStore, gunSlotForWeapon } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { getItemImage } from '../../assets/index';
 import { useSound } from '../../hooks/useSound';
@@ -581,12 +581,9 @@ export const InventoryOverlay = () => {
 
 const getEquipSlotLocal = (item: Item): string | null => {
   if (!item.slot) return null;
-  const directSlots = ['head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots'];
+  const directSlots = ['head', 'armor', 'pants', 'weapon1', 'gloves', 'boots', 'backpack'];
   if (directSlots.includes(item.slot)) return item.slot;
-  if (item.slot === 'ammo') {
-    const equip = usePlayerStore.getState().equipment;
-    const empty = ['ammo1', 'ammo2', 'ammo3', 'ammo4'].find((s) => !equip[s as keyof typeof equip]);
-    return empty || 'ammo1';
-  }
+  // Огнестрел — в свой классовый слот.
+  if (item.slot === 'weapon2') return gunSlotForWeapon(item);
   return null;
 };

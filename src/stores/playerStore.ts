@@ -12,30 +12,50 @@ import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SKILL_CLASSES } from '../data/skills';
 import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
-import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, type AmmoGroup } from '../data/ammo';
+import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
 
 const EQUIPMENT_SLOTS = [
-  'head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots', 'backpack',
-  'ammo1', 'ammo2', 'ammo3', 'ammo4',
+  'head', 'armor', 'pants', 'weapon1', 'weapon2',
+  'gun_pistol', 'gun_shotgun', 'gun_sniper', 'gun_heavy',
+  'gloves', 'boots', 'backpack',
 ] as const;
 export type EquipmentSlot = typeof EQUIPMENT_SLOTS[number];
 
-const AMMO_SLOTS: EquipmentSlot[] = ['ammo1', 'ammo2', 'ammo3', 'ammo4'];
+// Оружейные слоты (6 иконок выбора): ближний, автомат + 4 классовых.
+const GUN_SLOTS: EquipmentSlot[] = ['weapon1', 'weapon2', 'gun_pistol', 'gun_shotgun', 'gun_sniper', 'gun_heavy'];
 
 export const getEquipSlot = (item: Item): EquipmentSlot | null => {
   if (!item.slot) return null;
-  if ((EQUIPMENT_SLOTS as readonly string[]).includes(item.slot)) return item.slot as EquipmentSlot;
-  if (item.slot === 'ammo') return 'ammo1';
+  if ((EQUIPMENT_SLOTS as readonly string[]).includes(item.slot)) {
+    // Огнестрел идёт строго в свой классовый слот (вторая рука — только автоматы).
+    if (item.slot === 'weapon2') return gunSlotForWeapon(item);
+    return item.slot as EquipmentSlot;
+  }
   return null;
 };
 
-const AMMO_BONUSES: Record<string, { dpsStat: keyof PlayerStats; multiplier: number }> = {
-  toxis: { dpsStat: 'dpsToxis', multiplier: 1.0 },
-  emi: { dpsStat: 'dpsEmi', multiplier: 1.0 },
-  normal: { dpsStat: 'dpsExtro', multiplier: 0.10 },
-  extro: { dpsStat: 'dpsFire', multiplier: 1.0 },
+/**
+ * Классовый слот для огнестрела: пистолет / дробовик / снайперка / тяжёлое / автомат.
+ * Огнемёты — тяжёлое (конус у них от поведения, не от слота).
+ */
+export const gunSlotForWeapon = (item: Pick<Item, 'name' | 'ammoType'>): EquipmentSlot => {
+  const n = (item.name || '').toLowerCase();
+  if (/базук|рпг|гп-25|гранатом|milkor|m79/.test(n)) return 'gun_heavy';
+  if (/огнемет|огнемёт|flame/.test(n)) return 'gun_heavy';
+  if (/m134|m60|m249|pkm|миниган|пулем/.test(n)) return 'gun_heavy';
+  const g = ammoTypeForWeapon(item as any);
+  if (g === 'pistol') return 'gun_pistol';
+  if (g === 'shell') return 'gun_shotgun';
+  if (g === 'sniper') return 'gun_sniper';
+  if (g === 'mg') return 'gun_heavy';
+  if (g === 'energy') return 'gun_heavy';
+  return 'weapon2';
 };
+
+export { GUN_SLOTS };
+
+// (Удалено: DPS-бонусы слотов амуниции. Слоты ammo1-4 убраны из игры.)
 
 interface TravelState {
   isTraveling: boolean;
@@ -130,6 +150,8 @@ interface PlayerStore {
   logs: LogEntry[]; logIdCounter: number;
   powerBreakdown: PowerBreakdown;
   explorationDeathTimestamp: number;
+  // Выбранное оружие (урон идёт только с него): слот из GUN_SLOTS.
+  activeWeaponSlot: EquipmentSlot;
 
   addLog: (msg: string, type?: LogEntry['type']) => void;
   clearLogs: () => void;
@@ -145,6 +167,10 @@ interface PlayerStore {
   unequipItem: (slot: EquipmentSlot) => Item | null;
   // Досинкать надетый предмет на сервер (item_data целиком: loadedAmmo и т.п.).
   syncEquippedItem: (slot: EquipmentSlot) => void;
+  // Выбрать активное оружие (урон идёт только с него).
+  setActiveWeaponSlot: (slot: EquipmentSlot) => void;
+  // Надетое активное оружие (с фолбэком на первый непустой ствол).
+  getActiveWeapon: () => Item | null;
   putInBackpack: (itemId: string) => string;
   takeOutBackpack: (itemId: string) => void;
   emptyBackpackToInventory: () => number;
@@ -329,6 +355,7 @@ export const usePlayerStore = create<PlayerStore>()(
       accessoryAbilities: [],
       powerBreakdown: { offensiveScore: 0, defensiveScore: 0, abilityItems: [], itemPowers: [] },
       explorationDeathTimestamp: 0,
+      activeWeaponSlot: 'weapon2' as EquipmentSlot,
 
       addLog: (msg, type = 'info') => set((s) => ({
         logs: pruneLogs([...s.logs, { id: s.logIdCounter, message: msg, type, ts: Date.now() }]).slice(-LOG_MAX_IN_MEMORY),
@@ -371,7 +398,44 @@ export const usePlayerStore = create<PlayerStore>()(
 
       recalcStats: () => {
         const s = get();
-        const items = EQUIPMENT_SLOTS.map((slot) => s.equipment[slot]);
+        // Миграция старых слотов ammo1-4 (удалены): вещи — в инвентарь.
+        const legacySlots = ['ammo1', 'ammo2', 'ammo3', 'ammo4'];
+        let migrated = false;
+        for (const ls of legacySlots) {
+          const old = (s.equipment as any)[ls];
+          if (old) {
+            useInventoryStore.getState().addItem(old);
+            migrated = true;
+          }
+          if (old || ls in (s.equipment as any)) delete (s.equipment as any)[ls];
+        }
+        // Активное оружие валидно: непустой ствол, иначе первый непустой.
+        let aws = s.activeWeaponSlot;
+        if (!GUN_SLOTS.includes(aws) || !s.equipment[aws]) {
+          const first = GUN_SLOTS.find((g) => s.equipment[g]);
+          aws = first || 'weapon2';
+          if (aws !== s.activeWeaponSlot) set({ activeWeaponSlot: aws });
+        }
+        if (migrated) {
+          get().addLog('📦 Старые слоты амуниции убраны: вещи переехали в инвентарь.', 'info');
+          syncNow();
+        }
+        // Урон идёт ТОЛЬКО с активного оружия: у остальных стволов
+        // дамаг-семья зануляется (броня и прочее суммируются как раньше).
+        const DMG_KEYS = ['damage', 'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'];
+        const items = EQUIPMENT_SLOTS.map((slot) => {
+          const it = s.equipment[slot];
+          if (!it) return it;
+          if (GUN_SLOTS.includes(slot) && slot !== aws) {
+            const st = { ...(it.stats || {}) } as Record<string, number>;
+            let touched = false;
+            for (const k of DMG_KEYS) {
+              if (st[k]) { st[k] = 0; touched = true; }
+            }
+            if (touched) return { ...it, stats: st };
+          }
+          return it;
+        });
         const equipBonus = sumItemStats(items);
         const effectBonus = sumEffectStats(s.activeEffects);
         const skillBonus = s.skillBonuses();
@@ -431,25 +495,7 @@ export const usePlayerStore = create<PlayerStore>()(
           shieldCharges: s.stats.shieldCharges || 0,
         };
 
-        // Ammo DPS stacking — each ammo slot adds its bonus
-        for (const ammoSlot of AMMO_SLOTS) {
-          const ammo = s.equipment[ammoSlot];
-          if (ammo && ammo.damage && AMMO_BONUSES[ammo.damage]) {
-            const bonus = AMMO_BONUSES[ammo.damage];
-            newStats[bonus.dpsStat] += dps * bonus.multiplier;
-          }
-        }
-
-        // Bullet passive amplification — double matching elemental DPS
-        for (const ammoSlot of AMMO_SLOTS) {
-          const ammo = s.equipment[ammoSlot];
-          if (ammo && ammo.damage && ammo.damage !== 'normal') {
-            const bonus = AMMO_BONUSES[ammo.damage];
-            if (bonus && newStats[bonus.dpsStat] > 0) {
-              newStats[bonus.dpsStat] *= 2;
-            }
-          }
-        }
+        // Слоты амуниции удалены: DPS-бонусов и passive-усилений от них больше нет.
 
         // Apply multiplier boosts from effects (fortify: ×2 armor, adrenaline: ×1.5 damage, etc.)
         const multBoosts = sumMultBoosts(s.activeEffects);
@@ -468,14 +514,16 @@ export const usePlayerStore = create<PlayerStore>()(
         const { offensiveScore, defensiveScore } = computePowerFromStats(newStats);
         let powerFromAbilities = 0;
         const abilityItems: PowerBreakdownItem[] = [];
-        for (const slot of AMMO_SLOTS) {
+        // Способности теперь из расходников рюкзака (см. recalcAbilities);
+        // у оружия abilityId нет — цикл оставлен для совместимости.
+        for (const slot of GUN_SLOTS) {
           const item = s.equipment[slot];
-          if (item && item.abilityId && ABILITY_MAP[item.abilityId]) {
-            const base = ABILITY_MAP[item.abilityId].powerRating;
+          if (item && (item as any).abilityId && ABILITY_MAP[(item as any).abilityId]) {
+            const base = ABILITY_MAP[(item as any).abilityId].powerRating;
             const levelFactor = 1 + (item.level - 1) * 0.05;
             const pwr = Math.round(base * levelFactor * 3);
             powerFromAbilities += pwr;
-            abilityItems.push({ slot, itemName: item.displayName || item.name, abilityName: ABILITY_MAP[item.abilityId].name, power: pwr });
+            abilityItems.push({ slot, itemName: item.displayName || item.name, abilityName: ABILITY_MAP[(item as any).abilityId].name, power: pwr });
           }
         }
         const fullPower = offensiveScore + defensiveScore + powerFromAbilities;
@@ -528,9 +576,9 @@ export const usePlayerStore = create<PlayerStore>()(
 
           const { offensiveScore: woOff, defensiveScore: woDef } = computePowerFromStats(woStats);
 
-          // Subtract ability power for ammo slots
+          // Subtract ability power for gun slots (у оружия их нет — ноль).
           let woAbility = 0;
-          if (AMMO_SLOTS.includes(slot)) {
+          if (GUN_SLOTS.includes(slot as EquipmentSlot)) {
             const ai = abilityItems.find((a) => a.slot === slot);
             if (ai) woAbility = ai.power;
           }
@@ -552,12 +600,19 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       recalcAbilities: () => {
-        const s = get();
-        const abilities: (AccessoryAbility | null)[] = AMMO_SLOTS.map((slot) => {
-          const item = s.equipment[slot];
-          if (!item || !item.abilityId) return null;
-          return ABILITY_MAP[item.abilityId] || null;
-        });
+        // Способности героя — из расходников в рюкзаке (уникальные, лимит 12).
+        const seen = new Set<string>();
+        const abilities: (AccessoryAbility | null)[] = [];
+        for (const it of get().backpackContents) {
+          if (it.type !== 'consumable' || !(it as any).abilityId) continue;
+          const aid = (it as any).abilityId as string;
+          if (seen.has(aid)) continue;
+          const ab = ABILITY_MAP[aid];
+          if (!ab || (ab as any).passive) continue;
+          seen.add(aid);
+          abilities.push(ab);
+          if (abilities.length >= 12) break;
+        }
         set({ accessoryAbilities: abilities });
       },
 
@@ -626,6 +681,30 @@ export const usePlayerStore = create<PlayerStore>()(
         } catch { /* best effort */ }
       },
 
+      // Выбрать активное оружие (только непустой ствол).
+      setActiveWeaponSlot: (slot) => {
+        if (!GUN_SLOTS.includes(slot)) return;
+        const it = get().equipment[slot];
+        if (!it) {
+          get().addLog('❌ Слот пуст — нечего выбирать.', 'warning');
+          return;
+        }
+        if (get().activeWeaponSlot === slot) return;
+        set({ activeWeaponSlot: slot });
+        get().recalcStats();
+      },
+
+      // Надетое активное оружие (с фолбэком на первый непустой ствол).
+      getActiveWeapon: () => {
+        const s = get();
+        const cur = GUN_SLOTS.includes(s.activeWeaponSlot) ? s.equipment[s.activeWeaponSlot] : null;
+        if (cur) return cur;
+        for (const g of GUN_SLOTS) {
+          if (s.equipment[g]) return s.equipment[g];
+        }
+        return null;
+      },
+
       putInBackpack: (itemId) => {
         const s = get();
         const pack = s.equipment.backpack;
@@ -641,6 +720,8 @@ export const usePlayerStore = create<PlayerStore>()(
         set({ backpackContents: contents });
         // Любое движение предметов — сразу на сервер, иначе refresh откатывает.
         syncNow();
+        // Расходники дают способности — пересчитать.
+        get().recalcAbilities();
         return leftoverQty > 0 ? `⚠️ Влезло частично, в рюкзаке нет места!` : `🎒 В рюкзаке`;
       },
 
@@ -653,9 +734,10 @@ export const usePlayerStore = create<PlayerStore>()(
         set({ backpackContents: contents });
         useInventoryStore.getState().addItem(item);
         syncNow();
+        get().recalcAbilities();
       },
 
-      clearBackpack: () => { set({ backpackContents: [] }); syncNow(); },
+      clearBackpack: () => { set({ backpackContents: [] }); syncNow(); get().recalcAbilities(); },
 
       // Выложить всё содержимое рюкзака в инвентарь. Возвращает число предметов.
       emptyBackpackToInventory: () => {
@@ -667,6 +749,7 @@ export const usePlayerStore = create<PlayerStore>()(
         set({ backpackContents: [] });
         // Сразу на сервер: иначе refresh до автосейва (60с) всё откатывает.
         syncNow();
+        get().recalcAbilities();
         return n;
       },
 
@@ -716,6 +799,7 @@ export const usePlayerStore = create<PlayerStore>()(
         else contents.splice(idx, 1);
         set({ backpackContents: contents });
         syncNow();
+        get().recalcAbilities();
         return true;
       },
 
@@ -1302,7 +1386,7 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'remastered_player',
-      version: 9,
+      version: 10,
       migrate: (persisted: any) => persisted,
       partialize: (state) => ({
         level: state.level, currentExp: state.currentExp, expToNext: state.expToNext,
@@ -1311,6 +1395,7 @@ export const usePlayerStore = create<PlayerStore>()(
         backpackContents: state.backpackContents,
         activeEffects: state.activeEffects,
         skillPoints: state.skillPoints,
+        activeWeaponSlot: state.activeWeaponSlot,
         logs: pruneLogs(state.logs).slice(-LOG_MAX_SAVED), logIdCounter: state.logIdCounter,
         explorationDeathTimestamp: state.explorationDeathTimestamp,
       }),

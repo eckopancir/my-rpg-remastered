@@ -69,9 +69,9 @@ export const Battle = () => {
   const maxAp = useCombatGridStore((s) => s.maxAp);
   const ammo = useCombatGridStore((s) => s.ammo);
   const maxAmmo = useCombatGridStore((s) => s.maxAmmo);
-  // Запас патронов группы надетого оружия (живой подсчёт из инвентаря).
-  const battleWeapon = usePlayerStore((s) => s.equipment.weapon2);
-  const battleAmmoGroup = battleWeapon ? ammoTypeForWeapon(battleWeapon) : null;
+  // Запас патронов группы АКТИВНОГО оружия (живой подсчёт из рюкзака).
+  const battleWeapon = usePlayerStore((s) => s.getActiveWeapon());
+  const battleAmmoGroup = battleWeapon && (battleWeapon as any).ammoCapacity ? ammoTypeForWeapon(battleWeapon) : null;
   const battleAmmoReserve = usePlayerStore((s) => (battleAmmoGroup ? countAmmo(s.backpackContents, battleAmmoGroup) : 0));
   const packContents = usePlayerStore((s) => s.backpackContents);
   // В бою инвентарь недоступен: открыт — принудительно закрываем, открыть не даём.
@@ -95,7 +95,6 @@ export const Battle = () => {
   const message = useCombatGridStore((s) => s.message);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
   const enemies = useCombatGridStore((s) => s.enemies);
-  const isDefensiveMode = useCombatGridStore((s) => s.isDefensiveMode);
   const isMoving = useCombatGridStore((s) => s.isMoving);
   const isSelected = useCombatGridStore((s) => s.isSelected);
   const cursorPos = useCombatGridStore((s) => s.cursorPos);
@@ -113,7 +112,8 @@ export const Battle = () => {
   const handleKeyboardMove = useCombatGridStore((s) => s.handleKeyboardMove);
   const selectMe = useCombatGridStore((s) => s.selectMe);
   const reload = useCombatGridStore((s) => s.reload);
-  const toggleDefense = useCombatGridStore((s) => s.toggleDefense);
+  const cycleWeapon = useCombatGridStore((s) => s.cycleWeapon);
+  const activeWeaponName = usePlayerStore((s) => s.getActiveWeapon()?.displayName || s.getActiveWeapon()?.name || 'Кулаки');
   const toggleStealth = useCombatGridStore((s) => s.toggleStealth);
   const stealth = useCombatGridStore((s) => s.stealth);
   const stealthKill = useCombatGridStore((s) => s.stealthKill);
@@ -182,15 +182,21 @@ export const Battle = () => {
         case 'KeyD': case 'ArrowRight': e.preventDefault(); dx = 1; dy = 0; break;
         case 'Space': e.preventDefault(); endTurn(); break;
         case 'KeyR': reload(); playSound('reloading'); break;
-        case 'KeyF': toggleDefense(); break;
-        case 'KeyT': playClick(); toggleStealth(); break;
-        case 'KeyQ': stealthKill(); break;
+        case 'KeyF': playClick(); toggleStealth(); break;
+        case 'KeyC': stealthKill(); break;
+        case 'KeyQ': cycleWeapon(); break;
         case 'Enter': e.preventDefault(); selectMe(); break;
         case 'KeyE': selectMe(); break;
         case 'Digit1': selectAbility(0); break;
         case 'Digit2': selectAbility(1); break;
         case 'Digit3': selectAbility(2); break;
         case 'Digit4': selectAbility(3); break;
+        case 'Digit5': selectAbility(4); break;
+        case 'Digit6': selectAbility(5); break;
+        case 'Digit7': selectAbility(6); break;
+        case 'Digit8': selectAbility(7); break;
+        case 'Digit9': selectAbility(8); break;
+        case 'Digit0': selectAbility(9); break;
       }
 
       if (dx !== 0 || dy !== 0) {
@@ -235,7 +241,7 @@ export const Battle = () => {
       window.removeEventListener('keyup', onKeyUp);
       if (moveInterval.current) { clearInterval(moveInterval.current); moveInterval.current = null; }
     };
-  }, [turn, isVictory, isMoving, handleKeyboardMove, selectMe, reload, toggleDefense, toggleStealth, stealthKill, endTurn, playSound, playClick, selectAbility]);
+  }, [turn, isVictory, isMoving, handleKeyboardMove, selectMe, reload, cycleWeapon, toggleStealth, stealthKill, endTurn, playSound, playClick, selectAbility]);
 
   const selectedEnemyData = enemies.find((e) => selectedEnemy !== null && e.id === selectedEnemy);
   const hoverTarget = hoveredEnemy || selectedEnemyData;
@@ -332,7 +338,7 @@ export const Battle = () => {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13 }}>
                 <span title="Очки действий">⚡ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{ap}/{maxAp}</b></span>
-                <span title="Дальность стрельбы (+3 в защитном режиме)">📏 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{combatRange + (isDefensiveMode ? 3 : 0)}</b></span>
+                <span title="Дальность стрельбы">📏 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{combatRange}</b></span>
                 <span title={battleAmmoGroup ? `Магазин · ${ammoGroupName(battleAmmoGroup)}` : 'Без оружия'}>🔫 <b style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>{ammo}/{maxAmmo}</b></span>
                 <span title={battleAmmoGroup ? `Запас: ${ammoGroupName(battleAmmoGroup)}` : 'Без оружия'}>📦 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{battleAmmoReserve}</b></span>
               </div>
@@ -344,7 +350,6 @@ export const Battle = () => {
                 <ProgressBar value={Math.round(stats.stamina || 0)} max={stats.maxStamina || 100}
                   variant={(stats.stamina || 0) / (stats.maxStamina || 100) < 0.1 ? 'danger' : 'stamina'} />
               </div>
-              {isDefensiveMode && <div style={{ marginTop: 6, fontSize: 11, color: '#8cf' }}>🛡️ Защитная позиция (+3 к дальности)</div>}
             </div>
 
             {/* Message — бегущая строка вместо лога */}
@@ -397,21 +402,21 @@ export const Battle = () => {
               </div>
 
               <div
-                onClick={() => { playClick(); toggleDefense(); }}
+                onClick={() => { playClick(); cycleWeapon(); }}
                 style={{
                   padding: '9px', borderRadius: 6,
-                  border: `1px solid ${isDefensiveMode ? 'var(--accent-primary)' : 'rgba(255,255,255,0.12)'}`,
-                  background: isDefensiveMode ? 'rgba(217,119,6,0.15)' : 'rgba(255,255,255,0.03)',
-                  color: isDefensiveMode ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                  cursor: turn !== 'player' || ap < 2 ? 'not-allowed' : 'pointer',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(255,255,255,0.03)',
+                  color: turn !== 'player' ? 'rgba(255,255,255,0.2)' : 'var(--text-secondary)',
+                  cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
                   fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
-                  opacity: turn !== 'player' || ap < 2 ? 0.4 : 1,
+                  opacity: turn !== 'player' ? 0.4 : 1,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
-                title="+3 к дальности стрельбы, сбрасывается в конце хода"
+                title="Смена оружия (магазин текущего сохраняется)"
               >
-                <span>🛡️ Позиция · 2 AP {isDefensiveMode ? '(АКТИВНО)' : ''}</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>F</span>
+                <span>🔫 {activeWeaponName}</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>Q</span>
               </div>
 
               <div
@@ -429,7 +434,7 @@ export const Battle = () => {
                 title="Скрытность: обычные замечают в 3, часовые — в 10 клетках. Слетает при выстреле. Только вне боя."
               >
                 <span>🕵️ Скрытность {stealth ? '(АКТИВНО)' : ''}</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>T</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>F</span>
               </div>
 
               {/* Скрытное убийство — видно только в скрытности */}
@@ -449,7 +454,7 @@ export const Battle = () => {
                   title="Тихо убивает спящего врага рядом (2 AP). Стелс не слетает."
                 >
                   <span>🔪 Скрытное убийство · 2 AP</span>
-                  <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>Q</span>
+                  <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>C</span>
                 </div>
               )}
 
@@ -511,7 +516,7 @@ export const Battle = () => {
                 background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
               }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 6 }}>💎 СПОСОБНОСТИ</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 48px)', gap: 4, justifyContent: 'start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 48px)', gap: 4, justifyContent: 'start' }}>
                   {playerAbilities.map((ab, i) => {
                     if (!ab) return <div key={i} style={{ width: 48, height: 53, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6 }} />;
                     const cd = abilityCooldowns[i];

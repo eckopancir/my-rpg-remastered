@@ -7,7 +7,7 @@ import { generateItem, getItemQuality } from '../engine/items';
 import { makeBackpack } from '../data/backpacks';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { AMMO_GROUPS, maxStackFor, bulletPackPrice } from '../data/ammo';
-import { CONSUMABLE_DEFS } from '../data/consumables';
+import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS } from '../data/backpacks';
 
 const AMMO_GROUP_ICONS: Record<string, string> = Object.fromEntries(
@@ -78,14 +78,35 @@ const statPrice = (stats: Record<string, number>): number => {
 
 const CATEGORY_SLOTS: Record<string, string[]> = {
   weapons: ['weapon1', 'weapon2'],
-  armor: ['head', 'armor', 'gloves', 'boots'],
-  consumables: ['ammo'],
+  armor: ['head', 'armor', 'pants', 'gloves', 'boots'],
+  consumables: ['consumable'],
   mods: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock',
     'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness',
     'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
 };
 
 const generateCategoryItem = (level: number, validSlots: string[], idx: number): ShopItem | null => {
+  // Расходники: боевые штуки из CONSUMABLE_DEFS (слоты ammo удалены из игры).
+  if (validSlots.includes('consumable')) {
+    const def = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
+    const qty = 1 + Math.floor(Math.random() * 3);
+    const item = makeConsumable(def.abilityId, qty);
+    return {
+      id: item.id + '_cat_' + idx + '_' + Date.now(),
+      name: item.name,
+      displayName: `${item.name} x${qty}`,
+      level: 1,
+      rarity: 'common',
+      quality: 'Обычный',
+      qualityColor: 'white',
+      price: (def.price + level) * qty,
+      stats: {},
+      slot: 'consumable',
+      type: 'consumable',
+      abilityId: def.abilityId,
+      quantity: qty,
+    } as ShopItem;
+  }
   for (let attempt = 0; attempt < 10; attempt++) {
     const targetSlot = validSlots[Math.floor(Math.random() * validSlots.length)];
     const single = generateItem(GAME_ITEMS, level, null, null, targetSlot);
@@ -221,8 +242,8 @@ type SortKey = 'price' | 'level' | 'name' | 'quality';
 // Лавки площади: секции витрины. Цвета — акценты секций.
 const STALLS = [
   { id: 'weapons', label: 'Кузня', icon: '⚔️', flavor: 'Оружие от местных умельцев', color: '#f87171', slots: ['weapon1', 'weapon2'] },
-  { id: 'armor', label: 'Бронник', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'gloves', 'boots', 'backpack'] },
-  { id: 'consumables', label: 'Амуниция', icon: '🧪', flavor: 'Амулеты, еда и мелочи', color: '#4ade80', slots: ['ammo'] },
+  { id: 'armor', label: 'Бронник', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'pants', 'gloves', 'boots', 'backpack'] },
+  { id: 'consumables', label: 'Амуниция', icon: '🧪', flavor: 'Амулеты, еда и мелочи', color: '#4ade80', slots: ['consumable'] },
   { id: 'mods', label: 'Модификации', icon: '🔩', flavor: 'Тюнинг снаряжения', color: '#c084fc', slots: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock', 'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'] },
   { id: 'resources', label: 'Ресурсные ряды', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
   { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны и боевые расходники', color: '#fb923c', slots: ['bullet', 'consumable'] },

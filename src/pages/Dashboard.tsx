@@ -42,6 +42,40 @@ const debugAddBackpacks = () => {
 };
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { getItemImage, images } from '../assets/index';
+import { GUN_SLOTS } from '../stores/playerStore';
+
+// Полоса из 6 стволов у характеристик: клик — активный (урон с него).
+const WeaponStrip = () => {
+  const equipment = usePlayerStore((s) => s.equipment);
+  const activeWeaponSlot = usePlayerStore((s) => s.activeWeaponSlot);
+  const setActiveWeaponSlot = usePlayerStore((s) => s.setActiveWeaponSlot);
+  const { playClick } = useSound();
+  const guns = GUN_SLOTS.map((gs) => ({ slot: gs, item: equipment[gs] })).filter((g) => g.item);
+  if (guns.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, margin: '0 0 6px 0', alignItems: 'center' }}>
+      {guns.map(({ slot, item }) => {
+        const active = activeWeaponSlot === slot;
+        const url = getItemImage(item!.name, item!.displayName);
+        return (
+          <div
+            key={slot}
+            onClick={() => { playClick(); setActiveWeaponSlot(slot); }}
+            title={`${item!.displayName || item!.name} — клик: урон с этого оружия`}
+            style={{
+              width: 26, height: 26, borderRadius: 5, cursor: 'pointer',
+              border: active ? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.12)',
+              boxShadow: active ? '0 0 8px rgba(34,197,94,0.6)' : 'none',
+              background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {url ? <img src={url} alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} draggable={false} /> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const debugGenerateItems = (count: number) => {
   const addItem = useInventoryStore.getState().addItem;
@@ -70,12 +104,12 @@ const debugAddMods = (count: number) => {
 
 const debugAddAmmo = (count: number) => {
   const addItem = useInventoryStore.getState().addItem;
-  const ammoItems = GAME_ITEMS.filter((i) => i.slot === 'ammo');
+  // Слоты ammo удалены: дебаг выдаёт боевые расходники (дают способности из рюкзака).
   for (let i = 0; i < count; i++) {
-    const drop = generateItem(ammoItems, usePlayerStore.getState().level, null, null, 'ammo');
-    if (drop) addItem(drop);
+    const def = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
+    addItem(makeConsumable(def.abilityId, 2));
   }
-  useUiStore.getState().addToast(`🎒 +${count} амуниции со способностями`, 'loot');
+  useUiStore.getState().addToast(`🎒 +${count} расходников (дают способности)`, 'loot');
 };
 
 const debugAddChests = () => {
@@ -150,7 +184,7 @@ export const Dashboard = () => {
       .then(r => r.json())
       .then(data => {
         if (data.error) return;
-        const slots = ['head','armor','weapon1','weapon2','gloves','boots','backpack','ammo1','ammo2','ammo3','ammo4'];
+        const slots = ['head','armor','pants','weapon1','weapon2','gun_pistol','gun_shotgun','gun_sniper','gun_heavy','gloves','boots','backpack'];
         const eq: Record<string, any> = {};
         slots.forEach((s) => { eq[s] = data.equipment[s] ?? null; });
         usePlayerStore.setState({
@@ -261,6 +295,8 @@ export const Dashboard = () => {
       {/* Stats */}
       <WapPanel variant="metal">
         <WapHeader title="ХАРАКТЕРИСТИКИ" glow="none" />
+        {/* 6 стволов: клик — выбрать активный (урон идёт с него) */}
+        <WeaponStrip />
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {statCapsules.map((s) => (
             <span key={s.label}

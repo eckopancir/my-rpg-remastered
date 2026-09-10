@@ -26,9 +26,10 @@ const STAT_LABELS: Record<string, string> = {
 };
 
 const SLOT_LABELS: Record<string, string> = {
-  weapon1: 'Ближний бой', weapon2: 'Огнестрел',
-  head: 'Шлем', armor: 'Броня', gloves: 'Перчатки', boots: 'Ботинки',
-  ammo1: 'Патроны 1', ammo2: 'Патроны 2', ammo3: 'Патроны 3', ammo4: 'Патроны 4',
+  weapon1: 'Ближний бой', weapon2: 'Автомат',
+  gun_pistol: 'Пистолет', gun_shotgun: 'Дробовик', gun_sniper: 'Снайперка', gun_heavy: 'Тяжёлое',
+  head: 'Шлем', armor: 'Броня', pants: 'Штаны', gloves: 'Перчатки', boots: 'Ботинки',
+  ammo: '(снято с игры)', bullet: 'Патроны',
   any: 'Универсально',
   mod_scope: 'Прицел', mod_barrel: 'Ствол', mod_receiver: 'Ресивер',
   mod_muzzle: 'Дуло', mod_magazine: 'Магазин', mod_stock: 'Приклад',

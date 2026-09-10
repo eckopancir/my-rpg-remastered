@@ -141,7 +141,8 @@ export const BattleGrid = () => {
       setVolley(shotLine);
     }
     if (shotLine && !prevShotLine.current) {
-      playSound(Math.random() > 0.5 ? 'shot1' : 'shot2');
+      // Звук выстрела — от класса оружия (из данных игры); иначе старый shot1/2.
+      playSound((shotLine.sound || (Math.random() > 0.5 ? 'shot1' : 'shot2')) as any);
     }
     prevShotLine.current = shotLine;
   }, [shotLine, playSound]);

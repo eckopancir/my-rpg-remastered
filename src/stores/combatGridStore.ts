@@ -132,6 +132,7 @@ export interface ShotLine {
   count?: number;
   power?: number;
   fast?: boolean;
+  sound?: string | null;
 }
 
 /** Паттерн выстрела по классу врага: снайпер — 1 пуля, дробь — веер, босс — ливень. */
@@ -145,14 +146,19 @@ export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { k
 };
 
 /** Паттерн выстрела игрока по его оружию: дробь — веер, снайпа — 1, пулемёт — очередь. */
-export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; power: number; fast?: boolean } => {
-  const w = usePlayerStore.getState().equipment.weapon2;
-  if (!w) return { kind: 'single', count: 1, power: 1 };
+export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; power: number; fast?: boolean; sound?: string } => {
+  const w = usePlayerStore.getState().getActiveWeapon();
+  if (!w) return { kind: 'single', count: 1, power: 1, sound: 'melee' };
+  const n = (w.name || '').toLowerCase();
+  // Звуки — из данных игры (как у врагов): пистолет/снайпер/дробь/пулемёт/базука.
+  if (/базук|рпг|гп-25|гранатом|milkor|m79/.test(n)) return { kind: 'single', count: 1, power: 1.8, sound: 'bazooka_sound_effect' };
+  if (/огнемет|огнемёт|flame/.test(n)) return { kind: 'spread', count: 5, power: 1.1, sound: 'drob' };
   const g = ammoTypeForWeapon(w);
-  if (g === 'shell') return { kind: 'spread', count: 5, power: 1.1 };
-  if (g === 'sniper') return { kind: 'single', count: 1, power: 1.3 };
-  if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1, fast: true };
-  return { kind: 'single', count: 1, power: 1 };
+  if (g === 'shell') return { kind: 'spread', count: 5, power: 1.1, sound: 'drob' };
+  if (g === 'sniper') return { kind: 'single', count: 1, power: 1.3, sound: 'sniper' };
+  if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1, fast: true, sound: 'm134' };
+  if (g === 'pistol') return { kind: 'single', count: 1, power: 1, sound: 'pistol' };
+  return { kind: 'single', count: 1, power: 1, sound: 'shotenemy' };
 };
 
 export interface GrenadeAnim {
@@ -249,7 +255,8 @@ export interface CombatGridStore {
   selectEnemy: (id: number | string | null) => void;
   attackEnemy: (enemyId: number | string) => void;
   reload: () => void;
-  toggleDefense: () => void;
+  // Смена оружия в бою (Q): пишет магазин текущего, заряжает следующее.
+  cycleWeapon: () => void;
   selectAbility: (index: number) => void;
   useAbility: (enemyId?: number | string) => void;
   tickAbilityCooldowns: () => void;
@@ -994,29 +1001,35 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       stats: { ...st.stats, shieldCharges: 0 },
       activeEffects: (st.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_')),
     }));
+    // Способности боя — из расходников рюкзака (до 12).
+    usePlayerStore.getState().recalcAbilities();
     const player = usePlayerStore.getState();
 
-    // Read weapon ammo capacity from equipped weapon2
-    const weapon2 = player.equipment.weapon2;
-    let ammoCap = weapon2?.ammoCapacity || 30;
+    // Активное оружие (выбранное, Q — смена): магазин/дальность/урон с него.
+    const gunSlot = usePlayerStore.getState().activeWeaponSlot;
+    const gun = usePlayerStore.getState().getActiveWeapon();
+    const gunIsMelee = gun && (gun as any).slot === 'weapon1' && !(gun as any).ammoCapacity;
+    let ammoCap = gun?.ammoCapacity || 30;
     // Магазин живёт в оружии (loadedAmmo): рюкзак не трогаем.
     // Первая зарядка (loadedAmmo нет): полный магазин из рюкзака, запоминаем.
+    // Кулаки/ближний бой без патронов — виртуальный магазин.
     let startAmmo: number;
     let tookFromPack = 0;
-    if (!weapon2) {
+    if (!gun || gunIsMelee) {
       startAmmo = ammoCap;
-    } else if (typeof weapon2.loadedAmmo === 'number') {
-      startAmmo = Math.max(0, Math.min(ammoCap, weapon2.loadedAmmo));
+    } else if (typeof gun.loadedAmmo === 'number') {
+      startAmmo = Math.max(0, Math.min(ammoCap, gun.loadedAmmo));
     } else {
-      startAmmo = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(weapon2), ammoCap);
+      startAmmo = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(gun), ammoCap);
       tookFromPack = startAmmo;
+      const gs = gunSlot;
       usePlayerStore.setState((st: any) => ({
         equipment: {
           ...st.equipment,
-          weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: startAmmo } : st.equipment.weapon2,
+          [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: startAmmo } : st.equipment[gs],
         },
       }));
-      usePlayerStore.getState().syncEquippedItem('weapon2');
+      usePlayerStore.getState().syncEquippedItem(gs);
     }
 
     // Override rewards with card values when in card mode
@@ -1349,7 +1362,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const playerAbilities = [...usePlayerStore.getState().accessoryAbilities].filter((a) => a && !a.passive);
     const abilityCooldowns = playerAbilities.map(() => 0);
     // Дальность — от ствола (кулаки — 2, было 10 для всех).
-    const startRange = weapon2 ? weaponRangeProfile(weapon2).range : 2;
+    const startRange = gun && !gunIsMelee ? weaponRangeProfile(gun).range : 2;
 
     set({
       isActive: true, playerPos, enemies: activeEnemies, obstacles,
@@ -1358,7 +1371,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
       range: startRange, isDefensiveMode: false,
       turnCount: 0, lastShotTurn: 0, selectedEnemy: null,
-      message: weapon2 && startAmmo <= 0 ? `❌ Нет патронов (${ammoGroupName(ammoTypeForWeapon(weapon2))})!` : '⚔️ Твой ход',
+      message: gun && !gunIsMelee && startAmmo <= 0 ? `❌ Нет патронов (${ammoGroupName(ammoTypeForWeapon(gun))})!` : '⚔️ Твой ход',
       isVictory: false, isDefeat: false, isMoving: false, isSelected: false,
       playerRotation: 90, popups: [], shotLine: null,
       flyingGrenade: null, globalEffects: [], lootingEnemy: null,
@@ -1376,15 +1389,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       // Первая зарядка уже списана из рюкзака — вернуть в рюкзак и обнулить
       // магазин (иначе дубли: и в рюкзаке, и в оружии).
       try {
-        if (tookFromPack > 0 && weapon2) {
-          usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(weapon2), tookFromPack);
+        if (tookFromPack > 0 && gun && !gunIsMelee) {
+          usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(gun), tookFromPack);
+          const gs = gunSlot;
           usePlayerStore.setState((st: any) => ({
             equipment: {
               ...st.equipment,
-              weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: 0 } : st.equipment.weapon2,
+              [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: 0 } : st.equipment[gs],
             },
           }));
-          usePlayerStore.getState().syncEquippedItem('weapon2');
+          usePlayerStore.getState().syncEquippedItem(gs);
         }
       } catch { /* ignore */ }
       // Не оставляем полуживой бой: чистим сетку, caller решит что дальше.
@@ -2120,8 +2134,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (state.ap < shotCost) { get().addMessage('❌ Не хватает AP'); return; }
     if (state.ammo <= 0) {
       // Магазин пуст: без оружия — кулаки (бесплатно), с оружием — нужны патроны группы.
-      const w0 = usePlayerStore.getState().equipment.weapon2;
-      const grp0 = w0 ? ammoTypeForWeapon(w0) : null;
+      const w0 = usePlayerStore.getState().getActiveWeapon();
+      const grp0 = w0 && w0.ammoCapacity ? ammoTypeForWeapon(w0) : null;
       if (grp0) {
         if (useUiStore.getState().autoReload !== false) get().reload();
         if (get().ammo <= 0) {
@@ -2144,7 +2158,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     const dist = getDist(state.playerPos, enemy.pos);
-    const effectiveRange = state.isDefensiveMode ? state.range + 3 : state.range;
+    const effectiveRange = state.range;
     if (dist > effectiveRange) { get().addMessage('❌ Вне радиуса атаки'); return; }
 
     if (!checkVisibility(state.playerPos, state.playerRotation, enemy.pos, state.obstacles, { fov: 360 })) {
@@ -2155,7 +2169,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const player = usePlayerStore.getState();
     const angle = getAngle(state.playerPos, enemy.pos);
     const pshot = shotKindForPlayerWeapon();
-    set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos, kind: pshot.kind, count: pshot.count, power: pshot.power, fast: pshot.fast }, lastShotTurn: get().turnCount });
+    set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos, kind: pshot.kind, count: pshot.count, power: pshot.power, fast: pshot.fast, sound: pshot.sound }, lastShotTurn: get().turnCount });
     setTimeout(() => set({ shotLine: null }), 400);
 
     // Физа идёт через формулу одна; стихия фракции — чистым уроном поверх.
@@ -2165,8 +2179,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (player.stats.stamina < 0.1 * player.stats.maxStamina) effectiveDps *= 0.5;
 
     // +30% damage for low-capacity weapons (1-3 rounds)
-    const weapon2 = player.equipment.weapon2;
-    if (weapon2?.ammoCapacity && weapon2.ammoCapacity <= 3) {
+    const gunNow = usePlayerStore.getState().getActiveWeapon();
+    if (gunNow?.ammoCapacity && gunNow.ammoCapacity <= 3) {
       effectiveDps *= 1.3;
     }
 
@@ -2232,8 +2246,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const en = st.enemies.find((en) => en.id === enemyId);
         if (!en || en.dead || en.currentHp <= 0) return;
         // Бонус-выстрел тоже ест патрон из магазина (с оружием); пусто — пропуск.
-        const w2b = usePlayerStore.getState().equipment.weapon2;
-        if (w2b) {
+        const w2b = usePlayerStore.getState().getActiveWeapon();
+        if (w2b && w2b.ammoCapacity) {
           if (get().ammo <= 0) return;
           set((s) => ({ ammo: s.ammo - 1 }));
         }
@@ -2246,7 +2260,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
         // +30% damage for low-capacity weapons (1-3 rounds)
         const pState = usePlayerStore.getState();
-        const w2 = pState.equipment.weapon2;
+        const w2 = pState.getActiveWeapon();
         if (w2?.ammoCapacity && w2.ammoCapacity <= 3) {
           effDps *= 1.3;
         }
@@ -2261,7 +2275,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const dmg = Math.round(res.damage);
 
         const bshot = shotKindForPlayerWeapon();
-        set({ shotLine: { from: st.playerPos, to: en.pos, kind: bshot.kind, count: bshot.count, power: bshot.power, fast: bshot.fast } });
+        set({ shotLine: { from: st.playerPos, to: en.pos, kind: bshot.kind, count: bshot.count, power: bshot.power, fast: bshot.fast, sound: bshot.sound } });
         setTimeout(() => set({ shotLine: null }), 400);
 
         set((s) => ({
@@ -2331,7 +2345,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Конус (дробь/огнемёт) и площадь (базуки): задевают соседей основной цели.
     // Своих не задевает. Патрон уже списан один — за всю очередь.
     try {
-      const w2fx = usePlayerStore.getState().equipment.weapon2;
+      const w2fx = usePlayerStore.getState().getActiveWeapon();
       const wprof = w2fx ? weaponRangeProfile(w2fx) : null;
       if (wprof && (wprof.cone || wprof.aoe) && actualDmg > 0) {
         const px = state.playerPos.x;
@@ -2551,8 +2565,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (state.ap < 1) { get().addMessage('❌ Нужно 1 AP для перезарядки'); return; }
     if (state.ammo >= state.maxAmmo) { get().addMessage('✅ Патроны полны'); return; }
     // Дозарядка из запаса: без оружия — бесплатно (кулаки), иначе — патроны группы.
-    const w2 = usePlayerStore.getState().equipment.weapon2;
-    if (!w2) {
+    // Магазин — у АКТИВНОГО оружия (Q — смена).
+    const w2 = usePlayerStore.getState().getActiveWeapon();
+    const wslot = usePlayerStore.getState().activeWeaponSlot;
+    if (!w2 || !w2.ammoCapacity) {
       set((s) => ({ ap: s.ap - 1, ammo: s.maxAmmo, message: '🔁 Перезарядился (AP -1)' }));
       get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
       return;
@@ -2570,19 +2586,62 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     usePlayerStore.setState((st: any) => ({
       equipment: {
         ...st.equipment,
-        weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: magAfter } : st.equipment.weapon2,
+        [wslot]: st.equipment[wslot] ? { ...st.equipment[wslot], loadedAmmo: magAfter } : st.equipment[wslot],
       },
     }));
-    usePlayerStore.getState().syncEquippedItem('weapon2');
+    usePlayerStore.getState().syncEquippedItem(wslot);
     get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
   },
 
-  toggleDefense: () => {
+  cycleWeapon: () => {
     const state = get();
-    if (state.turn !== 'player') return;
-    if (state.ap < 2) { get().addMessage('❌ Нужно 2 AP'); return; }
-    set((s) => ({ ap: s.ap - 2, isDefensiveMode: !s.isDefensiveMode }));
-    get().addMessage(get().isDefensiveMode ? '🛡️ Защитный режим' : '⚔️ Обычный режим');
+    if (!state.isActive || state.turn !== 'player' || state.isMoving) return;
+    const pst = usePlayerStore.getState();
+    const order = ['weapon1', 'weapon2', 'gun_pistol', 'gun_shotgun', 'gun_sniper', 'gun_heavy'] as const;
+    const owned = order.filter((s) => (pst.equipment as any)[s]);
+    if (owned.length === 0) { get().addMessage('❌ Нет оружия'); return; }
+    if (owned.length === 1) { get().addMessage('❌ Только один ствол'); return; }
+    const curIdx = owned.indexOf(pst.activeWeaponSlot as any);
+    const next = owned[(curIdx + 1) % owned.length] as any;
+    // Пишем магазин текущего.
+    const curSlot = pst.activeWeaponSlot;
+    const curGun = (pst.equipment as any)[curSlot];
+    if (curGun && curGun.ammoCapacity) {
+      usePlayerStore.setState((st: any) => ({
+        equipment: {
+          ...st.equipment,
+          [curSlot]: { ...st.equipment[curSlot], loadedAmmo: state.ammo },
+        },
+      }));
+      pst.syncEquippedItem(curSlot);
+    }
+    // Берём следующее: свой магазин или первая зарядка из рюкзака.
+    const nw = (usePlayerStore.getState().equipment as any)[next];
+    let cap = nw?.ammoCapacity || 30;
+    let mag: number;
+    if (!nw || !nw.ammoCapacity) {
+      mag = cap;
+    } else if (typeof nw.loadedAmmo === 'number') {
+      mag = Math.max(0, Math.min(cap, nw.loadedAmmo));
+    } else {
+      mag = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(nw), cap);
+      usePlayerStore.setState((st: any) => ({
+        equipment: { ...st.equipment, [next]: { ...st.equipment[next], loadedAmmo: mag } },
+      }));
+      usePlayerStore.getState().syncEquippedItem(next);
+    }
+    usePlayerStore.setState({ activeWeaponSlot: next });
+    usePlayerStore.getState().recalcStats();
+    const prof = nw && nw.ammoCapacity ? weaponRangeProfile(nw) : null;
+    set({
+      ammo: mag,
+      maxAmmo: cap,
+      range: prof ? prof.range : 2,
+      selectedEnemy: null,
+      message: `🔫 ${nw?.displayName || nw?.name || 'Кулаки'}`,
+    });
+    get().addBattleLog(`🔫 Смена оружия: ${nw?.displayName || nw?.name || 'кулаки'} (${mag}/${cap})`);
+    playCombatSound('85175', 0.5);
   },
 
   endTurn: () => {
@@ -2644,16 +2703,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Даже на поражении: рюкзак вайпнут, а оружие остаётся при герое.
     const cs = get();
     if (cs.isActive) {
-      const w2 = usePlayerStore.getState().equipment.weapon2;
-      if (w2) {
+      const wslot = usePlayerStore.getState().activeWeaponSlot;
+      const w2 = usePlayerStore.getState().getActiveWeapon();
+      if (w2 && w2.ammoCapacity) {
         try {
           usePlayerStore.setState((st: any) => ({
             equipment: {
               ...st.equipment,
-              weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: cs.ammo } : st.equipment.weapon2,
+              [wslot]: st.equipment[wslot] ? { ...st.equipment[wslot], loadedAmmo: cs.ammo } : st.equipment[wslot],
             },
           }));
-          usePlayerStore.getState().syncEquippedItem('weapon2');
+          usePlayerStore.getState().syncEquippedItem(wslot);
         } catch { /* best effort */ }
       }
     }

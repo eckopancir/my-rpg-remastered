@@ -68,8 +68,8 @@ const round1 = (v: number) => Math.round(v * 10) / 10;
 export const ShootingRange = ({ onClose }: Props) => {
   const stats = usePlayerStore((s) => s.stats);
   const showDmgNums = useUiStore((s) => s.showDamageNumbers !== false);
-  // Магазин — из надетого оружия, как в арене (initCombat: ammoCapacity || 30).
-  const weapon2 = usePlayerStore((s) => s.equipment.weapon2);
+  // Магазин — из активного оружия, как в арене.
+  const weapon2 = usePlayerStore((s) => s.getActiveWeapon());
   const magSize = weapon2?.ammoCapacity || 30;
 
   const [cfg, setCfg] = useState<DummyCfg>({ hp: 250000, armor: 25, evasionPct: 0, block: 0 });

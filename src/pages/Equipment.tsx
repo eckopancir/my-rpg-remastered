@@ -4,7 +4,7 @@ import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { CustomizationModal } from '../components/widgets/CustomizationModal';
 import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
-import { usePlayerStore, EQUIPMENT_SLOTS, type EquipmentSlot } from '../stores/playerStore';
+import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, type EquipmentSlot } from '../stores/playerStore';
 import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
 import { useInventoryStore } from '../stores/inventoryStore';
@@ -23,22 +23,23 @@ const S = 1.38;
 const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   head: { top: Math.round(12 * S), left: Math.round(45 * S) },
   armor: { top: Math.round(100 * S), left: Math.round(45 * S) },
+  pants: { top: Math.round(146 * S), left: Math.round(45 * S) },
   weapon1: { top: Math.round(120 * S), left: Math.round(-35 * S) },
   weapon2: { top: Math.round(120 * S), left: Math.round(125 * S) },
   gloves: { top: Math.round(60 * S), left: Math.round(-20 * S) },
-  boots: { top: Math.round(170 * S), left: Math.round(45 * S) },
+  boots: { top: Math.round(196 * S), left: Math.round(45 * S) },
   backpack: { top: Math.round(60 * S), left: Math.round(125 * S) },
 };
 
 const SLOT_LABELS: Record<string, string> = {
-  head: 'Шлем', armor: 'Броня', weapon1: 'Оружие', weapon2: 'Вторая рука',
+  head: 'Шлем', armor: 'Броня', pants: 'Штаны', weapon1: 'Ближний бой', weapon2: 'Автомат',
+  gun_pistol: 'Пистолет', gun_shotgun: 'Дробовик', gun_sniper: 'Снайперка', gun_heavy: 'Тяжёлое',
   gloves: 'Перчатки', boots: 'Ботинки', backpack: '🎒 Рюкзак',
-  ammo1: '', ammo2: '', ammo3: '', ammo4: '',
 };
 
-// Слоты поверх силуэта + отдельный ряд боеприпасов под куклой.
-const OVERLAY_SLOTS = EQUIPMENT_SLOTS.filter((s) => !s.startsWith('ammo')) as EquipmentSlot[];
-const AMMO_SLOTS = EQUIPMENT_SLOTS.filter((s) => s.startsWith('ammo')) as EquipmentSlot[];
+// Слоты поверх силуэта + отдельный ряд оружейной сумки под куклой.
+const OVERLAY_SLOTS = EQUIPMENT_SLOTS.filter((s) => !s.startsWith('gun_')) as EquipmentSlot[];
+const GUN_ROW_SLOTS = EQUIPMENT_SLOTS.filter((s) => s.startsWith('gun_')) as EquipmentSlot[];
 
 // Ключевые характеристики для сводки (остальное — под «Показать все»).
 const KEY_STATS = ['damage', 'armor', 'maxHp', 'crit', 'evasion', 'regen'] as const;
@@ -69,6 +70,8 @@ export const Equipment = () => {
   const powerBreakdown = usePlayerStore((s) => s.powerBreakdown);
   const equipItem = usePlayerStore((s) => s.equipItem);
   const unequipItem = usePlayerStore((s) => s.unequipItem);
+  const activeWeaponSlot = usePlayerStore((s) => s.activeWeaponSlot);
+  const setActiveWeaponSlot = usePlayerStore((s) => s.setActiveWeaponSlot);
   const items = useInventoryStore((s) => s.items);
   const removeItem = useInventoryStore((s) => s.removeItem);
   const addItem = useInventoryStore((s) => s.addItem);
@@ -125,30 +128,40 @@ export const Equipment = () => {
   const dragItem = useMemo(() => items.find((i) => i.id === draggedItemId), [items, draggedItemId]);  const validDropSlots = useMemo(() => {
     if (!dragItem) return new Set<string>();
     const slots = new Set<string>();
-    // Пачку патронов можно бросить на надетый огнестрел — зарядить магазин.
-    if ((dragItem as any).type === 'bullet' && equipment.weapon2?.ammoCapacity) {
-      slots.add('weapon2');
+    // Пачку патронов можно бросить на любой надетый ствол с магазином.
+    if ((dragItem as any).type === 'bullet') {
+      for (const gs of GUN_SLOTS) {
+        if ((equipment as any)[gs]?.ammoCapacity) slots.add(gs);
+      }
     }
     if (!dragItem.slot) return slots;
-    if (dragItem.slot === 'ammo') {
-      EQUIPMENT_SLOTS.filter((s) => s.startsWith('ammo')).forEach((s) => slots.add(s));
-    } else if (EQUIPMENT_SLOTS.includes(dragItem.slot as any)) {
+    if (dragItem.slot === 'weapon2') {
+      // Огнестрел — строго в свой классовый слот.
+      slots.add(gunSlotForWeapon(dragItem));
+    } else if (dragItem.slot === 'weapon1') {
+      slots.add('weapon1');
+    } else if ((EQUIPMENT_SLOTS as readonly string[]).includes(dragItem.slot)) {
       slots.add(dragItem.slot);
     }
     return slots;
-  }, [dragItem]);
+  }, [dragItem, equipment]);
 
   const handleDrop = (slot: EquipmentSlot, e: React.DragEvent) => {
     e.preventDefault();
     const itemId = e.dataTransfer.getData('text/plain');
     if (!itemId || itemId.startsWith('equip:')) return;
-    // Патроны на надетый огнестрел — зарядка магазина, а не экипировка.
-    if (slot === 'weapon2' && equipment.weapon2?.ammoCapacity) {
-      if (handleLoadMag(itemId)) return;
+    // Патроны на надетый ствол — зарядка магазина, а не экипировка.
+    if ((GUN_SLOTS as readonly string[]).includes(slot) && (equipment as any)[slot]?.ammoCapacity) {
+      if (handleLoadMag(slot, itemId)) return;
     }
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
-    if (item.slot && item.slot !== slot && !(item.slot === 'ammo' && slot.startsWith('ammo'))) return;
+    // Огнестрел — только в свой классовый слот.
+    if (item.slot === 'weapon2' && gunSlotForWeapon(item) !== slot) {
+      usePlayerStore.getState().addLog(`❌ Сюда не подходит: неси в «${SLOT_LABELS[gunSlotForWeapon(item)] || slot}».`, 'warning');
+      return;
+    }
+    if (item.slot && item.slot !== slot && !(item.slot === 'weapon2' && (GUN_SLOTS as readonly string[]).includes(slot))) return;
     const old = equipment[slot];
     if (old) {
       // Замена: сначала снимаем старый, в инвентарь он уйдёт только если новый наделся.
@@ -171,30 +184,30 @@ export const Equipment = () => {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   // Выгрузить магазин из оружия в рюкзак (кнопка справа от слота).
-  const handleUnload = () => {
+  const handleUnload = (slot: EquipmentSlot) => {
     const pst = usePlayerStore.getState();
-    const w = pst.equipment.weapon2;
+    const w = (pst.equipment as any)[slot];
     const loaded = w?.loadedAmmo || 0;
     if (!w || loaded <= 0) return;
     const back = pst.returnAmmoToPack(ammoTypeForWeapon(w), loaded);
     usePlayerStore.setState((st: any) => ({
       equipment: {
         ...st.equipment,
-        weapon2: st.equipment.weapon2
-          ? { ...st.equipment.weapon2, loadedAmmo: Math.max(0, (st.equipment.weapon2.loadedAmmo || 0) - back) }
+        [slot]: st.equipment[slot]
+          ? { ...st.equipment[slot], loadedAmmo: Math.max(0, (st.equipment[slot].loadedAmmo || 0) - back) }
           : null,
       },
     }));
-    pst.syncEquippedItem('weapon2');
+    pst.syncEquippedItem(slot);
     syncNow();
     playSound('reloading', 0.5);
     pst.addLog(`📤 Магазин выгружен в рюкзак (+${back})`, 'info');
   };
 
-  // Зарядить надетый огнестрел патронами перетаскиванием на слот второй руки.
-  const handleLoadMag = (ammoItemId: string): boolean => {
+  // Зарядить надетый ствол патронами перетаскиванием на его слот.
+  const handleLoadMag = (slot: EquipmentSlot, ammoItemId: string): boolean => {
     const pst = usePlayerStore.getState();
-    const w = pst.equipment.weapon2;
+    const w = (pst.equipment as any)[slot];
     if (!w || !w.ammoCapacity) return false;
     const cap = w.ammoCapacity;
     const loaded = w.loadedAmmo ?? 0;
@@ -248,12 +261,12 @@ export const Equipment = () => {
     usePlayerStore.setState((st: any) => ({
       equipment: {
         ...st.equipment,
-        weapon2: st.equipment.weapon2
-          ? { ...st.equipment.weapon2, loadedAmmo: (st.equipment.weapon2.loadedAmmo ?? 0) + take }
-          : st.equipment.weapon2,
+        [slot]: st.equipment[slot]
+          ? { ...st.equipment[slot], loadedAmmo: (st.equipment[slot].loadedAmmo ?? 0) + take }
+          : st.equipment[slot],
       },
     }));
-    pst.syncEquippedItem('weapon2');
+    pst.syncEquippedItem(slot);
     syncNow();
     playSound('reloading', 0.5);
     pst.addLog(`📀 Заряжено: +${take} (магазин ${(loaded + take)}/${cap})`, 'info');
@@ -295,6 +308,11 @@ export const Equipment = () => {
       // в инвентарь или заменой аналогичным предметом.
       if (!item) {
         setCustomizing({ item: null, slot });
+        return;
+      }
+      // Клик по стволу — выбрать активным (зелёная рамка, урон с него).
+      if ((GUN_SLOTS as readonly string[]).includes(slot)) {
+        usePlayerStore.getState().setActiveWeaponSlot(slot as EquipmentSlot);
       }
     }, 220);
   };
@@ -316,20 +334,23 @@ export const Equipment = () => {
 
   const renderSlotBox = (slot: EquipmentSlot, compact = false) => {
     const item = equipment[slot];
-    const isAmmo = slot.startsWith('ammo');
-    const slotW = compact ? 60 : isAmmo ? 60 : 72;
-    const slotH = compact ? 52 : isAmmo ? 52 : 64;
+    const isGun = (GUN_SLOTS as readonly string[]).includes(slot);
+    const isActiveGun = isGun && !!item && activeWeaponSlot === slot;
+    const slotW = compact ? 60 : 72;
+    const slotH = compact ? 52 : 64;
     const isOccupied = !!equipment[slot];
     const isDragTarget = draggedItemId && validDropSlots.has(slot)
-      && (!isOccupied || (slot === 'weapon2' && (dragItem as any)?.type === 'bullet'));
+      && (!isOccupied || (isGun && (dragItem as any)?.type === 'bullet'));
     const isHover = hoverSlot === slot;
 
     const stars = item?.quality ? (QUALITY_STARS[item.quality] || 0) : 0;
-    const frame = isDragTarget
-      ? 'rgba(34,197,94,0.8)'
-      : item
-        ? (item.qualityColor || '#818cf8')
-        : 'rgba(255,255,255,0.14)';
+    const frame = isActiveGun
+      ? '#22c55e'
+      : isDragTarget
+        ? 'rgba(34,197,94,0.8)'
+        : item
+          ? (item.qualityColor || '#818cf8')
+          : 'rgba(255,255,255,0.14)';
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
     return (
       <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -344,7 +365,7 @@ export const Equipment = () => {
           draggable={!!item}
           onDragStart={(e) => { if (item) e.dataTransfer.setData('text/plain', `equip:${slot}`); }}
           title={item
-            ? `${caption} — тяни в инвентарь, чтобы снять${slot === 'weapon2' && item.ammoCapacity ? ` · патроны ${item.loadedAmmo || 0}/${item.ammoCapacity}` : ''}`
+            ? `${caption} — тяни в инвентарь, чтобы снять${isGun && item.ammoCapacity ? ` · патроны ${item.loadedAmmo || 0}/${item.ammoCapacity}` : ''}${isGun ? ' · клик — выбрать активным' : ''}`
             : caption}
           style={{
             width: slotW,
@@ -357,31 +378,33 @@ export const Equipment = () => {
             border: `2px ${item || isDragTarget ? 'solid' : 'dashed'} ${frame}`,
             borderRadius: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: isDragTarget
-              ? '0 0 18px rgba(34,197,94,0.5)'
-              : isHover
-                ? `0 0 14px ${(item?.qualityColor || '#818cf8') + '88'}`
-                : item
-                  ? `0 0 10px ${(item.qualityColor || '#818cf8') + '55'}`
-                  : 'none',
+            boxShadow: isActiveGun
+              ? '0 0 18px rgba(34,197,94,0.7)'
+              : isDragTarget
+                ? '0 0 18px rgba(34,197,94,0.5)'
+                : isHover
+                  ? `0 0 14px ${(item?.qualityColor || '#818cf8') + '88'}`
+                  : item
+                    ? `0 0 10px ${(item.qualityColor || '#818cf8') + '55'}`
+                    : 'none',
             cursor: item ? 'grab' : 'pointer',
             transition: 'all 120ms',
           }}
         >
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: isAmmo ? 44 : 52, height: isAmmo ? 39 : 52, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
+              {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
               <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 2, textAlign: 'center' }}>
                 {item.level || 0} ур.
               </div>
-              {isAmmo && (item.quantity || 0) > 1 && (
+              {isGun && (item as any).ammoCapacity != null && (
                 <div style={{
                   position: 'absolute', bottom: 2, right: 3,
                   fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                  color: '#fff', background: 'rgba(0,0,0,0.75)',
+                  color: '#fbbf24', background: 'rgba(0,0,0,0.75)',
                   borderRadius: 3, padding: '0 3px', lineHeight: '12px',
                 }}>
-                  x{item.quantity}
+                  {(item as any).loadedAmmo ?? 0}/{(item as any).ammoCapacity}
                 </div>
               )}
             </div>
@@ -397,8 +420,11 @@ export const Equipment = () => {
           maxWidth: slotW + 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {SLOT_LABELS[slot] || caption}
-          {slot === 'weapon2' && item?.ammoCapacity ? (
+          {isGun && item?.ammoCapacity ? (
             <span style={{ color: '#fbbf24' }}> · {item.loadedAmmo ?? 0}/{item.ammoCapacity}</span>
+          ) : null}
+          {isActiveGun ? (
+            <span style={{ color: '#22c55e' }}> ●</span>
           ) : null}
         </div>
         {stars > 0 && (
@@ -459,9 +485,35 @@ export const Equipment = () => {
           padding: '16px 10px', background: 'rgba(255,255,255,0.02)',
           border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🎯 АММУНИЦИЯ</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🔫 ОРУЖЕЙНАЯ СУМКА</div>
           <div style={{ display: 'flex', gap: 12 }}>
-            {AMMO_SLOTS.map((slot) => renderSlotBox(slot))}
+            {GUN_ROW_SLOTS.map((slot) => {
+              const gw = (equipment as any)[slot];
+              return (
+                <div key={slot} style={{ position: 'relative' }}>
+                  {renderSlotBox(slot)}
+                  {gw?.ammoCapacity ? (
+                    <div
+                      onClick={(e) => { e.stopPropagation(); handleUnload(slot); }}
+                      title={(gw?.loadedAmmo || 0) > 0
+                        ? `Выгрузить магазин (${gw?.loadedAmmo} шт.) в рюкзак`
+                        : 'Магазин пуст — перетащи сюда пачку патронов, чтобы зарядить'}
+                      style={{
+                        position: 'absolute', top: 14, right: -14,
+                        width: 22, height: 22, cursor: 'pointer', lineHeight: 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: (gw?.loadedAmmo || 0) > 0 ? 1 : 0.45,
+                        filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.8))',
+                      }}
+                    >
+                      {images.unloadMag
+                        ? <img src={images.unloadMag} alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} draggable={false} />
+                        : '📤'}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🛡️ ГЕРОЙ</div>
           <div style={{ position: 'relative', width: 207, height: 396, margin: '0 66px 0 60px', flexShrink: 0 }}>
@@ -476,21 +528,23 @@ export const Equipment = () => {
             }} />
             {OVERLAY_SLOTS.map((slot) => {
               const pos = SLOT_POSITIONS[slot];
+              const gw = (equipment as any)[slot];
+              const showUnload = ((GUN_SLOTS as readonly string[]).includes(slot)) && gw?.ammoCapacity;
               return (
                 <div key={slot} style={{ position: 'absolute', top: pos.top, left: pos.left }}>
                   {renderSlotBox(slot)}
-                  {/* Выгрузка магазина — всегда справа от второй руки, если оружие надето */}
-                  {slot === 'weapon2' && equipment.weapon2?.ammoCapacity ? (
+                  {/* Выгрузка магазина — всегда справа от ствола, если он надет */}
+                  {showUnload ? (
                     <div
-                      onClick={(e) => { e.stopPropagation(); handleUnload(); }}
-                      title={(equipment.weapon2?.loadedAmmo || 0) > 0
-                        ? `Выгрузить магазин (${equipment.weapon2?.loadedAmmo} шт.) в рюкзак`
+                      onClick={(e) => { e.stopPropagation(); handleUnload(slot); }}
+                      title={(gw?.loadedAmmo || 0) > 0
+                        ? `Выгрузить магазин (${gw?.loadedAmmo} шт.) в рюкзак`
                         : 'Магазин пуст — перетащи сюда пачку патронов, чтобы зарядить'}
                       style={{
                         position: 'absolute', top: 14, right: -16,
                         width: 24, height: 24, cursor: 'pointer', lineHeight: 1,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        opacity: (equipment.weapon2?.loadedAmmo || 0) > 0 ? 1 : 0.45,
+                        opacity: (gw?.loadedAmmo || 0) > 0 ? 1 : 0.45,
                         filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.8))',
                       }}
                     >
