@@ -239,7 +239,6 @@ export const Dashboard = () => {
     { label: 'SPD', value: `${(stats.speed * 100).toFixed(1)}%`, desc: 'Скорость. Каждый выстрел имеет 0.5% × скорость шанс на бесплатный повтор (100% → 50%, 200% → гарант).' },
   ];
 
-  const hasElemDps = [stats.dpsEmi, stats.dpsToxis, stats.dpsExtro, stats.dpsFire].some((v) => v > 0);
   const elemDps = [
     { label: 'ЭМИ', value: stats.dpsEmi, color: '#818cf8', desc: 'ЭМИ урон. Против Роботов.' },
     { label: 'ТОКС', value: stats.dpsToxis, color: '#22c55e', desc: 'Токсичный урон. Против Мутантов.' },
@@ -315,9 +314,9 @@ export const Dashboard = () => {
             </span>
           ))}
         </div>
-        {hasElemDps && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-            {elemDps.map((s) => (
+        {/* Стихийный урон — всегда виден, даже по нулям */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+          {elemDps.map((s) => (
               <span key={s.label}
                 onMouseEnter={(e) => { setHoveredStat({ label: s.label, value: s.value.toFixed(1), desc: s.desc }); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
                 onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
@@ -332,7 +331,6 @@ export const Dashboard = () => {
               </span>
             ))}
           </div>
-        )}
         {activeEffects.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
             {activeEffects.map((e) => {
