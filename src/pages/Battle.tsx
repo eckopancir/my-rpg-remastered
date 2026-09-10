@@ -385,14 +385,14 @@ export const Battle = () => {
                   padding: '9px', borderRadius: 6,
                   border: '1px solid rgba(255,255,255,0.12)',
                   background: 'rgba(255,255,255,0.03)',
-                  color: turn !== 'player' || ap < 2 ? 'rgba(255,255,255,0.2)' : 'var(--text-secondary)',
-                  cursor: turn !== 'player' || ap < 2 ? 'not-allowed' : 'pointer',
+                  color: turn !== 'player' || ap < 3 ? 'rgba(255,255,255,0.2)' : 'var(--text-secondary)',
+                  cursor: turn !== 'player' || ap < 3 ? 'not-allowed' : 'pointer',
                   fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
-                  opacity: turn !== 'player' || ap < 2 ? 0.4 : 1,
+                  opacity: turn !== 'player' || ap < 3 ? 0.4 : 1,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
               >
-                <span>🔁 Перезарядка · 2 AP</span>
+                <span>🔁 Перезарядка · 3 AP</span>
                 <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>R</span>
               </div>
 

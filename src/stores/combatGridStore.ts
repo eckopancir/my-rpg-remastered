@@ -2490,12 +2490,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   reload: () => {
     const state = get();
     if (state.turn !== 'player') return;
-    if (state.ap < 2) { get().addMessage('❌ Нужно 2 AP для перезарядки'); return; }
+    if (state.ap < 3) { get().addMessage('❌ Нужно 3 AP для перезарядки'); return; }
     if (state.ammo >= state.maxAmmo) { get().addMessage('✅ Патроны полны'); return; }
     // Дозарядка из запаса: без оружия — бесплатно (кулаки), иначе — патроны группы.
     const w2 = usePlayerStore.getState().equipment.weapon2;
     if (!w2) {
-      set((s) => ({ ap: s.ap - 2, ammo: s.maxAmmo, message: '🔁 Перезарядился (AP -2)' }));
+      set((s) => ({ ap: s.ap - 3, ammo: s.maxAmmo, message: '🔁 Перезарядился (AP -3)' }));
       get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
       return;
     }
@@ -2506,7 +2506,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       get().addMessage(`❌ Нет патронов (${ammoGroupName(group)})!`);
       return;
     }
-    set((s) => ({ ap: s.ap - 2, ammo: s.ammo + took, message: `🔁 +${took} (AP -2)` }));
+    set((s) => ({ ap: s.ap - 3, ammo: s.ammo + took, message: `🔁 +${took} (AP -3)` }));
     // Магазин в оружии = итог после дозарядки (не инкремент: в бою тратился state.ammo).
     const magAfter = get().ammo;
     usePlayerStore.setState((st: any) => ({
