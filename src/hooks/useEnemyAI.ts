@@ -682,10 +682,18 @@ export const useEnemyAI = () => {
 
             // DPS = damage * (1 + speed) as in original
             const enemyDps = enemy.dps || enemy.damage * (1 + (enemy.speed || 0));
+            // Цель — союзник: бьём по ЕГО статам, а не по статам игрока.
+            const preTargetAlly = updatedEnemies.find((e: any) =>
+              e.faction === 'Союзник' && !e.dead && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+            );
+            const tgtArmor0 = preTargetAlly ? preTargetAlly.armor : playerStats.armor;
+            const tgtEvasion0 = preTargetAlly ? preTargetAlly.evasion : playerStats.evasion;
+            const tgtBlock0 = preTargetAlly ? preTargetAlly.block : playerStats.block;
+            const tgtIncoming0 = preTargetAlly ? 1 : playerStats.incomingDamageMult;
             const result = calculateCombatResult(
               { dps: enemyDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
               applyTerrainToTarget(
-                { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult },
+                { armor: tgtArmor0, evasion: tgtEvasion0, block: tgtBlock0, incomingDamageMult: tgtIncoming0 },
                 targetPos,
                 currentStore.obstacles,
               ),
@@ -736,7 +744,8 @@ export const useEnemyAI = () => {
                 useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, `+${Math.round(healVamp)} 🩸`, 'VAMP');
               }
             } else {
-              useCombatGridStore.getState().addPopup(currentStore.playerPos.x, currentStore.playerPos.y, result.text, result.type);
+              // Промах/блок: текст над ЦЕЛЬЮ, а не над игроком.
+              useCombatGridStore.getState().addPopup(targetPos.x, targetPos.y, result.text, result.type);
             }
 
             // Post-attack regen (flat)

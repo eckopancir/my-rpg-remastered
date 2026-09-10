@@ -455,12 +455,13 @@ export const BattleGrid = () => {
             const waypointNum = waypointMap.get(`${x},${y}`);
             const isInRange = inRangeCells.has(`${x},${y}`);
             const hovered = hoveredEnemy && enemy?.id === hoveredEnemy.id;
+            const isAllyCell = enemy?.faction === 'Союзник';
             const visible = isCellVisible(x, y);
 
             return (
               <div
                 key={i}
-                className={`${styles.cell}${isSel ? ` ${styles.cellActive}` : ''}${pathPoint ? ` ${styles.pathActive}` : ''}${obstacle ? ` ${styles.obstacleCell}` : ''}${isPlayer ? ` ${styles.playerCell}` : ''}${isInRange && turn === 'player' ? ` ${styles.inRange}` : ''}${hovered ? ` ${styles.cellCrosshair}` : ''}`}
+                className={`${styles.cell}${isSel ? ` ${styles.cellActive}` : ''}${pathPoint ? ` ${styles.pathActive}` : ''}${obstacle ? ` ${styles.obstacleCell}` : ''}${isPlayer ? ` ${styles.playerCell}` : ''}${isInRange && turn === 'player' ? ` ${styles.inRange}` : ''}${hovered && !isAllyCell ? ` ${styles.cellCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCellCrosshair}` : ''}`}
                 onClick={() => handleCellClick(x, y)}
                 onContextMenu={(e) => e.preventDefault()}
                 onMouseDown={(e) => { if (e.button === 2) rmbDownCell.current = { x, y }; }}
@@ -515,7 +516,7 @@ export const BattleGrid = () => {
                 {/* Living Enemy — только в прямом обзоре (по памяти позиции не палим) */}
                 {enemy && visible && (
                   <div
-                    className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered ? ` ${styles.enemyCrosshair}` : ''}${isInRange ? ` ${styles.inRangeEnemy}` : ''}`}
+                    className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered && !isAllyCell ? ` ${styles.enemyCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCrosshair}` : ''}${isInRange && !isAllyCell ? ` ${styles.inRangeEnemy}` : ''}${isInRange && isAllyCell ? ` ${styles.inRangeAlly}` : ''}`}
                     style={{ borderColor: ENEMY_COLORS[enemy.faction] || '#a1a1aa', width: enemy.bigModel || '100%', height: enemy.bigModel || '100%', zIndex: 5 }}
                     onMouseDown={(e) => { if (e.button === 2) { measureRef.current = true; setMeasuring({ x, y }); } }}
                   >
@@ -550,7 +551,14 @@ export const BattleGrid = () => {
                     })()}
 
                     <img
-                      src={getEnemyImage(enemy.faction, enemy.name, (enemy as any).nowModel)}
+                      src={(() => {
+                        const nm = (enemy as any).nowModel as string | undefined;
+                        // Союзник: строго своя моделька из спавна (без фолбэков наугад).
+                        if (enemy.faction === 'Союзник' && nm) {
+                          return getCharacterImage(nm) || getEnemyImage(enemy.faction, enemy.name);
+                        }
+                        return getEnemyImage(enemy.faction, enemy.name);
+                      })()}
                       alt={enemy.name}
                       className={`${styles.humanSprite}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
                       draggable={false}

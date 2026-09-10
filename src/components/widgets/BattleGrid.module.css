@@ -553,6 +553,18 @@
   filter: brightness(1.2);
 }
 
+/* Союзники-мусорщики: зелёное свечение вместо красного */
+.allyCrosshair {
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.7), 0 0 24px rgba(34, 197, 94, 0.35);
+  filter: brightness(1.15);
+}
+
+.allyCellCrosshair {
+  cursor: default;
+  background: rgba(34, 197, 94, 0.14) !important;
+  box-shadow: inset 0 0 8px rgba(0, 255, 128, 0.3);
+}
+
 /* In-range cell glow — едва заметный, чтобы не белил карту */
 .inRange {
   background: rgba(50, 50, 255, 0.02) !important;
@@ -561,6 +573,12 @@
 /* Red glow on in-range enemies */
 .inRangeEnemy {
   filter: drop-shadow(0 0 8px rgba(255, 0, 0, 0.7));
+  transition: filter 0.2s ease;
+}
+
+/* Green glow on in-range allies */
+.inRangeAlly {
+  filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.8));
   transition: filter 0.2s ease;
 }
 
