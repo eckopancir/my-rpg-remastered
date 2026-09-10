@@ -92,4 +92,5 @@ export const images = {
   workshop: backgroundImageMap.get('unnamed'),
   campfire1: battleImageMap.get('fire1'),
   campfire2: battleImageMap.get('fire2'),
+  unloadMag: uiImageMap.get('screenshot_70-photoroom'),
 };

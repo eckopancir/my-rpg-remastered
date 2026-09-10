@@ -487,13 +487,16 @@ export const Equipment = () => {
                         ? `Выгрузить магазин (${equipment.weapon2?.loadedAmmo} шт.) в рюкзак`
                         : 'Магазин пуст — перетащи сюда пачку патронов, чтобы зарядить'}
                       style={{
-                        position: 'absolute', top: 18, right: -16,
-                        fontSize: 17, cursor: 'pointer', lineHeight: 1,
+                        position: 'absolute', top: 14, right: -16,
+                        width: 24, height: 24, cursor: 'pointer', lineHeight: 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                         opacity: (equipment.weapon2?.loadedAmmo || 0) > 0 ? 1 : 0.45,
                         filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.8))',
                       }}
                     >
-                      📤
+                      {images.unloadMag
+                        ? <img src={images.unloadMag} alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} draggable={false} />
+                        : '📤'}
                     </div>
                   ) : null}
                 </div>
