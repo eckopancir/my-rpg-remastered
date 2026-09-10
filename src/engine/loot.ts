@@ -15,6 +15,16 @@ export interface LootOptions {
   rank?: CorpseRank;
 }
 
+// Выпавший огнестрел уже заряжен: 3-15 патронов в магазине (не больше вместимости).
+const withChargedMags = (items: Array<any>): Array<any> => {
+  for (const it of items) {
+    if (it && it.slot === 'weapon2' && it.ammoCapacity && typeof it.loadedAmmo !== 'number') {
+      it.loadedAmmo = Math.min(it.ammoCapacity, 3 + Math.floor(Math.random() * 13));
+    }
+  }
+  return items;
+};
+
 // Рюкзак трупа — 10 ячеек: приоритет содержимого (предмет, рюкзак,
 // расходник, патроны, ресурсы), лишнее не спавнится.
 export const CORPSE_SLOTS = 10;
@@ -120,7 +130,7 @@ export const generateLoot = (
         return 0;
       };
       items.sort((a, b) => prio(a) - prio(b));
-      return items.slice(0, CORPSE_SLOTS);
+      return withChargedMags(items.slice(0, CORPSE_SLOTS));
     }
     // Обычные и сложные: шансы и количества по таблице рангов.
     if (Math.random() < t.itemChance) {
@@ -185,7 +195,7 @@ export const generateLoot = (
       return 0;
     };
     items.sort((a, b) => prio(a) - prio(b));
-    return items.slice(0, CORPSE_SLOTS);
+    return withChargedMags(items.slice(0, CORPSE_SLOTS));
   }
 
   let count = Math.floor(Math.random() * 3) + 1;
@@ -225,7 +235,7 @@ export const generateLoot = (
     }
   }
 
-  return items;
+  return withChargedMags(items);
 };
 
 export const generateResources = (

@@ -14,6 +14,7 @@ export interface ExpeditionEntry {
     chipReward: number;
     xpReward: number;
     cardRarityName: string;
+    allyCount?: number;
   };
 }
 

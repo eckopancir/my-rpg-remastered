@@ -149,6 +149,8 @@ export interface CombatGridStore {
   range: number;
   isDefensiveMode: boolean;
   turnCount: number;
+  // Ход последнего выстрела (с любой стороны): защита от зависания боя.
+  lastShotTurn: number;
   selectedEnemy: number | string | null;
   cursorPos: { x: number; y: number } | null;
   message: string;
@@ -204,7 +206,7 @@ export interface CombatGridStore {
   immortalityTurns: number;
 
   cardRarityName: string | null;
-  initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }) => boolean;
+  initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }, allyCount?: number) => boolean;
   teleportTo: (x: number, y: number) => void;
   placeMine: (x: number, y: number) => void;
   checkAutoTriggers: () => void;
@@ -689,6 +691,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   range: ATTACK_RANGE,
   isDefensiveMode: false,
   turnCount: 0,
+  lastShotTurn: 0,
   selectedEnemy: null,
   cursorPos: null,
   message: '',
@@ -949,7 +952,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   findPath: (from, to) => findPath(from, to, get().obstacles),
 
-  initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards) => {
+  initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount) => {
     try {
     // Reset combat-only player state
     usePlayerStore.setState((st: any) => ({
@@ -1033,8 +1036,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const totalMult = levelMult * extraMult;
       const scaledHealth = Math.round(base.health * totalMult);
       const scaledDamage = Math.round(base.damage * totalMult);
-      const spawnX = Math.min(GRID - 3, Math.max(20, GRID - 3 - (i % 2) * 2));
-      const spawnY = 20 + (i % 3) * 3 + Math.floor(i / 3) * 4;
+      const spawnX = Math.min(GRID - 3, Math.max(1, GRID - 3 - (i % 4) * 2));
+      // Кламп в карту: иначе индекс 9+ улетает за край (y до 55 при сетке 32)
+      // и «остался 1 противник» висит вечно.
+      const rawY = 20 + (i % 3) * 3 + Math.floor(i / 3) * 4 + i;
+      const spawnY = 2 + (rawY % (GRID - 4));
       const abilities = base.skillUse && base.skillUse.length > 0 && base.skillUse[0] !== ''
         ? base.skillUse
         : [];
@@ -1064,7 +1070,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         vampir: base.vampir * totalMult,
         crit: base.crit * totalMult,
         regen: (base.regen || 0) * totalMult,
-        pos: { x: spawnX, y: spawnY + i },
+        pos: { x: spawnX, y: spawnY },
         isHit: false,
         dead: false,
         runAp: base.runAp || 4,
@@ -1163,9 +1169,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       e.rotation = Math.floor(Math.random() * 360);
     }
 
-    // Патруль: тройка рядом, одно случайное направление на всех.
+    // Патруль: рядом, одно случайное направление на всех (индекс 9 тоже сюда,
+    // иначе остаётся без роли и стоит столбом).
     const patrolIdx: number[] = [];
-    for (let k = 6; k < Math.min(9, activeEnemies.length); k++) patrolIdx.push(k);
+    for (let k = 6; k < Math.min(10, activeEnemies.length); k++) patrolIdx.push(k);
     if (patrolIdx.length > 0) {
       const anchor = findFreeCellNear(10 + Math.floor(Math.random() * 12), 8 + Math.floor(Math.random() * 12), taken);
       const pDirs = [
@@ -1215,6 +1222,75 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       e.skillUse = ['madness', 'rage', LEGENDARY_BOSS_SKILLS[Math.floor(Math.random() * LEGENDARY_BOSS_SKILLS.length)]];
     }
 
+    // --- Мусорщики-союзники (карточка помощи): рядом с героем, статы обычных
+    // стрелков военных, сразу в бой (aggro + knowsPlayer), модель-сталкер наугад.
+    const allyNum = Math.max(0, Math.min(6, Math.floor(allyCount || 0)));
+    if (allyNum > 0 && ENEMY_BASE_STATS['Военные (original)']) {
+      const aBase = ENEMY_BASE_STATS['Военные (original)'];
+      const aTotalMult = levelMult * extraMult;
+      const stalkerModels = ['stalker1', 'stalker2', 'stalker3'];
+      for (let a = 0; a < allyNum; a++) {
+        const ax = Math.max(1, Math.min(GRID - 2, playerPos.x + 2 + (a % 3)));
+        const ay = Math.max(1, Math.min(GRID - 2, playerPos.y + 1 + Math.floor(a / 3)));
+        const spot = findFreeCellNear(ax, ay, taken);
+        taken.add(`${spot.x},${spot.y}`);
+        const model = stalkerModels[Math.floor(Math.random() * stalkerModels.length)];
+        const aHp = Math.round(aBase.health * aTotalMult);
+        const aDmg = Math.round(aBase.damage * aTotalMult);
+        activeEnemies.push({
+          id: `ally_${a}_${Date.now()}`,
+          name: 'Мусорщик',
+          faction: 'Союзник',
+          factionKey: 'Мусорщики',
+          dps: aDmg * (1 + (aBase.speed * aTotalMult || 0)),
+          speed: aBase.speed * aTotalMult,
+          currentHp: aHp,
+          maxHp: aHp,
+          health: aBase.health,
+          damage: aDmg,
+          armor: Math.round(aBase.armor * aTotalMult),
+          accuracy: Math.min(2, aBase.accuracy + accuracyAdd),
+          evasion: Math.min(1, aBase.evasion * aTotalMult),
+          block: aBase.block * aTotalMult,
+          punching: aBase.punching * aTotalMult,
+          vampir: aBase.vampir * aTotalMult,
+          crit: aBase.crit * aTotalMult,
+          regen: (aBase.regen || 0) * aTotalMult,
+          pos: spot,
+          isHit: false,
+          dead: false,
+          runAp: aBase.runAp || 4,
+          rotation: 0,
+          rangeDistance: aBase.rangeDistance || 7,
+          shotPrice: aBase.shotPrice || 1,
+          skillUse: [],
+          cooldowns: {},
+          isInvisible: false,
+          invisTurns: 0,
+          baseEvasion: aBase.evasion || 0,
+          isEnraged: false,
+          rageTurns: 0,
+          hasSummoned: false,
+          bigModel: '100%',
+          isSpinning: false,
+          loot: [],
+          looted: false,
+          soundAttack: aBase.soundAttack || 'shotenemy',
+          nowModel: model,
+          deadModel: 'dead',
+          avatar: model,
+          aiRole: 'patrol',
+          aggro: true,
+          knowsPlayer: true,
+          alertTurn: 0,
+          speech: null,
+          patrolDir: { dx: 1, dy: 0 },
+          callsign: dealCallsign(),
+        });
+      }
+      get().addBattleLog(`🤝 Мусорщики пришли на помощь (${allyNum})! В своих не стрелять.`);
+    }
+
     // Generate obstacles with safe zones around player and enemies
     const obstacles = generateObstacles(playerPos, activeEnemies);
 
@@ -1238,7 +1314,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
       range: ATTACK_RANGE, isDefensiveMode: false,
-      turnCount: 0, selectedEnemy: null,
+      turnCount: 0, lastShotTurn: 0, selectedEnemy: null,
       message: weapon2 && startAmmo <= 0 ? `❌ Нет патронов (${ammoGroupName(ammoTypeForWeapon(weapon2))})!` : '⚔️ Твой ход',
       isVictory: false, isDefeat: false, isMoving: false, isSelected: false,
       playerRotation: 90, popups: [], shotLine: null,
@@ -1250,7 +1326,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       battleId: get().battleId + 1,
       stealth: false,
     });
-    get().addBattleLog(`⚔️ Бой начался! Противников: ${activeEnemies.length}`);
+    get().addBattleLog(`⚔️ Бой начался! Противников: ${activeEnemies.filter((e) => e.faction !== 'Союзник').length}`);
     return true;
     } catch (e) {
       console.error('[initCombat]', e);
@@ -1445,6 +1521,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const targetEnemy = enemyId != null
       ? state.enemies.find((e) => e.id === enemyId)
       : null;
+
+    // По своим способностями не бьём: мусорщики — друзья.
+    if (targetEnemy && targetEnemy.faction === 'Союзник') {
+      get().addMessage('🤝 Свои! В мусорщиков не стреляем.');
+      set({ selectedAbility: null });
+      return;
+    }
 
     // If ability has damage effects or requiresTarget flag, require a target
     const needsTarget = ability.effects.some((ef) => ef.type === 'damage' || ef.type === 'mark_zone') || ability.requiresTarget;
@@ -2003,6 +2086,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     const enemy = state.enemies.find((e) => e.id === enemyId);
     if (!enemy || enemy.dead) return;
+    // По своим не стреляем: мусорщики — друзья.
+    if (enemy.faction === 'Союзник') {
+      get().addMessage('🤝 Свои! В мусорщиков не стреляем.');
+      return;
+    }
 
     const dist = getDist(state.playerPos, enemy.pos);
     const effectiveRange = state.isDefensiveMode ? state.range + 3 : state.range;
@@ -2015,7 +2103,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     const player = usePlayerStore.getState();
     const angle = getAngle(state.playerPos, enemy.pos);
-    set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos } });
+    set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos }, lastShotTurn: get().turnCount });
     setTimeout(() => set({ shotLine: null }), 400);
 
     // Физа идёт через формулу одна; стихия фракции — чистым уроном поверх.
@@ -2397,8 +2485,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     stopCombatSound('run');
     const state = get();
     if (state.turn !== 'player' || state.isMoving) return;
-    // Check all dead + no reserve -> free movement
-    const allDead = state.enemies.every((e) => e.dead);
+    // Check all dead + no reserve -> free movement (союзники не в счёт).
+    const allDead = state.enemies.every((e) => e.dead || e.faction === 'Союзник');
     const noReserve = state.reserve.length === 0;
     if (allDead && noReserve) {
       set({
@@ -2406,6 +2494,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         message: '🕊️ Поле зачищено. Свободное перемещение.',
         turnCount: state.turnCount + 1,
       });
+      return;
+    }
+    // Защита от зависания: остался 1-2 противника, 50 ходов ни одного выстрела
+    // ни с чьей стороны (застрял/за картой/не достать) — сбежали, бой окончен.
+    const hostiles = state.enemies.filter((e) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник');
+    if (hostiles.length >= 1 && hostiles.length <= 2
+      && state.reserve.length === 0 && state.pendingReinforce.length === 0
+      && (state.turnCount - (state.lastShotTurn ?? 0)) >= 50) {
+      const fledIds = new Set(hostiles.map((e) => e.id));
+      set((s) => ({ enemies: s.enemies.filter((e) => !fledIds.has(e.id)) }));
+      get().addBattleLog(`🏃 Остатки врагов (${hostiles.length}) сбежали с поля боя!`);
+      get().addMessage('🏃 Противники сбежали! Бой окончен.');
+      get().finishBattle();
       return;
     }
     // Wave every 2 rounds
@@ -2454,7 +2555,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     set({
       isActive: false, enemies: [], obstacles: [], turn: 'player',
-      ap: BASE_AP, turnCount: 0, selectedEnemy: null, message: '',
+      ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
       exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,

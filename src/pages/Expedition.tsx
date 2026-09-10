@@ -77,6 +77,7 @@ export const Expedition = () => {
         chipReward: card.chipReward,
         xpReward: card.xpReward,
         cardRarityName: card.rarity.name,
+        allyCount: card.allyCount || 0,
       },
     };
 
@@ -178,6 +179,15 @@ export const Expedition = () => {
                       {ENEMY_LABELS[type] || type} ×{count}
                     </span>
                   ))}
+                  {card.allyCount > 0 && (
+                    <span style={{
+                      padding: '1px 6px', borderRadius: 3,
+                      background: 'rgba(34,211,238,0.25)',
+                      color: '#a5f3fc', fontWeight: 700,
+                    }}>
+                      🤝 Мусорщики ×{card.allyCount}
+                    </span>
+                  )}
                 </div>
 
                 <div style={{

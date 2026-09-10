@@ -6,10 +6,12 @@ import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
-import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, BOSS_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, pickPhrase } from '../data/enemyChatter';
+import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, BOSS_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, STALKER_COMBAT_BARK, STALKER_SPOT_BARK, pickPhrase } from '../data/enemyChatter';
 
 const isMilitary = (e: any): boolean =>
   (e.faction || '').toLowerCase().includes('воен') || (e.factionKey || '').toLowerCase().includes('воен');
+
+const isAllyUnit = (e: any): boolean => (e.faction || '') === 'Союзник';
 
 /** Очки укрытия клетки: сумма бонусов брони+блока+уворота. */
 const coverScore = (x: number, y: number, obstacles: any[]): number => {
@@ -298,6 +300,7 @@ export const useEnemyAI = () => {
               useCombatGridStore.getState().addMessage('👁️ Тебя заметили! Скрытность сорвана');
             } else {
               if (isMilitary(enemy)) saySync(enemy.id, pickPhrase(spotted ? SPOT_BARK : WAKE_BARK));
+              else if (isAllyUnit(enemy)) saySync(enemy.id, pickPhrase(STALKER_SPOT_BARK));
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             }
           }
@@ -553,9 +556,17 @@ export const useEnemyAI = () => {
           // Determine target: allies attack enemies, enemies attack player or nearby ally
           let targetPos: { x: number; y: number };
           if (isAlly) {
-            // Minion/decoy: find nearest non-ally enemy
-            const hostile = updatedEnemies.find((e: any) => e.id !== enemy.id && !e.dead && e.currentHp > 0 && e.faction !== 'Союзник');
-            targetPos = hostile ? { ...hostile.pos } : { ...currentStore.playerPos };
+            // Союзник: ближайший живой противник — знают, где враги.
+            const hostile = updatedEnemies
+              .filter((e: any) => e.id !== enemy.id && !e.dead && e.currentHp > 0 && e.faction !== 'Союзник')
+              .sort((a: any, b: any) => getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos))[0];
+            // Врагов не осталось: миньоны — к хозяину, мусорщики ждут (не трогают игрока).
+            if (!hostile) {
+              if ((enemy as any).isMinion) targetPos = { ...currentStore.playerPos };
+              else { enemyAp = 0; break; }
+            } else {
+              targetPos = { ...hostile.pos };
+            }
           } else {
             // Check for nearby ally (decoy/minion) to attack instead of player
             const nearbyAlly = updatedEnemies.find(
@@ -640,6 +651,7 @@ export const useEnemyAI = () => {
             playCombatSound(atkSound, 0.4);
             useCombatGridStore.setState({
               shotLine: { from: enemy.pos, to: targetPos },
+              lastShotTurn: useCombatGridStore.getState().turnCount,
               enemies: useCombatGridStore.getState().enemies.map((e: any) =>
                 e.id === enemy.id ? { ...e, rotation: angle, isSpinning: enemy.name.toLowerCase().includes('melle') || enemy.name.toLowerCase().includes('melee') } : e
               ),
@@ -652,6 +664,8 @@ export const useEnemyAI = () => {
               saySync(enemy.id, pickPhrase(BOSS_COMBAT_BARK));
             } else if (isMilitary(enemy) && Math.random() < 0.15) {
               saySync(enemy.id, pickPhrase(MILITARY_COMBAT_BARK));
+            } else if (isAllyUnit(enemy) && Math.random() < 0.15) {
+              saySync(enemy.id, pickPhrase(STALKER_COMBAT_BARK));
             }
             // Открыл огонь по игроку — все в радиусе 9 от стрелка бегут в бой.
             if (targetPos.x === currentStore.playerPos.x && targetPos.y === currentStore.playerPos.y) {

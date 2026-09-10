@@ -59,7 +59,15 @@ export const getBattleImage = (key: string): string | undefined => {
   return battleImageMap.get(key.toLowerCase());
 };
 
-export const getEnemyImage = (faction: string, enemyName: string): string | undefined => {
+export const getEnemyImage = (faction: string, enemyName: string, modelKey?: string): string | undefined => {
+  if (modelKey) {
+    const direct = characterImageMap.get(modelKey.toLowerCase());
+    if (direct) return direct;
+  }
+  // Мусорщики-союзники: моделька задана при спавне (nowModel), фолбэк — первая.
+  if ((faction || '').toLowerCase().includes('союзник')) {
+    return characterImageMap.get('stalker1') || characterImageMap.get('military1');
+  }
   const name = enemyName.toLowerCase();
   if (name.includes('танк') || name.includes('tank')) return characterImageMap.get('tank');
   if (name.includes('снайпер') || name.includes('sniper')) return characterImageMap.get('sniperimg');

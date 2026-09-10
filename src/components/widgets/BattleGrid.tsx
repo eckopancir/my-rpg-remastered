@@ -31,6 +31,7 @@ const ENEMY_COLORS: Record<string, string> = {
   Роботы: '#2563eb',
   Бандиты: '#dc2626',
   Военные: '#16a34a',
+  Союзник: '#22d3ee',
   Неизвестно: '#a1a1aa',
 };
 
@@ -78,7 +79,9 @@ export const BattleGrid = () => {
   const setPlannedPath = useCombatGridStore((s) => s.setPlannedPath);
   const lootingEnemy = useCombatGridStore((s) => s.lootingEnemy);
   const canFinish = useMemo(() => {
-    return enemies.length > 0 && enemies.every((e) => e.dead) && reserve.length === 0;
+    // Союзники не блокируют финиш: все ВРАГИ мертвы + резерв пуст.
+    const hostiles = enemies.filter((e) => e.faction !== 'Союзник');
+    return hostiles.length > 0 && hostiles.every((e) => e.dead) && reserve.length === 0;
   }, [enemies, reserve]);
   const [hoveredDeadId, setHoveredDeadId] = useState<number | string | null>(null);
   const [playerLocating, setPlayerLocating] = useState(false);
@@ -304,6 +307,11 @@ export const BattleGrid = () => {
     }
     const enemy = enemies.find((e) => !e.dead && e.currentHp > 0 && e.pos.x === x && e.pos.y === y);
     if (enemy) {
+      // По своим не стреляем: мусорщики — друзья.
+      if (enemy.faction === 'Союзник') {
+        useCombatGridStore.getState().addMessage('🤝 Свои! В мусорщиков не стреляем.');
+        return;
+      }
       const store = useCombatGridStore.getState();
       selectEnemy(enemy.id);
       if (store.selectedAbility !== null) {
@@ -542,7 +550,7 @@ export const BattleGrid = () => {
                     })()}
 
                     <img
-                      src={getEnemyImage(enemy.faction, enemy.name)}
+                      src={getEnemyImage(enemy.faction, enemy.name, (enemy as any).nowModel)}
                       alt={enemy.name}
                       className={`${styles.humanSprite}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
                       draggable={false}

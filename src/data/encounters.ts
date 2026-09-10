@@ -3,6 +3,7 @@ import arsenalBg from '../assets/images/characters/Секретный Арсен
 import warehouseBg from '../assets/images/characters/Военные склады.png';
 import labBg from '../assets/images/characters/Химическая лаборатория.png';
 import patrolBg from '../assets/images/characters/Военный патруль.png';
+import stalkerBg from '../assets/images/characters/stalker1.png';
 
 export type EnemyShortName = 'tank' | 'melee' | 'sniper' | 'drob' | 'original' | 'medic' | 'boss';
 
@@ -23,6 +24,8 @@ export interface CardTemplate {
   slMax: number;
   enemyMin: number;
   enemyMax: number;
+  // Карточка с подмогой: в бой встанут мусорщики (3-5, вдвое меньше врагов).
+  givesAllies?: boolean;
 }
 
 export interface GeneratedCard {
@@ -35,6 +38,7 @@ export interface GeneratedCard {
   totalSl: number;
   enemyTypes: EnemyShortName[];
   enemyCount: number;
+  allyCount: number;
   chipReward: number;
   xpReward: number;
   type: 'combat';
@@ -134,6 +138,21 @@ const CARD_TEMPLATES: CardTemplate[] = [
     slMin: 1, slMax: 100,
     enemyMin: 6, enemyMax: 14,
   },
+  {
+    id: 'stalkers',
+    name: 'Помощь мусорщикам',
+    image: stalkerBg,
+    enemyPool: [
+      { type: 'tank', weight: 10 },
+      { type: 'drob', weight: 20 },
+      { type: 'original', weight: 45 },
+      { type: 'medic', weight: 20 },
+      { type: 'sniper', weight: 5 },
+    ],
+    slMin: 40, slMax: 60,
+    enemyMin: 6, enemyMax: 10,
+    givesAllies: true,
+  },
 ];
 
 function weightedRandom<T extends { weight: number }>(items: T[]): T {
@@ -181,6 +200,8 @@ export function generateCards(): GeneratedCard[] {
     const totalSl = sl + rarity.slBonus;
     const enemyCount = randInt(template.enemyMin, template.enemyMax);
     const enemyTypes = generateEnemyTypes(template.enemyPool, enemyCount);
+    // Подмога: мусорщиков ровно вдвое меньше врагов, от 3 до 5.
+    const allyCount = template.givesAllies ? Math.max(3, Math.min(5, Math.floor(enemyCount / 2))) : 0;
 
     cards.push({
       id: `card_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
@@ -192,6 +213,7 @@ export function generateCards(): GeneratedCard[] {
       totalSl,
       enemyTypes,
       enemyCount,
+      allyCount,
       chipReward: calcChipReward(totalSl, enemyTypes),
       xpReward: calcXpReward(totalSl, enemyTypes),
       type: 'combat',

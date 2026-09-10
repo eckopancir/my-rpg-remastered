@@ -42,7 +42,8 @@ export const useGameLoop = () => {
             completedExp.cardData?.enemyKeys,
             completedExp.cardData
               ? { chipReward: completedExp.cardData.chipReward, xpReward: completedExp.cardData.xpReward, cardRarityName: completedExp.cardData.cardRarityName }
-              : undefined
+              : undefined,
+            completedExp.cardData?.allyCount || 0
           );
           if (!ok) throw new Error('initCombat failed');
         } catch (e) {
