@@ -43,6 +43,7 @@ export const BattleGrid = () => {
   const isActive = useCombatGridStore((s) => s.isActive);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
   const turn = useCombatGridStore((s) => s.turn);
+  const turnCount = useCombatGridStore((s) => s.turnCount);
   const isMoving = useCombatGridStore((s) => s.isMoving);
   const isSelected = useCombatGridStore((s) => s.isSelected);
   const playerRotation = useCombatGridStore((s) => s.playerRotation);
@@ -604,8 +605,10 @@ export const BattleGrid = () => {
           const showQ = !e.aggro && !e.sleeping && e.faction !== 'Союзник' && d <= susR && d > detR;
           // Часовой всегда с белым «!» — его метка.
           const showExcl = e.aiRole === 'sentry';
+          // Вспышка тревоги «!!!» — только ~1 ход после подъёма (сам бой продолжается).
+          const alertFlash = (e.alertTurn ?? -999) >= 0 && turnCount - (e.alertTurn ?? -999) <= 1;
           // Режим поиска трупа.
-          const showSearch = !!e.searching;
+          const showSearch = !!e.searching && alertFlash;
           if (!e.speech && !e.sleeping && !showQ && !showExcl && !showSearch && !e.surrendering) return null;
           // Маркеры стопкой вверх (диалоги могут их перекрывать — так задумано).
           const exclB = 34;
@@ -633,7 +636,7 @@ export const BattleGrid = () => {
                   padding: '1px 8px', borderRadius: 10, border: '1px solid #8a8a8a',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                 }}>
-                  {e.aggro ? '!!!' : '!'}
+                  {e.aggro && alertFlash ? '!!!' : '!'}
                 </div>
               )}
               {e.sleeping && (

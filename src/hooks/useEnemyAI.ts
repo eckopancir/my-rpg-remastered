@@ -232,6 +232,7 @@ export const useEnemyAI = () => {
             enemy.sleeping = false;
             enemy.aggro = true;
             enemy.knowsPlayer = true;
+            enemy.alertTurn = useCombatGridStore.getState().turnCount;
             updatedEnemies[i] = { ...enemy };
             const stw = useCombatGridStore.getState();
             saySync(enemy.id, pickPhrase(WAKE_BARK));
@@ -277,6 +278,7 @@ export const useEnemyAI = () => {
           if (spotted || matesFight) {
             enemy.aggro = true;
             enemy.knowsPlayer = true;
+            enemy.alertTurn = useCombatGridStore.getState().turnCount;
             updatedEnemies[i] = { ...enemy };
             // Часовой заметил: тревога слышна всем часовым — тоже идут в бой.
             if (spotted && enemy.aiRole === 'sentry') {
@@ -284,6 +286,7 @@ export const useEnemyAI = () => {
                 if ((o as any).aiRole === 'sentry' && !o.dead && o.currentHp > 0) {
                   (o as any).aggro = true;
                   (o as any).knowsPlayer = true;
+                  (o as any).alertTurn = useCombatGridStore.getState().turnCount;
                 }
               }
             }
@@ -340,6 +343,7 @@ export const useEnemyAI = () => {
             const cs0 = useCombatGridStore.getState();
             if (cs0.corpseSearch && !cs0.alarmRaised && !enemy.searching && Math.random() < 0.10) {
               enemy.searching = true;
+              enemy.alertTurn = useCombatGridStore.getState().turnCount;
               updatedEnemies[i] = { ...enemy };
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             }
@@ -421,6 +425,7 @@ export const useEnemyAI = () => {
             if (sCanSee && sInRange && !isPlayerInvisible) {
               enemy.aggro = true;
               enemy.knowsPlayer = true;
+              enemy.alertTurn = useCombatGridStore.getState().turnCount;
               updatedEnemies[i] = { ...enemy };
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
             }
@@ -883,7 +888,7 @@ export const useEnemyAI = () => {
                 const eDist = Math.abs(enemy.pos.x - mine.pos.x) + Math.abs(enemy.pos.y - mine.pos.y);
                 if (eDist <= 1) {
                   const dmg = Math.round(mine.damage * (1 - eDist * 0.15));
-                  updatedEnemies[ej] = { ...enemy, currentHp: Math.max(0, enemy.currentHp - dmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true };
+                  updatedEnemies[ej] = { ...enemy, currentHp: Math.max(0, enemy.currentHp - dmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: useCombatGridStore.getState().turnCount };
                   useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, `💥 -${dmg}`, 'DMG');
                   if (updatedEnemies[ej].currentHp <= 0) {
                     updatedEnemies[ej].dead = true;

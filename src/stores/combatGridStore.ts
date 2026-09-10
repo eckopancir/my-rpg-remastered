@@ -84,6 +84,8 @@ export interface GridEnemy {
   sleepTurns?: number;
   // Режим поиска трупа (!!!): идёт к найденному телу.
   searching?: boolean;
+  // Ход поднятия тревоги: вспышка «!!!» рисуется только ~1 ход (turnCount - alertTurn <= 1).
+  alertTurn?: number;
   // Тихая смерть (скрытное убийство): без крика и звуков смерти.
   silentDeath?: boolean;
   // Позывной (досье), отступление к медику/костру, сдача в плен.
@@ -834,7 +836,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (e.dead || e.currentHp <= 0 || e.faction === 'Союзник') return e;
         if (e.aggro && e.knowsPlayer && !e.sleeping) return e;
         if (Math.hypot(e.pos.x - center.x, e.pos.y - center.y) > radius) return e;
-        return { ...e, aggro: true, sleeping: false, knowsPlayer: true };
+        return { ...e, aggro: true, sleeping: false, knowsPlayer: true, alertTurn: get().turnCount };
       }),
     }));
   },
@@ -2057,7 +2059,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: s.ap - shotCost,
       ammo: s.ammo - 1,
       enemies: s.enemies.map((e) =>
-        e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true } : e
+        e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } : e
       ),
       message: `💥 ${result.text}`,
       selectedEnemy: null,
