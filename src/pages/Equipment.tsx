@@ -487,7 +487,7 @@ export const Equipment = () => {
                         ? `Выгрузить магазин (${equipment.weapon2?.loadedAmmo} шт.) в рюкзак`
                         : 'Магазин пуст — перетащи сюда пачку патронов, чтобы зарядить'}
                       style={{
-                        position: 'absolute', top: 18, right: -26,
+                        position: 'absolute', top: 18, right: -16,
                         fontSize: 17, cursor: 'pointer', lineHeight: 1,
                         opacity: (equipment.weapon2?.loadedAmmo || 0) > 0 ? 1 : 0.45,
                         filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.8))',
