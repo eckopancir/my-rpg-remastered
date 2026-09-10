@@ -142,6 +142,8 @@ interface PlayerStore {
 
   equipItem: (slot: EquipmentSlot, item: Item) => boolean;
   unequipItem: (slot: EquipmentSlot) => Item | null;
+  // Досинкать надетый предмет на сервер (item_data целиком: loadedAmmo и т.п.).
+  syncEquippedItem: (slot: EquipmentSlot) => void;
   putInBackpack: (itemId: string) => string;
   takeOutBackpack: (itemId: string) => void;
   emptyBackpackToInventory: () => number;
@@ -602,6 +604,22 @@ export const usePlayerStore = create<PlayerStore>()(
         } catch { /* best effort */ }
 
         return item;
+      },
+
+      // Досинкать надетый предмет на сервер (целиком item_data: loadedAmmo и т.п.).
+      // Вызывать после любого локального изменения экипировки вне equip/unequip.
+      syncEquippedItem: (slot) => {
+        const it = get().equipment[slot];
+        if (!it) return;
+        try {
+          const token = useAuthStore.getState().token;
+          if (!token) return;
+          fetch('/api/player/update-equipment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ slot, item: it }),
+          }).catch(() => {});
+        } catch { /* best effort */ }
       },
 
       putInBackpack: (itemId) => {

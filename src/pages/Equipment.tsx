@@ -5,7 +5,7 @@ import { CustomizationModal } from '../components/widgets/CustomizationModal';
 import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
 import { usePlayerStore, EQUIPMENT_SLOTS, type EquipmentSlot } from '../stores/playerStore';
-import { ammoTypeForWeapon } from '../data/ammo';
+import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, type AmmoGroup } from '../data/ammo';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useUiStore } from '../stores/uiStore';
 import { getItemImage, images } from '../assets/index';
@@ -124,6 +124,10 @@ export const Equipment = () => {
   const dragItem = useMemo(() => items.find((i) => i.id === draggedItemId), [items, draggedItemId]);  const validDropSlots = useMemo(() => {
     if (!dragItem) return new Set<string>();
     const slots = new Set<string>();
+    // Пачку патронов можно бросить на надетый огнестрел — зарядить магазин.
+    if ((dragItem as any).type === 'bullet' && equipment.weapon2?.ammoCapacity) {
+      slots.add('weapon2');
+    }
     if (!dragItem.slot) return slots;
     if (dragItem.slot === 'ammo') {
       EQUIPMENT_SLOTS.filter((s) => s.startsWith('ammo')).forEach((s) => slots.add(s));
@@ -137,6 +141,10 @@ export const Equipment = () => {
     e.preventDefault();
     const itemId = e.dataTransfer.getData('text/plain');
     if (!itemId || itemId.startsWith('equip:')) return;
+    // Патроны на надетый огнестрел — зарядка магазина, а не экипировка.
+    if (slot === 'weapon2' && equipment.weapon2?.ammoCapacity) {
+      if (handleLoadMag(itemId)) return;
+    }
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
     if (item.slot && item.slot !== slot && !(item.slot === 'ammo' && slot.startsWith('ammo'))) return;
@@ -176,8 +184,77 @@ export const Equipment = () => {
           : null,
       },
     }));
-    playSound('reload', 0.5);
+    pst.syncEquippedItem('weapon2');
+    playSound('reloading', 0.5);
     pst.addLog(`📤 Магазин выгружен в рюкзак (+${back})`, 'info');
+  };
+
+  // Зарядить надетый огнестрел патронами перетаскиванием на слот второй руки.
+  const handleLoadMag = (ammoItemId: string): boolean => {
+    const pst = usePlayerStore.getState();
+    const w = pst.equipment.weapon2;
+    if (!w || !w.ammoCapacity) return false;
+    const cap = w.ammoCapacity;
+    const loaded = w.loadedAmmo ?? 0;
+    const space = cap - loaded;
+    if (space <= 0) {
+      pst.addLog('📀 Магазин уже полон.', 'warning');
+      return true;
+    }
+    // Ищем пачку: сначала в инвентаре, потом в рюкзаке.
+    const invItems = useInventoryStore.getState().items;
+    const invIdx = invItems.findIndex((i) => i.id === ammoItemId);
+    let ammo = invIdx !== -1 ? invItems[invIdx] : undefined;
+    let from: 'inv' | 'pack' | null = invIdx !== -1 ? 'inv' : null;
+    if (!ammo) {
+      const pack = pst.backpackContents;
+      const packIdx = pack.findIndex((i) => i.id === ammoItemId);
+      if (packIdx !== -1) { ammo = pack[packIdx]; from = 'pack'; }
+    }
+    if (!ammo || from === null) return false;
+    if ((ammo as any).type !== 'bullet') return false;
+    // Группа пачки: явное поле, иначе по имени.
+    const group = ((ammo as any).ammoGroup as AmmoGroup | undefined)
+      || (AMMO_GROUPS.find((g) => g.packName === ammo!.name)?.key as AmmoGroup | undefined);
+    if (!group) return false;
+    if (group !== ammoTypeForWeapon(w)) {
+      pst.addLog(`❌ Сюда нужны: ${ammoGroupName(ammoTypeForWeapon(w)).toLowerCase()}.`, 'warning');
+      return true;
+    }
+    const take = Math.min(space, (ammo as any).quantity ?? 1);
+    if (take <= 0) return true;
+    const left = ((ammo as any).quantity ?? 1) - take;
+    if (from === 'inv') {
+      if (left > 0) {
+        useInventoryStore.setState((st: any) => ({
+          items: st.items.map((i: any) => i.id === ammoItemId
+            ? { ...i, quantity: left, displayName: `${i.name} x${left}` }
+            : i),
+        }));
+      } else {
+        useInventoryStore.getState().removeItem(ammoItemId);
+      }
+    } else {
+      usePlayerStore.setState((st: any) => ({
+        backpackContents: left > 0
+          ? st.backpackContents.map((i: any) => i.id === ammoItemId
+            ? { ...i, quantity: left, displayName: `${i.name} x${left}` }
+            : i)
+          : st.backpackContents.filter((i: any) => i.id !== ammoItemId),
+      }));
+    }
+    usePlayerStore.setState((st: any) => ({
+      equipment: {
+        ...st.equipment,
+        weapon2: st.equipment.weapon2
+          ? { ...st.equipment.weapon2, loadedAmmo: (st.equipment.weapon2.loadedAmmo ?? 0) + take }
+          : st.equipment.weapon2,
+      },
+    }));
+    pst.syncEquippedItem('weapon2');
+    playSound('reloading', 0.5);
+    pst.addLog(`📀 Заряжено: +${take} (магазин ${(loaded + take)}/${cap})`, 'info');
+    return true;
   };
 
   const handleMouseEnter = (slot: string, item: Item | null, e: React.MouseEvent) => {
@@ -240,7 +317,8 @@ export const Equipment = () => {
     const slotW = compact ? 60 : isAmmo ? 60 : 72;
     const slotH = compact ? 52 : isAmmo ? 52 : 64;
     const isOccupied = !!equipment[slot];
-    const isDragTarget = draggedItemId && validDropSlots.has(slot) && !isOccupied;
+    const isDragTarget = draggedItemId && validDropSlots.has(slot)
+      && (!isOccupied || (slot === 'weapon2' && (dragItem as any)?.type === 'bullet'));
     const isHover = hoverSlot === slot;
 
     const stars = item?.quality ? (QUALITY_STARS[item.quality] || 0) : 0;
@@ -316,6 +394,9 @@ export const Equipment = () => {
           maxWidth: slotW + 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {SLOT_LABELS[slot] || caption}
+          {slot === 'weapon2' && item?.ammoCapacity ? (
+            <span style={{ color: '#fbbf24' }}> · {item.loadedAmmo ?? 0}/{item.ammoCapacity}</span>
+          ) : null}
         </div>
         {stars > 0 && (
           <div style={{ fontSize: 9, color: '#fbbf24', lineHeight: 1, whiteSpace: 'nowrap' }}>
@@ -395,20 +476,23 @@ export const Equipment = () => {
               return (
                 <div key={slot} style={{ position: 'absolute', top: pos.top, left: pos.left }}>
                   {renderSlotBox(slot)}
-                  {/* Выгрузка магазина — справа от второй руки */}
-                  {slot === 'weapon2' && (equipment.weapon2?.loadedAmmo || 0) > 0 && (
+                  {/* Выгрузка магазина — всегда справа от второй руки, если оружие надето */}
+                  {slot === 'weapon2' && equipment.weapon2?.ammoCapacity ? (
                     <div
                       onClick={(e) => { e.stopPropagation(); handleUnload(); }}
-                      title={`Выгрузить магазин (${equipment.weapon2?.loadedAmmo} шт.) в рюкзак`}
+                      title={(equipment.weapon2?.loadedAmmo || 0) > 0
+                        ? `Выгрузить магазин (${equipment.weapon2?.loadedAmmo} шт.) в рюкзак`
+                        : 'Магазин пуст — перетащи сюда пачку патронов, чтобы зарядить'}
                       style={{
                         position: 'absolute', top: 18, right: -26,
                         fontSize: 17, cursor: 'pointer', lineHeight: 1,
+                        opacity: (equipment.weapon2?.loadedAmmo || 0) > 0 ? 1 : 0.45,
                         filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.8))',
                       }}
                     >
                       📤
                     </div>
-                  )}
+                  ) : null}
                 </div>
               );
             })}

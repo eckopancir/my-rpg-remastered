@@ -976,6 +976,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: startAmmo } : st.equipment.weapon2,
         },
       }));
+      usePlayerStore.getState().syncEquippedItem('weapon2');
     }
 
     // Override rewards with card values when in card mode
@@ -1262,6 +1263,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: 0 } : st.equipment.weapon2,
             },
           }));
+          usePlayerStore.getState().syncEquippedItem('weapon2');
         }
       } catch { /* ignore */ }
       // Не оставляем полуживой бой: чистим сетку, caller решит что дальше.
@@ -2377,6 +2379,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: magAfter } : st.equipment.weapon2,
       },
     }));
+    usePlayerStore.getState().syncEquippedItem('weapon2');
     get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
   },
 
@@ -2443,6 +2446,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: cs.ammo } : st.equipment.weapon2,
             },
           }));
+          usePlayerStore.getState().syncEquippedItem('weapon2');
         } catch { /* best effort */ }
       }
     }

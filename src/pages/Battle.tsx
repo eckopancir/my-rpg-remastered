@@ -180,7 +180,7 @@ export const Battle = () => {
         case 'KeyA': case 'ArrowLeft':  e.preventDefault(); dx = -1; dy = 0; break;
         case 'KeyD': case 'ArrowRight': e.preventDefault(); dx = 1; dy = 0; break;
         case 'Space': e.preventDefault(); endTurn(); break;
-        case 'KeyR': reload(); playSound('reload'); break;
+        case 'KeyR': reload(); playSound('reloading'); break;
         case 'KeyF': toggleDefense(); break;
         case 'KeyT': playClick(); toggleStealth(); break;
         case 'KeyQ': stealthKill(); break;
@@ -378,7 +378,7 @@ export const Battle = () => {
               </div>
 
               <div
-                onClick={() => { playClick(); playSound('reload'); reload(); }}
+                onClick={() => { playClick(); playSound('reloading'); reload(); }}
                 style={{
                   padding: '9px', borderRadius: 6,
                   border: '1px solid rgba(255,255,255,0.12)',
