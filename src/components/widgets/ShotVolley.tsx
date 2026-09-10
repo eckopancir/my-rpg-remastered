@@ -30,16 +30,30 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
   const [go, setGo] = useState(false);
   const [done, setDone] = useState(false);
 
-  const fx = (shot.from.x / 31) * 100;
-  const fy = (shot.from.y / 31) * 100;
+  // Укороченная трасса: старт от дула (не из центра стрелка),
+  // финиш у края цели (не насквозь). Отступ ~0.45 клетки с каждой стороны.
+  const seg = useMemo(() => {
+    const dx = shot.to.x - shot.from.x;
+    const dy = shot.to.y - shot.from.y;
+    const len = Math.max(0.001, Math.hypot(dx, dy));
+    const ux = dx / len;
+    const uy = dy / len;
+    return {
+      sx: shot.from.x + ux * 0.45,
+      sy: shot.from.y + uy * 0.45,
+      ex: shot.to.x - ux * 0.45,
+      ey: shot.to.y - uy * 0.45,
+      ux,
+      uy,
+      len,
+    };
+  }, [shot]);
 
   const bullets = useMemo<BulletSpec[]>(() => {
     if (kind === 'heal') return [];
     const count = Math.max(1, Math.min(8, shot.count ?? 1));
-    const dx = shot.to.x - shot.from.x;
-    const dy = shot.to.y - shot.from.y;
-    const dist = Math.max(1, Math.hypot(dx, dy));
-    const baseA = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const dist = Math.max(0.5, seg.len - 0.9);
+    const baseA = (Math.atan2(seg.uy, seg.ux) * 180) / Math.PI;
     const baseFlight = Math.min(600, Math.max(150, dist * 28 + 120)) * (kind === 'single' && power >= 1.3 ? 0.7 : 1);
     const list: BulletSpec[] = [];
     for (let i = 0; i < count; i++) {
@@ -55,16 +69,13 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
         delay = i * 70;
       }
       const rad = (ang * Math.PI) / 180;
-      const tx = kind === 'spread' || kind === 'boss'
-        ? shot.from.x + Math.cos(rad) * dist
-        : shot.to.x;
-      const ty = kind === 'spread' || kind === 'boss'
-        ? shot.from.y + Math.sin(rad) * dist
-        : shot.to.y;
+      // Веер/ливень расходятся от дула, одиночные летят в усечённую точку.
+      const tx = kind === 'single' ? seg.ex : seg.sx + Math.cos(rad) * dist;
+      const ty = kind === 'single' ? seg.ey : seg.sy + Math.sin(rad) * dist;
       list.push({
         key: i,
-        fromX: fx,
-        fromY: fy,
+        fromX: (seg.sx / 31) * 100,
+        fromY: (seg.sy / 31) * 100,
         toX: (tx / 31) * 100,
         toY: (ty / 31) * 100,
         rot: ang + 90,
@@ -95,7 +106,9 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
   if (done) return null;
 
   const muzzleSize = (kind === 'heal' ? 24 : 28) * power;
-  const mRot = kind === 'heal' ? 0 : (Math.atan2(shot.to.y - shot.from.y, shot.to.x - shot.from.x) * 180) / Math.PI + 90;
+  const mRot = kind === 'heal' ? 0 : (Math.atan2(seg.uy, seg.ux) * 180) / Math.PI + 90;
+  const mzx = (kind === 'heal' ? shot.to.x : seg.sx) / 31 * 100;
+  const mzy = (kind === 'heal' ? shot.to.y : seg.sy) / 31 * 100;
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 40 }}>
@@ -113,7 +126,7 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
       )}
       {/* Вспышка: у дула стрелка; хил — зелёная на цели */}
       {images.muzzle && (
-        <div style={{ position: 'absolute', left: `${kind === 'heal' ? (shot.to.x / 31) * 100 : fx}%`, top: `${kind === 'heal' ? (shot.to.y / 31) * 100 : fy}%`, width: 0, height: 0 }}>
+        <div style={{ position: 'absolute', left: `${mzx}%`, top: `${mzy}%`, width: 0, height: 0 }}>
           <img
             src={images.muzzle}
             alt=""
