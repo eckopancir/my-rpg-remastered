@@ -6,6 +6,7 @@ import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
 import { usePlayerStore, EQUIPMENT_SLOTS, type EquipmentSlot } from '../stores/playerStore';
 import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, type AmmoGroup } from '../data/ammo';
+import { syncNow } from '../utils/serverSync';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useUiStore } from '../stores/uiStore';
 import { getItemImage, images } from '../assets/index';
@@ -185,6 +186,7 @@ export const Equipment = () => {
       },
     }));
     pst.syncEquippedItem('weapon2');
+    syncNow();
     playSound('reloading', 0.5);
     pst.addLog(`📤 Магазин выгружен в рюкзак (+${back})`, 'info');
   };
@@ -252,6 +254,7 @@ export const Equipment = () => {
       },
     }));
     pst.syncEquippedItem('weapon2');
+    syncNow();
     playSound('reloading', 0.5);
     pst.addLog(`📀 Заряжено: +${take} (магазин ${(loaded + take)}/${cap})`, 'info');
     return true;

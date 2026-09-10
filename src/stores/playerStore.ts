@@ -13,6 +13,7 @@ import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SKILL_CLASSES } from '../data/skills';
 import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, type AmmoGroup } from '../data/ammo';
+import { syncNow } from '../utils/serverSync';
 
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'weapon1', 'weapon2', 'gloves', 'boots', 'backpack',
@@ -658,6 +659,8 @@ export const usePlayerStore = create<PlayerStore>()(
         for (const it of s.backpackContents) inv.addItem(it);
         const n = s.backpackContents.length;
         set({ backpackContents: [] });
+        // Сразу на сервер: иначе refresh до автосейва (60с) всё откатывает.
+        syncNow();
         return n;
       },
 
