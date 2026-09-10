@@ -55,6 +55,7 @@ const SORT_OPTIONS = [
   { value: 'speed', label: 'Скорость' },
   { value: 'regen', label: 'Реген' },
   { value: 'evasion', label: 'Уклонение' },
+  { value: 'accuracy', label: 'Точность' },
   { value: 'block', label: 'Блок' },
   { value: 'vampir', label: 'Вампиризм' },
   { value: 'price', label: 'Цена' },
