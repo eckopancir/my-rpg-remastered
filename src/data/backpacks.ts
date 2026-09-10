@@ -86,6 +86,7 @@ export interface InsertResult {
 /**
  * Положить предмет в содержимое рюкзака.
  * Патроны добивают неполные стаки (до 30) и занимают новые ячейки;
+ * расходники досыпаются в стак той же способности (слота не требуют);
  * остальное — по 1 ячейке. Чистая функция.
  */
 export const tryInsertInto = (contents: Item[], slots: number, item: Item): InsertResult => {
@@ -109,6 +110,27 @@ export const tryInsertInto = (contents: Item[], slots: number, item: Item): Inse
       qty -= mv;
     }
     return { contents: next, moved: qty < ((item.quantity ?? 1) as number), leftoverQty: qty };
+  }
+  // Расходники: досыпать в стак той же способности (как патроны) — слот не нужен.
+  if (item.type === 'consumable') {
+    const origQty = ((item.quantity ?? 1) as number);
+    let qty = origQty;
+    const aid = (item as any).abilityId;
+    for (const c of next) {
+      if (qty <= 0) break;
+      if (c.type === 'consumable' && c.name === item.name && (c as any).abilityId === aid) {
+        const nq = ((c.quantity ?? 1) as number) + qty;
+        c.quantity = nq;
+        c.displayName = `${c.name} x${nq}`;
+        qty = 0;
+      }
+    }
+    if (qty > 0) {
+      if (next.length >= slots) return { contents: next, moved: qty < origQty, leftoverQty: qty };
+      next.push({ ...item, quantity: qty, displayName: qty > 1 ? `${item.name} x${qty}` : item.name });
+      qty = 0;
+    }
+    return { contents: next, moved: true, leftoverQty: 0 };
   }
   if (next.length >= slots) return { contents: next, moved: false, leftoverQty: (item.quantity ?? 1) as number };
   next.push(item);
