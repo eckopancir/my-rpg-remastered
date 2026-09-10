@@ -581,6 +581,8 @@ export const usePlayerStore = create<PlayerStore>()(
             });
           }
         } catch { /* best effort */ }
+        // Инвентарь тоже изменился (предмет ушёл из него) — сразу на сервер.
+        syncNow();
 
         return true;
       },
@@ -603,6 +605,7 @@ export const usePlayerStore = create<PlayerStore>()(
             });
           }
         } catch { /* best effort */ }
+        syncNow();
 
         return item;
       },
@@ -636,6 +639,8 @@ export const usePlayerStore = create<PlayerStore>()(
         inv.removeItem(item.id);
         if (leftoverQty > 0) inv.addItem({ ...item, quantity: leftoverQty });
         set({ backpackContents: contents });
+        // Любое движение предметов — сразу на сервер, иначе refresh откатывает.
+        syncNow();
         return leftoverQty > 0 ? `⚠️ Влезло частично, в рюкзаке нет места!` : `🎒 В рюкзаке`;
       },
 
@@ -647,9 +652,10 @@ export const usePlayerStore = create<PlayerStore>()(
         const contents = s.backpackContents.filter((_, i) => i !== idx);
         set({ backpackContents: contents });
         useInventoryStore.getState().addItem(item);
+        syncNow();
       },
 
-      clearBackpack: () => set({ backpackContents: [] }),
+      clearBackpack: () => { set({ backpackContents: [] }); syncNow(); },
 
       // Выложить всё содержимое рюкзака в инвентарь. Возвращает число предметов.
       emptyBackpackToInventory: () => {
@@ -679,6 +685,7 @@ export const usePlayerStore = create<PlayerStore>()(
         const s = get();
         const { items, taken } = takeAmmoFrom(s.backpackContents, group, n);
         if (taken > 0) set({ backpackContents: items });
+        if (taken > 0) syncNow();
         return taken;
       },
 
@@ -691,6 +698,7 @@ export const usePlayerStore = create<PlayerStore>()(
         const { items, leftover } = addAmmoToPack(s.backpackContents, group, n, maxSlots);
         set({ backpackContents: items });
         if (leftover > 0) useInventoryStore.getState().addItem(makeBulletPack(group, leftover));
+        syncNow();
         return n - leftover;
       },
 
@@ -707,6 +715,7 @@ export const usePlayerStore = create<PlayerStore>()(
         if (q > 1) contents[idx] = { ...it, quantity: q - 1 };
         else contents.splice(idx, 1);
         set({ backpackContents: contents });
+        syncNow();
         return true;
       },
 

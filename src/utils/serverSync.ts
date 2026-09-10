@@ -7,8 +7,24 @@ import { useExplorationStore } from '../stores/explorationStore';
 import { useUiStore } from '../stores/uiStore';
 import { useAuthStore } from '../stores/authStore';
 
+const SYNC_THROTTLE_MS = 2000;
+let lastSync = 0;
+let trailingTimer: number | null = null;
+
 export const syncNow = (): void => {
   try {
+    // Троттлинг: чаще раза в 2с не бьём; лишний вызов — трейлингом.
+    const now = Date.now();
+    if (now - lastSync < SYNC_THROTTLE_MS) {
+      if (!trailingTimer) {
+        trailingTimer = window.setTimeout(() => {
+          trailingTimer = null;
+          syncNow();
+        }, SYNC_THROTTLE_MS - (now - lastSync));
+      }
+      return;
+    }
+    lastSync = now;
     const token = useAuthStore.getState().token;
     if (!token) return;
     const ui = useUiStore.getState() as any;
