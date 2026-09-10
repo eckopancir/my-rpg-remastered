@@ -54,13 +54,13 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
     const count = Math.max(1, Math.min(8, shot.count ?? 1));
     const dist = Math.max(0.5, seg.len - 0.9);
     const baseA = (Math.atan2(seg.uy, seg.ux) * 180) / Math.PI;
-    const baseFlight = Math.min(600, Math.max(150, dist * 28 + 120)) * (kind === 'single' && power >= 1.3 ? 0.7 : 1);
+    const baseFlight = Math.min(600, Math.max(150, dist * 28 + 120)) * (kind === 'single' && power >= 1.3 ? 0.7 : 1) * (shot.fast ? 0.45 : 1);
     const list: BulletSpec[] = [];
     for (let i = 0; i < count; i++) {
       let ang = baseA;
       let delay = 0;
       if (kind === 'spread') {
-        ang = baseA + [-24, -12, 0, 12, 24][i % 5];
+        ang = baseA + [-30, -15, 0, 15, 30][i % 5];
         delay = i * 25;
       } else if (kind === 'burst') {
         delay = i * 80;

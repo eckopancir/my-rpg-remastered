@@ -3,7 +3,7 @@ import type { Item } from '../../types/items';
 import { chestImageFor, configForQuality } from '../../data/chests';
 import { QUALITY_TIERS } from '../../engine/items';
 import { backpackDefByName, backpackSlots, backpackSlotsFor } from '../../data/backpacks';
-import { ammoGroupName, ammoTypeForWeapon, maxStackFor, type AmmoGroup } from '../../data/ammo';
+import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
@@ -163,6 +163,20 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
           📀 Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{item.ammoCapacity}
         </div>
       )}
+      {item.slot === 'weapon2' && (() => {
+        const prof = weaponRangeProfile(item);
+        const tags = [
+          `дальность ${prof.range}`,
+          prof.cone ? 'веер' : null,
+          prof.aoe ? `💥 площадь ${prof.aoe}` : null,
+          prof.fast ? '⚡ темп' : null,
+        ].filter(Boolean).join(' · ');
+        return (
+          <div style={{ fontSize: 12, color: '#7dd3fc', marginBottom: 6 }}>
+            🎯 {tags}
+          </div>
+        );
+      })()}
       {item.slot === 'mod_magazine' && item.stats?.ammoCapacity && (
         <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
           📀 +{item.stats.ammoCapacity} патронов к вместимости

@@ -6,7 +6,7 @@ import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem, getItemQuality } from '../engine/items';
 import { makeBackpack } from '../data/backpacks';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
-import { AMMO_GROUPS, maxStackFor } from '../data/ammo';
+import { AMMO_GROUPS, maxStackFor, bulletPackPrice } from '../data/ammo';
 import { CONSUMABLE_DEFS } from '../data/consumables';
 import { BACKPACK_DEFS } from '../data/backpacks';
 
@@ -166,7 +166,7 @@ const generateShop = (level: number): ShopItem[] => {
       rarity: 'common',
       quality: 'Обычный',
       qualityColor: '#94a3b8',
-      price: g.price + level * 2,
+      price: bulletPackPrice(g.key, qty),
       stats: {},
       slot: 'bullet',
       type: 'bullet',

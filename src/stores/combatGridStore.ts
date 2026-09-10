@@ -7,7 +7,7 @@ import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP } from '../data/consumables';
-import { ammoTypeForWeapon, ammoGroupName } from '../data/ammo';
+import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile } from '../data/ammo';
 import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
@@ -131,25 +131,27 @@ export interface ShotLine {
   kind?: ShotKind;
   count?: number;
   power?: number;
+  fast?: boolean;
 }
 
 /** Паттерн выстрела по классу врага: снайпер — 1 пуля, дробь — веер, босс — ливень. */
-export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { kind: ShotKind; count: number; power: number } => {
+export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { kind: ShotKind; count: number; power: number; fast?: boolean } => {
   const s = `${e.name || ''} ${e.factionKey || ''}`.toLowerCase();
   if (s.includes('boss') || s.includes('босс')) return { kind: 'boss', count: 6, power: 1.6 };
   if (s.includes('sniper') || s.includes('снайпер')) return { kind: 'single', count: 1, power: 1.2 };
+  if (/m134|m60|m249|pkm|миниган|пулем/.test(s)) return { kind: 'burst', count: 3, power: 1.1, fast: true };
   if (s.includes('drob') || s.includes('дроб') || s.includes('shotgun') || s.includes('аа-12') || s.includes('aa-12') || s.includes('spas') || s.includes('remington') || s.includes('двустволка')) return { kind: 'spread', count: 5, power: 1.1 };
   return { kind: 'burst', count: 2, power: 1 };
 };
 
 /** Паттерн выстрела игрока по его оружию: дробь — веер, снайпа — 1, пулемёт — очередь. */
-export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; power: number } => {
+export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; power: number; fast?: boolean } => {
   const w = usePlayerStore.getState().equipment.weapon2;
   if (!w) return { kind: 'single', count: 1, power: 1 };
   const g = ammoTypeForWeapon(w);
   if (g === 'shell') return { kind: 'spread', count: 5, power: 1.1 };
   if (g === 'sniper') return { kind: 'single', count: 1, power: 1.3 };
-  if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1 };
+  if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1, fast: true };
   return { kind: 'single', count: 1, power: 1 };
 };
 
@@ -1346,13 +1348,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     const playerAbilities = [...usePlayerStore.getState().accessoryAbilities].filter((a) => a && !a.passive);
     const abilityCooldowns = playerAbilities.map(() => 0);
+    // Дальность — от ствола (кулаки — 2, было 10 для всех).
+    const startRange = weapon2 ? weaponRangeProfile(weapon2).range : 2;
 
     set({
       isActive: true, playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
-      range: ATTACK_RANGE, isDefensiveMode: false,
+      range: startRange, isDefensiveMode: false,
       turnCount: 0, lastShotTurn: 0, selectedEnemy: null,
       message: weapon2 && startAmmo <= 0 ? `❌ Нет патронов (${ammoGroupName(ammoTypeForWeapon(weapon2))})!` : '⚔️ Твой ход',
       isVictory: false, isDefeat: false, isMoving: false, isSelected: false,
@@ -2151,7 +2155,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const player = usePlayerStore.getState();
     const angle = getAngle(state.playerPos, enemy.pos);
     const pshot = shotKindForPlayerWeapon();
-    set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos, kind: pshot.kind, count: pshot.count, power: pshot.power }, lastShotTurn: get().turnCount });
+    set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos, kind: pshot.kind, count: pshot.count, power: pshot.power, fast: pshot.fast }, lastShotTurn: get().turnCount });
     setTimeout(() => set({ shotLine: null }), 400);
 
     // Физа идёт через формулу одна; стихия фракции — чистым уроном поверх.
@@ -2257,7 +2261,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const dmg = Math.round(res.damage);
 
         const bshot = shotKindForPlayerWeapon();
-        set({ shotLine: { from: st.playerPos, to: en.pos, kind: bshot.kind, count: bshot.count, power: bshot.power } });
+        set({ shotLine: { from: st.playerPos, to: en.pos, kind: bshot.kind, count: bshot.count, power: bshot.power, fast: bshot.fast } });
         setTimeout(() => set({ shotLine: null }), 400);
 
         set((s) => ({
@@ -2323,6 +2327,56 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }
       }
     }, 200);
+
+    // Конус (дробь/огнемёт) и площадь (базуки): задевают соседей основной цели.
+    // Своих не задевает. Патрон уже списан один — за всю очередь.
+    try {
+      const w2fx = usePlayerStore.getState().equipment.weapon2;
+      const wprof = w2fx ? weaponRangeProfile(w2fx) : null;
+      if (wprof && (wprof.cone || wprof.aoe) && actualDmg > 0) {
+        const px = state.playerPos.x;
+        const py = state.playerPos.y;
+        const splashTargets: GridEnemy[] = [];
+        if (wprof.cone) {
+          const baseA = Math.atan2(enemy.pos.y - py, enemy.pos.x - px);
+          for (const o of get().enemies) {
+            if (o.id === enemy.id || o.dead || o.currentHp <= 0 || o.faction === 'Союзник') continue;
+            if (getDist(state.playerPos, o.pos) > effectiveRange + 0.5) continue;
+            let da = Math.abs(Math.atan2(o.pos.y - py, o.pos.x - px) - baseA);
+            da = Math.min(da, Math.PI * 2 - da);
+            if (da <= Math.PI / 6) splashTargets.push(o);
+          }
+        } else if (wprof.aoe) {
+          for (const o of get().enemies) {
+            if (o.id === enemy.id || o.dead || o.currentHp <= 0 || o.faction === 'Союзник') continue;
+            const dd = Math.max(Math.abs(o.pos.x - enemy.pos.x), Math.abs(o.pos.y - enemy.pos.y));
+            if (dd <= (wprof.aoe || 1)) splashTargets.push(o);
+          }
+        }
+        if (splashTargets.length > 0) {
+          const splashIds = new Set(splashTargets.map((o) => o.id));
+          const dealt = new Map<string | number, number>();
+          set((s) => ({
+            enemies: s.enemies.map((e) => {
+              if (!splashIds.has(e.id)) return e;
+              const dd = Math.max(Math.abs(e.pos.x - enemy.pos.x), Math.abs(e.pos.y - enemy.pos.y));
+              const d = wprof.cone ? actualDmg : Math.round(actualDmg * (1 - dd * 0.15));
+              dealt.set(e.id, d);
+              const hp = Math.max(0, e.currentHp - d);
+              return { ...e, currentHp: hp, isHit: true, dead: hp <= 0, sleeping: false, aggro: true, knowsPlayer: true };
+            }),
+          }));
+          for (const o of splashTargets) {
+            get().addPopup(o.pos.x, o.pos.y, `-${dealt.get(o.id) ?? actualDmg}`, 'DMG');
+          }
+          setTimeout(() => {
+            set((s) => ({ enemies: s.enemies.map((e) => (splashIds.has(e.id) ? { ...e, isHit: false } : e)) }));
+          }, 300);
+          const deadSplash = splashTargets.filter((o) => (dealt.get(o.id) ?? 0) >= o.currentHp);
+          if (deadSplash.length > 0) get().addBattleLog(`💥 ${wprof.cone ? 'Конус задел' : 'Взрыв задел'}: ${deadSplash.map((o) => o.name).join(', ')}`);
+        }
+      }
+    } catch { /* best effort */ }
 
     // Auto end turn if AP runs out (одни на поле — тоже: вернёт AP и свободный бег).
     // Свежий AP: автоперезарядка выше могла уже потратить.

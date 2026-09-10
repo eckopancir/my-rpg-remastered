@@ -680,7 +680,7 @@ export const useEnemyAI = () => {
             const atkSound = enemy.soundAttack || 'shotenemy';
             playCombatSound(atkSound, 0.4);
             useCombatGridStore.setState({
-              shotLine: { from: enemy.pos, to: targetPos, kind: sk.kind, count: sk.count, power: sk.power },
+              shotLine: { from: enemy.pos, to: targetPos, kind: sk.kind, count: sk.count, power: sk.power, fast: sk.fast },
               lastShotTurn: useCombatGridStore.getState().turnCount,
               enemies: useCombatGridStore.getState().enemies.map((e: any) =>
                 e.id === enemy.id ? { ...e, rotation: angle, isSpinning: enemy.name.toLowerCase().includes('melle') || enemy.name.toLowerCase().includes('melee') } : e
@@ -822,7 +822,7 @@ export const useEnemyAI = () => {
               playCombatSound(eAtkSound, 0.4);
               const sk2 = shotKindForEnemy(enemy);
               useCombatGridStore.setState({
-                shotLine: { from: enemy.pos, to: targetPos, kind: sk2.kind, count: sk2.count, power: sk2.power },
+                shotLine: { from: enemy.pos, to: targetPos, kind: sk2.kind, count: sk2.count, power: sk2.power, fast: sk2.fast },
                 enemies: useCombatGridStore.getState().enemies.map((e: any) =>
                   e.id === enemy.id ? { ...e, rotation: eAngle, isSpinning: enemy.name.toLowerCase().includes('melle') || enemy.name.toLowerCase().includes('melee') } : e
                 ),

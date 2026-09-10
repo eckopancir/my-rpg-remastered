@@ -13,12 +13,12 @@ export interface AmmoGroupDef {
 }
 
 export const AMMO_GROUPS: AmmoGroupDef[] = [
-  { key: 'pistol', name: 'Пистолетные', icon: '🔸', packName: 'Пачка пистолетных патронов', price: 60, desc: 'Пистолеты и револьверы.' },
-  { key: 'rifle', name: 'Автоматные', icon: '🔶', packName: 'Пачка автоматных патронов', price: 90, desc: 'Штурмовые винтовки и ПП.' },
-  { key: 'sniper', name: 'Снайперские', icon: '🎯', packName: 'Пачка снайперских патронов', price: 150, desc: 'Точные винтовки.' },
-  { key: 'shell', name: 'Дробь', icon: '🟠', packName: 'Пачка дроби', price: 110, desc: 'Дробовики и обрезы.' },
-  { key: 'mg', name: 'Пулемётные', icon: '⛓️', packName: 'Пулемётная лента', price: 200, desc: 'Пулемёты и миниганы.' },
-  { key: 'energy', name: 'Энергоячейки', icon: '🔋', packName: 'Энергоячейки', price: 250, desc: 'ЭМИ, плазма, термика, гранатомёты.' },
+  { key: 'pistol', name: 'Пистолетные', icon: '🔸', packName: 'Пачка пистолетных патронов', price: 1, desc: 'Пистолеты и револьверы.' },
+  { key: 'rifle', name: 'Автоматные', icon: '🔶', packName: 'Пачка автоматных патронов', price: 3, desc: 'Штурмовые винтовки и ПП.' },
+  { key: 'sniper', name: 'Снайперские', icon: '🎯', packName: 'Пачка снайперских патронов', price: 16, desc: 'Точные винтовки.' },
+  { key: 'shell', name: 'Дробь', icon: '🟠', packName: 'Пачка дроби', price: 12, desc: 'Дробовики и обрезы.' },
+  { key: 'mg', name: 'Пулемётные', icon: '⛓️', packName: 'Пулемётная лента', price: 3.5, desc: 'Пулемёты и миниганы.' },
+  { key: 'energy', name: 'Энергоячейки', icon: '🔋', packName: 'Энергоячейки', price: 17, desc: 'ЭМИ, плазма, термика, гранатомёты.' },
 ];
 
 export const AMMO_GROUP_MAP: Record<AmmoGroup, AmmoGroupDef> = Object.fromEntries(
@@ -57,6 +57,35 @@ export const ammoTypeForWeapon = (weapon: { name?: string; ammoType?: string }):
 
 export const ammoGroupName = (key: AmmoGroup): string => AMMO_GROUP_MAP[key]?.name ?? key;
 
+/** Цена пачки = цена штуки × количество (без скейла от уровня). */
+export const bulletPackPrice = (group: AmmoGroup, quantity: number): number =>
+  Math.round((AMMO_GROUP_MAP[group]?.price ?? 0) * quantity);
+
+/**
+ * Дальность и поведение выстрела по оружию:
+ * огнемёты/дробовики — 5, конус; снайперы — 12; пистолеты — 8;
+ * базуки/рпг/гранатомёты — 10 + урон по площади 1; пулемёты — 8, быстрый темп;
+ * автоматы — 10; остальное — 10.
+ */
+export interface WeaponRangeProfile {
+  range: number;
+  cone?: boolean;
+  aoe?: number;
+  fast?: boolean;
+}
+
+export const weaponRangeProfile = (weapon: { name?: string; ammoType?: string }): WeaponRangeProfile => {
+  const n = (weapon.name || '').toLowerCase();
+  if (/базук|рпг|гп-25|гранатом|milkor|m79/.test(n)) return { range: 10, aoe: 1 };
+  if (/огнемет|огнемёт|flame|дробовик|обрез|spas|aa-12|remington|двустволка|осада/.test(n)) return { range: 5, cone: true };
+  const g = ammoTypeForWeapon(weapon);
+  if (g === 'sniper') return { range: 12 };
+  if (g === 'pistol') return { range: 8 };
+  if (g === 'mg') return { range: 8, fast: true };
+  if (g === 'shell') return { range: 5, cone: true };
+  return { range: 10 };
+};
+
 let bulletSeq = 0;
 
 /** Пачка патронов в инвентарь (агрегируется по имени в stackItems). */
@@ -75,7 +104,7 @@ export const makeBulletPack = (group: AmmoGroup, quantity: number): Item => {
     stats: {},
     description: `${def.desc} Стак до ${maxStackFor(group)} шт.`,
     ammoGroup: group,
-    price: Math.round(def.price * quantity / BULLET_STACK),
+    price: bulletPackPrice(group, quantity),
     quantity,
   } as Item;
 };
