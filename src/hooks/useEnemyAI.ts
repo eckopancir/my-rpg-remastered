@@ -181,13 +181,24 @@ export const useEnemyAI = () => {
       updatedEnemies = updatedEnemies.filter((e: any) => e.lifetime !== 0 || !e.isMinion);
       useCombatGridStore.setState({ enemies: [...updatedEnemies] });
       await new Promise((r) => setTimeout(r, 200));
+      // Союзники ходят ПЕРВЫМИ: иначе обрыв/затык в конце очереди оставлял их без хода.
+      updatedEnemies = [
+        ...updatedEnemies.filter((e: any) => e.faction === 'Союзник'),
+        ...updatedEnemies.filter((e: any) => e.faction !== 'Союзник'),
+      ];
 
       // saySync: облачко в стор + синк в локальную копию, чтобы поздний
       // setState этого же хода не затёр реплику stale-копией.
-      const saySync = (id: number | string, text: string, ms?: number) => {
+      // Плюс отложенная чистка локальной копии: таймер стора гасит облачко
+      // через 5с, но цикл ещё идёт и воскрешал бы его из stale-копии вечно.
+      const saySync = (id: number | string, text: string, ms: number = 5000) => {
         useCombatGridStore.getState().say(id, text, ms);
         const u = updatedEnemies.find((x: any) => x.id === id);
         if (u) u.speech = text;
+        setTimeout(() => {
+          const uu = updatedEnemies.find((x: any) => x.id === id);
+          if (uu && uu.speech === text) uu.speech = null;
+        }, ms + 100);
       };
       // Болтовня слышна в пределах 15 клеток от игрока.
       const canChatter = (pos: { x: number; y: number }) =>

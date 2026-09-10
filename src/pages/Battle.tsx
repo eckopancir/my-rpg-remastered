@@ -11,7 +11,7 @@ import { useCombatGridStore } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getTerrainBonus } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
-import { getEnemyImage, images } from '../assets/index';
+import { getEnemyImage, getCharacterImage, images } from '../assets/index';
 
 const LogPanel = () => {
   const battleLogs = useCombatGridStore((s) => s.battleLogs);
@@ -44,6 +44,7 @@ const ENEMY_COLORS: Record<string, string> = {
   Роботы: '#2563eb',
   Бандиты: '#dc2626',
   Военные: '#16a34a',
+  Союзник: '#22d3ee',
 };
 
 const SKILL_ICONS: Record<string, string> = {
@@ -652,7 +653,14 @@ export const Battle = () => {
               </div>
               {/* Avatar + HP */}
               <div style={{ display: 'flex', gap: 10, padding: '10px 12px 8px', alignItems: 'center' }}>
-                <img src={getEnemyImage(hoverTarget.faction, hoverTarget.name)} alt={hoverTarget.name}
+                <img src={(() => {
+                  const nm = (hoverTarget as any).nowModel || (hoverTarget as any).avatar;
+                  // Союзник: та же моделька, что на поле (без фолбэков наугад).
+                  if (hoverTarget.faction === 'Союзник' && nm) {
+                    return getCharacterImage(nm) || getEnemyImage(hoverTarget.faction, hoverTarget.name);
+                  }
+                  return getEnemyImage(hoverTarget.faction, hoverTarget.name);
+                })()} alt={hoverTarget.name}
                   style={{
                     width: 84, height: 84, objectFit: 'contain', flexShrink: 0,
                     border: `2px solid ${ENEMY_COLORS[hoverTarget.faction] || '#a1a1aa'}`,

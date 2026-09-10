@@ -620,8 +620,9 @@ export const BattleGrid = () => {
             ? (e.aiRole === 'sentry' ? 10 : 3)
             : (e.aiRole === 'sentry' ? 15 : 24);
           const showQ = !e.aggro && !e.sleeping && e.faction !== 'Союзник' && d <= susR && d > detR;
-          // Часовой всегда с белым «!» — его метка (экс-часовой в бою тоже).
-          const showExcl = e.aiRole === 'sentry' || ((e as any).wasSentry && e.aggro);
+          // Часовой: белый «!» — только метка поста ВНЕ боя.
+          // Воюющие без облачков: ни «!», ни «!!!» (вспышка тревоги — отдельно, 1 ход).
+          const showExcl = (e.aiRole === 'sentry' || (e as any).wasSentry) && !e.aggro;
           // Вспышка тревоги «!!!» — только ~1 ход после подъёма (сам бой продолжается).
           const alertFlash = (e.alertTurn ?? -999) >= 0 && turnCount - (e.alertTurn ?? -999) <= 1;
           // Режим поиска трупа.
@@ -647,13 +648,13 @@ export const BattleGrid = () => {
                 </div>
               )}
               {showExcl && (
-                <div title={e.aggro ? 'Часовой идёт в бой!' : 'Часовой'} style={{
+                <div title="Часовой" style={{
                   position: 'absolute', bottom: exclB, left: 0, transform: 'translateX(-50%)',
                   background: '#f5f1e6', color: '#111', fontSize: 12, fontWeight: 800,
                   padding: '1px 8px', borderRadius: 10, border: '1px solid #8a8a8a',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                 }}>
-                  {e.aggro && alertFlash ? '!!!' : '!'}
+                  !
                 </div>
               )}
               {e.sleeping && (
