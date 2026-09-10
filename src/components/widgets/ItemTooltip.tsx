@@ -160,7 +160,7 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
       })()}
       {item.slot === 'weapon2' && item.ammoCapacity && (
         <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          📀 патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{item.ammoCapacity}
+          📀 Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{item.ammoCapacity}
         </div>
       )}
       {item.slot === 'mod_magazine' && item.stats?.ammoCapacity && (
