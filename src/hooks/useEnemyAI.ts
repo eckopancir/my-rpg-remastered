@@ -716,10 +716,15 @@ export const useEnemyAI = () => {
             const preTargetAlly = updatedEnemies.find((e: any) =>
               e.faction === 'Союзник' && !e.dead && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
             );
-            const tgtArmor0 = preTargetAlly ? preTargetAlly.armor : playerStats.armor;
-            const tgtEvasion0 = preTargetAlly ? preTargetAlly.evasion : playerStats.evasion;
-            const tgtBlock0 = preTargetAlly ? preTargetAlly.block : playerStats.block;
-            const tgtIncoming0 = preTargetAlly ? 1 : playerStats.incomingDamageMult;
+            // Бьёт союзник: защита — stats ВРАГА на точке, а не игрока!
+            const preTargetHostile = isAlly ? updatedEnemies.find((e: any) =>
+              e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+            ) : undefined;
+            const defender0 = preTargetHostile || preTargetAlly;
+            const tgtArmor0 = defender0 ? defender0.armor : playerStats.armor;
+            const tgtEvasion0 = defender0 ? defender0.evasion : playerStats.evasion;
+            const tgtBlock0 = defender0 ? defender0.block : playerStats.block;
+            const tgtIncoming0 = defender0 ? 1 : playerStats.incomingDamageMult;
             const result = calculateCombatResult(
               { dps: enemyDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
               applyTerrainToTarget(
@@ -838,10 +843,14 @@ export const useEnemyAI = () => {
               const extraTargetAlly = updatedEnemies.find((e: any) =>
                 e.faction === 'Союзник' && !e.dead && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
               );
-              const tgtArmor = extraTargetAlly ? extraTargetAlly.armor : curAfter.armor;
-              const tgtEvasion = extraTargetAlly ? extraTargetAlly.evasion : curAfter.evasion;
-              const tgtBlock = extraTargetAlly ? extraTargetAlly.block : curAfter.block;
-              const tgtIncoming = extraTargetAlly ? 1 : curAfter.incomingDamageMult;
+              const extraHostile = isAlly ? updatedEnemies.find((e: any) =>
+                e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+              ) : undefined;
+              const defender2 = extraHostile || extraTargetAlly;
+              const tgtArmor = defender2 ? defender2.armor : curAfter.armor;
+              const tgtEvasion = defender2 ? defender2.evasion : curAfter.evasion;
+              const tgtBlock = defender2 ? defender2.block : curAfter.block;
+              const tgtIncoming = defender2 ? 1 : curAfter.incomingDamageMult;
               const result2 = calculateCombatResult(
                 { dps: enemyDps2, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
                 applyTerrainToTarget(
