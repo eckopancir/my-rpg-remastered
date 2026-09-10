@@ -194,7 +194,7 @@ export const useEnemyAI = () => {
       const saySync = (id: number | string, text: string, ms: number = 5000) => {
         useCombatGridStore.getState().say(id, text, ms);
         const u = updatedEnemies.find((x: any) => x.id === id);
-        if (u) u.speech = text;
+        if (u) { u.speech = text; u.speechUntil = Date.now() + ms; }
         setTimeout(() => {
           const uu = updatedEnemies.find((x: any) => x.id === id);
           if (uu && uu.speech === text) uu.speech = null;

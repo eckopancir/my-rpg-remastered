@@ -635,7 +635,7 @@ export const BattleGrid = () => {
           const sB = 34 + (showExcl ? 30 : 0) + (e.sleeping ? 30 : 0) + (showQ ? 30 : 0);
           return (
             <div key={`estate-${e.id}`} style={{ position: 'absolute', left, top, width: 0, height: 0, zIndex: 60, pointerEvents: 'none' }}>
-              {e.speech && (
+              {e.speech && Date.now() < ((e as any).speechUntil ?? Infinity) && (
                 <div style={{
                   position: 'absolute', bottom: 10, left: 0, transform: 'translateX(-50%)',
                   maxWidth: 150, minWidth: 40, zIndex: 2,

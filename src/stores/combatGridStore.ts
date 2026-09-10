@@ -78,6 +78,9 @@ export interface GridEnemy {
   coverSeeker?: boolean;
   patrolDir?: { dx: number; dy: number };
   speech?: string | null;
+  // Срок жизни облачка (мс эпохи): рендер прячет просроченные, даже если
+  // цикл ИИ воскресил текст из stale-копии после таймера очистки.
+  speechUntil?: number;
   // Знает о игроке (видел/стрелял): стелс не включить, пока жив хоть один знающий.
   knowsPlayer?: boolean;
   // Естественный сон: осталось ходов (undefined — спит до побудки).
@@ -758,7 +761,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const bid = get().battleId;
     const target = get().enemies.find((e) => e.id === enemyId);
     if (!target || target.sleeping) return;
-    set((s) => ({ enemies: s.enemies.map((e) => (e.id === enemyId ? { ...e, speech: text } : e)) }));
+    const until = Date.now() + ms;
+    set((s) => ({ enemies: s.enemies.map((e) => (e.id === enemyId ? { ...e, speech: text, speechUntil: until } : e)) }));
     setTimeout(() => {
       if (get().battleId !== bid) return;
       set((s) => ({
