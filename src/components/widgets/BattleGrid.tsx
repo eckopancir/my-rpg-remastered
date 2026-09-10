@@ -55,7 +55,7 @@ export const BattleGrid = () => {
   const [fireFrame, setFireFrame] = useState(0);
   useEffect(() => {
     if (!isActive || !campfire) return;
-    const t = setInterval(() => setFireFrame((f) => (f + 1) % 2), 100);
+    const t = setInterval(() => setFireFrame((f) => (f + 1) % 2), 300);
     return () => clearInterval(t);
   }, [isActive, campfire]);
   const playerInvisible = useCombatGridStore((s) => s.playerInvisible);
