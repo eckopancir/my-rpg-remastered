@@ -11,6 +11,37 @@ const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
   maxStamina: 'maxStamina',
 };
 
+/**
+ * Средний темп стрельбы (выстрелов/ход) за 5 ходов: 5 AP, выстрел 1 AP,
+ * перезарядка 1 AP при пустом магазине, запас бесконечный.
+ * Магазин 1 → 3.0; 2 → 4.0; 5/10 → 4.8; 30 → 5.0; без магазина (ближний бой) → 5.0.
+ */
+export const sustainedShotsPerTurn = (ammoCapacity?: number): number => {
+  const TURNS = 5;
+  const AP = 5;
+  let total = 0;
+  let mag = ammoCapacity ?? 0;
+  const infinite = ammoCapacity == null;
+  for (let t = 0; t < TURNS; t++) {
+    let ap = AP;
+    let m = infinite ? AP : mag;
+    while (ap >= 1) {
+      if (!infinite && m <= 0) {
+        // Перезарядка за 1 AP; если AP нет — ход окончен.
+        ap -= 1;
+        m = ammoCapacity as number;
+        continue;
+      }
+      // Выстрел.
+      m -= 1;
+      ap -= 1;
+      total += 1;
+    }
+    if (!infinite) mag = m;
+  }
+  return total / TURNS;
+};
+
 const applyClamps = (s: PlayerStats): void => {
   s.damage = Math.max(1, s.damage);
   s.crit = Math.max(0, s.crit);
@@ -39,10 +70,16 @@ export const calcItemPower = (item: Item): number => {
 
   const adjustedStats = { ...stats };
   const sign = isEquipped ? -1 : 1;
+  // Огнестрел: урон идёт в sustained-эквиваленте (темп с перезарядками),
+  // а не голым уроном: базука 300×2 и снайперка 250×10 дают ~1200/ход обе.
+  const sustainedFactor = item.slot === 'weapon2' && item.ammoCapacity
+    ? sustainedShotsPerTurn(item.ammoCapacity) / 5
+    : 1;
   // Мощность с учётом модов: effectiveItemStats уже включает базу + моды.
   for (const [k, v] of Object.entries(effectiveItemStats(item))) {
-    const val = v || 0;
+    let val = v || 0;
     if (val === 0) continue;
+    if (k === 'damage') val *= sustainedFactor;
     const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
     if (mappedKey in adjustedStats && typeof adjustedStats[mappedKey] === 'number') {
       (adjustedStats as any)[mappedKey] += val * sign;

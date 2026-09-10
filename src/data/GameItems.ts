@@ -346,7 +346,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     slot: 'weapon2',
     stats: { damage: 50, speed: -0.005 },
     mods: {},
-    ammoCapacity: 2,
+    ammoCapacity: 1,
   },
   {
     name: 'Старый АК-47',
@@ -471,7 +471,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     slot: 'weapon2',
     stats: { damage: 60, dpsEmi: 0.5, block: -0.02 },
     mods: {},
-    ammoCapacity: 2,
+    ammoCapacity: 1,
     set: 'Феникс',
   },
   {
@@ -790,7 +790,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     slot: 'weapon2',
     stats: { damage: 22, dpsToxis: 0.4, crit: 0.01, speed: -0.005 },
     mods: {},
-    ammoCapacity: 2,
+    ammoCapacity: 1,
     set: 'Кости мутантов',
   },
 
@@ -800,7 +800,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
     slot: 'weapon2',
     stats: { damage: 22, dpsToxis: 0.3, speed: -0.02 },
     mods: {},
-    ammoCapacity: 2,
+    ammoCapacity: 1,
     set: 'Кости мутантов',
   },
 
@@ -1384,7 +1384,7 @@ export const GAME_ITEMS: ItemDefinition[] = [
   { name: 'Термальная пушка', rarity: 'superepic', slot: 'weapon2', stats: { damage: 20, dpsFire: 8, speed: -0.02 }, mods: {}, ammoCapacity: 10, set: 'Феникс' },
   { name: 'Гравитационная винтовка', rarity: 'superepic', slot: 'weapon2', stats: { damage: 22, dpsEmi: 6, accuracy: 0.05, speed: -0.01 }, mods: {}, ammoCapacity: 15, set: 'Эхо' },
   { name: 'Разрядник', rarity: 'epic', slot: 'weapon2', stats: { damage: 12, dpsEmi: 3, speed: 0.01 }, mods: {}, ammoCapacity: 20, set: 'Эхо' },
-  { name: 'ГП-25', rarity: 'epic', slot: 'weapon2', stats: { damage: 28, speed: -0.02, accuracy: -0.1 }, ammoCapacity: 2 },
+  { name: 'ГП-25', rarity: 'epic', slot: 'weapon2', stats: { damage: 28, speed: -0.02, accuracy: -0.1 }, ammoCapacity: 1 },
   { name: 'ПТРС', rarity: 'superepic', slot: 'weapon2', stats: { damage: 32, speed: -0.03, armor: -3, accuracy: 0.1 }, ammoCapacity: 5 },
 
   // === NEW MELEE WEAPONS ===
