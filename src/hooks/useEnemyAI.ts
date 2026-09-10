@@ -566,6 +566,8 @@ export const useEnemyAI = () => {
 
           // Determine target: allies attack enemies, enemies attack player or nearby ally
           let targetPos: { x: number; y: number };
+          // Мусорщик у трупа не стреляет — только собирает хабар.
+          let lootingCorpses = false;
           if (isAlly) {
             // Союзник: ближайший живой противник — знают, где враги.
             const hostile = updatedEnemies
@@ -573,7 +575,6 @@ export const useEnemyAI = () => {
               .sort((a: any, b: any) => getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos))[0];
             // Врагов не осталось: миньоны — к хозяину, мусорщики — за хабаром с трупов.
             // Мусорщик без трупов просто ждёт (не трогает игрока).
-            let lootingCorpses = false;
             if (!hostile) {
               if ((enemy as any).isMinion) {
                 targetPos = { ...currentStore.playerPos };
