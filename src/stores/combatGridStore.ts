@@ -86,6 +86,8 @@ export interface GridEnemy {
   searching?: boolean;
   // Ход поднятия тревоги: вспышка «!!!» рисуется только ~1 ход (turnCount - alertTurn <= 1).
   alertTurn?: number;
+  // Был часовым до тревоги: белый «!» остаётся и в бою.
+  wasSentry?: boolean;
   // Тихая смерть (скрытное убийство): без крика и звуков смерти.
   silentDeath?: boolean;
   // Позывной (досье), отступление к медику/костру, сдача в плен.
@@ -820,10 +822,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (e.dead || e.currentHp <= 0) return e;
         const next: GridEnemy = { ...e, sleeping: false, sleepTurns: undefined, searching: false };
         // Не в бою — в поисковый патруль (лагерь и часовые тоже ищут).
+        // Часовые помнят пост: флаг wasSentry держит белый «!» и в бою.
         if (!e.aggro && e.aiRole && e.aiRole !== 'reinforce') {
           const d = pDirs[Math.floor(Math.random() * pDirs.length)];
           next.aiRole = 'patrol';
           next.patrolDir = { ...d };
+          if (e.aiRole === 'sentry') next.wasSentry = true;
         }
         return next;
       }),

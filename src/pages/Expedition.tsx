@@ -35,6 +35,24 @@ export const Expedition = () => {
   const addLog = usePlayerStore((s) => s.addLog);
   const addToQueue = useUiStore((s) => s.addToQueue);
   const addToast = useUiStore((s) => s.addToast);
+  const level = usePlayerStore((s) => s.level);
+  const refreshCost = 100 * Math.max(1, level);
+
+  const handlePaidRefresh = useCallback(() => {
+    const pst = usePlayerStore.getState();
+    const cost = 100 * Math.max(1, pst.level);
+    if (pst.dataChips < cost) {
+      addToast(`Не хватает чипов: нужно ${cost} 💾`, 'error');
+      addLog(`❌ Обновление карт: нужно ${cost} чипов, а есть ${pst.dataChips}.`, 'warning');
+      return;
+    }
+    if (!pst.spendChips(cost)) return;
+    setCards(forceRefresh());
+    setSelectedId(null);
+    setRefreshTime(getRefreshTime());
+    addLog(`🔄 Карты обновлены за ${cost} чипов.`, 'info');
+    addToast('Карты обновлены!', 'success');
+  }, [addLog, addToast]);
   const countParam = searchParams.get('count');
   const expeditionDuration = countParam ? Math.max(1, parseInt(countParam, 10) || 3) : 3;
 
@@ -104,6 +122,14 @@ export const Expedition = () => {
             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
               Обновление: {Math.floor(refreshTime / 60)}:{String(refreshTime % 60).padStart(2, '0')}
             </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handlePaidRefresh}
+              title={`Обновить карты сейчас за ${refreshCost} чипов`}
+            >
+              🔄 {refreshCost} 💾
+            </Button>
           </div>
         </div>
 

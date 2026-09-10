@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-import { useCombatGridStore, checkVisibility, getDist } from '../../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, getDist, isBossEnemy } from '../../stores/combatGridStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
@@ -565,7 +565,8 @@ export const BattleGrid = () => {
                       style={{
                         transform: `rotate(${enemy.rotation - 90}deg)`,
                         // Патруль вне боя — полупрозрачный (еле видно); в бою — 100%.
-                        opacity: ((enemy.aiRole === 'patrol' || enemy.aiRole === 'reinforce') && !enemy.aggro) ? 0.5 : 1,
+                        // Босс всегда 100%: он не прячется.
+                        opacity: ((enemy.aiRole === 'patrol' || enemy.aiRole === 'reinforce') && !enemy.aggro && !isBossEnemy(enemy.name, (enemy as any).factionKey)) ? 0.5 : 1,
                       }}
                     />
                   </div>
@@ -619,8 +620,8 @@ export const BattleGrid = () => {
             ? (e.aiRole === 'sentry' ? 10 : 3)
             : (e.aiRole === 'sentry' ? 15 : 24);
           const showQ = !e.aggro && !e.sleeping && e.faction !== 'Союзник' && d <= susR && d > detR;
-          // Часовой всегда с белым «!» — его метка.
-          const showExcl = e.aiRole === 'sentry';
+          // Часовой всегда с белым «!» — его метка (экс-часовой в бою тоже).
+          const showExcl = e.aiRole === 'sentry' || ((e as any).wasSentry && e.aggro);
           // Вспышка тревоги «!!!» — только ~1 ход после подъёма (сам бой продолжается).
           const alertFlash = (e.alertTurn ?? -999) >= 0 && turnCount - (e.alertTurn ?? -999) <= 1;
           // Режим поиска трупа.
