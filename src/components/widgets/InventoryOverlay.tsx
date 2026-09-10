@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useUiStore } from '../../stores/uiStore';
-import { usePlayerStore, gunSlotForWeapon } from '../../stores/playerStore';
-import { useInventoryStore } from '../../stores/inventoryStore';
+import { usePlayerStore, gunSlotForWeapon } from '../../stores/playerStore';import { useInventoryStore } from '../../stores/inventoryStore';
 import { getItemImage } from '../../assets/index';
 import { useSound } from '../../hooks/useSound';
 import { WapHeader } from '../ui/WapHeader';
@@ -23,9 +22,14 @@ const ITEMS_PER_PAGE = cols * 8;
 const SLOT_FILTERS = [
   { value: '', label: 'All slots' },
   { value: 'weapon1', label: '— Оружие' },
-  { value: 'weapon2', label: '— Вторая рука' },
+  { value: 'weapon2', label: '— Автомат' },
+  { value: 'gun_pistol', label: '— Пистолет' },
+  { value: 'gun_shotgun', label: '— Дробовик' },
+  { value: 'gun_sniper', label: '— Снайперка' },
+  { value: 'gun_heavy', label: '— Тяжёлое' },
   { value: 'head', label: '— Шлем' },
   { value: 'armor', label: '— Броня' },
+  { value: 'pants', label: '— Штаны' },
   { value: 'gloves', label: '— Перчатки' },
   { value: 'boots', label: '— Ботинки' },
   { value: 'ammo', label: '— Амуниция' },
@@ -119,6 +123,8 @@ const slotFilterKey = (item: Item): string => {
   if (item.type === 'backpack') return 'backpack';
   if (item.type === 'bullet') return 'bullet';
   if (item.slot === 'ammo') return 'ammo';
+  // Огнестрел раскладывается по классовым фильтрам.
+  if (item.slot === 'weapon2') return gunSlotForWeapon(item);
   return item.slot || '';
 };
 
