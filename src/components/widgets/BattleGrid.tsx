@@ -8,6 +8,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
 import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
+import { weaponRangeProfile } from '../../data/ammo';
 import { ShotVolley } from './ShotVolley';
 import pricelImg from '../../assets/images/ui/pricel-cursor.png';
 import type { GridEnemy } from '../../stores/combatGridStore';
@@ -73,6 +74,10 @@ export const BattleGrid = () => {
   const plannedPath = useCombatGridStore((s) => s.plannedPath);
   const ap = useCombatGridStore((s) => s.ap);
   const cursorPos = useCombatGridStore((s) => s.cursorPos);
+  // Активный ствол для превью конуса (дробь/огнемёт).
+  const activeGun = usePlayerStore((s) => s.getActiveWeapon());
+  const coneProf = activeGun && (activeGun as any).ammoCapacity ? weaponRangeProfile(activeGun) : null;
+  const showConePreview = rmbHeld && !!coneProf?.cone && !!cursorPos && turn === 'player';
   const movePlayer = useCombatGridStore((s) => s.movePlayer);
   const rotatePlayer = useCombatGridStore((s) => s.rotatePlayer);
   const selectEnemy = useCombatGridStore((s) => s.selectEnemy);
@@ -119,6 +124,13 @@ export const BattleGrid = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const fogCanvasRef = useRef<HTMLCanvasElement>(null);
   const isRightMouseDown = useRef(false);
+  // Зажата ли ПКМ прямо сейчас (стейт для перерисовки превью конуса).
+  const [rmbHeld, setRmbHeld] = useState(false);
+  useEffect(() => {
+    const up = () => { isRightMouseDown.current = false; rmbDownCell.current = null; setRmbHeld(false); };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, []);
   // Клетка нажатия ПКМ — для инспекции точки при клике без протяжки.
   const rmbDownCell = useRef<{ x: number; y: number } | null>(null);
 
@@ -440,10 +452,11 @@ export const BattleGrid = () => {
         <div className={styles.gridOverlay}
           onContextMenu={(e) => e.preventDefault()}
           style={{ cursor: `url("${pricelImg}") 12 12, crosshair` }}
-          onMouseDown={(e) => { if (e.button === 2) isRightMouseDown.current = true; }}
+          onMouseDown={(e) => { if (e.button === 2) { isRightMouseDown.current = true; setRmbHeld(true); } }}
           onMouseUp={(e) => {
             if (e.button !== 2) return;
             isRightMouseDown.current = false;
+            setRmbHeld(false);
             // ПКМ-клик без протяжки — инспекция укрытий точки под курсором.
             const down = rmbDownCell.current;
             rmbDownCell.current = null;
@@ -461,7 +474,7 @@ export const BattleGrid = () => {
             st.addPopup(down.x, down.y, s.text, 'BUFF');
             st.addMessage(s.detail);
           }}
-          onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; rmbDownCell.current = null; }}
+          onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; rmbDownCell.current = null; setRmbHeld(false); }}
         >
           {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
             const x = i % GRID_SIZE;
@@ -484,7 +497,7 @@ export const BattleGrid = () => {
                 className={`${styles.cell}${isSel ? ` ${styles.cellActive}` : ''}${pathPoint ? ` ${styles.pathActive}` : ''}${obstacle ? ` ${styles.obstacleCell}` : ''}${isPlayer ? ` ${styles.playerCell}` : ''}${isInRange && turn === 'player' ? ` ${styles.inRange}` : ''}${hovered && !isAllyCell ? ` ${styles.cellCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCellCrosshair}` : ''}`}
                 onClick={() => handleCellClick(x, y)}
                 onContextMenu={(e) => e.preventDefault()}
-                onMouseDown={(e) => { if (e.button === 2) rmbDownCell.current = { x, y }; }}
+                onMouseDown={(e) => { if (e.button === 2) { rmbDownCell.current = { x, y }; setRmbHeld(true); } }}
                 onMouseEnter={() => {
                   handleCellHover(x, y);
                   if (isRightMouseDown.current && !measureRef.current) rotatePlayer(x, y);
@@ -538,7 +551,7 @@ export const BattleGrid = () => {
                   <div
                     className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered && !isAllyCell ? ` ${styles.enemyCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCrosshair}` : ''}${isInRange && !isAllyCell ? ` ${styles.inRangeEnemy}` : ''}${isInRange && isAllyCell ? ` ${styles.inRangeAlly}` : ''}`}
                     style={{ borderColor: ENEMY_COLORS[enemy.faction] || '#a1a1aa', width: enemy.bigModel || '100%', height: enemy.bigModel || '100%', zIndex: 5 }}
-                    onMouseDown={(e) => { if (e.button === 2) { measureRef.current = true; setMeasuring({ x, y }); } }}
+                    onMouseDown={(e) => { if (e.button === 2) { measureRef.current = true; setMeasuring({ x, y }); setRmbHeld(true); } }}
                   >
                     {enemy.isEnraged && <div className={styles.enemyStatusBadge}>💢</div>}
                     {enemy.isInvisible && <div className={styles.enemyStatusBadge}>👤</div>}
@@ -733,6 +746,29 @@ export const BattleGrid = () => {
 
         {/* Shot volley: muzzle flash + flying bullets (no more yellow line) */}
         {volley && <ShotVolley key={volleyKey} shot={volley} />}
+
+        {/* Превью конуса дробовика: зажатая ПКМ при активном стволе с конусом */}
+        {showConePreview && coneProf && cursorPos && (() => {
+          const R = coneProf.range;
+          const baseA = Math.atan2(cursorPos.y - playerPos.y, cursorPos.x - playerPos.x);
+          const pts: string[] = [`${(playerPos.x / 31) * 100}%,${(playerPos.y / 31) * 100}%`];
+          for (let d = -30; d <= 30; d += 5) {
+            const a = baseA + (d * Math.PI) / 180;
+            const ex = Math.max(0, Math.min(31, playerPos.x + Math.cos(a) * R));
+            const ey = Math.max(0, Math.min(31, playerPos.y + Math.sin(a) * R));
+            pts.push(`${(ex / 31) * 100}%,${(ey / 31) * 100}%`);
+          }
+          return (
+            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 39 }}>
+              <polygon
+                points={pts.join(' ')}
+                fill="rgba(251,146,60,0.18)"
+                stroke="rgba(251,146,60,0.65)"
+                strokeWidth="1.5"
+              />
+            </svg>
+          );
+        })()}
 
         {/* Flying grenade — animated trajectory from→to */}
         {flyingGrenade && (

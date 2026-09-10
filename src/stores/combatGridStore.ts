@@ -141,7 +141,7 @@ export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { k
   if (s.includes('boss') || s.includes('босс')) return { kind: 'boss', count: 6, power: 1.6 };
   if (s.includes('sniper') || s.includes('снайпер')) return { kind: 'single', count: 1, power: 1.2 };
   if (/m134|m60|m249|pkm|миниган|пулем/.test(s)) return { kind: 'burst', count: 3, power: 1.1, fast: true };
-  if (s.includes('drob') || s.includes('дроб') || s.includes('shotgun') || s.includes('аа-12') || s.includes('aa-12') || s.includes('spas') || s.includes('remington') || s.includes('двустволка')) return { kind: 'spread', count: 5, power: 1.1 };
+  if (s.includes('drob') || s.includes('дроб') || s.includes('shotgun') || s.includes('аа-12') || s.includes('aa-12') || s.includes('spas') || s.includes('remington') || s.includes('двустволка')) return { kind: 'spread', count: 8, power: 1.1 };
   return { kind: 'burst', count: 2, power: 1 };
 };
 
@@ -154,7 +154,7 @@ export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; powe
   if (/базук|рпг|гп-25|гранатом|milkor|m79/.test(n)) return { kind: 'single', count: 1, power: 1.8, sound: 'bazooka_sound_effect' };
   if (/огнемет|огнемёт|flame/.test(n)) return { kind: 'spread', count: 5, power: 1.1, sound: 'drob' };
   const g = ammoTypeForWeapon(w);
-  if (g === 'shell') return { kind: 'spread', count: 5, power: 1.1, sound: 'drob' };
+  if (g === 'shell') return { kind: 'spread', count: 8, power: 1.1, sound: 'drob' };
   if (g === 'sniper') return { kind: 'single', count: 1, power: 1.3, sound: 'sniper' };
   if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1, fast: true, sound: 'm134' };
   if (g === 'pistol') return { kind: 'single', count: 1, power: 1, sound: 'pistol' };

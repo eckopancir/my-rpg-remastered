@@ -60,8 +60,8 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
       let ang = baseA;
       let delay = 0;
       if (kind === 'spread') {
-        ang = baseA + [-30, -15, 0, 15, 30][i % 5];
-        delay = i * 25;
+        ang = baseA + [-30, -22, -15, -7, 0, 7, 15, 22, 30][i % 9];
+        delay = i * 20;
       } else if (kind === 'burst') {
         delay = i * 80;
       } else if (kind === 'boss') {
@@ -81,7 +81,7 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
         rot: ang + 90,
         delay,
         flight: baseFlight,
-        size: 18 * power * (kind === 'boss' ? 1.3 : 1),
+        size: 18 * power * (kind === 'boss' ? 1.3 : kind === 'spread' ? 0.65 : 1),
         filter: KIND_TINT[kind] || 'none',
       });
     }
