@@ -240,6 +240,7 @@ export const Battle = () => {
   const selectedEnemyData = enemies.find((e) => selectedEnemy !== null && e.id === selectedEnemy);
   const hoverTarget = hoveredEnemy || selectedEnemyData;
   const aliveEnemies = enemies.filter((e) => !e.dead && e.faction !== 'Союзник');
+  const aliveAllies = enemies.filter((e) => !e.dead && e.faction === 'Союзник');
 
   if (!combat.isFighting && !travel.isTraveling && !isResting) {
     return (
@@ -590,6 +591,11 @@ export const Battle = () => {
             {/* Enemies count */}
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 'auto', textAlign: 'center' }}>
               👾 Противников: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{aliveEnemies.length}</b>
+              {aliveAllies.length > 0 && (
+                <div style={{ marginTop: 2 }}>
+                  🤝 Союзников: <b style={{ color: '#22d3ee', fontFamily: 'var(--font-mono)' }}>{aliveAllies.length}</b>
+                </div>
+              )}
             </div>
           </div>
         </div>

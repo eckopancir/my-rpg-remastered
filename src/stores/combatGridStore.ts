@@ -1243,7 +1243,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const spot = findFreeCellNear(ax, ay, taken);
         taken.add(`${spot.x},${spot.y}`);
         const model = stalkerModels[Math.floor(Math.random() * stalkerModels.length)];
-        const aHp = Math.round(aBase.health * aTotalMult);
+        // Мусорщики крепче обычных стрелков: +30% к здоровью.
+        const aHp = Math.round(aBase.health * aTotalMult * 1.3);
         const aDmg = Math.round(aBase.damage * aTotalMult);
         activeEnemies.push({
           id: `ally_${a}_${Date.now()}`,
@@ -2734,6 +2735,7 @@ export async function executeSkill(
     case 'stimulant': {
       if (enemy.currentHp < enemy.maxHp * 0.5 && !(enemy.cooldowns?.['stimulant'] > 0)) {
         const healAmount = enemy.maxHp * 0.3;
+        playCombatSound('tablets', 0.4);
         set((s: any) => ({
           enemies: s.enemies.map((e: GridEnemy) =>
             e.id === enemy.id ? { ...e, currentHp: Math.min(e.maxHp, e.currentHp + healAmount) } : e,
@@ -2743,6 +2745,8 @@ export async function executeSkill(
         if (!enemy.cooldowns) enemy.cooldowns = {};
         enemy.cooldowns['stimulant'] = 10;
         setCd('stimulant', 10);
+        get().addPopup(enemy.pos.x, enemy.pos.y, `+${Math.round(healAmount)} 💉 СТИМУЛЯТОР`, 'HEAL');
+        get().addBattleLog(`💉 ${enemy.name} вколол стимулятор (+${Math.round(healAmount)} HP)`);
         return { costAp: 4 };
       }
       break;
@@ -2820,6 +2824,7 @@ export async function executeSkill(
 
     case 'redZone': {
       if (enemy.cooldowns?.['redZone'] > 0) return null;
+      playCombatSound('install', 0.4);
       set((s: any) => ({
         globalEffects: [
           ...s.globalEffects,
@@ -2829,6 +2834,7 @@ export async function executeSkill(
       if (!enemy.cooldowns) enemy.cooldowns = {};
       enemy.cooldowns['redZone'] = 6;
       setCd('redZone', 6);
+      get().addBattleLog(`🚨 ${enemy.name}: красная зона под тобой — уходи!`);
       return { spendAllAp: true };
     }
 
