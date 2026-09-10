@@ -7,6 +7,7 @@ import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
 import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
+import { ShotVolley } from './ShotVolley';
 import pricelImg from '../../assets/images/ui/pricel-cursor.png';
 import type { GridEnemy } from '../../stores/combatGridStore';
 import styles from './BattleGrid.module.css';
@@ -127,8 +128,17 @@ export const BattleGrid = () => {
   const prevPlayerHit = useRef(false);
   const prevPopupsLen = useRef(popups.length);
   const prevEnemiesDead = useRef<Set<number | string>>(new Set());
+  // Активный залп живёт сам (ShotVolley гасится по таймеру): переживает очистку shotLine.
+  const [volley, setVolley] = useState<typeof shotLine>(null);
+  const volleySeq = useRef(0);
+  const [volleyKey, setVolleyKey] = useState(0);
 
   useEffect(() => {
+    if (shotLine) {
+      volleySeq.current += 1;
+      setVolleyKey(volleySeq.current);
+      setVolley(shotLine);
+    }
     if (shotLine && !prevShotLine.current) {
       playSound(Math.random() > 0.5 ? 'shot1' : 'shot2');
     }
@@ -711,21 +721,8 @@ export const BattleGrid = () => {
           );
         })}
 
-        {/* Shot tracer */}
-        {shotLine && (() => {
-          const p = offsetShotPoint(shotLine.from, shotLine.to, 0.4);
-          return (
-            <svg className={styles.shotSvg}>
-              <line
-                x1={`${(p.from.x / 31) * 100}%`}
-                y1={`${(p.from.y / 31) * 100}%`}
-                x2={`${(p.to.x / 31) * 100}%`}
-                y2={`${(p.to.y / 31) * 100}%`}
-                className={`${styles.tracerLine}${shotLine.type === 'aim' ? ` ${styles.aimShot}` : ''}${shotLine.type === 'bazooka' ? ` ${styles.bazookaShot}` : ''}${shotLine.type === 'heal' ? ` ${styles.healShot}` : ''}`}
-              />
-            </svg>
-          );
-        })()}
+        {/* Shot volley: muzzle flash + flying bullets (no more yellow line) */}
+        {volley && <ShotVolley key={volleyKey} shot={volley} />}
 
         {/* Flying grenade — animated trajectory from→to */}
         {flyingGrenade && (

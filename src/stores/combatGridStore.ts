@@ -122,11 +122,36 @@ export interface BattlePopup {
   type: string;
 }
 
+export type ShotKind = 'single' | 'burst' | 'spread' | 'boss' | 'heal';
+
 export interface ShotLine {
   from: { x: number; y: number };
   to: { x: number; y: number };
   type?: string;
+  kind?: ShotKind;
+  count?: number;
+  power?: number;
 }
+
+/** Паттерн выстрела по классу врага: снайпер — 1 пуля, дробь — веер, босс — ливень. */
+export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { kind: ShotKind; count: number; power: number } => {
+  const s = `${e.name || ''} ${e.factionKey || ''}`.toLowerCase();
+  if (s.includes('boss') || s.includes('босс')) return { kind: 'boss', count: 6, power: 1.6 };
+  if (s.includes('sniper') || s.includes('снайпер')) return { kind: 'single', count: 1, power: 1.2 };
+  if (s.includes('drob') || s.includes('дроб') || s.includes('shotgun') || s.includes('аа-12') || s.includes('aa-12') || s.includes('spas') || s.includes('remington') || s.includes('двустволка')) return { kind: 'spread', count: 5, power: 1.1 };
+  return { kind: 'burst', count: 2, power: 1 };
+};
+
+/** Паттерн выстрела игрока по его оружию: дробь — веер, снайпа — 1, пулемёт — очередь. */
+export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; power: number } => {
+  const w = usePlayerStore.getState().equipment.weapon2;
+  if (!w) return { kind: 'single', count: 1, power: 1 };
+  const g = ammoTypeForWeapon(w);
+  if (g === 'shell') return { kind: 'spread', count: 5, power: 1.1 };
+  if (g === 'sniper') return { kind: 'single', count: 1, power: 1.3 };
+  if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1 };
+  return { kind: 'single', count: 1, power: 1 };
+};
 
 export interface GrenadeAnim {
   from: { x: number; y: number };
@@ -1509,7 +1534,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
           pick.currentHp = Math.max(0, pick.currentHp - rawDmg);
           pick.isHit = true;
-          set({ shotLine: { from: s.playerPos, to: pick.pos } });
+          set({ shotLine: { from: s.playerPos, to: pick.pos, kind: 'burst', count: 1 } });
           setTimeout(() => { const st = get(); if (st.shotLine?.to === pick.pos) set({ shotLine: null }); }, 300);
           get().addPopup(pick.pos.x, pick.pos.y, `-${rawDmg} 🌊`, 'DMG');
           if (pick.currentHp <= 0) {
@@ -1622,6 +1647,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               const s = get();
               const tgt = s.enemies.find((e: GridEnemy) => e.id === targetEnemy.id);
               if (!tgt || tgt.dead || tgt.currentHp <= 0) { set({ shotLine: null }); return; }
+              // Прилёт: вторая вспышка + пуля в момент урона.
+              set({ shotLine: { from: s.playerPos, to: tgt.pos, kind: 'single', count: 1, power: 1.6 } });
+              setTimeout(() => set({ shotLine: null }), 600);
               const rawDmg = Math.round(Math.max(1, dmg * (1 - tgt.armor * 0.01)));
               tgt.currentHp = Math.max(0, tgt.currentHp - rawDmg);
               tgt.isHit = true;
@@ -1639,13 +1667,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           // Bazooka (shock): 2s delay, red line, screen shake
           if (ability.id === 'shock') {
             playCombatSound('bazooka_sound_effect', 0.4);
-            set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'bazooka' } });
+            set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'bazooka', kind: 'single', count: 1, power: 1.8 } });
             get().addBattleLog(`🚀 ${ability.name}: выстрел...`);
             setTimeout(() => {
               const s = get();
-              set({ shotLine: null });
               const tgt = s.enemies.find((e: GridEnemy) => e.id === targetEnemy.id);
-              if (!tgt || tgt.dead || tgt.currentHp <= 0) return;
+              if (!tgt || tgt.dead || tgt.currentHp <= 0) { set({ shotLine: null }); return; }
+              // Прилёт базуки в момент урона.
+              set({ shotLine: { from: s.playerPos, to: tgt.pos, kind: 'single', count: 1, power: 1.8 } });
+              setTimeout(() => set({ shotLine: null }), 600);
               const rawDmg = Math.round(Math.max(1, dmg * (1 - tgt.armor * 0.01)));
               get().triggerShake();
               s.enemies.forEach((e: GridEnemy) => {
@@ -1680,7 +1710,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             const pctDmg = Math.round(tgt.currentHp * 0.5);
             tgt.currentHp = Math.max(0, tgt.currentHp - pctDmg);
             tgt.isHit = true;
-            set({ shotLine: { from: s.playerPos, to: tgt.pos } });
+            set({ shotLine: { from: s.playerPos, to: tgt.pos, kind: 'single', count: 1, power: 1.2 } });
             setTimeout(() => set({ shotLine: null }), 400);
             get().addPopup(tgt.pos.x, tgt.pos.y, `💀 -${pctDmg}`, 'DMG');
             get().addBattleLog(`💀 ${ability.name}: ${tgt.name} теряет ${pctDmg} HP`);
@@ -1747,7 +1777,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             // Single target
             if (ability.id === 'aimshot') {
               playCombatSound('Silvertarget', 0.4);
-              set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'aim' } });
+            set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'aim', kind: 'single', count: 1, power: 1.6 } });
               setTimeout(() => set({ shotLine: null }), 600);
               const finalDmg = Math.round(Math.max(1, dmg));
               targetEnemy.currentHp = Math.max(0, targetEnemy.currentHp - finalDmg);
@@ -2112,7 +2142,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     const player = usePlayerStore.getState();
     const angle = getAngle(state.playerPos, enemy.pos);
-    set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos }, lastShotTurn: get().turnCount });
+    const pshot = shotKindForPlayerWeapon();
+    set({ playerRotation: angle, shotLine: { from: state.playerPos, to: enemy.pos, kind: pshot.kind, count: pshot.count, power: pshot.power }, lastShotTurn: get().turnCount });
     setTimeout(() => set({ shotLine: null }), 400);
 
     // Физа идёт через формулу одна; стихия фракции — чистым уроном поверх.
@@ -2217,7 +2248,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const res = calculateCombatResult(atkStat, tgtStat);
         const dmg = Math.round(res.damage);
 
-        set({ shotLine: { from: st.playerPos, to: en.pos } });
+        const bshot = shotKindForPlayerWeapon();
+        set({ shotLine: { from: st.playerPos, to: en.pos, kind: bshot.kind, count: bshot.count, power: bshot.power } });
         setTimeout(() => set({ shotLine: null }), 400);
 
         set((s) => ({
@@ -2628,7 +2660,7 @@ export async function executeSkill(
       playCombatSound('aimShot', 0.4);
       set((s: any) => ({
         enemies: s.enemies.map((e: GridEnemy) => e.id === enemy.id ? { ...e, rotation: angle } : e),
-        shotLine: { from: enemy.pos, to: pPos, type: 'aim' },
+        shotLine: { from: enemy.pos, to: pPos, type: 'aim', kind: 'single', count: 1, power: 1.5 },
       }));
       setTimeout(() => set({ shotLine: null }), 800);
       get().triggerShake();
@@ -2714,7 +2746,7 @@ export async function executeSkill(
       }));
       for (let i = 0; i < 50; i++) {
         const rndPos = { x: pPos.x + (Math.random() * 1.2 - 0.6), y: pPos.y + (Math.random() * 1.2 - 0.6) };
-        set({ shotLine: { from: enemy.pos, to: rndPos } });
+        set({ shotLine: { from: enemy.pos, to: rndPos, kind: 'boss', count: 2, power: 1.1 } });
         setTimeout(() => set({ shotLine: null }), 100);
         if (Math.random() < 0.25) {
           const basePartDmg = enemy.damage * 1;
@@ -2895,7 +2927,7 @@ export async function executeSkill(
       if (dist > (enemy.rangeDistance || 8) + 2 || enemy.cooldowns?.['leadenrain'] > 0) return null;
       playCombatSound('m134', 0.4);
       get().say(enemy.id, 'Свинца не жалеть!');
-      set({ shotLine: { from: enemy.pos, to: { ...pPos } } });
+      set({ shotLine: { from: enemy.pos, to: { ...pPos }, kind: 'single', count: 1, power: 1.2 } });
       const rainDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 1.2;
       for (let k = 0; k < 4; k++) {
         const result = calculateCombatResult(

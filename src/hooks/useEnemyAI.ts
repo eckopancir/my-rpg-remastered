@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, isBossEnemy, type GlobalEffect } from '../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, isBossEnemy, shotKindForEnemy, type GlobalEffect } from '../stores/combatGridStore';
 import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
 import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
@@ -617,7 +617,7 @@ export const useEnemyAI = () => {
               updatedEnemies[i] = { ...updatedEnemies[i], rotation: healAngle };
               playCombatSound('healer', 0.4);
               useCombatGridStore.getState().addPopup(nearestWounded.pos.x, nearestWounded.pos.y, `+${Math.round(healVal)} HP 🩹`, 'HEAL');
-              useCombatGridStore.setState({ enemies: [...updatedEnemies], shotLine: { from: enemy.pos, to: nearestWounded.pos, type: 'heal' } });
+              useCombatGridStore.setState({ enemies: [...updatedEnemies], shotLine: { from: enemy.pos, to: nearestWounded.pos, type: 'heal', kind: 'heal', count: 1 } });
               await new Promise((r) => setTimeout(r, 400));
               const st = useCombatGridStore.getState();
               if (st.shotLine?.type === 'heal') useCombatGridStore.setState({ shotLine: null });
@@ -658,10 +658,11 @@ export const useEnemyAI = () => {
           if (canSee && inRange && enemyAp >= (enemy.shotPrice || 1) && !isMedic) {
             const angle = getAngle(enemy.pos, targetPos);
             // Play enemy attack sound
+            const sk = shotKindForEnemy(enemy);
             const atkSound = enemy.soundAttack || 'shotenemy';
             playCombatSound(atkSound, 0.4);
             useCombatGridStore.setState({
-              shotLine: { from: enemy.pos, to: targetPos },
+              shotLine: { from: enemy.pos, to: targetPos, kind: sk.kind, count: sk.count, power: sk.power },
               lastShotTurn: useCombatGridStore.getState().turnCount,
               enemies: useCombatGridStore.getState().enemies.map((e: any) =>
                 e.id === enemy.id ? { ...e, rotation: angle, isSpinning: enemy.name.toLowerCase().includes('melle') || enemy.name.toLowerCase().includes('melee') } : e
@@ -778,15 +779,16 @@ export const useEnemyAI = () => {
               const eAngle = getAngle(enemy.pos, targetPos);
               const eAtkSound = enemy.soundAttack || 'shotenemy';
               playCombatSound(eAtkSound, 0.4);
+              const sk2 = shotKindForEnemy(enemy);
               useCombatGridStore.setState({
-                shotLine: { from: enemy.pos, to: targetPos },
+                shotLine: { from: enemy.pos, to: targetPos, kind: sk2.kind, count: sk2.count, power: sk2.power },
                 enemies: useCombatGridStore.getState().enemies.map((e: any) =>
                   e.id === enemy.id ? { ...e, rotation: eAngle, isSpinning: enemy.name.toLowerCase().includes('melle') || enemy.name.toLowerCase().includes('melee') } : e
                 ),
               });
-              updatedEnemies = updatedEnemies.map((e: any) =>
-                e.id === enemy.id ? { ...e, rotation: eAngle } : e
-              );
+            updatedEnemies = updatedEnemies.map((e: any) =>
+              e.id === enemy.id ? { ...e, rotation: angle } : e
+            );
               setTimeout(() => useCombatGridStore.setState({ shotLine: null }), 400);
               setTimeout(() => {
                 useCombatGridStore.setState({

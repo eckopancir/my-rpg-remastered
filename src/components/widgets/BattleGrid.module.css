@@ -582,7 +582,16 @@
   transition: filter 0.2s ease;
 }
 
-/* Hit flash overlay on damage */
+/* Muzzle flash — вспышка у дула, быстро гаснет */
+.muzzleFlash {
+  animation: muzzlePop 0.18s ease-out forwards;
+}
+
+@keyframes muzzlePop {
+  0% { opacity: 1; }
+  60% { opacity: 1; }
+  100% { opacity: 0; }
+}
 .hitFlash {
   position: absolute;
   inset: 0;
