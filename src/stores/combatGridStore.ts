@@ -2127,6 +2127,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       } else if (useUiStore.getState().autoReload !== false) { get().reload(); return; }
       else { get().addMessage('❌ Нет патронов! Нажми R для перезарядки'); return; }
     }
+    // Автоперезарядка выше могла съесть последний AP — перепроверить,
+    // иначе выстрел уходит в минус (-1/5).
+    if (get().ap < shotCost) { get().addMessage('❌ Не хватает AP'); return; }
 
     const enemy = state.enemies.find((e) => e.id === enemyId);
     if (!enemy || enemy.dead) return;
@@ -2189,8 +2192,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const vampHeal = Math.round(actualDmg * (player.stats.vampir || 0));
 
     set((s) => ({
-      ap: s.ap - shotCost,
-      ammo: s.ammo - 1,
+      ap: Math.max(0, s.ap - shotCost),
+      ammo: Math.max(0, s.ammo - 1),
       enemies: s.enemies.map((e) =>
         e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } : e
       ),
@@ -2322,7 +2325,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }, 200);
 
     // Auto end turn if AP runs out (одни на поле — тоже: вернёт AP и свободный бег).
-    const nextAp = state.ap - shotCost;
+    // Свежий AP: автоперезарядка выше могла уже потратить.
+    const nextAp = get().ap - shotCost;
     if (nextAp < 1) {
       setTimeout(() => {
         get().endTurn();
