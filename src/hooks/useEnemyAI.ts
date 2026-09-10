@@ -6,7 +6,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
-import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, BOSS_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, STALKER_COMBAT_BARK, STALKER_SPOT_BARK, pickPhrase } from '../data/enemyChatter';
+import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, BOSS_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, STALKER_COMBAT_BARK, STALKER_SPOT_BARK, STALKER_LOOT, pickPhrase } from '../data/enemyChatter';
 
 const isMilitary = (e: any): boolean =>
   (e.faction || '').toLowerCase().includes('воен') || (e.factionKey || '').toLowerCase().includes('воен');
@@ -571,10 +571,27 @@ export const useEnemyAI = () => {
             const hostile = updatedEnemies
               .filter((e: any) => e.id !== enemy.id && !e.dead && e.currentHp > 0 && e.faction !== 'Союзник')
               .sort((a: any, b: any) => getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos))[0];
-            // Врагов не осталось: миньоны — к хозяину, мусорщики ждут (не трогают игрока).
+            // Врагов не осталось: миньоны — к хозяину, мусорщики — за хабаром с трупов.
+            // Мусорщик без трупов просто ждёт (не трогает игрока).
+            let lootingCorpses = false;
             if (!hostile) {
-              if ((enemy as any).isMinion) targetPos = { ...currentStore.playerPos };
-              else { enemyAp = 0; break; }
+              if ((enemy as any).isMinion) {
+                targetPos = { ...currentStore.playerPos };
+              } else {
+                const hostilesLeft = updatedEnemies.some((e: any) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник');
+                const corpses = !hostilesLeft
+                  ? updatedEnemies.filter((e: any) => e.dead && e.loot && e.loot.length > 0)
+                  : [];
+                if (corpses.length > 0) {
+                  const near = corpses.sort((a: any, b: any) => getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos))[0];
+                  targetPos = { ...near.pos };
+                  lootingCorpses = true;
+                  // У трупа — болтовня про хабар (если молчит).
+                  if (getDist(enemy.pos, near.pos) <= 2 && !enemy.speech && Math.random() < 0.3 && canChatter(enemy.pos)) {
+                    saySync(enemy.id, pickPhrase(STALKER_LOOT));
+                  }
+                } else { enemyAp = 0; break; }
+              }
             } else {
               targetPos = { ...hostile.pos };
             }
@@ -655,7 +672,7 @@ export const useEnemyAI = () => {
             }
           }
 
-          if (canSee && inRange && enemyAp >= (enemy.shotPrice || 1) && !isMedic) {
+          if (canSee && inRange && enemyAp >= (enemy.shotPrice || 1) && !isMedic && !lootingCorpses) {
             const angle = getAngle(enemy.pos, targetPos);
             // Play enemy attack sound
             const sk = shotKindForEnemy(enemy);
@@ -730,6 +747,24 @@ export const useEnemyAI = () => {
                 if (targetAlly.currentHp <= 0) {
                   targetAlly.dead = true;
                   useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, '💥 Приманка уничтожена!', 'SPECIAL');
+                }
+              } else if (isAlly) {
+                // Бьёт СОЮЗНИК: урон — врагу на точке, а не игроку!
+                const targetHostile = updatedEnemies.find((e: any) =>
+                  e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+                );
+                if (targetHostile) {
+                  targetHostile.currentHp = Math.max(0, targetHostile.currentHp - finalDmg);
+                  targetHostile.isHit = true;
+                  useCombatGridStore.getState().addPopup(targetHostile.pos.x, targetHostile.pos.y, result.text, result.type);
+                  setTimeout(() => { targetHostile.isHit = false; }, 300);
+                  if (targetHostile.currentHp <= 0) {
+                    targetHostile.dead = true;
+                    targetHostile.isHit = false;
+                    useCombatGridStore.getState().addBattleLog(`💀 ${targetHostile.name} уничтожен мусорщиком!`);
+                  }
+                } else {
+                  useCombatGridStore.getState().addPopup(targetPos.x, targetPos.y, result.text, result.type);
                 }
               } else if (absorbWithShield(currentStore.playerPos)) {
                 // Shield absorbed all damage
@@ -827,6 +862,24 @@ export const useEnemyAI = () => {
                   if (extraTargetAlly.currentHp <= 0) {
                     extraTargetAlly.dead = true;
                     useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, '💥 Приманка уничтожена!', 'SPECIAL');
+                  }
+                } else if (isAlly) {
+                  // Бонус-выстрел союзника: урон — врагу на точке.
+                  const extraHostile = updatedEnemies.find((e: any) =>
+                    e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+                  );
+                  if (extraHostile) {
+                    extraHostile.currentHp = Math.max(0, extraHostile.currentHp - finalDmg2);
+                    extraHostile.isHit = true;
+                    useCombatGridStore.getState().addPopup(extraHostile.pos.x, extraHostile.pos.y, result2.text, result2.type);
+                    setTimeout(() => { extraHostile.isHit = false; }, 300);
+                    if (extraHostile.currentHp <= 0) {
+                      extraHostile.dead = true;
+                      extraHostile.isHit = false;
+                      useCombatGridStore.getState().addBattleLog(`💀 ${extraHostile.name} уничтожен мусорщиком!`);
+                    }
+                  } else {
+                    useCombatGridStore.getState().addPopup(targetPos.x, targetPos.y, result2.text, result2.type);
                   }
                 } else if (absorbWithShield(currentStore.playerPos)) {
                   // Shield absorbed all damage

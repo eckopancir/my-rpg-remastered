@@ -7,6 +7,7 @@ import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
 import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
+import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { ShotVolley } from './ShotVolley';
 import pricelImg from '../../assets/images/ui/pricel-cursor.png';
 import type { GridEnemy } from '../../stores/combatGridStore';
@@ -318,8 +319,16 @@ export const BattleGrid = () => {
     const enemy = enemies.find((e) => !e.dead && e.currentHp > 0 && e.pos.x === x && e.pos.y === y);
     if (enemy) {
       // По своим не стреляем: мусорщики — друзья.
+      // После победы клик по живому мусорщику — благодарность.
       if (enemy.faction === 'Союзник') {
-        useCombatGridStore.getState().addMessage('🤝 Свои! В мусорщиков не стреляем.');
+        const cs = useCombatGridStore.getState();
+        const hostilesLeft = cs.enemies.some((e) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник');
+        if (!hostilesLeft) {
+          cs.say(enemy.id, pickPhrase(STALKER_THANKS));
+          cs.addBattleLog(`🤝 ${enemy.name} благодарит тебя за помощь!`);
+        } else {
+          cs.addMessage('🤝 Свои! В мусорщиков не стреляем.');
+        }
         return;
       }
       const store = useCombatGridStore.getState();

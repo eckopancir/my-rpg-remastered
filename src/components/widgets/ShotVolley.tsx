@@ -70,7 +70,7 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
         rot: ang + 90,
         delay,
         flight: baseFlight,
-        size: 30 * power * (kind === 'boss' ? 1.3 : 1),
+        size: 18 * power * (kind === 'boss' ? 1.3 : 1),
         filter: KIND_TINT[kind] || 'none',
       });
     }
@@ -94,11 +94,23 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
 
   if (done) return null;
 
-  const muzzleSize = (kind === 'heal' ? 40 : 46) * power;
+  const muzzleSize = (kind === 'heal' ? 24 : 28) * power;
   const mRot = kind === 'heal' ? 0 : (Math.atan2(shot.to.y - shot.from.y, shot.to.x - shot.from.x) * 180) / Math.PI + 90;
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 40 }}>
+      {/* Бластерная синяя линия для прицельных (тип aim) — под пулями */}
+      {shot.type === 'aim' && (
+        <svg className={styles.shotSvg}>
+          <line
+            x1={`${(shot.from.x / 31) * 100}%`}
+            y1={`${(shot.from.y / 31) * 100}%`}
+            x2={`${(shot.to.x / 31) * 100}%`}
+            y2={`${(shot.to.y / 31) * 100}%`}
+            className={`${styles.tracerLine} ${styles.aimShot}`}
+          />
+        </svg>
+      )}
       {/* Вспышка: у дула стрелка; хил — зелёная на цели */}
       {images.muzzle && (
         <div style={{ position: 'absolute', left: `${kind === 'heal' ? (shot.to.x / 31) * 100 : fx}%`, top: `${kind === 'heal' ? (shot.to.y / 31) * 100 : fy}%`, width: 0, height: 0 }}>

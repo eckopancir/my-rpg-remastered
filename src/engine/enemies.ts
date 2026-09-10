@@ -61,7 +61,7 @@ export const ENEMY_BASE_STATS: Record<string, EnemyBaseDefinition> = {
     health: 120, damage: 25, dps: 25, speed: 0, crit: 0.10, armor: 1, evasion: 0,
     regen: 0, block: 0, punching: 0, accuracy: 1.4, vampir: 0,
     expRewardMultiplier: 2, rangeDistance: 18, runAp: 3, shotPrice: 3,
-    skillUse: ['redZone', 'suppression', 'aimShot'], bigModel: '130%', faction: 'Военные',
+    skillUse: ['suppression', 'aimShot'], bigModel: '130%', faction: 'Военные',
     soundAttack: 'sniper', nowModel: 'sniperimg', dead: 'dead', avatar: 'sniperimg', level: 3,
   },
   'Военные (drob)': {

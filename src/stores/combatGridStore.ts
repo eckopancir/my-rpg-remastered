@@ -1270,6 +1270,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const model = stalkerModels[Math.floor(Math.random() * stalkerModels.length)];
         // Мусорщики крепче обычных стрелков: +30% к здоровью.
         const aHp = Math.round(aBase.health * aTotalMult * 1.3);
+        // Хабар с мёртвого мусорщика — как с обычного стрелка.
+        let aLoot: any[] = [];
+        try {
+          aLoot = generateLoot(GAME_ITEMS, playerLevel, { rank: 'regular' });
+        } catch { /* ignore */ }
         const aDmg = Math.round(aBase.damage * aTotalMult);
         activeEnemies.push({
           id: `ally_${a}_${Date.now()}`,
@@ -1307,7 +1312,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           hasSummoned: false,
           bigModel: '100%',
           isSpinning: false,
-          loot: [],
+          loot: aLoot,
           looted: false,
           soundAttack: aBase.soundAttack || 'shotenemy',
           nowModel: model,
@@ -2621,7 +2626,7 @@ export async function executeSkill(
   if (enemy.cooldowns?.[skillName] && enemy.cooldowns[skillName] > 0) return null;
   const dist = getDist(enemy.pos, pPos);
 
-  const combatSkills = ['aimShot', 'madness', 'grenade', 'redZone', 'suppression', 'ram', 'invisibility'];
+  const combatSkills = ['aimShot', 'madness', 'grenade', 'suppression', 'ram', 'invisibility'];
   if (combatSkills.includes(skillName)) {
     let maxRange = enemy.rangeDistance || 7;
     if (skillName === 'ram') maxRange = 8;
@@ -2852,22 +2857,6 @@ export async function executeSkill(
       if (!enemy.cooldowns) enemy.cooldowns = {};
       enemy.cooldowns['grenade'] = 8;
       return { costAp: 0 };
-    }
-
-    case 'redZone': {
-      if (enemy.cooldowns?.['redZone'] > 0) return null;
-      playCombatSound('install', 0.4);
-      set((s: any) => ({
-        globalEffects: [
-          ...s.globalEffects,
-          { type: 'REDZONE' as const, pos: { x: pPos.x, y: pPos.y }, damage: enemy.damage * 10, ownerId: enemy.id, timer: 2 },
-        ],
-      }));
-      if (!enemy.cooldowns) enemy.cooldowns = {};
-      enemy.cooldowns['redZone'] = 6;
-      setCd('redZone', 6);
-      get().addBattleLog(`🚨 ${enemy.name}: красная зона под тобой — уходи!`);
-      return { spendAllAp: true };
     }
 
       case 'suppression': {
