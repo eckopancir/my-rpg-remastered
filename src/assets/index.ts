@@ -93,4 +93,5 @@ export const images = {
   campfire1: battleImageMap.get('fire1'),
   campfire2: battleImageMap.get('fire2'),
   unloadMag: uiImageMap.get('screenshot_70-photoroom'),
+  backpackLock: uiImageMap.get('screenshot_71-photoroom'),
 };

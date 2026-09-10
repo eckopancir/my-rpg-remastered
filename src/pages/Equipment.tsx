@@ -510,12 +510,15 @@ export const Equipment = () => {
                 position: 'absolute',
                 top: SLOT_POSITIONS.backpack.top + 18,
                 left: SLOT_POSITIONS.backpack.left + 76,
-                fontSize: 16, cursor: 'pointer', lineHeight: 1,
+                width: 22, height: 22, cursor: 'pointer', lineHeight: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 opacity: backpackLocked ? 1 : 0.45,
-                filter: backpackLocked ? 'drop-shadow(0 0 4px rgba(251,191,36,0.8))' : 'none',
+                filter: backpackLocked ? 'drop-shadow(0 0 4px rgba(251,191,36,0.8))' : 'grayscale(0.8)',
               }}
             >
-              {backpackLocked ? '🔒' : '🔓'}
+              {images.backpackLock
+                ? <img src={images.backpackLock} alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} draggable={false} />
+                : (backpackLocked ? '🔒' : '🔓')}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', width: '100%' }}>
