@@ -5,6 +5,7 @@ import { CustomizationModal } from '../components/widgets/CustomizationModal';
 import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
 import { usePlayerStore, EQUIPMENT_SLOTS, type EquipmentSlot } from '../stores/playerStore';
+import { ammoTypeForWeapon } from '../data/ammo';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useUiStore } from '../stores/uiStore';
 import { getItemImage, images } from '../assets/index';
@@ -120,8 +121,7 @@ export const Equipment = () => {
     e.preventDefault();
   }, [pos]);
 
-  const dragItem = useMemo(() => items.find((i) => i.id === draggedItemId), [items, draggedItemId]);
-  const validDropSlots = useMemo(() => {
+  const dragItem = useMemo(() => items.find((i) => i.id === draggedItemId), [items, draggedItemId]);  const validDropSlots = useMemo(() => {
     if (!dragItem) return new Set<string>();
     const slots = new Set<string>();
     if (!dragItem.slot) return slots;
@@ -160,6 +160,25 @@ export const Equipment = () => {
   };
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+
+  // Выгрузить магазин из оружия в рюкзак (кнопка справа от слота).
+  const handleUnload = () => {
+    const pst = usePlayerStore.getState();
+    const w = pst.equipment.weapon2;
+    const loaded = w?.loadedAmmo || 0;
+    if (!w || loaded <= 0) return;
+    const back = pst.returnAmmoToPack(ammoTypeForWeapon(w), loaded);
+    usePlayerStore.setState((st: any) => ({
+      equipment: {
+        ...st.equipment,
+        weapon2: st.equipment.weapon2
+          ? { ...st.equipment.weapon2, loadedAmmo: Math.max(0, (st.equipment.weapon2.loadedAmmo || 0) - back) }
+          : null,
+      },
+    }));
+    playSound('reload', 0.5);
+    pst.addLog(`📤 Магазин выгружен в рюкзак (+${back})`, 'info');
+  };
 
   const handleMouseEnter = (slot: string, item: Item | null, e: React.MouseEvent) => {
     setHoverSlot(slot);
@@ -243,7 +262,9 @@ export const Equipment = () => {
           onDoubleClick={() => handleSlotDoubleClick(slot, item)}
           draggable={!!item}
           onDragStart={(e) => { if (item) e.dataTransfer.setData('text/plain', `equip:${slot}`); }}
-          title={item ? `${caption} — тяни в инвентарь, чтобы снять` : caption}
+          title={item
+            ? `${caption} — тяни в инвентарь, чтобы снять${slot === 'weapon2' && item.ammoCapacity ? ` · патроны ${item.loadedAmmo || 0}/${item.ammoCapacity}` : ''}`
+            : caption}
           style={{
             width: slotW,
             height: slotH,
@@ -374,6 +395,20 @@ export const Equipment = () => {
               return (
                 <div key={slot} style={{ position: 'absolute', top: pos.top, left: pos.left }}>
                   {renderSlotBox(slot)}
+                  {/* Выгрузка магазина — справа от второй руки */}
+                  {slot === 'weapon2' && (equipment.weapon2?.loadedAmmo || 0) > 0 && (
+                    <div
+                      onClick={(e) => { e.stopPropagation(); handleUnload(); }}
+                      title={`Выгрузить магазин (${equipment.weapon2?.loadedAmmo} шт.) в рюкзак`}
+                      style={{
+                        position: 'absolute', top: 18, right: -26,
+                        fontSize: 17, cursor: 'pointer', lineHeight: 1,
+                        filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.8))',
+                      }}
+                    >
+                      📤
+                    </div>
+                  )}
                 </div>
               );
             })}

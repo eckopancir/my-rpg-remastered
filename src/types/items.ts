@@ -47,6 +47,8 @@ export interface Item {
   abilityId?: string;
   ammoCapacity?: number;
   ammoGroup?: string;
+  // Магазин огнестрела: сколько патронов заряжено (игра помнит всегда).
+  loadedAmmo?: number;
 }
 
 

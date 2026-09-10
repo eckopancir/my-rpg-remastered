@@ -959,8 +959,24 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Read weapon ammo capacity from equipped weapon2
     const weapon2 = player.equipment.weapon2;
     let ammoCap = weapon2?.ammoCapacity || 30;
-    // Предзарядка магазина из рюкзака (с оружием); без патронов — старт пустым.
-    const startAmmo = weapon2 ? usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(weapon2), ammoCap) : ammoCap;
+    // Магазин живёт в оружии (loadedAmmo): рюкзак не трогаем.
+    // Первая зарядка (loadedAmmo нет): полный магазин из рюкзака, запоминаем.
+    let startAmmo: number;
+    let tookFromPack = 0;
+    if (!weapon2) {
+      startAmmo = ammoCap;
+    } else if (typeof weapon2.loadedAmmo === 'number') {
+      startAmmo = Math.max(0, Math.min(ammoCap, weapon2.loadedAmmo));
+    } else {
+      startAmmo = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(weapon2), ammoCap);
+      tookFromPack = startAmmo;
+      usePlayerStore.setState((st: any) => ({
+        equipment: {
+          ...st.equipment,
+          weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: startAmmo } : st.equipment.weapon2,
+        },
+      }));
+    }
 
     // Override rewards with card values when in card mode
     if (cardRewards) {
@@ -1235,10 +1251,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     return true;
     } catch (e) {
       console.error('[initCombat]', e);
-      // Магазин уже списан из рюкзака (startAmmo) — вернуть, иначе патроны сгорят.
+      // Первая зарядка уже списана из рюкзака — вернуть в рюкзак и обнулить
+      // магазин (иначе дубли: и в рюкзаке, и в оружии).
       try {
-        if (typeof startAmmo !== 'undefined' && startAmmo > 0 && weapon2) {
-          usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(weapon2), startAmmo);
+        if (tookFromPack > 0 && weapon2) {
+          usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(weapon2), tookFromPack);
+          usePlayerStore.setState((st: any) => ({
+            equipment: {
+              ...st.equipment,
+              weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: 0 } : st.equipment.weapon2,
+            },
+          }));
         }
       } catch { /* ignore */ }
       // Не оставляем полуживой бой: чистим сетку, caller решит что дальше.
@@ -2346,6 +2369,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return;
     }
     set((s) => ({ ap: s.ap - 2, ammo: s.ammo + took, message: `🔁 +${took} (AP -2)` }));
+    // Магазин в оружии = итог после дозарядки (не инкремент: в бою тратился state.ammo).
+    const magAfter = get().ammo;
+    usePlayerStore.setState((st: any) => ({
+      equipment: {
+        ...st.equipment,
+        weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: magAfter } : st.equipment.weapon2,
+      },
+    }));
     get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
   },
 
@@ -2399,16 +2430,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       stats: { ...st.stats, shieldCharges: 0 },
       activeEffects: (st.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_')),
     }));
-    // Остаток магазина — обратно в рюкзак. На поражении пропуск:
-    // там рюкзак уже вайпнут, воскрешать патроны нельзя.
-    // Только если бой реально шёл (защита от двойного возврата при падении initCombat).
+    // Остаток магазина — записать в оружие (магазин живёт в оружии, не в рюкзаке).
+    // Даже на поражении: рюкзак вайпнут, а оружие остаётся при герое.
     const cs = get();
-    if (!cs.isDefeat && cs.isActive && cs.ammo > 0) {
+    if (cs.isActive) {
       const w2 = usePlayerStore.getState().equipment.weapon2;
       if (w2) {
         try {
-          const back = usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(w2), cs.ammo);
-          if (back > 0) usePlayerStore.getState().addLog(`🔁 Магазин возвращён в рюкзак (+${back})`, 'info');
+          usePlayerStore.setState((st: any) => ({
+            equipment: {
+              ...st.equipment,
+              weapon2: st.equipment.weapon2 ? { ...st.equipment.weapon2, loadedAmmo: cs.ammo } : st.equipment.weapon2,
+            },
+          }));
         } catch { /* best effort */ }
       }
     }
