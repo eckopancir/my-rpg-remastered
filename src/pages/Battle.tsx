@@ -498,14 +498,16 @@ export const Battle = () => {
                 onClick={resetStuckCombat}
                 title="Если бой завис — сбросить его и выйти"
                 style={{
-                  padding: '6px', border: '1px solid rgba(255,80,80,0.25)',
+                  padding: '6px 9px', border: '1px solid rgba(255,80,80,0.25)',
                   background: 'rgba(255,50,50,0.04)',
                   color: 'rgba(255,120,120,0.6)',
                   cursor: 'pointer',
-                  fontSize: 11, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 11, textTransform: 'uppercase',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
               >
-                🧹 Сбросить бой
+                <span>🧹 Сбросить бой</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>—</span>
               </div>
             </div>
 
