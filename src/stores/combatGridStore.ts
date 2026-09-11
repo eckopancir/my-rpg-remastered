@@ -2203,45 +2203,50 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         forceCritMult: state.stealth ? 5 : 0,
       };
       const hitIds = new Set<string | number>();
+      const strikeOne = (t: GridEnemy) => {
+        const targetStats = applyTerrainToTarget(
+          { armor: t.armor, evasion: t.evasion, block: t.block },
+          t.pos,
+          state.obstacles,
+        );
+        const result = calculateCombatResult(attackerStats, targetStats);
+        const actualDmg = Math.round(result.damage);
+        hitIds.add(t.id);
+        set((s) => ({
+          ap: s.ap,
+          ammo: s.ammo,
+          enemies: s.enemies.map((e) =>
+            e.id === t.id ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } : e
+          ),
+          message: `🗡️ ${result.text}`,
+          selectedEnemy: null,
+          stealth: false,
+        }));
+        get().addPopup(t.pos.x, t.pos.y, result.text, result.type);
+        const vampHeal = Math.round(actualDmg * (player.stats.vampir || 0));
+        if (vampHeal > 0) {
+          usePlayerStore.setState((st: any) => ({
+            stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vampHeal) },
+          }));
+          get().addPopup(t.pos.x, t.pos.y, `+${vampHeal} 🩸`, 'VAMP');
+        }
+      };
       for (const c of cells) {
         const targets = get().enemies.filter((e) =>
           !e.dead && e.currentHp > 0 && e.faction !== 'Союзник' && e.pos.x === c.x && e.pos.y === c.y,
         );
-        for (const t of targets) {
-          const targetStats = applyTerrainToTarget(
-            { armor: t.armor, evasion: t.evasion, block: t.block },
-            t.pos,
-            state.obstacles,
-          );
-          const result = calculateCombatResult(attackerStats, targetStats);
-          const actualDmg = Math.round(result.damage);
-          hitIds.add(t.id);
-          set((s) => ({
-            ap: s.ap,
-            ammo: s.ammo,
-            enemies: s.enemies.map((e) =>
-              e.id === t.id ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } : e
-            ),
-            message: `🗡️ ${result.text}`,
-            selectedEnemy: null,
-            stealth: false,
-          }));
-          get().addPopup(t.pos.x, t.pos.y, result.text, result.type);
-          const vampHeal = Math.round(actualDmg * (player.stats.vampir || 0));
-          if (vampHeal > 0) {
-            usePlayerStore.setState((st: any) => ({
-              stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vampHeal) },
-            }));
-            get().addPopup(t.pos.x, t.pos.y, `+${vampHeal} 🩸`, 'VAMP');
-          }
+        for (const t of targets) strikeOne(t);
+      }
+      // Страховка: кликнутого соседнего врага бьём всегда, даже если
+      // геометрия дуги его не накрыла (мертвая зона диагоналей и т.п.).
+      if (hitIds.size === 0) {
+        const fb = get().enemies.find((e) => e.id === enemy.id && !e.dead && e.currentHp > 0);
+        if (fb && getDist(state.playerPos, fb.pos) <= 1.5) {
+          strikeOne(fb);
+        } else {
+          get().addMessage('🗡️ Мимо! Рядом никого.');
         }
       }
-      // Удар стоит 1 AP, патроны не тратит.
-      set((s) => ({ ap: Math.max(0, s.ap - 1) }));
-      setTimeout(() => {
-        set((s) => ({ enemies: s.enemies.map((e) => (hitIds.has(e.id) ? { ...e, isHit: false } : e)) }));
-      }, 300);
-      if (hitIds.size === 0) get().addMessage('🗡️ Мимо! Рядом никого.');
       // Смерти + добивка резерва как в огнестреле.
       setTimeout(() => {
         let killed = 0;
