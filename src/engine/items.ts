@@ -117,10 +117,13 @@ let _idCounter = 0;
 
 const uniqueId = () => String(Date.now()) + '_' + (++_idCounter) + '_' + Math.random().toString(36).slice(2, 8);
 
-// Дробные статы (шансы/множители) уровнем НЕ масштабируются — иначе
-// точность 0.1 превращается в 1.0+ и всё ломается. Только плоские.
-const NO_LEVEL_SCALE = new Set([
-  'accuracy', 'crit', 'evasion', 'block', 'vampir', 'speed', 'punching',
+// Скалирование как раньше: ВСЕ базовые статы растут с уровнем.
+// Штрафы (отрицательные) при этом НЕ растут и НЕ зануляются.
+
+// Стихийный урон может появиться на оружии с уровнем, даже если его
+// не было в базе. Остальные новые характеристики — нет.
+const ROLLABLE_NEW_STATS = new Set([
+  'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire',
 ]);
 
 export const generateItem = (
@@ -212,6 +215,10 @@ export const generateItem = (
     bonusKeys = Object.keys(bonusSource);
     procMultiplier = 1;
   }
+  // С уровня падают бонусы ТОЛЬКО к тем статам, что уже есть в базе.
+  // Исключение — стихийный урон: он может появиться заново.
+  // (+5 брони или +15% крита из ниоткуда — нельзя.)
+  bonusKeys = bonusKeys.filter((k) => (finalStats[k] || 0) !== 0 || ROLLABLE_NEW_STATS.has(k));
 
   for (let i = 0; i < qualityTier.bonusStatsCount; i++) {
     if (bonusKeys.length === 0) break;
@@ -219,8 +226,8 @@ export const generateItem = (
     const baseBonusValue = generatedItem.slot.startsWith('mod_')
       ? (generatedItem.stats[randomStatKey] || 0)
       : (bonusSource[randomStatKey] || 0);
-    // Дробные бонусы не скейлятся уровнем.
-    const levelMultiplier = NO_LEVEL_SCALE.has(randomStatKey) ? 1 : 1 + (playerLevel - 1) * 0.1;
+    // Дробные бонусы скейлятся как раньше (откат). Новые ключи — только стихийка.
+    const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
     const totalBonus = baseBonusValue * procMultiplier * levelMultiplier;
     finalStats[randomStatKey] = (finalStats[randomStatKey] || 0) + totalBonus;
   }
@@ -241,7 +248,8 @@ export const generateItem = (
     generatedItem.timeLimit = generatedItem.timeLimit * multiplier;
     for (const statKey in finalStats) {
       const originalBaseStat = baseItem.stats[statKey] || 0;
-      if (originalBaseStat !== 0 && !NO_LEVEL_SCALE.has(statKey)) {
+      // Штрафы не растут с уровнем (остаются как в базе) и не зануляются.
+      if (originalBaseStat !== 0 && originalBaseStat > 0) {
         const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
         finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
       }
@@ -254,7 +262,8 @@ export const generateItem = (
 
   for (const statKey in finalStats) {
     const originalBaseStat = baseItem.stats[statKey] || 0;
-    if (originalBaseStat !== 0 && !NO_LEVEL_SCALE.has(statKey)) {
+    // Штрафы не растут с уровнем (остаются как в базе) и не зануляются.
+    if (originalBaseStat !== 0 && originalBaseStat > 0) {
       const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
       finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
     }

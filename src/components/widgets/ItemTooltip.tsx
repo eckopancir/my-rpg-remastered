@@ -238,15 +238,17 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
 
       {(() => {
         // Статы с учётом вставленных модов: шлем 30 + мод 1 покажет 31.
+        // Штрафы (минусы) — отдельно красным блоком, они не растут с уровнем.
         const eff = effectiveItemStats(item);
         const fromMods = modStatsOf(item);
-        const keys = Object.keys(eff).filter((k) => eff[k]);
-        if (keys.length === 0) {
+        const posKeys = Object.keys(eff).filter((k) => eff[k] > 0);
+        const negKeys = Object.keys(eff).filter((k) => eff[k] < 0);
+        if (posKeys.length === 0 && negKeys.length === 0) {
           return <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Нет характеристик</div>;
         }
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {keys.slice(0, 10).map((k) => (
+            {posKeys.slice(0, 10).map((k) => (
               <div key={k} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{formatStat(k, eff[k])}</span>
                 {fromMods[k] ? (
@@ -256,6 +258,20 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
                 ) : null}
               </div>
             ))}
+            {negKeys.length > 0 && (
+              <div style={{
+                marginTop: 4, padding: '5px 7px', borderRadius: 6,
+                background: 'rgba(248,113,113,0.07)', border: '1px solid rgba(248,113,113,0.25)',
+                display: 'flex', flexDirection: 'column', gap: 2,
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#f87171', letterSpacing: 1 }}>➖ ШТРАФЫ</div>
+                {negKeys.map((k) => (
+                  <div key={k} style={{ fontSize: 12, color: '#f87171', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{formatStat(k, eff[k])}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })()}
