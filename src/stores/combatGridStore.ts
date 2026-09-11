@@ -1362,8 +1362,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     const playerAbilities = [...usePlayerStore.getState().accessoryAbilities].filter((a) => a && !a.passive);
     const abilityCooldowns = playerAbilities.map(() => 0);
-    // Дальность — от ствола (кулаки — 2, было 10 для всех).
-    const startRange = gun && !gunIsMelee ? weaponRangeProfile(gun).range : 2;
+    // Дальность — от ствола; ближний бой и кулаки: клетка вокруг.
+    const startRange = gun && !gunIsMelee ? weaponRangeProfile(gun).range : 1.5;
 
     set({
       isActive: true, playerPos, enemies: activeEnemies, obstacles,
@@ -2167,6 +2167,108 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return;
     }
 
+    // Ближний бой активен (холодное или кулаки): удар по 3 клеткам спереди.
+    // Без пуль и трассеров, звук клинка из игры.
+    const meleeW = usePlayerStore.getState().getActiveWeapon();
+    const isMeleeAttack = !meleeW || ((meleeW as any).slot === 'weapon1' && !(meleeW as any).ammoCapacity);
+    if (isMeleeAttack) {
+      const player = usePlayerStore.getState();
+      const angle = getAngle(state.playerPos, enemy.pos);
+      set({ playerRotation: angle, lastShotTurn: get().turnCount });
+      playCombatSound('melee', 0.5);
+      get().triggerShake();
+      // 3 клетки спереди: вперёд + две по бокам от вектора взгляда.
+      const rad = (angle * Math.PI) / 180;
+      const fdx = Math.round(Math.cos(rad));
+      const fdy = Math.round(Math.sin(rad));
+      const px = state.playerPos.x;
+      const py = state.playerPos.y;
+      const cells = [
+        { x: px + fdx, y: py + fdy },
+        { x: px + fdx - fdy, y: py + fdy + fdx },
+        { x: px + fdx + fdy, y: py + fdy - fdx },
+      ];
+      let effectiveDps = player.stats.damage;
+      const faction = enemy.faction;
+      const pureDmg = calcPureDamage(player.stats, faction);
+      if (player.stats.stamina < 0.1 * player.stats.maxStamina) effectiveDps *= 0.5;
+      const attackerStats = {
+        dps: effectiveDps,
+        pure: pureDmg,
+        crit: player.stats.crit,
+        accuracy: player.stats.accuracy,
+        punching: player.stats.punching,
+        vampir: player.stats.vampir,
+        isPlayer: true,
+        forceCritMult: state.stealth ? 5 : 0,
+      };
+      const hitIds = new Set<string | number>();
+      for (const c of cells) {
+        const targets = get().enemies.filter((e) =>
+          !e.dead && e.currentHp > 0 && e.faction !== 'Союзник' && e.pos.x === c.x && e.pos.y === c.y,
+        );
+        for (const t of targets) {
+          const targetStats = applyTerrainToTarget(
+            { armor: t.armor, evasion: t.evasion, block: t.block },
+            t.pos,
+            state.obstacles,
+          );
+          const result = calculateCombatResult(attackerStats, targetStats);
+          const actualDmg = Math.round(result.damage);
+          hitIds.add(t.id);
+          set((s) => ({
+            ap: s.ap,
+            ammo: s.ammo,
+            enemies: s.enemies.map((e) =>
+              e.id === t.id ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } : e
+            ),
+            message: `🗡️ ${result.text}`,
+            selectedEnemy: null,
+            stealth: false,
+          }));
+          get().addPopup(t.pos.x, t.pos.y, result.text, result.type);
+          const vampHeal = Math.round(actualDmg * (player.stats.vampir || 0));
+          if (vampHeal > 0) {
+            usePlayerStore.setState((st: any) => ({
+              stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vampHeal) },
+            }));
+            get().addPopup(t.pos.x, t.pos.y, `+${vampHeal} 🩸`, 'VAMP');
+          }
+        }
+      }
+      // Удар стоит 1 AP, патроны не тратит.
+      set((s) => ({ ap: Math.max(0, s.ap - 1) }));
+      setTimeout(() => {
+        set((s) => ({ enemies: s.enemies.map((e) => (hitIds.has(e.id) ? { ...e, isHit: false } : e)) }));
+      }, 300);
+      if (hitIds.size === 0) get().addMessage('🗡️ Мимо! Рядом никого.');
+      // Смерти + добивка резерва как в огнестреле.
+      setTimeout(() => {
+        let killed = 0;
+        set((s2) => ({
+          enemies: s2.enemies.map((e) => {
+            if (hitIds.has(e.id) && !e.dead && e.currentHp <= 0) {
+              killed += 1;
+              return { ...e, dead: true, isHit: false };
+            }
+            return e;
+          }),
+        }));
+        if (killed > 0) get().addBattleLog(`🗡️ Удар ближнего боя: убито ${killed}`);
+        const allDead = get().enemies.every((e) => e.dead);
+        if (allDead && get().reserve.length > 0) {
+          get().spawnWave(2);
+        }
+      }, 200);
+      const nextAp = get().ap;
+      if (nextAp < 1) {
+        setTimeout(() => {
+          get().endTurn();
+        }, 800);
+      }
+      return;
+    }
+
     const player = usePlayerStore.getState();
     const angle = getAngle(state.playerPos, enemy.pos);
     const pshot = shotKindForPlayerWeapon();
@@ -2618,8 +2720,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     // Берём следующее: свой магазин или первая зарядка из рюкзака.
     const nw = (usePlayerStore.getState().equipment as any)[next];
-    let cap = (nw ? effectiveAmmoCapacity(nw) : 0) || 30;
-    let mag: number;
+    let cap = (nw ? effectiveAmmoCapacity(nw) : 0) || 30;    let mag: number;
     if (!nw || !nw.ammoCapacity) {
       mag = cap;
     } else if (typeof nw.loadedAmmo === 'number') {
@@ -2637,7 +2738,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set({
       ammo: mag,
       maxAmmo: cap,
-      range: prof ? prof.range : 2,
+      range: prof ? prof.range : 1.5,
       selectedEnemy: null,
       message: `🔫 ${nw?.displayName || nw?.name || 'Кулаки'}`,
     });

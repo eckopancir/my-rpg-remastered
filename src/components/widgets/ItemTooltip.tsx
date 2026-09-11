@@ -174,6 +174,11 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
           📀 Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)}
         </div>
       )}
+      {item.slot === 'weapon1' && (
+        <div style={{ fontSize: 12, color: '#7dd3fc', marginBottom: 6 }}>
+          🎯 ближний бой · бьёт 3 клетки спереди
+        </div>
+      )}
       {item.slot === 'weapon2' && (() => {
         const prof = weaponRangeProfile(item);
         const tags = [
