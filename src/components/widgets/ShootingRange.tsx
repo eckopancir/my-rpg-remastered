@@ -57,8 +57,23 @@ const RELOAD_MS = 1500;
 const MAX_DECALS = 5;
 const SHOT_SOUNDS = ['shot1', 'shot2'];
 
-const FLOAT_COLORS: Record<FloatNum['kind'], { color: string; size: number }> = {
-  dmg: { color: '#f87171', size: 18 },
+// Гайд по характеристикам: как работает каждая и как её разогнать.
+const GUIDE: { title: string; icon: string; text: string }[] = [
+  { title: 'Урон (DMG)', icon: '⚔️', text: 'Базовый урон выстрела. Выносливость ниже 10% режет урон вдвое. Магазин ≤3 патронов даёт +30%. Дальше вычитается броня.' },
+  { title: 'Точность', icon: '🎯', text: 'Шанс попадания. 100% = всегда попал (кроме уворота). Свыше 100% пробивает уворот: 150% режет его вдвое, 200% гасит полностью. Качается снайперками, прицелами, скиллами.' },
+  { title: 'Крит', icon: '💥', text: 'Шанс = значению (100% = всегда). Множитель растёт тирами: 0–100% → ×2, 100–200% → ×3, 200–300% → ×4, 300–400% → ×5. Как получить ×5: разогнать крит до 400%+ (моды, сеты, скиллы).' },
+  { title: 'Скорость', icon: '⚡', text: 'Каждый выстрел имеет шанс бесплатного повтора = скорость × 0.5. Скорость 100% → +50% шанс, 200% → гарант. Повторный выстрел бьёт и считается отдельно. Качается ПП, лёгким ближним боем, модами.' },
+  { title: 'Пробитие', icon: '🔩', text: 'Игнорирует часть брони: множитель ×0.5 от значения (пробитие 20% → −10% брони). Нужно против танков и тяжёлой пехоты. Качается снайперками, бронебойными модами.' },
+  { title: 'Вампиризм', icon: '🩸', text: '% нанесённого урона возвращается тебе в HP. На 30 ур. реально разогнать до ~40% (тесак-пиявка и моды). Против толстых целей — лучший стат.' },
+  { title: 'Броня', icon: '🛡️', text: 'Плоско вычитается из каждого попадания. 50 брони = −50 с каждого выстрела. Контрится пробитием.' },
+  { title: 'Уклонение', icon: '🌀', text: 'Шанс полностью избежать выстрела. Контрится точностью свыше 100%. Стихийный (чистый) урон уворот не замечает.' },
+  { title: 'Блок', icon: '🧱', text: 'Шанс срезать урон: до 200% → −50%, 200%+ → −80%, 300%+ → −90%.' },
+  { title: 'Регенерация', icon: '♻️', text: 'HP в минуту вне боя и лечение каждый ход в бою.' },
+  { title: 'Стихийный урон', icon: '🔥', text: 'ЭМИ/токс/экстро/огонь бьют ЧИСТЫМ уроном мимо брони, блока и уворота; крит умножает всю сумму. У каждой фракции своя слабость (ЭМИ — роботы, токс — мутанты). Бывает базой на токсичном/плазменном оружии и может выпасть бонусом с уровнем.' },
+  { title: 'Магазин и темп', icon: '📀', text: 'Выстрел — 1 AP, перезарядка — 1 AP, за ход 5 AP. Магазин на 2 = 4 выстрела/ход, на 10 = 4.8, на 30 = 5. Мощность ствола в игре считается именно по этому среднему темпу, а не по голому урону.' },
+];
+
+const FLOAT_COLORS: Record<FloatNum['kind'], { color: string; size: number }> = {  dmg: { color: '#f87171', size: 18 },
   crit: { color: '#fbbf24', size: 22 },
   miss: { color: '#94a3b8', size: 15 },
   block: { color: '#60a5fa', size: 15 },
@@ -84,9 +99,11 @@ export const ShootingRange = ({ onClose }: Props) => {
   const [battleLog, setBattleLog] = useState<LogEntry[]>([]);
   const [hitSeq, setHitSeq] = useState(0);
   const [dead, setDead] = useState(false);
-  const [totals, setTotals] = useState({ shots: 0, dmg: 0, crits: 0 });
+  const [totals, setTotals] = useState({ shots: 0, dmg: 0, crits: 0, healed: 0, extras: 0 });
   const [cross, setCross] = useState<{ x: number; y: number } | null>(null);
   const [shotAlt, setShotAlt] = useState(0);
+  // Манекен или гайд по характеристикам.
+  const [showGuide, setShowGuide] = useState(false);
   const [pos, setPos] = useState(() => ({
     x: Math.max(0, (window.innerWidth - 1080) / 2),
     y: 24,
@@ -163,7 +180,7 @@ export const ShootingRange = ({ onClose }: Props) => {
     setFloats([]);
     setBattleLog([]);
     setDead(false);
-    setTotals({ shots: 0, dmg: 0, crits: 0 });
+    setTotals({ shots: 0, dmg: 0, crits: 0, healed: 0, extras: 0 });
     setAmmo(magSize);
     setReloading(false);
   };
@@ -273,7 +290,7 @@ export const ShootingRange = ({ onClose }: Props) => {
     // Отдача манекена: дёргание в сторону с возвратом.
     if (shotCount > 0) setHitSeq((v) => v + 1);
     setAmmo(a);
-    setTotals((t) => ({ shots: t.shots + shotCount, dmg: t.dmg + dealtTotal, crits: t.crits + critCount }));
+    setTotals((t) => ({ shots: t.shots + shotCount, dmg: t.dmg + dealtTotal, crits: t.crits + critCount, healed: t.healed + healTotal, extras: t.extras + Math.max(0, shotCount - 1) }));
     const newHp = Math.max(0, h - dealtTotal);
     setHp(newHp);
     if (healTotal > 0) {
@@ -448,6 +465,8 @@ export const ShootingRange = ({ onClose }: Props) => {
             <div>Средний: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
               {totals.shots > 0 ? Math.round(totals.dmg / totals.shots).toLocaleString() : '—'}
             </b></div>
+            <div>Восстановлено HP: <b style={{ color: '#4ade80', fontFamily: 'var(--font-mono)' }}>+{totals.healed.toLocaleString()}</b></div>
+            <div>Доп. выстрелов: <b style={{ color: '#7dd3fc', fontFamily: 'var(--font-mono)' }}>{totals.extras}</b></div>
           </div>
           <div style={{
             padding: '10px 12px', borderRadius: 8,
@@ -479,8 +498,44 @@ export const ShootingRange = ({ onClose }: Props) => {
             <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               {Math.round(hp).toLocaleString()} / {Math.round(cfg.hp).toLocaleString()}
             </span>
+            <button
+              onClick={() => setShowGuide((v) => !v)}
+              title="Переключить манекен / гайд по характеристикам"
+              style={{
+                padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                border: `1px solid ${showGuide ? 'var(--accent-primary)' : 'rgba(255,255,255,0.12)'}`,
+                background: showGuide ? 'rgba(217,119,6,0.15)' : 'transparent',
+                color: showGuide ? 'var(--accent-primary)' : 'var(--text-muted)',
+              }}
+            >
+              {showGuide ? '🎯 Манекен' : '📖 Гайд'}
+            </button>
           </div>
 
+          {showGuide ? (
+            <div style={{
+              position: 'relative', width: '100%', height: 540, overflowY: 'auto',
+              background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 10, padding: '14px 16px',
+              display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 1, color: 'var(--wa-accent-amber)' }}>
+                📖 КАК РАБОТАЮТ ХАРАКТЕРИСТИКИ
+              </div>
+              {GUIDE.map((g) => (
+                <div key={g.title} style={{
+                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: 8, padding: '8px 10px',
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>
+                    {g.icon} {g.title}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{g.text}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+          <>
           <div
             ref={boxRef}
             onClick={handleShot}
@@ -596,6 +651,8 @@ export const ShootingRange = ({ onClose }: Props) => {
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
             Кликай по манекену — урон считается формулой арены по выбранному пулу
           </div>
+          </>
+          )}
         </div>
 
         {/* RIGHT: лог боя */}
