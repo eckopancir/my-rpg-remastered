@@ -121,7 +121,7 @@ export const useUiStore = create<UiStore>()(
       rangeVolume: 1,
       showDamageNumbers: true,
       battleLogSize: 20,
-      autoReload: true,
+      autoReload: false,
       confirmExitCombat: true,
       showEnemyHpNumbers: false,
       duckMusicInCombat: false,
@@ -265,7 +265,7 @@ export const useUiStore = create<UiStore>()(
     }),
     {
       name: 'remastered_ui',
-      version: 7,
+      version: 8,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 4) {
@@ -281,7 +281,7 @@ export const useUiStore = create<UiStore>()(
           if (state.rangeVolume === undefined) state.rangeVolume = 1;
           if (state.showDamageNumbers === undefined) state.showDamageNumbers = true;
           if (state.battleLogSize === undefined) state.battleLogSize = 20;
-          if (state.autoReload === undefined) state.autoReload = true;
+          if (state.autoReload === undefined) state.autoReload = false;
           if (state.confirmExitCombat === undefined) state.confirmExitCombat = true;
           if (state.showEnemyHpNumbers === undefined) state.showEnemyHpNumbers = false;
           if (state.duckMusicInCombat === undefined) state.duckMusicInCombat = false;
@@ -291,6 +291,10 @@ export const useUiStore = create<UiStore>()(
         }
         if (version < 7) {
           if (state.forceDay === undefined) state.forceDay = false;
+        }
+        if (version < 8) {
+          // Автоперезарядка по умолчанию выключена (путала с 2 AP за выстрел).
+          state.autoReload = false;
         }
         return state as UiStore;
       },
