@@ -109,6 +109,16 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
       }}>
         {item.displayName || item.name}
       </div>
+      {(item as any).unique && (
+        <div style={{
+          display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: 2,
+          color: '#ffd700', background: 'rgba(255,215,0,0.1)',
+          border: '1px solid rgba(255,215,0,0.5)', borderRadius: 4,
+          padding: '1px 7px', marginBottom: 8,
+        }}>
+          🔥 УНИК
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, fontSize: 11, color: 'var(--text-muted)' }}>
         <span>Lv.{item.level || 1}</span>
         {item.slot && (
@@ -285,11 +295,19 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
                 display: 'flex', flexDirection: 'column', gap: 2,
               }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#f87171', letterSpacing: 1 }}>➖ ШТРАФЫ</div>
-                {negKeys.map((k) => (
-                  <div key={k} style={{ fontSize: 12, color: '#f87171', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>{formatStat(k, eff[k])}</span>
-                  </div>
-                ))}
+                {negKeys.map((k) => {
+                  const label = STAT_LABELS[k] || k;
+                  const v = eff[k];
+                  const isPct = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
+                  const shown = isPct
+                    ? (() => { const p = v * 100; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
+                    : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(3)}`;
+                  return (
+                    <div key={k} style={{ fontSize: 12, color: '#f87171', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>{label}: -{shown}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -60,6 +60,7 @@ export interface ItemDefinition {
   armorType?: string;
   abilityId?: string;
   ammoCapacity?: number;
+  unique?: boolean;
 }
 
 export interface GeneratedItem {
@@ -82,6 +83,7 @@ export interface GeneratedItem {
   armorType?: string;
   abilityId?: string;
   ammoCapacity?: number;
+  unique?: boolean;
 }
 
 const assignRandomAbility = (item: GeneratedItem) => {
