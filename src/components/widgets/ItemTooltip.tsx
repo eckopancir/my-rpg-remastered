@@ -3,7 +3,7 @@ import type { Item } from '../../types/items';
 import { chestImageFor, configForQuality } from '../../data/chests';
 import { QUALITY_TIERS } from '../../engine/items';
 import { backpackDefByName, backpackSlots, backpackSlotsFor } from '../../data/backpacks';
-import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effectiveAmmoCapacity, type AmmoGroup } from '../../data/ammo';
+import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effectiveAmmoCapacity, MAGAZINE_BONUS, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
@@ -178,11 +178,31 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
           </div>
         );
       })()}
-      {item.slot === 'mod_magazine' && (
-        <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          📀 +патроны к вместимости (по стволу и качеству мода)
-        </div>
-      )}
+      {item.slot === 'mod_magazine' && (() => {
+        const order = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
+        const qi = Math.max(0, order.indexOf(item.quality || 'Обычный'));
+        const val = (cls: string): number => {
+          const t = MAGAZINE_BONUS[cls] || MAGAZINE_BONUS.default;
+          return t[Math.min(qi, t.length - 1)] || 0;
+        };
+        const rows: [string, string][] = [
+          ['Снайпер', 'sniper'], ['Автомат', 'rifle'], ['Пистолет', 'pistol'],
+          ['Дробь', 'shotgun'], ['Пулемёт', 'mg'], ['Тяжёлое', 'heavy'],
+        ];
+        return (
+          <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
+            <div style={{ marginBottom: 3 }}>📀 Магазин ({item.quality || 'Обычный'}): +патроны по стволу</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 8px', fontSize: 11, color: 'var(--text-secondary)' }}>
+              {rows.map(([label, cls]) => (
+                <div key={cls} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{label}</span>
+                  <span style={{ color: '#4ade80', fontFamily: 'var(--font-mono)' }}>+{val(cls)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />
 
       {item.set && SET_BONUSES[item.set] && (
