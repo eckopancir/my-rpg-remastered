@@ -116,6 +116,20 @@ export const getItemQuality = (): QualityTier => {
 };
 
 /**
+ * Множитель статов мода от его качества (редкость снова имеет смысл).
+ * Обычный ×1 … Божественный ×2.
+ */
+export const QUALITY_MOD_MULT: Record<string, number> = {
+  'Обычный': 1,
+  'Редкий': 1.1,
+  'Раритетный': 1.25,
+  'Эпический': 1.4,
+  'Смертоносный': 1.6,
+  'Легендарный': 1.8,
+  'Божественный': 2.0,
+};
+
+/**
  * Второй стат мода из пула (мутабельно в stats): совпал с сигнатурой — дабл.
  * Используется генерацией и дебагом, чтобы моды всегда были 2-параметровые.
  */
@@ -247,6 +261,15 @@ export const generateItem = (
   const isMagazineMod = generatedItem.slot === 'mod_magazine';
   if (isModSlot && !isMagazineMod) {
     rollModExtraStat(finalStats, generatedItem.slot);
+    // Редкость мода усиливает оба его параметра.
+    const qmult = QUALITY_MOD_MULT[qualityTier?.name || 'Обычный'] || 1;
+    if (qmult !== 1) {
+      for (const k of Object.keys(finalStats)) {
+        finalStats[k] = Math.round(finalStats[k] * qmult * 10000) / 10000;
+      }
+    }
+    // Метка нового образца: старые без метки чистятся миграцией.
+    (generatedItem as any)._modv = 2;
   }
 
   for (let i = 0; i < qualityTier.bonusStatsCount; i++) {

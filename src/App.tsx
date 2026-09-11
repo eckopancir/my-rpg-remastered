@@ -113,10 +113,37 @@ const AppContent = () => {
 
     const doLoad = async () => {
       const hasInventory = await loadInventoryFromServer(token);
-      // Моды переехали на рантайм-скейл: гасим старый запечённый скейл один раз.
-      // (идемпотентно; doLoad бежит один раз за сессию)
+      // Старые моды (без метки _modv) удалены из игры: чистим и серверные данные.
       try {
-        for (const it of useInventoryStore.getState().items) demoteModStats(it);
+        const inv = useInventoryStore.getState();
+        const bad = inv.items.filter((it: any) => it?.type === 'mod' && (it as any)._modv !== 2);
+        if (bad.length > 0) {
+          useInventoryStore.setState({ items: inv.items.filter((it: any) => !(it?.type === 'mod' && (it as any)._modv !== 2)) });
+          usePlayerStore.getState().addLog(`🔧 Старые моды удалены из игры (${bad.length} шт.)`, 'system');
+        }
+        const ps0 = usePlayerStore.getState();
+        let stripped = 0;
+        const eq1: any = { ...(ps0.equipment || {}) };
+        for (const k of Object.keys(eq1)) {
+          const it = eq1[k];
+          if (it && (it as any).mods) {
+            const fresh: any = {};
+            for (const [mk, mv] of Object.entries((it as any).mods)) {
+              if ((mv as any)?._modv === 2) fresh[mk] = mv;
+              else stripped += 1;
+            }
+            eq1[k] = { ...it, mods: fresh };
+          }
+        }
+        const pack1 = (ps0.backpackContents || []).filter((it: any) => {
+          if (it?.type === 'mod' && (it as any)._modv !== 2) { stripped += 1; return false; }
+          return true;
+        });
+        if (stripped > 0) {
+          usePlayerStore.setState({ equipment: eq1, backpackContents: pack1 });
+          usePlayerStore.getState().addLog(`🔧 Старые моды удалены из игры (${stripped} шт.)`, 'system');
+          usePlayerStore.getState().recalcStats();
+        }
       } catch { /* ignore */ }
 
       // Load equipment from server

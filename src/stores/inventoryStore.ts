@@ -103,7 +103,7 @@ export const useInventoryStore = create<InventoryStore>()(
     }),
     {
       name: 'inventory',
-      version: 3,
+      version: 4,
       partialize: (state) => ({
         items: state.items,
         currentPage: state.currentPage,
@@ -113,6 +113,10 @@ export const useInventoryStore = create<InventoryStore>()(
         if (!persisted?.items) return persisted;
         if (version < 3) {
           for (const it of persisted.items) demoteModStats(it);
+        }
+        if (version < 4) {
+          // Старые моды (без метки) удаляем из игры.
+          persisted.items = persisted.items.filter((it: any) => !(it?.type === 'mod' && (it as any)._modv !== 2));
         }
         persisted.items = persisted.items.filter((item: any) => {
           if (item.type === 'material' || item.type === 'resources') {

@@ -1383,13 +1383,38 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'remastered_player',
-      version: 11,
+      version: 12,
       migrate: (persisted: any, version: number) => {
         if (version < 11 && persisted) {
           // Моды переехали на рантайм-скейл: гасим старый запечённый скейл один раз.
           const eq = persisted.equipment || {};
           for (const it of Object.values(eq)) demoteModStats(it);
           for (const it of persisted.backpackContents || []) demoteModStats(it);
+        }
+        if (version < 12 && persisted) {
+          // Старые моды (без метки) удаляем из игры: россыпь и вставленные.
+          let n = 0;
+          const eq = persisted.equipment || {};
+          for (const it of Object.values(eq) as any[]) {
+            if (it && (it as any).mods) {
+              const fresh: any = {};
+              for (const [mk, mv] of Object.entries((it as any).mods)) {
+                if ((mv as any)?._modv === 2) fresh[mk] = mv;
+                else n += 1;
+              }
+              (it as any).mods = fresh;
+            }
+          }
+          if (Array.isArray(persisted.backpackContents)) {
+            const before = persisted.backpackContents.length;
+            persisted.backpackContents = persisted.backpackContents.filter(
+              (it: any) => !(it?.type === 'mod' && (it as any)._modv !== 2),
+            );
+            n += before - persisted.backpackContents.length;
+          }
+          if (n > 0 && Array.isArray(persisted.logs)) {
+            persisted.logs.push({ id: Date.now(), message: `🔧 Старые моды удалены из игры (${n} шт.)`, type: 'system', ts: Date.now() });
+          }
         }
         return persisted;
       },
