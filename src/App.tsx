@@ -28,6 +28,7 @@ import { useInventoryStore } from './stores/inventoryStore';
 import { useExplorationStore } from './stores/explorationStore';
 import { useUiStore } from './stores/uiStore';
 import { useAuthStore } from './stores/authStore';
+import { demoteModStats } from './utils/itemStats';
 import { useEffect, useRef } from 'react';
 import { images } from './assets/index';
 import './styles/global.css';
@@ -112,6 +113,11 @@ const AppContent = () => {
 
     const doLoad = async () => {
       const hasInventory = await loadInventoryFromServer(token);
+      // Моды переехали на рантайм-скейл: гасим старый запечённый скейл один раз.
+      // (идемпотентно; doLoad бежит один раз за сессию)
+      try {
+        for (const it of useInventoryStore.getState().items) demoteModStats(it);
+      } catch { /* ignore */ }
 
       // Load equipment from server
       try {
@@ -149,6 +155,11 @@ const AppContent = () => {
       if (!hasInventory && data.inventory) {
         useInventoryStore.setState(data.inventory as any);
       }
+      try {
+        const ps = usePlayerStore.getState();
+        for (const it of Object.values(ps.equipment || {})) demoteModStats(it);
+        for (const it of ps.backpackContents || []) demoteModStats(it);
+      } catch { /* ignore */ }
       // Don't overwrite exploration state from server — persist middleware handles it
       // and server may re-trigger stale event processing
       usePlayerStore.getState().recalcStats();

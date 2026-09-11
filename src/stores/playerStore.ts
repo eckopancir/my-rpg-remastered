@@ -14,6 +14,7 @@ import { SKILL_CLASSES } from '../data/skills';
 import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
+import { modLevelMult, demoteModStats } from '../utils/itemStats';
 
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'pants', 'weapon1', 'weapon2',
@@ -234,14 +235,15 @@ const sumItemStats = (items: (Item | null)[]): PlayerStats => {
       const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
       if (mappedKey in total) (total as any)[mappedKey] += val;
     }
-    // Sum stats from installed mods
+    // Sum stats from installed mods (scaled by mod level)
     if (item.mods) {
       for (const mod of Object.values(item.mods)) {
         if (!mod || !mod.stats) continue;
+        const mult = modLevelMult(mod);
         for (const [k, v] of Object.entries(mod.stats)) {
           const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
           const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
-          if (mappedKey in total) (total as any)[mappedKey] += val;
+          if (mappedKey in total) (total as any)[mappedKey] += val * mult;
         }
       }
     }
@@ -544,11 +546,12 @@ export const usePlayerStore = create<PlayerStore>()(
           if (item.mods) {
             for (const mod of Object.values(item.mods)) {
               if (!mod || !mod.stats) continue;
+              const mult = modLevelMult(mod);
               for (const [k, v] of Object.entries(mod.stats)) {
                 const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
                 const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
                 if (mappedKey in woStats && typeof woStats[mappedKey] === 'number') {
-                  (woStats as any)[mappedKey] -= val;
+                  (woStats as any)[mappedKey] -= val * mult;
                 }
               }
             }
@@ -1380,8 +1383,16 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'remastered_player',
-      version: 10,
-      migrate: (persisted: any) => persisted,
+      version: 11,
+      migrate: (persisted: any, version: number) => {
+        if (version < 11 && persisted) {
+          // Моды переехали на рантайм-скейл: гасим старый запечённый скейл один раз.
+          const eq = persisted.equipment || {};
+          for (const it of Object.values(eq)) demoteModStats(it);
+          for (const it of persisted.backpackContents || []) demoteModStats(it);
+        }
+        return persisted;
+      },
       partialize: (state) => ({
         level: state.level, currentExp: state.currentExp, expToNext: state.expToNext,
         dataChips: state.dataChips, baseHealth: state.baseHealth,

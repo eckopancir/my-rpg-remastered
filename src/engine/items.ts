@@ -222,8 +222,25 @@ export const generateItem = (
   // (+5 брони или +15% крита из ниоткуда — нельзя.)
   bonusKeys = bonusKeys.filter((k) => (finalStats[k] || 0) !== 0 || ROLLABLE_NEW_STATS.has(k));
 
+  // Мод: сигнатура из дефа + ОДИН случайный второй стат из пула.
+  // Совпал с сигнатурой — дабл (крит+крит). Магазины — только +патроны.
+  const WEAPON_MOD_SLOTS = ['mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_scope', 'mod_barrel', 'mod_receiver', 'mod_muzzle', 'mod_stock'];
+  const ARMOR_MOD_SLOTS = ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'];
+  const WEAPON_MOD_POOL: Record<string, number> = { damage: 3, crit: 0.04, speed: 0.04, accuracy: 0.04, punching: 0.04, vampir: 0.04 };
+  const ARMOR_MOD_POOL: Record<string, number> = { armor: 2.5, health: 250, maxHp: 250, regen: 2, evasion: 0.04, block: 0.04 };
+  const isModSlot = generatedItem.slot.startsWith('mod_');
+  const isMagazineMod = generatedItem.slot === 'mod_magazine';
+  if (isModSlot && !isMagazineMod) {
+    const pool = WEAPON_MOD_SLOTS.includes(generatedItem.slot) ? WEAPON_MOD_POOL : ARMOR_MOD_POOL;
+    const keys = Object.keys(pool);
+    const pick = keys[Math.floor(Math.random() * keys.length)];
+    finalStats[pick] = (finalStats[pick] || 0) + pool[pick];
+  }
+
   for (let i = 0; i < qualityTier.bonusStatsCount; i++) {
     if (bonusKeys.length === 0) break;
+    // Модам качественные бонус-роллы не положены: у них уже есть второй стат.
+    if (isModSlot) break;
     const randomStatKey = bonusKeys[Math.floor(Math.random() * bonusKeys.length)];
     const baseBonusValue = generatedItem.slot.startsWith('mod_')
       ? (generatedItem.stats[randomStatKey] || 0)
@@ -250,7 +267,8 @@ export const generateItem = (
     generatedItem.timeLimit = generatedItem.timeLimit * multiplier;
     for (const statKey in finalStats) {
       const originalBaseStat = baseItem.stats[statKey] || 0;
-      // Штрафы не растут с уровнем (остаются как в базе) и не зануляются.
+      // Моды хранят базу: скейлит рантайм по уровню мода. Тут не масштабируем.
+      if (generatedItem.slot.startsWith('mod_')) break;
       if (originalBaseStat !== 0 && originalBaseStat > 0) {
         const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
         finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
@@ -264,6 +282,8 @@ export const generateItem = (
 
   for (const statKey in finalStats) {
     const originalBaseStat = baseItem.stats[statKey] || 0;
+    // Моды хранят базу: скейлит рантайм по уровню мода. Тут не масштабируем.
+    if (generatedItem.slot.startsWith('mod_')) break;
     // Штрафы не растут с уровнем (остаются как в базе) и не зануляются.
     if (originalBaseStat !== 0 && originalBaseStat > 0) {
       const levelMultiplier = 1 + (playerLevel - 1) * 0.1;

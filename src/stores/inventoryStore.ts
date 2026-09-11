@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Item } from '../types/items';
+import { demoteModStats } from '../utils/itemStats';
 
 export type InvTab = 'weapons' | 'armor' | 'mods' | 'materials' | 'all';
 export type SortKey = 'name' | 'level' | 'rarity' | 'price';
@@ -102,14 +103,17 @@ export const useInventoryStore = create<InventoryStore>()(
     }),
     {
       name: 'inventory',
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         items: state.items,
         currentPage: state.currentPage,
         filterSlot: state.filterSlot,
       }),
-      migrate: (persisted: any) => {
+      migrate: (persisted: any, version: number) => {
         if (!persisted?.items) return persisted;
+        if (version < 3) {
+          for (const it of persisted.items) demoteModStats(it);
+        }
         persisted.items = persisted.items.filter((item: any) => {
           if (item.type === 'material' || item.type === 'resources') {
             if (OLD_RESOURCE_NAMES.has(item.name)) return false;

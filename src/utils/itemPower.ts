@@ -2,7 +2,7 @@ import { usePlayerStore, computePowerFromStats } from '../stores/playerStore';
 import type { PlayerStats } from '../stores/playerStore';
 import type { Item } from '../types/items';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
-import { effectiveItemStats } from './itemStats';
+import { modStatsOf } from './itemStats';
 import { effectiveAmmoCapacity } from '../data/ammo';
 
 const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
@@ -76,8 +76,12 @@ export const calcItemPower = (item: Item): number => {
   const sustainedFactor = item.slot === 'weapon2' && item.ammoCapacity
     ? sustainedShotsPerTurn(effectiveAmmoCapacity(item)) / 5
     : 1;
-  // Мощность с учётом модов: effectiveItemStats уже включает базу + моды.
-  for (const [k, v] of Object.entries(effectiveItemStats(item))) {
+  // База предмета + моды со скейлом от их уровня.
+  const combined: Record<string, number> = { ...(item.stats || {}) };
+  for (const [k, v] of Object.entries(modStatsOf(item))) {
+    combined[k] = (combined[k] || 0) + v;
+  }
+  for (const [k, v] of Object.entries(combined)) {
     let val = v || 0;
     if (val === 0) continue;
     if (k === 'damage') val *= sustainedFactor;
