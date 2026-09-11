@@ -99,7 +99,7 @@ export const ShootingRange = ({ onClose }: Props) => {
   const [battleLog, setBattleLog] = useState<LogEntry[]>([]);
   const [hitSeq, setHitSeq] = useState(0);
   const [dead, setDead] = useState(false);
-  const [totals, setTotals] = useState({ shots: 0, dmg: 0, crits: 0, healed: 0, extras: 0 });
+  const [totals, setTotals] = useState({ shots: 0, dmg: 0, crits: 0, healed: 0, extras: 0, reloads: 0 });
   const [cross, setCross] = useState<{ x: number; y: number } | null>(null);
   const [shotAlt, setShotAlt] = useState(0);
   // Манекен или гайд по характеристикам.
@@ -184,7 +184,7 @@ export const ShootingRange = ({ onClose }: Props) => {
     setFloats([]);
     setBattleLog([]);
     setDead(false);
-    setTotals({ shots: 0, dmg: 0, crits: 0, healed: 0, extras: 0 });
+    setTotals({ shots: 0, dmg: 0, crits: 0, healed: 0, extras: 0, reloads: 0 });
     setAmmo(magSize);
     setReloading(false);
   };
@@ -194,6 +194,8 @@ export const ShootingRange = ({ onClose }: Props) => {
     playCombatSound('reloading', 0.24, 'range');
     pushFloat(50, 60, '🔁 ПЕРЕЗАРЯДКА…', 'info');
     pushLog('🔁 Перезарядка…', 'info');
+    // Перезарядка стоит 1 AP как выстрел — считаем её действием для честного среднего.
+    setTotals((t) => ({ ...t, shots: t.shots + 1, reloads: (t.reloads || 0) + 1 }));
     later(RELOAD_MS, () => {
       setAmmo(magSize);
       setReloading(false);
@@ -294,7 +296,7 @@ export const ShootingRange = ({ onClose }: Props) => {
     // Отдача манекена: дёргание в сторону с возвратом.
     if (shotCount > 0) setHitSeq((v) => v + 1);
     setAmmo(a);
-    setTotals((t) => ({ shots: t.shots + shotCount, dmg: t.dmg + dealtTotal, crits: t.crits + critCount, healed: t.healed + healTotal, extras: t.extras + Math.max(0, shotCount - 1) }));
+    setTotals((t) => ({ shots: t.shots + shotCount, dmg: t.dmg + dealtTotal, crits: t.crits + critCount, healed: t.healed + healTotal, extras: t.extras + Math.max(0, shotCount - 1), reloads: t.reloads || 0 }));
     const newHp = Math.max(0, h - dealtTotal);
     setHp(newHp);
     if (healTotal > 0) {
@@ -471,6 +473,19 @@ export const ShootingRange = ({ onClose }: Props) => {
             </b></div>
             <div>Восстановлено HP: <b style={{ color: '#4ade80', fontFamily: 'var(--font-mono)' }}>+{totals.healed.toLocaleString()}</b></div>
             <div>Доп. выстрелов: <b style={{ color: '#7dd3fc', fontFamily: 'var(--font-mono)' }}>{totals.extras}</b></div>
+            <div>Перезарядок: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{totals.reloads || 0}</b></div>
+            <button
+              onClick={() => setTotals({ shots: 0, dmg: 0, crits: 0, healed: 0, extras: 0, reloads: 0 })}
+              title="Сбросить статистику (манекен не трогаем)"
+              style={{
+                marginTop: 4, padding: '3px 0', width: '100%', borderRadius: 6, cursor: 'pointer',
+                fontSize: 11, fontWeight: 700,
+                border: '1px solid rgba(255,255,255,0.12)', background: 'transparent',
+                color: 'var(--text-muted)',
+              }}
+            >
+              ↺ Сброс статистики
+            </button>
           </div>
           <div style={{
             padding: '10px 12px', borderRadius: 8,
