@@ -79,7 +79,9 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
   const handleModDrop = (modSlotId: string) => (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverSlot(null);
-    const modId = e.dataTransfer.getData('text/plain');
+    // Фолбэк: dataTransfer иногда пуст — берём id из стора.
+    const dtId = e.dataTransfer.getData('text/plain');
+    const modId = dtId || draggedItemId;
     if (!modId) return;
     const mod = inventoryItems.find((i) => i.id === modId);
     if (!mod || mod.type !== 'mod') { addLog('❌ Это не мод.', 'warning'); return; }
