@@ -8,13 +8,16 @@ import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 import { SET_BONUSES } from '../../data/GameItems';
-import { usePlayerStore } from '../../stores/playerStore';
+import { usePlayerStore, gunSlotForWeapon, EQUIPMENT_SLOTS } from '../../stores/playerStore';
 import { effectiveItemStats, modStatsOf, modLevelMult } from '../../utils/itemStats';
+import { useState, useEffect } from 'react';
 
 interface ItemTooltipProps {
   item: Item;
   x: number;
   y: number;
+  // Вложенный (сравнение): шифт не отслеживаем, чтобы не плодить каскад.
+  nested?: boolean;
 }
 
 const STAT_LABELS: Record<string, string> = {
@@ -60,19 +63,42 @@ const formatStat = (k: string, v: number): string => {
   return `${label}: ${sign}${val}`;
 };
 
-export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
+export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
   const tooltipX = Math.min(x + 16, window.innerWidth - 280);
   const tooltipY = Math.min(y - 10, window.innerHeight - 340);
+  // Сравнение: зажатый Shift показывает надетый аналог слева.
+  const [shiftHeld, setShiftHeld] = useState(false);
+  useEffect(() => {
+    if (nested) return;
+    const dn = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
+    const up = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
+    window.addEventListener('keydown', dn);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', dn);
+      window.removeEventListener('keyup', up);
+    };
+  }, [nested]);
+  const equipment = usePlayerStore((s) => s.equipment);
+  const compareSlot = item.slot === 'weapon2'
+    ? gunSlotForWeapon(item)
+    : ((EQUIPMENT_SLOTS as readonly string[]).includes(item.slot || '') ? (item.slot as string) : null);
+  const compareItem = compareSlot ? (equipment as any)[compareSlot] : null;
+  const showCompare = shiftHeld && compareItem && compareItem.id !== item.id;
+  const compareX = Math.max(8, tooltipX - 276);
   const imgUrl = item.image
     || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
     || getItemImage(item.name, item.displayName, item.slot, item.type);
   const itemPower = calcItemPower(item);
-  const equipment = usePlayerStore((s) => s.equipment);
   const equippedSetCount = item.set
     ? Object.values(equipment).filter((eq) => eq?.set === item.set).length
     : 0;
 
   return (
+    <>
+    {showCompare && !nested && (
+      <ItemTooltip item={compareItem} x={compareX - 16} y={y} nested />
+    )}
     <div
       style={{
         position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 9999,
@@ -327,10 +353,14 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
         <span style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: item.qualityColor }}>
           {item.quality || item.type || ''}
         </span>
+        {!nested && compareItem && compareItem.id !== item.id && (
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>Shift — сравнить</span>
+        )}
         <span style={{ color: 'var(--accent-warning)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
           💾{getSellPrice(item).toLocaleString()}
         </span>
       </div>
     </div>
+    </>
   );
 };

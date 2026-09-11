@@ -2803,7 +2803,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   cleanup: () => {
     usePlayerStore.setState((st: any) => ({
-      stats: { ...st.stats, shieldCharges: 0 },
+      stats: {
+        ...st.stats,
+        shieldCharges: 0,
+        // Целые HP/стамина на выходе из боя (без дробных хвостов).
+        currentHp: Math.round(st.stats.currentHp),
+        stamina: Math.round(st.stats.stamina),
+      },
       activeEffects: (st.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_')),
     }));
     // Остаток магазина — записать в оружие (магазин живёт в оружии, не в рюкзаке).

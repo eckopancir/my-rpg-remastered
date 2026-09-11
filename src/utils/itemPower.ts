@@ -1,4 +1,4 @@
-import { usePlayerStore, computePowerFromStats } from '../stores/playerStore';
+import { usePlayerStore, computePowerFromStats, GUN_SLOTS } from '../stores/playerStore';
 import type { PlayerStats } from '../stores/playerStore';
 import type { Item } from '../types/items';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
@@ -61,16 +61,10 @@ const applyClamps = (s: PlayerStats): void => {
 };
 
 export const calcItemPower = (item: Item): number => {
-  const { stats, equipment } = usePlayerStore.getState();
+  const st = usePlayerStore.getState();
+  const { stats, equipment } = st;
   const isEquipped = Object.values(equipment).some(eq => eq && eq.id === item.id);
 
-  const curStats = { ...stats };
-  applyClamps(curStats);
-  const { offensiveScore: curOff, defensiveScore: curDef } = computePowerFromStats(curStats);
-  const curStatPower = curOff + curDef;
-
-  const adjustedStats = { ...stats };
-  const sign = isEquipped ? -1 : 1;
   // Огнестрел: урон идёт в sustained-эквиваленте (темп с перезарядками),
   // а не голым уроном: базука 300×2 и снайперка 250×10 дают ~1200/ход обе.
   const sustainedFactor = item.slot === 'weapon2' && item.ammoCapacity
@@ -81,6 +75,57 @@ export const calcItemPower = (item: Item): number => {
   for (const [k, v] of Object.entries(modStatsOf(item))) {
     combined[k] = (combined[k] || 0) + v;
   }
+
+  // Стволы считаем «как-если-бы-активен»: цифра стабильна до/после надевания.
+  // Иначе пересчёт зануляет неактивные стволы и дельта врёт (1111 → 476).
+  const DMG_FAM = ['damage', 'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'];
+  const gunContrib = (g: Item | null): Record<string, number> => {
+    const out: Record<string, number> = {};
+    if (!g) return out;
+    const eff: Record<string, number> = { ...(g.stats || {}) };
+    for (const [k, v] of Object.entries(modStatsOf(g))) {
+      eff[k] = (eff[k] || 0) + v;
+    }
+    const f = g.slot === 'weapon2' && g.ammoCapacity
+      ? sustainedShotsPerTurn(effectiveAmmoCapacity(g)) / 5
+      : 1;
+    for (const k of DMG_FAM) {
+      const v = eff[k] || 0;
+      if (v !== 0) out[k] = k === 'damage' ? v * f : v;
+    }
+    return out;
+  };
+
+  if ((GUN_SLOTS as readonly string[]).includes(item.slot || '')) {
+    // База без стволов: вычитаем вклад ВСЕХ надетых стволов.
+    const noGuns = { ...stats };
+    for (const gs of GUN_SLOTS) {
+      const g = (equipment as any)[gs];
+      if (!g) continue;
+      for (const [k, v] of Object.entries(gunContrib(g))) {
+        (noGuns as any)[k] = ((noGuns as any)[k] || 0) - v;
+      }
+    }
+    applyClamps(noGuns);
+    const { offensiveScore: baseOff, defensiveScore: baseDef } = computePowerFromStats(noGuns);
+    const basePower = baseOff + baseDef;
+    // С этим стволом активным: база + его вклад.
+    const withGun = { ...noGuns };
+    for (const [k, v] of Object.entries(gunContrib(item))) {
+      (withGun as any)[k] = ((withGun as any)[k] || 0) + v;
+    }
+    applyClamps(withGun);
+    const { offensiveScore: gunOff, defensiveScore: gunDef } = computePowerFromStats(withGun);
+    return Math.max(0, Math.round(Math.abs(gunOff + gunDef - basePower)));
+  }
+
+  const curStats = { ...stats };
+  applyClamps(curStats);
+  const { offensiveScore: curOff, defensiveScore: curDef } = computePowerFromStats(curStats);
+  const curStatPower = curOff + curDef;
+
+  const adjustedStats = { ...stats };
+  const sign = isEquipped ? -1 : 1;
   for (const [k, v] of Object.entries(combined)) {
     let val = v || 0;
     if (val === 0) continue;

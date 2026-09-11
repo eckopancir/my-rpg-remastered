@@ -226,8 +226,7 @@ const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
   maxStamina: 'maxStamina',
 };
 
-const sumItemStats = (items: (Item | null)[]): PlayerStats => {
-  const total = { ...EMPTY_STATS };
+const sumItemStats = (items: (Item | null)[]): PlayerStats => {  const total = { ...EMPTY_STATS };
   for (const item of items) {
     if (!item || !item.stats) continue;
     for (const [k, v] of Object.entries(item.stats)) {
@@ -249,6 +248,22 @@ const sumItemStats = (items: (Item | null)[]): PlayerStats => {
     }
   }
   return total;
+};
+
+/**
+ * Дельта характеристик от надетого (для подсветки штрафов):
+ * неактивные стволы занулены, моды со скейлом — как в recalcStats.
+ */
+export const equipmentDelta = (equipment: EquipmentStore, activeWeaponSlot: EquipmentSlot): PlayerStats => {
+  const items = EQUIPMENT_SLOTS.map((slot) => {
+    const it = equipment[slot];
+    if (!it) return it;
+    if (GUN_SLOTS.includes(slot) && slot !== activeWeaponSlot) {
+      return { ...it, stats: {}, mods: {} };
+    }
+    return it;
+  });
+  return sumItemStats(items);
 };
 
 const sumEffectStats = (effects: ActiveEffect[]): PlayerStats => {
@@ -467,9 +482,9 @@ export const usePlayerStore = create<PlayerStore>()(
         const lvl = s.level;
         const dps = BASE_STATS.damage + lvl + equipBonus.damage + effectBonus.damage + skillBonus.damage + setBonus.damage;
         const newStats: PlayerStats = {
-          maxHp: BASE_STATS.maxHp + lvl * 20 + equipBonus.maxHp + effectBonus.maxHp + skillBonus.maxHp + setBonus.maxHp,
+          maxHp: Math.round(BASE_STATS.maxHp + lvl * 20 + equipBonus.maxHp + effectBonus.maxHp + skillBonus.maxHp + setBonus.maxHp),
           currentHp: 0,
-          maxStamina: BASE_STATS.maxStamina + lvl * 5 + equipBonus.maxStamina + effectBonus.maxStamina + skillBonus.maxStamina + setBonus.maxStamina,
+          maxStamina: Math.round(BASE_STATS.maxStamina + lvl * 5 + equipBonus.maxStamina + effectBonus.maxStamina + skillBonus.maxStamina + setBonus.maxStamina),
           stamina: 0,
           damage: Math.max(1, dps),
           crit: Math.max(0, BASE_STATS.crit + equipBonus.crit + effectBonus.crit + skillBonus.crit + setBonus.crit),
@@ -526,8 +541,8 @@ export const usePlayerStore = create<PlayerStore>()(
         newStats.power = fullPower;
 
         const fresh = get().stats;
-        newStats.currentHp = Math.min(fresh.currentHp, newStats.maxHp);
-        newStats.stamina = Math.min(fresh.stamina, newStats.maxStamina);
+        newStats.currentHp = Math.round(Math.min(fresh.currentHp, newStats.maxHp));
+        newStats.stamina = Math.round(Math.min(fresh.stamina, newStats.maxStamina));
         newStats.incomingDamageMult = Math.max(0, newStats.incomingDamageMult);
 
         // Per-item power contribution (delta: full - without this item)

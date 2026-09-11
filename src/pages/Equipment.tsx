@@ -4,7 +4,7 @@ import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { CustomizationModal } from '../components/widgets/CustomizationModal';
 import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
-import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, type EquipmentSlot } from '../stores/playerStore';
+import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, equipmentDelta, type EquipmentSlot } from '../stores/playerStore';
 import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
 import { useInventoryStore } from '../stores/inventoryStore';
@@ -72,6 +72,11 @@ export const Equipment = () => {
   const unequipItem = usePlayerStore((s) => s.unequipItem);
   const activeWeaponSlot = usePlayerStore((s) => s.activeWeaponSlot);
   const setActiveWeaponSlot = usePlayerStore((s) => s.setActiveWeaponSlot);
+  // Дельта от экипировки: отрицательная = штраф предмета (красный), иначе зелёный.
+  const equipDelta = useMemo(
+    () => equipmentDelta(equipment, activeWeaponSlot),
+    [equipment, activeWeaponSlot],
+  );
   const items = useInventoryStore((s) => s.items);
   const removeItem = useInventoryStore((s) => s.removeItem);
   const addItem = useInventoryStore((s) => s.addItem);
@@ -619,10 +624,12 @@ export const Equipment = () => {
               {KEY_STATS.map((k) => {
                 const sv = statValue(k, stats[k] ?? 0);
                 if (!sv) return null;
+                // Зелёным — норма, красным — занижено штрафом экипировки.
+                const lowered = (equipDelta[k as keyof typeof equipDelta] ?? 0) < 0;
                 return (
                   <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                     <span style={{ color: '#a0aec0' }}>{sv.label}</span>
-                    <span style={{ color: sv.color, fontWeight: 600 }}>{sv.val}</span>
+                    <span style={{ color: lowered ? '#f87171' : '#4ade80', fontWeight: 600 }}>{sv.val}</span>
                   </div>
                 );
               })}
@@ -645,12 +652,15 @@ export const Equipment = () => {
               return (
                 <div key={g.label} style={{ fontSize: 12, lineHeight: 1.7, marginTop: 8 }}>
                   <div style={{ color: '#a16207', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 1 }}>{g.label}</div>
-                  {entries.map((e) => (
-                    <div key={e.key} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
-                      <span style={{ color: '#a0aec0' }}>{e.label}</span>
-                      <span style={{ color: e.color, fontWeight: 600 }}>{e.val}</span>
-                    </div>
-                  ))}
+                  {entries.map((e) => {
+                    const lowered = (equipDelta[e.key as keyof typeof equipDelta] ?? 0) < 0;
+                    return (
+                      <div key={e.key} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
+                        <span style={{ color: '#a0aec0' }}>{e.label}</span>
+                        <span style={{ color: lowered ? '#f87171' : '#4ade80', fontWeight: 600 }}>{e.val}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
