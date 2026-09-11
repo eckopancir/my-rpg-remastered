@@ -42,7 +42,7 @@ const OVERLAY_SLOTS = EQUIPMENT_SLOTS.filter((s) => !s.startsWith('gun_')) as Eq
 const GUN_ROW_SLOTS = EQUIPMENT_SLOTS.filter((s) => s.startsWith('gun_')) as EquipmentSlot[];
 
 // Ключевые характеристики для сводки (остальное — под «Показать все»).
-const KEY_STATS = ['damage', 'armor', 'maxHp', 'crit', 'evasion', 'regen'] as const;
+const KEY_STATS = ['damage', 'armor', 'maxHp', 'crit', 'evasion', 'speed', 'regen'] as const;
 
 const STAT_LABELS: Record<string, string> = {
   damage: 'Урон', crit: 'Крит. шанс', armor: 'Броня', regen: 'Регенерация',
@@ -50,10 +50,12 @@ const STAT_LABELS: Record<string, string> = {
   vampir: 'Вампиризм', speed: 'Скорость', maxHp: 'Макс. HP',
   maxStamina: 'Выносливость', dpsEmi: 'ЭМИ урон', dpsToxis: 'Токсичный урон',
   dpsExtro: 'Экстро урон', dpsFire: 'Огненный урон',
+  incomingDamageMult: 'Получаемый урон', bonusAp: 'Доп. AP', shieldCharges: 'Заряды щита',
 };
 
 const statValue = (k: string, v: number): { label: string; val: string; color: string } | null => {
-    if (v === 0 && k !== 'accuracy') return null;
+    // Нули показываем (скорость 0 от штрафов должна быть видна, красным).
+    // Прячем только базовую точность 0.1 без бонусов — шум.
     if (k === 'accuracy' && v === 0.1) return null;
     const label = STAT_LABELS[k] || k;
     const pctKeys = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'incomingDamageMult'];
@@ -449,6 +451,7 @@ export const Equipment = () => {
     { label: '🛡️ Защита', keys: ['armor', 'evasion', 'block', 'maxHp'] },
     { label: '♻️ Прочее', keys: ['maxStamina', 'regen', 'vampir', 'speed'] },
     { label: '🔥 Урон (DPS)', keys: ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] },
+    { label: '✨ Особое', keys: ['incomingDamageMult', 'bonusAp', 'shieldCharges'] },
   ];
 
   return (
