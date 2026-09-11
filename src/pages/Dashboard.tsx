@@ -508,10 +508,10 @@ export const Dashboard = () => {
         <WapPanel variant="metal">
           <WapHeader title="🧪 DEBUG" glow="none" />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Button size="sm" variant="ghost" onClick={() => debugGenerateItems(20)} style={{ fontSize: 9 }}>+20 предметов</Button>
+            <Button size="sm" variant="ghost" onClick={() => debugGenerateItems(200)} style={{ fontSize: 9 }}>+200 предметов</Button>
             <Button size="sm" variant="ghost" onClick={() => debugAddResources(10)} style={{ fontSize: 9 }}>+10 рес.</Button>
             <Button size="sm" variant="ghost" onClick={() => usePlayerStore.getState().addChips(5000)} style={{ fontSize: 9 }}>+5000 💾</Button>
-            <Button size="sm" variant="ghost" onClick={() => usePlayerStore.getState().addExp(5000)} style={{ fontSize: 9 }}>+5000 XP</Button>
+            <Button size="sm" variant="ghost" onClick={() => usePlayerStore.getState().addExp(50000)} style={{ fontSize: 9 }}>+50000 XP</Button>
             <Button size="sm" variant="ghost" onClick={() => debugAddMods(5)} style={{ fontSize: 9 }}>+5 модификаций</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddAmmo(4)} style={{ fontSize: 9 }}>+4 амуниции 🎒</Button>
             <Button size="sm" variant="ghost" onClick={() => debugAddChests()} style={{ fontSize: 9 }}>+10 сундуков 📦</Button>
