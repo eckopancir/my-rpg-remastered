@@ -341,8 +341,8 @@ export const Equipment = () => {
     const slotW = compact ? 60 : 72;
     const slotH = compact ? 52 : 64;
     const isOccupied = !!equipment[slot];
-    const isDragTarget = draggedItemId && validDropSlots.has(slot)
-      && (!isOccupied || (isGun && (dragItem as any)?.type === 'bullet'));
+    // Подсветка совместимого слота: пустого и занятого (замена), патронам — стволы.
+    const isDragTarget = !!draggedItemId && validDropSlots.has(slot);
     const isHover = hoverSlot === slot;
 
     const stars = item?.quality ? (QUALITY_STARS[item.quality] || 0) : 0;
