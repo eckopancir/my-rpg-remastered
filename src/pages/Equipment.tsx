@@ -450,9 +450,10 @@ export const Equipment = () => {
     { label: '⚔️ Боевые', keys: ['damage', 'crit', 'accuracy', 'punching'] },
     { label: '🛡️ Защита', keys: ['armor', 'evasion', 'block', 'maxHp'] },
     { label: '♻️ Прочее', keys: ['maxStamina', 'regen', 'vampir', 'speed'] },
-    { label: '🔥 Урон (DPS)', keys: ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] },
-    { label: '✨ Особое', keys: ['incomingDamageMult', 'bonusAp', 'shieldCharges'] },
+    { label: '🔥 Стихийные', keys: ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] },
   ];
+  // В полном древе не дублируем краткий список сверху.
+  const KEY_SET = new Set<string>(KEY_STATS as readonly string[]);
 
   return (
     <motion.div
@@ -649,6 +650,7 @@ export const Equipment = () => {
             </button>
             {showAllStats && statGroups.map((g) => {
               const entries = g.keys
+                .filter((k) => !KEY_SET.has(k as string))
                 .map((k) => ({ key: k, ...(statValue(k, stats[k] ?? 0) ?? { label: '', val: '', color: '' }) }))
                 .filter((e) => e.label);
               if (entries.length === 0) return null;
