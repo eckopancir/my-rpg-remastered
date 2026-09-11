@@ -148,7 +148,9 @@ export const Equipment = () => {
 
   const handleDrop = (slot: EquipmentSlot, e: React.DragEvent) => {
     e.preventDefault();
-    const itemId = e.dataTransfer.getData('text/plain');
+    // Фолбэк: dataTransfer иногда пуст — берём id из стора.
+    const dtId = e.dataTransfer.getData('text/plain');
+    const itemId = dtId || useUiStore.getState().draggedItemId;
     if (!itemId || itemId.startsWith('equip:')) return;
     // Патроны на надетый ствол — зарядка магазина, а не экипировка.
     if ((GUN_SLOTS as readonly string[]).includes(slot) && (equipment as any)[slot]?.ammoCapacity) {
@@ -363,7 +365,8 @@ export const Equipment = () => {
           onClick={() => handleSlotClick(slot, item)}
           onDoubleClick={() => handleSlotDoubleClick(slot, item)}
           draggable={!!item}
-          onDragStart={(e) => { if (item) e.dataTransfer.setData('text/plain', `equip:${slot}`); }}
+          onDragStart={(e) => { if (item) { e.dataTransfer.setData('text/plain', `equip:${slot}`); useUiStore.getState().setDraggedItemId(`equip:${slot}`); } }}
+          onDragEnd={() => useUiStore.getState().setDraggedItemId(null)}
           title={item
             ? `${caption} — тяни в инвентарь, чтобы снять${isGun && item.ammoCapacity ? ` · патроны ${item.loadedAmmo || 0}/${item.ammoCapacity}` : ''}${isGun ? ' · клик — выбрать активным' : ''}`
             : caption}

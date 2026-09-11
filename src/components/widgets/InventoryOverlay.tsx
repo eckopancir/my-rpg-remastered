@@ -375,7 +375,8 @@ export const InventoryOverlay = () => {
             }}
               onDrop={(e) => {
                 e.preventDefault();
-                const id = e.dataTransfer.getData('text/plain');
+                const dtId = e.dataTransfer.getData('text/plain');
+                const id = dtId || useUiStore.getState().draggedItemId;
                 if (!id) return;
                 // Снятие экипировки перетаскиванием: equip:slot → в инвентарь.
                 if (id.startsWith('equip:')) {
