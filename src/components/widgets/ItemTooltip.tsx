@@ -34,7 +34,7 @@ const SLOT_LABELS: Record<string, string> = {
   mod_scope: 'Прицел', mod_barrel: 'Ствол', mod_receiver: 'Ресивер',
   mod_muzzle: 'Дуло', mod_magazine: 'Магазин', mod_stock: 'Приклад',
   mod_blade: 'Лезвие', mod_handle: 'Рукоять', mod_pommel: 'Обух', mod_harness: 'Крепление',
-  mod_lining: 'Подкладка', mod_hardshell: 'Накладка', mod_utility: 'Система', mod_patch: 'Усиление',
+  mod_lining: 'Арамидный внутренний слой', mod_hardshell: 'Композитный внешний слой', mod_utility: 'Система', mod_patch: 'Бронепластина',
 };
 
 const MOD_SLOTS_MAP: Record<string, string[]> = {

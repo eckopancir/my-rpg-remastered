@@ -40,10 +40,10 @@ const COLD_WEAPON_SLOT_POSITIONS: ModSlotPos[] = [
 ];
 
 const ARMOR_MOD_SLOTS: ModSlotPos[] = [
-  { id: 'mod_lining', name: 'Подкладка', top: Math.round(130 * SCALE), left: Math.round(140 * SCALE) },
-  { id: 'mod_hardshell', name: 'Накладка', top: Math.round(130 * SCALE), left: Math.round(390 * SCALE) },
+  { id: 'mod_lining', name: 'Арамидный внутренний слой', top: Math.round(130 * SCALE), left: Math.round(140 * SCALE) },
+  { id: 'mod_hardshell', name: 'Композитный внешний слой', top: Math.round(130 * SCALE), left: Math.round(390 * SCALE) },
   { id: 'mod_utility', name: 'Система', top: Math.round(230 * SCALE), left: Math.round(190 * SCALE) },
-  { id: 'mod_patch', name: 'Усиление', top: Math.round(230 * SCALE), left: Math.round(390 * SCALE) },
+  { id: 'mod_patch', name: 'Бронепластина', top: Math.round(230 * SCALE), left: Math.round(390 * SCALE) },
 ];
 
 const SLOT_LABELS: Record<string, string> = {

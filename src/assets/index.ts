@@ -60,6 +60,10 @@ const MOD_SLOT_IMAGE_MAP: Record<string, string> = {
   mod_receiver: 'ресивер',
   mod_handle: 'рукоять',
   mod_barrel: 'ствол',
+  mod_lining: 'арамидный внутренний слой',
+  mod_hardshell: 'композитный внешний слой',
+  mod_utility: 'система',
+  mod_patch: 'бронепластина',
 };
 
 export const getItemImage = (name?: string, displayName?: string, slot?: string, type?: string): string | undefined => {
