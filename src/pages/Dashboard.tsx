@@ -89,14 +89,16 @@ const debugGenerateItems = (count: number) => {
 const debugAddMods = (count: number) => {
   const addItem = useInventoryStore.getState().addItem;
   const mods = GAME_ITEMS.filter((i) => i.type === 'mod');
+  const lvl = usePlayerStore.getState().level;
   for (let i = 0; i < count; i++) {
     const def = mods[Math.floor(Math.random() * mods.length)];
+    const q = getItemQuality();
     addItem({
       id: `mod_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: def.name, displayName: def.name, rarity: def.rarity,
-      slot: def.slot, type: 'mod', stats: def.stats || {},
-      quality: 'Редкий', qualityColor: '#a855f7',
-      image: getItemImage(def.name), level: 1,
+      slot: def.slot, type: 'mod', stats: { ...(def.stats || {}) },
+      quality: q.name, qualityColor: q.color,
+      image: getItemImage(def.name), level: lvl,
     });
   }
   useUiStore.getState().addToast(`🔧 +${count} модификаций (${mods.length} видов)`, 'success');
