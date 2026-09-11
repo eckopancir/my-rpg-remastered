@@ -300,7 +300,7 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
                   const v = eff[k];
                   const isPct = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
                   const shown = isPct
-                    ? (() => { const p = v * 100; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
+                    ? (() => { const p = Math.abs(v) * 100; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
                     : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(3)}`;
                   return (
                     <div key={k} style={{ fontSize: 12, color: '#f87171', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
