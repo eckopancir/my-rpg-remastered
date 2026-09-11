@@ -181,6 +181,7 @@ export const ShootingRange = ({ onClose }: Props) => {
 
   // Физа идёт через формулу одна; стихия манекена — чистым уроном поверх
   // (мимо брони/блока/уворота; крит умножает всю сумму; промах гасит всё).
+  const physDps = stats.damage || 0;
   const pureFaction = faction === 'none' ? undefined : faction;
   const pureDps = calcPureDamage(stats, pureFaction);
 
