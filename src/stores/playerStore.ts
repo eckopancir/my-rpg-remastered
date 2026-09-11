@@ -420,19 +420,13 @@ export const usePlayerStore = create<PlayerStore>()(
           get().addLog('📦 Старые слоты амуниции убраны: вещи переехали в инвентарь.', 'info');
           syncNow();
         }
-        // Урон идёт ТОЛЬКО с активного оружия: у остальных стволов
-        // дамаг-семья зануляется (броня и прочее суммируются как раньше).
-        const DMG_KEYS = ['damage', 'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'];
+        // Характеристики идут ТОЛЬКО с активного оружия: остальные стволы
+        // не дают ничего (ни урона, ни крита, ни прочего; сеты считаются как раньше).
         const items = EQUIPMENT_SLOTS.map((slot) => {
           const it = s.equipment[slot];
           if (!it) return it;
           if (GUN_SLOTS.includes(slot) && slot !== aws) {
-            const st = { ...(it.stats || {}) } as Record<string, number>;
-            let touched = false;
-            for (const k of DMG_KEYS) {
-              if (st[k]) { st[k] = 0; touched = true; }
-            }
-            if (touched) return { ...it, stats: st };
+            return { ...it, stats: {}, mods: {} };
           }
           return it;
         });

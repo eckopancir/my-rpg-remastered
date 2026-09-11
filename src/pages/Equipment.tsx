@@ -22,7 +22,7 @@ const QUALITY_STARS: Record<string, number> = {
 const S = 1.38;
 const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   head: { top: Math.round(12 * S), left: Math.round(45 * S) },
-  armor: { top: Math.round(100 * S), left: Math.round(45 * S) },
+  armor: { top: Math.round(100 * S) - 12, left: Math.round(45 * S) },
   pants: { top: Math.round(146 * S), left: Math.round(45 * S) },
   weapon1: { top: Math.round(120 * S), left: Math.round(-35 * S) },
   weapon2: { top: Math.round(120 * S), left: Math.round(125 * S) },
