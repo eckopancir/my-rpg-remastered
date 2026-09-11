@@ -65,7 +65,7 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
     );
   }
   const emoji = item ? iconFor(item) : null;
-  const url = item && !emoji ? (item.image || getItemImage(item.name, item.displayName)) : undefined;
+  const url = item && !emoji ? (item.image || getItemImage(item.name, item.displayName, item.slot, (item as any).type)) : undefined;
   return (
     <div
       onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const id = e.dataTransfer.getData('text/plain'); if (id) onDrop(id); }}

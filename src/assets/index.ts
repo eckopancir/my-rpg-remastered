@@ -48,7 +48,26 @@ const MOD_IMAGE_MAP: Record<string, string> = {
   'барабанныймагазин': '9',
 };
 
-export const getItemImage = (name?: string, displayName?: string): string | undefined => {
+/** Картинка мода по его слоту (новые спрайты из items/). */
+const MOD_SLOT_IMAGE_MAP: Record<string, string> = {
+  mod_muzzle: 'дуло',
+  mod_harness: 'крепление',
+  mod_blade: 'лезвие',
+  mod_magazine: 'магазин',
+  mod_pommel: 'обух',
+  mod_stock: 'приклад',
+  mod_scope: 'прицел',
+  mod_receiver: 'ресивер',
+  mod_handle: 'рукоять',
+  mod_barrel: 'ствол',
+};
+
+export const getItemImage = (name?: string, displayName?: string, slot?: string, type?: string): string | undefined => {
+  // Моды оружия — спрайт по слоту мода.
+  if (type === 'mod' && slot && MOD_SLOT_IMAGE_MAP[slot]) {
+    const bySlot = itemImageMap.get(MOD_SLOT_IMAGE_MAP[slot]);
+    if (bySlot) return bySlot;
+  }
   const lookup = (name || displayName || '').toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
   const resKey = RESOURCE_IMAGE_MAP[lookup];
   if (resKey) return itemImageMap.get(resKey);

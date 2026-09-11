@@ -151,7 +151,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
             >
               {item && (() => {
                 const emoji = cellIcon(item);
-                const url = emoji ? undefined : (item.image || getItemImage(item.name, item.displayName));
+                const url = emoji ? undefined : (item.image || getItemImage(item.name, item.displayName, item.slot, item.type));
                 const body = emoji ? (
                   <span style={{ fontSize: 26, lineHeight: 1 }}>{emoji}</span>
                 ) : url ? (

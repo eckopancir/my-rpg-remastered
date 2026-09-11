@@ -122,7 +122,7 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
     addLog(`📦 Мод ${mod.displayName || mod.name} снят`, 'info');
   };
 
-  const itemImg = liveItem ? getItemImage(liveItem.name, liveItem.displayName) : undefined;
+  const itemImg = liveItem ? getItemImage(liveItem.name, liveItem.displayName, liveItem.slot, (liveItem as any).type) : undefined;
 
   const [pos, setPos] = useState({ x: window.innerWidth / 2 - 280, y: window.innerHeight / 2 - 220 });
   const dragState = useRef<{ dx: number; dy: number } | null>(null);
@@ -237,7 +237,7 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
                     {modItem ? (
                       <>
                         {(() => {
-                          const modImg = modItem.image || getItemImage(modItem.name, modItem.displayName);
+                           const modImg = modItem.image || getItemImage(modItem.name, modItem.displayName, modItem.slot, (modItem as any).type);
                           return modImg ? (
                             <img src={modImg} alt={modItem.name} style={{ width: 36, height: 36, objectFit: 'contain', imageRendering: 'pixelated' }} />
                           ) : null;

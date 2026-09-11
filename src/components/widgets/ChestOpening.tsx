@@ -247,7 +247,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                     style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
                   >
                     <img
-                      src={mainItem.image || getItemImage(mainItem.name, mainItem.displayName)}
+                      src={mainItem.image || getItemImage(mainItem.name, mainItem.displayName, (mainItem as any).slot, (mainItem as any).type)}
                       alt=""
                       draggable={false}
                       style={{
@@ -324,7 +324,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                       ) : (
                         <img
                           src={drop.kind === 'item'
-                            ? (drop.item.image || getItemImage(drop.item.name, drop.item.displayName))
+                            ? (drop.item.image || getItemImage(drop.item.name, drop.item.displayName, (drop.item as any).slot, (drop.item as any).type))
                             : drop.def.image}
                           alt=""
                           draggable={false}

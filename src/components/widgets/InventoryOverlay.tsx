@@ -404,7 +404,7 @@ export const InventoryOverlay = () => {
                 const { item, count } = stacked;
                 const imgUrl = item.image
                   || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
-                  || getItemImage(item.name, item.displayName);
+                  || getItemImage(item.name, item.displayName, item.slot, item.type);
                 // Расходники, рюкзаки и патроны пока без арта — эмодзи-заглушка из дефа.
                 const emojiIcon = item.type === 'consumable'
                   ? getConsumableIcon(item)

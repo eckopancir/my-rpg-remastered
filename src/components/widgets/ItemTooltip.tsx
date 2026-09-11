@@ -65,7 +65,7 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
   const tooltipY = Math.min(y - 10, window.innerHeight - 340);
   const imgUrl = item.image
     || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
-    || getItemImage(item.name, item.displayName);
+    || getItemImage(item.name, item.displayName, item.slot, item.type);
   const itemPower = calcItemPower(item);
   const equipment = usePlayerStore((s) => s.equipment);
   const equippedSetCount = item.set
