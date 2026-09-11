@@ -74,6 +74,15 @@ export const BattleGrid = () => {
   const plannedPath = useCombatGridStore((s) => s.plannedPath);
   const ap = useCombatGridStore((s) => s.ap);
   const cursorPos = useCombatGridStore((s) => s.cursorPos);
+  const isRightMouseDown = useRef(false);
+  // Зажата ли ПКМ прямо сейчас (стейт для перерисовки превью конуса).
+  // Объявлено ДО использования в showConePreview (иначе TDZ-краш).
+  const [rmbHeld, setRmbHeld] = useState(false);
+  useEffect(() => {
+    const up = () => { isRightMouseDown.current = false; rmbDownCell.current = null; setRmbHeld(false); };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, []);
   // Активный ствол для превью конуса (дробь/огнемёт).
   const activeGun = usePlayerStore((s) => s.getActiveWeapon());
   const coneProf = activeGun && (activeGun as any).ammoCapacity ? weaponRangeProfile(activeGun) : null;
@@ -123,14 +132,6 @@ export const BattleGrid = () => {
   }, [measuring]);
   const gridRef = useRef<HTMLDivElement>(null);
   const fogCanvasRef = useRef<HTMLCanvasElement>(null);
-  const isRightMouseDown = useRef(false);
-  // Зажата ли ПКМ прямо сейчас (стейт для перерисовки превью конуса).
-  const [rmbHeld, setRmbHeld] = useState(false);
-  useEffect(() => {
-    const up = () => { isRightMouseDown.current = false; rmbDownCell.current = null; setRmbHeld(false); };
-    window.addEventListener('mouseup', up);
-    return () => window.removeEventListener('mouseup', up);
-  }, []);
   // Клетка нажатия ПКМ — для инспекции точки при клике без протяжки.
   const rmbDownCell = useRef<{ x: number; y: number } | null>(null);
 
