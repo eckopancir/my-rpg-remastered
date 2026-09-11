@@ -129,7 +129,11 @@ export const ShootingRange = ({ onClose }: Props) => {
 
   useEffect(() => {
     const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    // Умный автоскролл: вниз — только если пользователь уже внизу (<=40px).
+    // Вручную открутил вверх — лог не дёргаем, можно спокойно читать.
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 40;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [battleLog]);
 
   useEffect(() => {
