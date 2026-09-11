@@ -9,7 +9,7 @@ import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 import { SET_BONUSES } from '../../data/GameItems';
 import { usePlayerStore } from '../../stores/playerStore';
-import { effectiveItemStats, modStatsOf } from '../../utils/itemStats';
+import { effectiveItemStats, modStatsOf, modLevelMult } from '../../utils/itemStats';
 
 interface ItemTooltipProps {
   item: Item;
@@ -274,8 +274,12 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
       {(() => {
         // Статы с учётом вставленных модов: шлем 30 + мод 1 покажет 31.
         // Штрафы (минусы) — отдельно красным блоком, они не растут с уровнем.
+        // Сами моды показываем сразу со скейлом от их уровня.
         const eff = effectiveItemStats(item);
         const fromMods = modStatsOf(item);
+        const modMult = item.type === 'mod' ? modLevelMult(item) : 1;
+        const disp: Record<string, number> = {};
+        for (const [k, v] of Object.entries(eff)) disp[k] = v * modMult;
         const posKeys = Object.keys(eff).filter((k) => eff[k] > 0);
         const negKeys = Object.keys(eff).filter((k) => eff[k] < 0);
         if (posKeys.length === 0 && negKeys.length === 0) {
@@ -285,7 +289,7 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {posKeys.slice(0, 10).map((k) => (
               <div key={k} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{formatStat(k, eff[k])}</span>
+                <span>{formatStat(k, disp[k])}</span>
                 {fromMods[k] ? (
                   <span title="Бонус от модов" style={{ fontSize: 10, color: '#4ade80', background: 'rgba(34,197,94,0.12)', padding: '0 5px', borderRadius: 3 }}>
                     🔧+{(Math.abs(fromMods[k]) >= 1 ? Math.abs(fromMods[k]).toFixed(1) : Math.abs(fromMods[k]).toFixed(3))}
@@ -302,7 +306,7 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#f87171', letterSpacing: 1 }}>➖ ШТРАФЫ</div>
                 {negKeys.map((k) => {
                   const label = STAT_LABELS[k] || k;
-                  const v = eff[k];
+                  const v = disp[k];
                   const isPct = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
                   const shown = isPct
                     ? (() => { const p = Math.abs(v) * 100; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()

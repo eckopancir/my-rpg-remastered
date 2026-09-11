@@ -14,7 +14,7 @@ import { WapHeader } from '../components/ui/WapHeader';
 import { WapHudBar } from '../components/ui/WapHudBar';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
-import { generateItem, getItemQuality } from '../engine/items';
+import { generateItem, getItemQuality, rollModExtraStat } from '../engine/items';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
@@ -93,10 +93,13 @@ const debugAddMods = (count: number) => {
   for (let i = 0; i < count; i++) {
     const def = mods[Math.floor(Math.random() * mods.length)];
     const q = getItemQuality();
+    // Мод всегда 2-параметровый: сигнатура + ролл из пула (как в генерации лута).
+    const stats: Record<string, number> = { ...((def.stats as any) || {}) };
+    if (def.slot !== 'mod_magazine') rollModExtraStat(stats, def.slot);
     addItem({
       id: `mod_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: def.name, displayName: def.name, rarity: def.rarity,
-      slot: def.slot, type: 'mod', stats: { ...(def.stats || {}) },
+      slot: def.slot, type: 'mod', stats,
       quality: q.name, qualityColor: q.color,
       image: getItemImage(def.name), level: lvl,
     });

@@ -115,6 +115,25 @@ export const getItemQuality = (): QualityTier => {
   return QUALITY_TIERS[0];
 };
 
+/**
+ * Второй стат мода из пула (мутабельно в stats): совпал с сигнатурой — дабл.
+ * Используется генерацией и дебагом, чтобы моды всегда были 2-параметровые.
+ */
+export const rollModExtraStat = (
+  stats: Record<string, number>,
+  slot: string,
+  weaponSlots: string[] = ['mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_scope', 'mod_barrel', 'mod_receiver', 'mod_muzzle', 'mod_stock'],
+  armorSlots: string[] = ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
+  weaponPool: Record<string, number> = { damage: 3, crit: 0.04, speed: 0.04, accuracy: 0.04, punching: 0.04, vampir: 0.04 },
+  armorPool: Record<string, number> = { armor: 2.5, health: 250, maxHp: 250, regen: 2, evasion: 0.04, block: 0.04 },
+): void => {
+  if (slot === 'mod_magazine') return;
+  const pool = weaponSlots.includes(slot) ? weaponPool : armorPool;
+  const keys = Object.keys(pool);
+  const pick = keys[Math.floor(Math.random() * keys.length)];
+  stats[pick] = (stats[pick] || 0) + pool[pick];
+};
+
 let _idCounter = 0;
 
 const uniqueId = () => String(Date.now()) + '_' + (++_idCounter) + '_' + Math.random().toString(36).slice(2, 8);
@@ -224,17 +243,10 @@ export const generateItem = (
 
   // Мод: сигнатура из дефа + ОДИН случайный второй стат из пула.
   // Совпал с сигнатурой — дабл (крит+крит). Магазины — только +патроны.
-  const WEAPON_MOD_SLOTS = ['mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_scope', 'mod_barrel', 'mod_receiver', 'mod_muzzle', 'mod_stock'];
-  const ARMOR_MOD_SLOTS = ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'];
-  const WEAPON_MOD_POOL: Record<string, number> = { damage: 3, crit: 0.04, speed: 0.04, accuracy: 0.04, punching: 0.04, vampir: 0.04 };
-  const ARMOR_MOD_POOL: Record<string, number> = { armor: 2.5, health: 250, maxHp: 250, regen: 2, evasion: 0.04, block: 0.04 };
   const isModSlot = generatedItem.slot.startsWith('mod_');
   const isMagazineMod = generatedItem.slot === 'mod_magazine';
   if (isModSlot && !isMagazineMod) {
-    const pool = WEAPON_MOD_SLOTS.includes(generatedItem.slot) ? WEAPON_MOD_POOL : ARMOR_MOD_POOL;
-    const keys = Object.keys(pool);
-    const pick = keys[Math.floor(Math.random() * keys.length)];
-    finalStats[pick] = (finalStats[pick] || 0) + pool[pick];
+    rollModExtraStat(finalStats, generatedItem.slot);
   }
 
   for (let i = 0; i < qualityTier.bonusStatsCount; i++) {
