@@ -32,13 +32,13 @@ export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
     crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005,
     dpsExtro: 2, dpsFire: 2, dpsEmi: 2, dpsToxis: 2, damage: 3,
   },
-  head: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, health: 250 },
-  armor: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, health: 250 },
-  gloves: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, health: 250 },
-  boots: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, health: 250 },
-  ammo: { regen: 0.01, block: 0.003, evasion: 0.002, armor: 0.5, health: 20, damage: 0.5 },
+  head: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
+  armor: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
+  gloves: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
+  boots: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
+  ammo: { regen: 0.01, block: 0.003, evasion: 0.002, armor: 0.5, maxHp: 20, damage: 0.5 },
   mod: {
-    regen: 0.005, block: 0.005, evasion: 0.004, armor: 2, health: 250, damage: 2,
+    regen: 0.005, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250, damage: 2,
     crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005,
     dpsExtro: 1, dpsFire: 1, dpsEmi: 1, dpsToxis: 1,
     ammoCapacity: 5,
@@ -139,7 +139,7 @@ export const rollModExtraStat = (
   weaponSlots: string[] = ['mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_scope', 'mod_barrel', 'mod_receiver', 'mod_muzzle', 'mod_stock'],
   armorSlots: string[] = ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
   weaponPool: Record<string, number> = { damage: 3, crit: 0.04, speed: 0.04, accuracy: 0.04, punching: 0.04, vampir: 0.04 },
-  armorPool: Record<string, number> = { armor: 2.5, health: 250, maxHp: 250, regen: 2, evasion: 0.04, block: 0.04 },
+  armorPool: Record<string, number> = { armor: 2.5, maxHp: 250, maxHp: 250, regen: 2, evasion: 0.04, block: 0.04 },
 ): void => {
   if (slot === 'mod_magazine') return;
   const pool = weaponSlots.includes(slot) ? weaponPool : armorPool;
