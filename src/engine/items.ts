@@ -117,6 +117,12 @@ let _idCounter = 0;
 
 const uniqueId = () => String(Date.now()) + '_' + (++_idCounter) + '_' + Math.random().toString(36).slice(2, 8);
 
+// Дробные статы (шансы/множители) уровнем НЕ масштабируются — иначе
+// точность 0.1 превращается в 1.0+ и всё ломается. Только плоские.
+const NO_LEVEL_SCALE = new Set([
+  'accuracy', 'crit', 'evasion', 'block', 'vampir', 'speed', 'punching',
+]);
+
 export const generateItem = (
   items: ItemDefinition[],
   playerLevel: number,
@@ -213,7 +219,8 @@ export const generateItem = (
     const baseBonusValue = generatedItem.slot.startsWith('mod_')
       ? (generatedItem.stats[randomStatKey] || 0)
       : (bonusSource[randomStatKey] || 0);
-    const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
+    // Дробные бонусы не скейлятся уровнем.
+    const levelMultiplier = NO_LEVEL_SCALE.has(randomStatKey) ? 1 : 1 + (playerLevel - 1) * 0.1;
     const totalBonus = baseBonusValue * procMultiplier * levelMultiplier;
     finalStats[randomStatKey] = (finalStats[randomStatKey] || 0) + totalBonus;
   }
@@ -234,11 +241,12 @@ export const generateItem = (
     generatedItem.timeLimit = generatedItem.timeLimit * multiplier;
     for (const statKey in finalStats) {
       const originalBaseStat = baseItem.stats[statKey] || 0;
-      if (originalBaseStat !== 0) {
+      if (originalBaseStat !== 0 && !NO_LEVEL_SCALE.has(statKey)) {
         const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
         finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
       }
-      finalStats[statKey] = Math.max(0, parseFloat(finalStats[statKey].toFixed(3)));
+      // Штрафы (отрицательные) сохраняются — не зануляем.
+      finalStats[statKey] = parseFloat(finalStats[statKey].toFixed(3));
     }
     generatedItem.stats = finalStats;
     return generatedItem;
@@ -246,11 +254,12 @@ export const generateItem = (
 
   for (const statKey in finalStats) {
     const originalBaseStat = baseItem.stats[statKey] || 0;
-    if (originalBaseStat !== 0) {
+    if (originalBaseStat !== 0 && !NO_LEVEL_SCALE.has(statKey)) {
       const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
       finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
     }
-    finalStats[statKey] = Math.max(0, parseFloat(finalStats[statKey].toFixed(3)));
+    // Штрафы (отрицательные) сохраняются — не зануляем.
+    finalStats[statKey] = parseFloat(finalStats[statKey].toFixed(3));
   }
 
   generatedItem.stats = finalStats;

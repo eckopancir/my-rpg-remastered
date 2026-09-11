@@ -5,7 +5,7 @@ import { CustomizationModal } from '../components/widgets/CustomizationModal';
 import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
 import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, type EquipmentSlot } from '../stores/playerStore';
-import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, type AmmoGroup } from '../data/ammo';
+import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useUiStore } from '../stores/uiStore';
@@ -211,7 +211,7 @@ export const Equipment = () => {
     const pst = usePlayerStore.getState();
     const w = (pst.equipment as any)[slot];
     if (!w || !w.ammoCapacity) return false;
-    const cap = w.ammoCapacity;
+    const cap = effectiveAmmoCapacity(w);
     const loaded = w.loadedAmmo ?? 0;
     const space = cap - loaded;
     if (space <= 0) {
@@ -368,7 +368,7 @@ export const Equipment = () => {
           onDragStart={(e) => { if (item) { e.dataTransfer.setData('text/plain', `equip:${slot}`); useUiStore.getState().setDraggedItemId(`equip:${slot}`); } }}
           onDragEnd={() => useUiStore.getState().setDraggedItemId(null)}
           title={item
-            ? `${caption} — тяни в инвентарь, чтобы снять${isGun && item.ammoCapacity ? ` · патроны ${item.loadedAmmo || 0}/${item.ammoCapacity}` : ''}${isGun ? ' · клик — выбрать активным' : ''}`
+            ? `${caption} — тяни в инвентарь, чтобы снять${isGun && item.ammoCapacity ? ` · патроны ${item.loadedAmmo || 0}/${effectiveAmmoCapacity(item)}` : ''}${isGun ? ' · клик — выбрать активным' : ''}`
             : caption}
           style={{
             width: slotW,
@@ -407,7 +407,7 @@ export const Equipment = () => {
                   color: '#fbbf24', background: 'rgba(0,0,0,0.75)',
                   borderRadius: 3, padding: '0 3px', lineHeight: '12px',
                 }}>
-                  {(item as any).loadedAmmo ?? 0}/{(item as any).ammoCapacity}
+                  {(item as any).loadedAmmo ?? 0}/{effectiveAmmoCapacity(item as any)}
                 </div>
               )}
             </div>
@@ -424,7 +424,7 @@ export const Equipment = () => {
         }}>
           {SLOT_LABELS[slot] || caption}
           {isGun && item?.ammoCapacity ? (
-            <span style={{ color: '#fbbf24' }}> · {item.loadedAmmo ?? 0}/{item.ammoCapacity}</span>
+            <span style={{ color: '#fbbf24' }}> · {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)}</span>
           ) : null}
           {isActiveGun ? (
             <span style={{ color: '#22c55e' }}> ●</span>

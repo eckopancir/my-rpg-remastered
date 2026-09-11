@@ -47,7 +47,7 @@ export const ammoTypeForWeapon = (weapon: { name?: string; ammoType?: string }):
   const explicit = (weapon.ammoType || '') as AmmoGroup;
   if (explicit && AMMO_GROUP_MAP[explicit]) return explicit;
   const n = (weapon.name || '').toLowerCase();
-  if (/пистолет|глок|beretta|usp|five-seven|стечкин|colt|наган|макаров/.test(n)) return 'pistol';
+  if (/пистолет|глок|beretta|usp|five-seven|стечкин|stechkin|colt|наган|макаров/.test(n)) return 'pistol';
   if (/мосин|свд|l96|barrett|винторез|птрс|снайпер|предел|оракул/.test(n)) return 'sniper';
   if (/дробовик|обрез|осада|аннигилятор|remington|spas|aa-12|двустволка/.test(n)) return 'shell';
   if (/m134|m60|m249|pkm|миниган|пулем/.test(n)) return 'mg';
@@ -56,6 +56,50 @@ export const ammoTypeForWeapon = (weapon: { name?: string; ammoType?: string }):
 };
 
 export const ammoGroupName = (key: AmmoGroup): string => AMMO_GROUP_MAP[key]?.name ?? key;
+
+/** Порядок качеств для таблиц (индекс 0-6). */
+const QUALITY_ORDER = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
+
+/**
+ * Бонус +патронов от магазина-мода: класс оружия × качество мода.
+ * Снайпер 1→6, автомат 5→30, пистолет 2→12, дробь 1→6, пулемёт 10→60, тяжёлое 1→5.
+ */
+export const MAGAZINE_BONUS: Record<string, number[]> = {
+  sniper: [1, 2, 3, 4, 4, 5, 6],
+  rifle: [5, 8, 12, 16, 20, 25, 30],
+  pistol: [2, 3, 4, 6, 8, 10, 12],
+  shotgun: [1, 2, 2, 3, 4, 5, 6],
+  mg: [10, 15, 20, 30, 40, 50, 60],
+  heavy: [1, 1, 2, 2, 3, 4, 5],
+  default: [2, 3, 4, 5, 6, 8, 10],
+};
+
+const magazineWeaponClass = (weapon: { name?: string; ammoType?: string }): string => {
+  const n = (weapon.name || '').toLowerCase();
+  if (/мосин|свд|l96|barrett|винторез|птрс|снайпер|предел|оракул/.test(n)) return 'sniper';
+  if (/базук|рпг|гп-25|гранатом|milkor|m79|огнемет|огнемёт|flame/.test(n)) return 'heavy';
+  if (/дробовик|обрез|spas|aa-12|remington|двустволка|осада/.test(n)) return 'shotgun';
+  const g = ammoTypeForWeapon(weapon);
+  if (g === 'pistol') return 'pistol';
+  if (g === 'sniper') return 'sniper';
+  if (g === 'shell') return 'shotgun';
+  if (g === 'mg') return 'mg';
+  if (g === 'energy') return 'heavy';
+  return 'rifle';
+};
+
+/** Итоговая вместимость: база + бонус магазина-мода (по его качеству). */
+export const effectiveAmmoCapacity = (item: {
+  ammoCapacity?: number; name?: string; ammoType?: string;
+  mods?: Record<string, { quality?: string } | any>;
+}): number => {
+  const base = item.ammoCapacity || 0;
+  const mag = item.mods?.['mod_magazine'] as { quality?: string } | undefined;
+  if (!mag) return base;
+  const qidx = Math.max(0, QUALITY_ORDER.indexOf(mag.quality || 'Обычный'));
+  const table = MAGAZINE_BONUS[magazineWeaponClass(item)] || MAGAZINE_BONUS.default;
+  return base + (table[Math.min(qidx, table.length - 1)] || 0);
+};
 
 /** Цена пачки = цена штуки × количество (без скейла от уровня). */
 export const bulletPackPrice = (group: AmmoGroup, quantity: number): number =>

@@ -3,6 +3,7 @@ import type { PlayerStats } from '../stores/playerStore';
 import type { Item } from '../types/items';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { effectiveItemStats } from './itemStats';
+import { effectiveAmmoCapacity } from '../data/ammo';
 
 const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
   health: 'maxHp',
@@ -73,7 +74,7 @@ export const calcItemPower = (item: Item): number => {
   // Огнестрел: урон идёт в sustained-эквиваленте (темп с перезарядками),
   // а не голым уроном: базука 300×2 и снайперка 250×10 дают ~1200/ход обе.
   const sustainedFactor = item.slot === 'weapon2' && item.ammoCapacity
-    ? sustainedShotsPerTurn(item.ammoCapacity) / 5
+    ? sustainedShotsPerTurn(effectiveAmmoCapacity(item)) / 5
     : 1;
   // Мощность с учётом модов: effectiveItemStats уже включает базу + моды.
   for (const [k, v] of Object.entries(effectiveItemStats(item))) {

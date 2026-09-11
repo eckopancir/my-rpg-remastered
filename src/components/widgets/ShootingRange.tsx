@@ -6,6 +6,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { playCombatSound } from '../../hooks/useSound';
 import { calculateCombatResult, calcPureDamage, shotKindForPlayerWeapon } from '../../stores/combatGridStore';
 import { calcExtraShots } from '../../utils/itemPower';
+import { effectiveAmmoCapacity } from '../../data/ammo';
 import mannequinImg from '../../assets/images/ui/mannequin.png';
 import bulletholeImg from '../../assets/images/ui/bullethole.png';
 import crosshairImg from '../../assets/images/ui/pricel.png';
@@ -71,7 +72,7 @@ export const ShootingRange = ({ onClose }: Props) => {
   const showDmgNums = useUiStore((s) => s.showDamageNumbers !== false);
   // Магазин — из активного оружия, как в арене.
   const weapon2 = usePlayerStore((s) => s.getActiveWeapon());
-  const magSize = weapon2?.ammoCapacity || 30;
+  const magSize = (weapon2 ? effectiveAmmoCapacity(weapon2) : 0) || 30;
 
   const [cfg, setCfg] = useState<DummyCfg>({ hp: 250000, armor: 25, evasionPct: 0, block: 0 });
   const [faction, setFaction] = useState<FactionId>('none');

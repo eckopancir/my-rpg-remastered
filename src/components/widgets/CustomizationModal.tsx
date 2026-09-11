@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '../ui/Button';
+import { WapHeader } from '../ui/WapHeader';
 import { ItemTooltip } from './ItemTooltip';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -47,7 +47,7 @@ const ARMOR_MOD_SLOTS: ModSlotPos[] = [
 ];
 
 const SLOT_LABELS: Record<string, string> = {
-  head: 'Шлем', armor: 'Броня', weapon1: 'Оружие', weapon2: 'Вторая рука',
+  head: 'Шлем', armor: 'Броня', pants: 'Штаны', weapon1: 'Оружие', weapon2: 'Вторая рука',
   gloves: 'Перчатки', boots: 'Ботинки',
 };
 
@@ -72,7 +72,7 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
     const itemType = liveItem?.slot;
     if (itemType === 'weapon1') return COLD_WEAPON_SLOT_POSITIONS;
     if (itemType === 'weapon2') return FIREARM_SLOT_POSITIONS;
-    if (['head', 'armor', 'gloves', 'boots'].includes(itemType || '')) return ARMOR_MOD_SLOTS;
+    if (['head', 'armor', 'pants', 'gloves', 'boots'].includes(itemType || '')) return ARMOR_MOD_SLOTS;
     return [];
   })();
 
@@ -160,29 +160,37 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
           style={{
             position: 'fixed',
             left: pos.x, top: pos.y,
-            width: 720, maxWidth: '96vw', padding: 16,
+            width: 720, maxWidth: '96vw',
             pointerEvents: 'auto',
-            backgroundImage: images.workshop ? `url(${images.workshop})` : 'none',
-            backgroundSize: '92%',
-            backgroundPosition: 'center',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 12,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
           }}
         >
+          <WapHeader
+            title={`🔧 КАСТОМИЗАЦИЯ: ${liveItem?.displayName || liveItem?.name || SLOT_LABELS[slot] || slot}`}
+            glow="amber"
+            onMouseDown={onHeaderMouseDown}
+            style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))' }}
+          >
+            <span
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}
+            >
+              ✕
+            </span>
+          </WapHeader>
+          <div style={{
+            background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
+            border: '2px solid rgba(217,119,6,0.2)',
+            borderRadius: '0 0 8px 8px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+            padding: 16,
+          }}>
           <div style={{
             background: 'rgba(8,8,14,0.4)',
             borderRadius: 8, padding: 12,
+            backgroundImage: images.workshop ? `url(${images.workshop})` : 'none',
+            backgroundSize: '92%',
+            backgroundPosition: 'center',
           }}>
-          <div
-            onMouseDown={onHeaderMouseDown}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, cursor: 'move', userSelect: 'none' }}
-          >
-            <div style={{ fontSize: 16, fontWeight: 600 }}>
-              🔧 Кастомизация: {liveItem?.displayName || liveItem?.name || SLOT_LABELS[slot] || slot}
-            </div>
-            <Button size="sm" variant="ghost" onClick={onClose}>✕</Button>
-          </div>
 
           {liveItem && (
             <div style={{
@@ -252,6 +260,7 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
           {hoverMod && (
             <ItemTooltip item={hoverMod} x={hoverPos.x} y={hoverPos.y} />
           )}
+          </div>
           </div>
         </motion.div>
       </motion.div>

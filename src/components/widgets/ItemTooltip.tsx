@@ -3,7 +3,7 @@ import type { Item } from '../../types/items';
 import { chestImageFor, configForQuality } from '../../data/chests';
 import { QUALITY_TIERS } from '../../engine/items';
 import { backpackDefByName, backpackSlots, backpackSlotsFor } from '../../data/backpacks';
-import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, type AmmoGroup } from '../../data/ammo';
+import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effectiveAmmoCapacity, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
@@ -161,7 +161,7 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
       })()}
       {item.slot === 'weapon2' && item.ammoCapacity && (
         <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          📀 Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{item.ammoCapacity}
+          📀 Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)}
         </div>
       )}
       {item.slot === 'weapon2' && (() => {
@@ -178,9 +178,9 @@ export const ItemTooltip = ({ item, x, y }: ItemTooltipProps) => {
           </div>
         );
       })()}
-      {item.slot === 'mod_magazine' && item.stats?.ammoCapacity && (
+      {item.slot === 'mod_magazine' && (
         <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          📀 +{item.stats.ammoCapacity} патронов к вместимости
+          📀 +патроны к вместимости (по стволу и качеству мода)
         </div>
       )}
       <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />

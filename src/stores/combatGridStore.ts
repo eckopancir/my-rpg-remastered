@@ -7,7 +7,7 @@ import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP } from '../data/consumables';
-import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile } from '../data/ammo';
+import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity } from '../data/ammo';
 import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
@@ -1009,7 +1009,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const gunSlot = usePlayerStore.getState().activeWeaponSlot;
     const gun = usePlayerStore.getState().getActiveWeapon();
     const gunIsMelee = gun && (gun as any).slot === 'weapon1' && !(gun as any).ammoCapacity;
-    let ammoCap = gun?.ammoCapacity || 30;
+    // Вместимость с учётом магазина-мода.
+    let ammoCap = gun ? effectiveAmmoCapacity(gun) || 30 : 30;
     // Магазин живёт в оружии (loadedAmmo): рюкзак не трогаем.
     // Первая зарядка (loadedAmmo нет): полный магазин из рюкзака, запоминаем.
     // Кулаки/ближний бой без патронов — виртуальный магазин.
@@ -2178,9 +2179,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const pureDmg = calcPureDamage(player.stats, faction);
     if (player.stats.stamina < 0.1 * player.stats.maxStamina) effectiveDps *= 0.5;
 
-    // +30% damage for low-capacity weapons (1-3 rounds)
+    // +30% damage for low-capacity weapons (1-3 rounds, с учётом магазина-мода)
     const gunNow = usePlayerStore.getState().getActiveWeapon();
-    if (gunNow?.ammoCapacity && gunNow.ammoCapacity <= 3) {
+    if (gunNow && effectiveAmmoCapacity(gunNow) <= 3 && (gunNow as any).ammoCapacity) {
       effectiveDps *= 1.3;
     }
 
@@ -2258,10 +2259,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const pureBonus = calcPureDamage(pStats, fac);
         if (pStats.stamina < 0.1 * pStats.maxStamina) effDps *= 0.5;
 
-        // +30% damage for low-capacity weapons (1-3 rounds)
+        // +30% damage for low-capacity weapons (1-3 rounds, с учётом магазина-мода)
         const pState = usePlayerStore.getState();
         const w2 = pState.getActiveWeapon();
-        if (w2?.ammoCapacity && w2.ammoCapacity <= 3) {
+        if (w2 && (w2 as any).ammoCapacity && effectiveAmmoCapacity(w2) <= 3) {
           effDps *= 1.3;
         }
 
@@ -2617,7 +2618,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     // Берём следующее: свой магазин или первая зарядка из рюкзака.
     const nw = (usePlayerStore.getState().equipment as any)[next];
-    let cap = nw?.ammoCapacity || 30;
+    let cap = (nw ? effectiveAmmoCapacity(nw) : 0) || 30;
     let mag: number;
     if (!nw || !nw.ammoCapacity) {
       mag = cap;
