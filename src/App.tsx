@@ -114,6 +114,7 @@ const AppContent = () => {
     const doLoad = async () => {
       const hasInventory = await loadInventoryFromServer(token);
       // Старые моды (без метки _modv) удалены из игры: чистим и серверные данные.
+      // Запечённый image у модов сносим: картинка резолвится по слоту в рантайме.
       try {
         const inv = useInventoryStore.getState();
         const bad = inv.items.filter((it: any) => it?.type === 'mod' && (it as any)._modv !== 2);
@@ -121,15 +122,22 @@ const AppContent = () => {
           useInventoryStore.setState({ items: inv.items.filter((it: any) => !(it?.type === 'mod' && (it as any)._modv !== 2)) });
           usePlayerStore.getState().addLog(`🔧 Старые моды удалены из игры (${bad.length} шт.)`, 'system');
         }
+        for (const it of useInventoryStore.getState().items) {
+          if ((it as any)?.type === 'mod' && (it as any).image) delete (it as any).image;
+        }
         const ps0 = usePlayerStore.getState();
         let stripped = 0;
+        let touched = false;
         const eq1: any = { ...(ps0.equipment || {}) };
         for (const k of Object.keys(eq1)) {
           const it = eq1[k];
           if (it && (it as any).mods) {
             const fresh: any = {};
             for (const [mk, mv] of Object.entries((it as any).mods)) {
-              if ((mv as any)?._modv === 2) fresh[mk] = mv;
+              if ((mv as any)?._modv === 2) {
+                if ((mv as any).image) { delete (mv as any).image; touched = true; }
+                fresh[mk] = mv;
+              }
               else stripped += 1;
             }
             eq1[k] = { ...it, mods: fresh };
@@ -137,9 +145,10 @@ const AppContent = () => {
         }
         const pack1 = (ps0.backpackContents || []).filter((it: any) => {
           if (it?.type === 'mod' && (it as any)._modv !== 2) { stripped += 1; return false; }
+          if (it?.type === 'mod' && (it as any).image) { delete (it as any).image; touched = true; }
           return true;
         });
-        if (stripped > 0) {
+        if (stripped > 0 || touched) {
           usePlayerStore.setState({ equipment: eq1, backpackContents: pack1 });
           usePlayerStore.getState().addLog(`🔧 Старые моды удалены из игры (${stripped} шт.)`, 'system');
           usePlayerStore.getState().recalcStats();

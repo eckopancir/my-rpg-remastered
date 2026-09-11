@@ -281,7 +281,7 @@ const ProductCard = ({ item, buyPrice, canAfford, onBuy, onHover, onMove, onLeav
             ? (CONSUMABLE_ICONS[item.abilityId] ?? '📦')
             : item.type === 'backpack' ? '🎒' : null;
         if (emoji) return <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{emoji}</div>;
-        const url = getItemImage(item.resourceName || item.name, item.type !== 'material' ? item.displayName : undefined);
+        const url = getItemImage(item.resourceName || item.name, item.type !== 'material' ? item.displayName : undefined, (item as any).slot, (item as any).type);
         return url ? <img src={url} alt="" style={{ width: 30, height: 30, objectFit: 'contain', imageRendering: 'pixelated', borderRadius: 4, background: 'rgba(0,0,0,0.25)' }} /> : <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📦</div>;
       })()}
       <div style={{ fontSize: 10, fontWeight: 600, color: item.qualityColor || 'var(--text-primary)', lineHeight: 1.2, textAlign: 'center', overflowWrap: 'break-word', width: '100%' }}>
@@ -800,7 +800,7 @@ export const Bazaar = () => {
                 >
                   {item ? (
                     <>
-                      {(() => { const url = getItemImage(item.name, item.displayName); return url ? <img src={url} alt="" style={{ width: 28, height: 28, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
+                      {(() => { const url = getItemImage(item.name, item.displayName, (item as any).slot, (item as any).type); return url ? <img src={url} alt="" style={{ width: 28, height: 28, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
                       <div style={{
                         position: 'absolute', top: 1, right: 1,
                         fontSize: 8, fontFamily: 'var(--font-mono)',

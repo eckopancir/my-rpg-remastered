@@ -108,7 +108,7 @@ const debugAddMods = (count: number) => {
       name: def.name, displayName: def.name, rarity: def.rarity,
       slot: def.slot, type: 'mod', stats,
       quality: q.name, qualityColor: q.color,
-      image: getItemImage(def.name), level: lvl,
+      image: getItemImage(def.name, def.name, def.slot, 'mod'), level: lvl,
       _modv: 2,
     } as any);
   }
