@@ -120,7 +120,7 @@ export const Header = () => {
             onClick={() => { playClick(); toggleRange(); }}
             style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
           >
-            🎯 Полигон
+            🎯 Shooting Range
           </button>
           <NavLink to="/settings" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`} onClick={guardCombatNav}>
             ⚙️ Settings

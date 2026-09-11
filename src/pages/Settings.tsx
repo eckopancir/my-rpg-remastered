@@ -95,7 +95,7 @@ export const Settings = () => {
                 <VolumeSlider value={arenaVolume ?? 1} onChange={setArenaVolume} />
               </div>
               <div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>🎯 Полигон — выстрелы по манекену</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>🎯 Shooting Range — выстрелы по манекену</div>
                 <VolumeSlider value={rangeVolume ?? 1} onChange={setRangeVolume} />
               </div>
             </div>

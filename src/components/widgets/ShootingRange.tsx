@@ -4,7 +4,8 @@ import { WapHeader } from '../ui/WapHeader';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
 import { playCombatSound } from '../../hooks/useSound';
-import { calculateCombatResult, calcPureDamage } from '../../stores/combatGridStore';
+import { calculateCombatResult, calcPureDamage, shotKindForPlayerWeapon } from '../../stores/combatGridStore';
+import { calcExtraShots } from '../../utils/itemPower';
 import mannequinImg from '../../assets/images/ui/mannequin.png';
 import bulletholeImg from '../../assets/images/ui/bullethole.png';
 import crosshairImg from '../../assets/images/ui/pricel.png';
@@ -179,10 +180,8 @@ export const ShootingRange = ({ onClose }: Props) => {
 
   // Физа идёт через формулу одна; стихия манекена — чистым уроном поверх
   // (мимо брони/блока/уворота; крит умножает всю сумму; промах гасит всё).
-  const physDps = stats.damage || 0;
   const pureFaction = faction === 'none' ? undefined : faction;
   const pureDps = calcPureDamage(stats, pureFaction);
-  const attackerDps = physDps;
 
   // Эффективный шанс уклонения с учётом пробития меткостью (как в арене):
   // меткость >100% частично гасит уворот, 200% — гасит полностью.
@@ -202,14 +201,19 @@ export const ShootingRange = ({ onClose }: Props) => {
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
-    // Выстрел: звук сразу, урон — формулой арены по реальным статам игрока.
-    // Модификаторы стамины/малокалиберности арены тут не применяем — чистый замер.
-    const snd = SHOT_SOUNDS[shotAlt % SHOT_SOUNDS.length];
+    // Паритет с BATTLE-ареной: стамина, малокалиберный бонус, доп. выстрелы
+    // от скорости, вампиризм-хил, звук класса оружия.
+    const pshot = shotKindForPlayerWeapon();
+    const snd = pshot.sound || SHOT_SOUNDS[shotAlt % SHOT_SOUNDS.length];
     setShotAlt((v) => v + 1);
-    playCombatSound(snd, 0.27, 'range');
+
+    let dps = stats.damage || 0;
+    if (stats.stamina < 0.1 * (stats.maxStamina || 100)) dps *= 0.5;
+    if ((magSize || 30) <= 3) dps *= 1.3;
+    const shots = 1 + calcExtraShots(stats.speed || 0);
 
     const attackerStats = {
-      dps: attackerDps,
+      dps,
       pure: pureDps,
       crit: stats.crit,
       accuracy: stats.accuracy,
@@ -222,52 +226,69 @@ export const ShootingRange = ({ onClose }: Props) => {
       evasion: Math.max(0, Math.min(1, cfg.evasionPct / 100)),
       block: cfg.block,
     };
-    const result = calculateCombatResult(attackerStats, targetStats);
-    const shotNo = totals.shots + 1;
 
-    if (result.type === 'CRIT') {
-      playCombatSound('crit', 0.27, 'range');
-      setTotals((t) => ({ shots: t.shots + 1, dmg: t.dmg + result.damage, crits: t.crits + 1 }));
-    } else if (result.type === 'BLOCK') {
-      playCombatSound('block', 0.24, 'range');
-      setTotals((t) => ({ shots: t.shots + 1, dmg: t.dmg + result.damage, crits: t.crits }));
-    } else if (result.type === 'MISS' || result.type === 'EVASION') {
-      setTotals((t) => ({ shots: t.shots + 1, dmg: t.dmg, crits: t.crits }));
-    } else {
-      setTotals((t) => ({ shots: t.shots + 1, dmg: t.dmg + result.damage, crits: t.crits }));
+    let a = ammo;
+    let h = hp;
+    let dealtTotal = 0;
+    let shotCount = 0;
+    let critCount = 0;
+    let healTotal = 0;
+
+    for (let sIdx = 0; sIdx < shots; sIdx++) {
+      if (a <= 0 || h <= 0) break;
+      a -= 1;
+      playCombatSound(snd, 0.27, 'range');
+      const result = calculateCombatResult(attackerStats, targetStats);
+      shotCount += 1;
+
+      if (result.type === 'CRIT') {
+        playCombatSound('crit', 0.27, 'range');
+        critCount += 1;
+      } else if (result.type === 'BLOCK') {
+        playCombatSound('block', 0.24, 'range');
+      }
+      dealtTotal += result.damage;
+
+      const kind: FloatNum['kind'] =
+        result.type === 'CRIT' ? 'crit'
+        : result.type === 'BLOCK' ? 'block'
+        : result.type === 'MISS' || result.type === 'EVASION' ? 'miss'
+        : 'dmg';
+      const tag = shots > 1 ? ` [${sIdx + 1}/${shots}]` : '';
+      if (kind === 'info' || showDmgNums) pushFloat(x + sIdx * 1.5, Math.max(4, y - 4), result.text, kind);
+      pushLog(`#${totals.shots + shotCount}${tag} ${result.text}`, kind);
+
+      // Вампиризм лечит стрелка (видно в бою) — показываем и тут.
+      const hv = Math.round(result.damage * (stats.vampir || 0));
+      if (hv > 0) healTotal += hv;
+
+      // След от выстрела: максимум 5, новый вытесняет старый.
+      const decalId = ++idRef.current;
+      const rot = Math.floor(Math.random() * 360);
+      setDecals((prev) => [...prev.slice(-(MAX_DECALS - 1)), { id: decalId, x, y, rot }]);
     }
-    // Вампиризм урон считает, но хилить некого — хил не показываем.
-
-    const kind: FloatNum['kind'] =
-      result.type === 'CRIT' ? 'crit'
-      : result.type === 'BLOCK' ? 'block'
-      : result.type === 'MISS' || result.type === 'EVASION' ? 'miss'
-      : 'dmg';
-    // Настройка «Цифры урона»: числовые всплывашки можно скрыть (служебные info остаются).
-    if (kind === 'info' || showDmgNums) pushFloat(x, Math.max(4, y - 4), result.text, kind);
-    pushLog(`#${shotNo} ${result.text}`, kind);
-
-    // След от выстрела: максимум 5, новый вытесняет старый.
-    const decalId = ++idRef.current;
-    const rot = Math.floor(Math.random() * 360);
-    setDecals((prev) => [...prev.slice(-(MAX_DECALS - 1)), { id: decalId, x, y, rot }]);
 
     // Отдача манекена: дёргание в сторону с возвратом.
-    setHitSeq((v) => v + 1);
-
-    const nextAmmo = ammo - 1;
-    setAmmo(nextAmmo);
-
-    const newHp = Math.max(0, hp - result.damage);
+    if (shotCount > 0) setHitSeq((v) => v + 1);
+    setAmmo(a);
+    setTotals((t) => ({ shots: t.shots + shotCount, dmg: t.dmg + dealtTotal, crits: t.crits + critCount }));
+    const newHp = Math.max(0, h - dealtTotal);
     setHp(newHp);
-    if (newHp <= 0 && result.damage > 0) {
+    if (healTotal > 0) {
+      usePlayerStore.setState((st: any) => ({
+        stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + healTotal) },
+      }));
+      pushFloat(x, Math.max(4, y - 10), `+${healTotal} 🩸`, 'info');
+      pushLog(`🩸 Вампиризм: +${healTotal} HP тебе`, 'info');
+    }
+    if (newHp <= 0 && dealtTotal > 0) {
       setDead(true);
       playCombatSound('wilhelm_scream', 0.15, 'range');
       pushFloat(50, 30, '💀 МАНЕКЕН УНИЧТОЖЕН', 'crit');
       pushLog('💀 Манекен уничтожен', 'crit');
     }
 
-    if (nextAmmo <= 0 && newHp > 0) startReload();
+    if (a <= 0 && newHp > 0) startReload();
   };
 
   const hpPct = cfg.hp > 0 ? Math.max(0, Math.min(100, (hp / cfg.hp) * 100)) : 0;
@@ -345,7 +366,7 @@ export const ShootingRange = ({ onClose }: Props) => {
       transition={{ duration: 0.15 }}
       style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 2000, userSelect: 'none' }}
     >
-      <WapHeader title="🎯 ПОЛИГОН" glow="amber" onMouseDown={onMouseDown}
+      <WapHeader title="🎯 SHOOTING RANGE" glow="amber" onMouseDown={onMouseDown}
         style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))' }}>
         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-mono)', padding: '0 4px' }}>
           🔫 {reloading ? '···' : `${ammo}/${magSize}`}
