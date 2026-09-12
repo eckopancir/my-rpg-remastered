@@ -439,12 +439,6 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         <span style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: item.qualityColor }}>
           {item.quality || item.type || ''}
         </span>
-        {!nested && !pinMode && compareItem && compareItem.id !== item.id && (
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>Shift — сравнить · T — наверх</span>
-        )}
-        {!nested && !pinMode && (!compareItem || compareItem.id === item.id) && (
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>T — прибить наверх</span>
-        )}
         <span style={{ color: 'var(--accent-warning)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
           💾{getSellPrice(item).toLocaleString()}
         </span>
