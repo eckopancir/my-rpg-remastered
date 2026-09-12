@@ -121,7 +121,7 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
             const max = socketSlotsOf(item);
             const filled = Array.isArray((item as any).sockets) ? (item as any).sockets.length : 0;
             return (
-              <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', flexDirection: 'column', gap: 2 }} title={`Гнёзда схем: ${filled}/${max}`}>
+              <div style={{ position: 'absolute', top: 20, right: 0, display: 'flex', flexDirection: 'column', gap: 2 }} title={`Гнёзда схем: ${filled}/${max}`}>
                 {Array.from({ length: max }).map((_, i) => {
                   const src = i < filled ? crystalImages.filled : crystalImages.empty;
                   return src ? (
