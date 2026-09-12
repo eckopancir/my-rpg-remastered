@@ -13,6 +13,11 @@ $pdo = getDB();
 $pdo->beginTransaction();
 
 try {
+    // Фикс цены продажи ресурсов для крафта (за шт, без мультипликаторов).
+    $matSell = [
+        'Металлолом' => 1, 'Провода' => 1, 'Порох' => 1, 'Редкий сплав' => 1,
+        'Микросхема' => 2, 'Хим. реагент' => 2,
+    ];
     // Read current chips
     $saveStmt = $pdo->prepare('SELECT save_data FROM saves WHERE user_id = ? FOR UPDATE');
     $saveStmt->execute([$user['id']]);
@@ -56,7 +61,9 @@ try {
                     $itemLevel = isset($itemData['level']) ? (int)$itemData['level'] : 1;
                     $itemQuality = $itemData['quality'] ?? 'Обычный';
 
-                    if ($itemPrice > 0) {
+                    if (isset($matSell[$itemName])) {
+                        $pricePerUnit = $matSell[$itemName];
+                    } elseif ($itemPrice > 0) {
                         $pricePerUnit = (int)floor($itemPrice * 0.4);
                     } else {
                         $qMul = 1;
@@ -84,7 +91,7 @@ try {
             $totalChipsGained += $pricePerUnit * ($sellQty - $remaining);
         } elseif (!empty($itemId)) {
             // Legacy: sell by specific item ID
-            $invStmt = $pdo->prepare('SELECT id, quantity, data FROM inventory_items WHERE user_id = ? AND item_id = ? FOR UPDATE');
+            $invStmt = $pdo->prepare('SELECT id, quantity, name, data FROM inventory_items WHERE user_id = ? AND item_id = ? FOR UPDATE');
             $invStmt->execute([$user['id'], $itemId]);
             $invRow = $invStmt->fetch();
 
@@ -99,8 +106,12 @@ try {
             $itemPrice = isset($itemData['price']) ? (int)$itemData['price'] : 0;
             $itemLevel = isset($itemData['level']) ? (int)$itemData['level'] : 1;
             $itemQuality = $itemData['quality'] ?? 'Обычный';
+            $rowName = $invRow['name'] ?? '';
+            $rowType = $itemData['type'] ?? '';
 
-            if ($itemPrice > 0) {
+            if ($rowType === 'material' && isset($matSell[$rowName])) {
+                $pricePerUnit = $matSell[$rowName];
+            } elseif ($itemPrice > 0) {
                 $pricePerUnit = (int)floor($itemPrice * 0.4);
             } else {
                 $qMul = 1;

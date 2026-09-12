@@ -523,6 +523,14 @@ export const Bazaar = () => {
     }));
   };
 
+  // Выставить сразу весь стак (для ресурсов — весь запас по имени).
+  const setSellQtyMax = (slotIdx: number) => {
+    const item = sellSlots[slotIdx];
+    if (!item) return;
+    const max = item.type === 'material' ? getTotalMatQty(item.name) : (item.quantity || 1);
+    setSellQty((prev) => ({ ...prev, [slotIdx]: Math.max(1, max) }));
+  };
+
   const totalSellValue = useMemo(() => {
     const bonus = getUtil().sellBonus;
     return sellSlots.reduce((sum, item, idx) => {
@@ -823,6 +831,12 @@ export const Bazaar = () => {
                           <div onClick={() => adjustSellQty(idx, 1)}
                             style={{ width: 16, height: 16, borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 700, fontSize: 12, lineHeight: '16px' }}
                           >+</div>
+                          {item.type === 'material' && (
+                            <div onClick={() => setSellQtyMax(idx)}
+                              title="Выставить весь стак"
+                              style={{ height: 16, padding: '0 5px', borderRadius: 3, background: 'rgba(96,165,250,0.2)', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 700, fontSize: 9, lineHeight: '16px' }}
+                            >ВСЕ</div>
+                          )}
                         </div>
                       )}
                     </>
