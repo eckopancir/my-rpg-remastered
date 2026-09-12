@@ -14,11 +14,11 @@ export interface AmmoGroupDef {
 
 export const AMMO_GROUPS: AmmoGroupDef[] = [
   { key: 'pistol', name: 'Пистолетные', icon: '🔸', packName: 'Пачка пистолетных патронов', price: 1, desc: 'Пистолеты и револьверы.' },
-  { key: 'rifle', name: 'Автоматные', icon: '🔶', packName: 'Пачка автоматных патронов', price: 3, desc: 'Штурмовые винтовки и ПП.' },
-  { key: 'sniper', name: 'Снайперские', icon: '🎯', packName: 'Пачка снайперских патронов', price: 16, desc: 'Точные винтовки.' },
-  { key: 'shell', name: 'Дробь', icon: '🟠', packName: 'Пачка дроби', price: 12, desc: 'Дробовики и обрезы.' },
-  { key: 'mg', name: 'Пулемётные', icon: '⛓️', packName: 'Пулемётная лента', price: 3.5, desc: 'Пулемёты и миниганы.' },
-  { key: 'energy', name: 'Энергоячейки', icon: '🔋', packName: 'Энергоячейки', price: 17, desc: 'ЭМИ, плазма, термика, гранатомёты.' },
+  { key: 'rifle', name: 'Автоматные', icon: '🔶', packName: 'Пачка автоматных патронов', price: 2, desc: 'Штурмовые винтовки и ПП.' },
+  { key: 'sniper', name: 'Снайперские', icon: '🎯', packName: 'Пачка снайперских патронов', price: 5, desc: 'Точные винтовки.' },
+  { key: 'shell', name: 'Дробь', icon: '🟠', packName: 'Пачка дроби', price: 4, desc: 'Дробовики и обрезы.' },
+  { key: 'mg', name: 'Пулемётные', icon: '⛓️', packName: 'Пулемётная лента', price: 1.5, desc: 'Пулемёты и миниганы.' },
+  { key: 'energy', name: 'Энергоячейки', icon: '🔋', packName: 'Энергоячейки', price: 6, desc: 'ЭМИ, плазма, термика, гранатомёты.' },
 ];
 
 export const AMMO_GROUP_MAP: Record<AmmoGroup, AmmoGroupDef> = Object.fromEntries(
@@ -71,10 +71,10 @@ export const BULLET_DMG_PCT = [0, 5, 10, 15, 20, 25, 30];
 export const bulletDamageMult = (quality?: string): number =>
   1 + (BULLET_DMG_PCT[Math.min(bulletQualityIndex(quality), BULLET_DMG_PCT.length - 1)] || 0) / 100;
 
-/** Цена пачки по качеству (как SHOP_QUALITY_MULT базара). */
+/** Цена пачки по качеству: пологая шкала — патроны расходник, а не реликвия. */
 export const BULLET_QUALITY_PRICE: Record<string, number> = {
-  'Обычный': 1, 'Редкий': 2, 'Раритетный': 3, 'Эпический': 5,
-  'Смертоносный': 7, 'Легендарный': 10, 'Божественный': 14,
+  'Обычный': 1, 'Редкий': 1.5, 'Раритетный': 2, 'Эпический': 2.5,
+  'Смертоносный': 3, 'Легендарный': 4, 'Божественный': 5,
 };
 
 export const BULLET_QUALITY_COLORS: Record<string, string> = {

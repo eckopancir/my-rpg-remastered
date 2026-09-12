@@ -159,8 +159,8 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
         const pct = BULLET_DMG_PCT[Math.min(bulletQualityIndex(item.quality), BULLET_DMG_PCT.length - 1)] || 0;
         return (
           <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-            🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle')} шт.
-            <span style={{ color: '#4ade80' }}> +{pct}% к урону ({item.quality || 'Обычный'})</span>
+            <div>🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle')} шт.</div>
+            <div style={{ color: '#4ade80' }}>+{pct}% к урону ({item.quality || 'Обычный'})</div>
           </div>
         );
       })()}
