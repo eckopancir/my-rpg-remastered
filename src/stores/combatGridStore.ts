@@ -2510,8 +2510,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     } catch { /* best effort */ }
 
     // Auto end turn if AP runs out (одни на поле — тоже: вернёт AP и свободный бег).
-    // Свежий AP: автоперезарядка выше могла уже потратить.
-    const nextAp = get().ap - shotCost;
+    // AP уже списан выше (ap - shotCost): вычитать ещё раз нельзя, иначе ход
+    // кончается на 1 AP раньше (баг: выстрел при 2 AP завершал ход).
+    const nextAp = get().ap;
     if (nextAp < 1) {
       setTimeout(() => {
         get().endTurn();
