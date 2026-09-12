@@ -80,7 +80,12 @@ function DropSlot({ item, onDrop, onRemove, label, onTipShow, onTipMove, onTipHi
   return (
     <div
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-      onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onDrop(id); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        // Фолбэк: dataTransfer иногда пуст — берём id из стора.
+        const id = e.dataTransfer.getData('text/plain') || useUiStore.getState().draggedItemId;
+        if (id) onDrop(id);
+      }}
       onClick={() => item && onRemove()}
       onMouseEnter={(e) => { if (item && onTipShow) onTipShow(item, e); }}
       onMouseMove={(e) => { if (item && onTipMove) onTipMove(e); }}
@@ -139,11 +144,12 @@ export const Craft = () => {
   // Merge result
   const [mergeResult, setMergeResult] = useState<Item | null>(null);
 
-  // Reforge (перековка): оружие/броня + сфера (живут в сторе — переживают refresh).
-  const reforgeWeapon = usePlayerStore((s) => s.reforgeWeapon);
-  const reforgeBlueprint = usePlayerStore((s) => s.reforgeBlueprint);
-  const setReforgeWeapon = usePlayerStore((s) => s.setReforgeWeapon);
-  const setReforgeBlueprint = usePlayerStore((s) => s.setReforgeBlueprint);
+  // Reforge (перековка): оружие/броня + сфера.
+  // UI едет на локальном стейте, в стор зеркалим для серверной персистентности.
+  const [reforgeWeapon, setReforgeWeaponLocal] = useState<Item | null>(() => usePlayerStore.getState().reforgeWeapon);
+  const [reforgeBlueprint, setReforgeBlueprintLocal] = useState<Item | null>(() => usePlayerStore.getState().reforgeBlueprint);
+  const setReforgeWeapon = (w: Item | null) => { setReforgeWeaponLocal(w); usePlayerStore.getState().setReforgeWeapon(w); };
+  const setReforgeBlueprint = (b: Item | null) => { setReforgeBlueprintLocal(b); usePlayerStore.getState().setReforgeBlueprint(b); };
 
   // Tooltip for result items
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
@@ -684,7 +690,7 @@ export const Craft = () => {
                 {/* Большой слот: оружие/броня */}
                 <div
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) handleDropToReforge(id); }}
+                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain') || useUiStore.getState().draggedItemId; if (id) handleDropToReforge(id); }}
                   onClick={() => reforgeWeapon && handleRemoveReforgeWeapon()}
                   onMouseEnter={(e) => { if (reforgeWeapon) { setTooltipItem(reforgeWeapon); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
                   onMouseMove={(e) => { if (reforgeWeapon) setTooltipPos({ x: e.clientX, y: e.clientY }); }}

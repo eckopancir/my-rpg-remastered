@@ -154,7 +154,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
                 const body = emoji ? (
                   <span style={{ fontSize: 26, lineHeight: 1 }}>{emoji}</span>
                 ) : url ? (
-                  <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} draggable={false} />
+                  <img src={url} alt="" draggable={false} style={{ width: 40, height: 40, objectFit: 'contain' }} />
                 ) : (
                   <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
                 );

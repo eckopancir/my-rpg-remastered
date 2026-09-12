@@ -58,6 +58,8 @@ export interface Item {
   baseStats?: Record<string, number>;
   // Сфера: какой стат усиливает.
   blueprintStat?: string;
+  // Перековка: предмет лежит в слоте ('weapon' — большой, 'bp' — малый).
+  inReforge?: string;
 }
 
 

@@ -447,7 +447,7 @@ export const InventoryOverlay = () => {
                     {emojiIcon ? (
                       <span style={{ fontSize: 28, lineHeight: 1 }}>{emojiIcon}</span>
                     ) : imgUrl ? (
-                      <img src={imgUrl} alt="" style={{ width: 44, height: 44, objectFit: 'contain', imageRendering: 'pixelated' }} />
+                      <img src={imgUrl} alt="" draggable={false} style={{ width: 44, height: 44, objectFit: 'contain', imageRendering: 'pixelated' }} />
                     ) : (
                       <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
                     )}

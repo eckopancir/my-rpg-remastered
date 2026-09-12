@@ -403,7 +403,7 @@ export const Equipment = () => {
         >
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
+              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
               <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 2, textAlign: 'center' }}>
                 {item.level || 0} ур.
               </div>
