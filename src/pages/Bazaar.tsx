@@ -246,7 +246,7 @@ const STALLS = [
   { id: 'consumables', label: 'Амуниция', icon: '🧪', flavor: 'Амулеты, еда и мелочи', color: '#4ade80', slots: ['consumable'] },
   { id: 'mods', label: 'Модификации', icon: '🔩', flavor: 'Тюнинг снаряжения', color: '#c084fc', slots: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock', 'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'] },
   { id: 'resources', label: 'Ресурсные ряды', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
-  { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны и боевые расходники', color: '#fb923c', slots: ['bullet', 'consumable'] },
+  { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны', color: '#fb923c', slots: ['bullet'] },
 ] as const;
 
 type StallId = typeof STALLS[number]['id'] | 'all';
