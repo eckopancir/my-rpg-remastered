@@ -114,7 +114,7 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
     >
       {imgUrl && (
         <div style={{ textAlign: 'center', marginBottom: 10, position: 'relative' }}>
-          <img src={imgUrl} alt="" style={{ width: '100%', height: 120, objectFit: 'contain', padding: 4 }} />
+          <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 156 : 120, objectFit: 'contain', padding: 4 }} />
           {item.quality && QUALITY_STARS[item.quality] ? (
             <div style={{ position: 'absolute', top: -4, left: -4, display: 'flex', gap: 1 }}>
               {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
