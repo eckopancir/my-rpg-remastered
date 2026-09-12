@@ -69,15 +69,17 @@ const MOD_SLOT_IMAGE_MAP: Record<string, string> = {
 /** Картинка рюкзака по семейству (9 семейств; ключи файлов pack_*.png). */
 const BACKPACK_IMAGE_MAP: Record<string, string> = {
   'поход': 'pack_pohod',
-  'полев': 'pack_field',
+  'полев': 'pack_assault',
   'медицин': 'pack_field', // алиас старых сейвов (был «Медицинский»)
   'рейдов': 'pack_raid',
   'сталкер': 'pack_stalker',
-  'штурм': 'pack_assault',
+  'штурм': 'pack_field',
   'десант': 'pack_desant',
   'тактич': 'pack_tactical',
   'армей': 'pack_army',
   'экспедиц': 'pack_expedition',
+  'ветеран': 'pack_veteran',
+  'экзо': 'pack_exo',
 };
 
 /** Картинка рюкзака по семейству или полному имени; фолбэк — рейдовый. */
