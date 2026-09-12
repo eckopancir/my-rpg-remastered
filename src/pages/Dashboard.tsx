@@ -41,7 +41,7 @@ const debugAddBackpacks = () => {
   useUiStore.getState().addToast(`🎒 +${BACKPACK_DEFS.length} рюкзаков (качества роллом)`, 'loot');
 };
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
-import { SCHEME_STATS, SCHEME_STAT_LABELS, schemePctFor } from '../data/schematics';
+import { SCHEME_STATS, SCHEME_STAT_LABELS, SCHEME_FLAT_STATS, schemePctFor, schemeFlatFor } from '../data/schematics';
 import { getItemImage, getSchemeImage, images } from '../assets/index';
 import { GUN_SLOTS } from '../stores/playerStore';
 
@@ -148,11 +148,12 @@ const debugAddResources = (count: number) => {
   // Сферы для перековки: по одной каждого качества.
   for (const q of QUALITY_TIERS) {
     const stat = SCHEME_STATS[Math.floor(Math.random() * SCHEME_STATS.length)];
-    const pct = schemePctFor(stat, q.name);
+    const isFlat = SCHEME_FLAT_STATS.has(stat);
+    const pct = isFlat ? schemeFlatFor(stat, q.name) : schemePctFor(stat, q.name);
     const label = SCHEME_STAT_LABELS[stat] || stat;
     addItem({
       id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${q.name}): ${label} +${pct}%`,
+      name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${q.name}): ${label} +${pct}${isFlat ? '' : '%'}`,
       type: 'blueprint', blueprintRarity: q.name, blueprintStat: stat, slot: 'any', rarity: q.name,
       level: 1, stats: {}, quality: q.name, qualityColor: q.color, stackable: false,
       image: getSchemeImage(stat),

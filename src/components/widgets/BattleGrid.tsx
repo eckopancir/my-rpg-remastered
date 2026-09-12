@@ -556,6 +556,18 @@ export const BattleGrid = () => {
                   >
                     {enemy.isEnraged && <div className={styles.enemyStatusBadge}>💢</div>}
                     {enemy.isInvisible && <div className={styles.enemyStatusBadge}>👤</div>}
+                    {((enemy as any).debuffs?.burn || (enemy as any).debuffs?.tox || (enemy as any).debuffs?.extro || (enemy as any).debuffs?.emi) && (
+                      <div style={{
+                        position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
+                        display: 'flex', gap: 2, fontSize: 12, zIndex: 6, pointerEvents: 'none',
+                        textShadow: '0 0 5px black',
+                      }}>
+                        {(enemy as any).debuffs?.burn && <span title="Горение: −3% HP каждый ход">🔥</span>}
+                        {(enemy as any).debuffs?.tox && <span title="Токсин: −3% брони каждый ход">☠️</span>}
+                        {(enemy as any).debuffs?.extro && <span title="Экстро: −25% атаки">💫</span>}
+                        {(enemy as any).debuffs?.emi && <span title="ЭМИ: −50% блока">⚡</span>}
+                      </div>
+                    )}
                     {isSel && <div className={styles.crosshairCircle} />}
                     {showEnemyHpNumbers && (
                       <div style={{

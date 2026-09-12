@@ -731,6 +731,14 @@ export const Battle = () => {
                 <span>🟡 МОЩНОСТЬ</span>
                 <span style={{ fontFamily: 'var(--font-mono)' }}>{ePow.toLocaleString()}</span>
               </div>
+              {((hoverTarget as any).debuffs?.burn || (hoverTarget as any).debuffs?.tox || (hoverTarget as any).debuffs?.extro || (hoverTarget as any).debuffs?.emi) && (
+                <div style={{ padding: '0 12px 8px', fontSize: 12, color: '#fca5a5' }}>
+                  {(hoverTarget as any).debuffs?.burn && <div>🔥 Горение: −3% HP каждый ход</div>}
+                  {(hoverTarget as any).debuffs?.tox && <div>☠️ Токсин: −3% брони каждый ход (сейч. {Math.round(hoverTarget.armor)})</div>}
+                  {(hoverTarget as any).debuffs?.extro && <div>💫 Экстро: −25% атаки</div>}
+                  {(hoverTarget as any).debuffs?.emi && <div>⚡ ЭМИ: −50% блока</div>}
+                </div>
+              )}
               {/* Skills — иконки в ряд */}
               {hoverTarget.skillUse && hoverTarget.skillUse.length > 0 && (
                 <div style={{ padding: '0 12px 12px' }}>

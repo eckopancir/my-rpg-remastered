@@ -1021,6 +1021,9 @@ export const useEnemyAI = () => {
       });
       useCombatGridStore.setState({ enemies: [...updatedEnemies] });
 
+      // Стихийные дебафы игрока: горение бьёт, токсин точит броню (смерть — с лутом).
+      useCombatGridStore.getState().tickEnemyDebuffs();
+
       // Check player death
       const playerAfter = usePlayerStore.getState();
       if (playerAfter.stats.currentHp <= 0) {

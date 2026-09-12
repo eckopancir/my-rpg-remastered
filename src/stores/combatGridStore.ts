@@ -93,6 +93,8 @@ export interface GridEnemy {
   wasSentry?: boolean;
   // Тихая смерть (скрытное убийство): без крика и звуков смерти.
   silentDeath?: boolean;
+  // Стихийные дебафы игрока (горение/токсин/экстро/ЭМИ): живут весь бой.
+  debuffs?: { burn?: boolean; tox?: boolean; extro?: boolean; emi?: boolean };
   // Позывной (досье), отступление к медику/костру, сдача в плен.
   callsign?: string;
   retreating?: boolean;
@@ -265,6 +267,8 @@ export interface CombatGridStore {
   addMessage: (msg: string) => void;
   addPopup: (x: number, y: number, text: string, type?: string) => void;
   addBattleLog: (msg: string) => void;
+  procElementalDebuffs: (targetId: string | number) => void;
+  tickEnemyDebuffs: () => void;
   isCellBlocked: (x: number, y: number, ignoreEnemyId?: number) => boolean;
   findPath: (from: { x: number; y: number }, to: { x: number; y: number }) => { x: number; y: number }[];
   triggerShake: () => void;
@@ -980,6 +984,79 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   triggerShake: () => {
     set({ isShaking: true });
     setTimeout(() => set({ isShaking: false }), 500);
+  },
+
+  // Прок стихийных дебафов после попадания: шанс = значение стихии (кап 100%).
+  // Огонь/токсин — флаги на весь бой (тик в useEnemyAI), экстро/ЭМИ — разовые срезы.
+  procElementalDebuffs: (targetId) => {
+    const pStats = usePlayerStore.getState().stats;
+    const en = get().enemies.find((e) => e.id === targetId);
+    if (!en || en.dead || (en.currentHp || 0) <= 0) return;
+    const roll = (val: number) => (val || 0) > 0 && Math.random() * 100 < Math.min(100, val);
+    const db = { ...((en as GridEnemy).debuffs || {}) };
+    const notes: string[] = [];
+    if (!db.burn && roll(pStats.dpsFire || 0)) { db.burn = true; notes.push('🔥 ГОРЕНИЕ'); }
+    if (!db.tox && roll(pStats.dpsToxis || 0)) { db.tox = true; notes.push('☠️ ТОКСИН'); }
+    if (!db.extro && roll(pStats.dpsExtro || 0)) {
+      db.extro = true; notes.push('💫 −25% АТАКА');
+      set((s) => ({ enemies: s.enemies.map((e) => e.id === targetId ? { ...e, damage: (e.damage || 0) * 0.75, dps: (e.dps || 0) * 0.75 } : e) }));
+    }
+    if (!db.emi && roll(pStats.dpsEmi || 0)) {
+      db.emi = true; notes.push('⚡ −50% БЛОК');
+      set((s) => ({ enemies: s.enemies.map((e) => e.id === targetId ? { ...e, block: (e.block || 0) * 0.5 } : e) }));
+    }
+    if (notes.length === 0) return;
+    set((s) => ({ enemies: s.enemies.map((e) => e.id === targetId ? { ...e, debuffs: db } : e) }));
+    for (const n of notes) get().addPopup(en.pos.x, en.pos.y, n, 'DEBUFF');
+    get().addBattleLog(`☠️ ${en.name}: ${notes.join(', ')}`);
+  },
+
+  // Тик дебафов в начале хода врагов (зовёт useEnemyAI): горение бьёт,
+  // токсин точит броню. Смерть от горения — полноценная, с лутом.
+  tickEnemyDebuffs: () => {
+    const st = get();
+    let changed = false;
+    let wavesCheck = false;
+    const enemies = st.enemies.map((e) => {
+      const n = e as GridEnemy;
+      if (n.dead || !n.debuffs) return e;
+      let next: GridEnemy = { ...n };
+      if (next.debuffs?.burn && (next.currentHp || 0) > 0) {
+        const dmg = Math.max(1, Math.round((next.maxHp || 1) * 0.03));
+        next.currentHp = Math.max(0, (next.currentHp || 0) - dmg);
+        get().addPopup(next.pos.x, next.pos.y, `🔥−${dmg}`, 'DMG');
+        get().addBattleLog(`🔥 ${next.name} горит: −${dmg}`);
+        changed = true;
+        if (next.currentHp <= 0) {
+          let freshLoot: any[] = [];
+          try {
+            freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+              rank: rankOfEnemy((next as any).factionKey, next.name),
+            });
+          } catch { /* ignore */ }
+          const screamIdx = Math.floor(Math.random() * 5) + 1;
+          playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
+          next = { ...next, dead: true, loot: freshLoot, looted: false, isHit: false };
+          get().addBattleLog(`💀 ${next.name} сгорел!`);
+          get().addMessage(`💀 ${next.name} сгорел! Кликни для лута`);
+          wavesCheck = true;
+        }
+      }
+      if (!next.dead && next.debuffs?.tox && (next.currentHp || 0) > 0 && (next.armor || 0) > 0) {
+        next = { ...next, armor: Math.max(0, +((next.armor || 0) * 0.97).toFixed(3)) };
+        if (get().turnCount % 3 === 0) {
+          get().addPopup(next.pos.x, next.pos.y, '☠️−броня', 'DEBUFF');
+          get().addBattleLog(`☠️ ${next.name}: броня разъедена (${next.armor})`);
+        }
+        changed = true;
+      }
+      return next;
+    });
+    if (changed) set({ enemies });
+    if (wavesCheck) {
+      const allDead = get().enemies.every((e) => e.dead);
+      if (allDead && get().reserve.length > 0) get().spawnWave(2);
+    }
   },
 
   isCellBlocked: (x, y, ignoreEnemyId?) => {
@@ -2337,6 +2414,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     get().addPopup(enemy.pos.x, enemy.pos.y, result.text, result.type);
 
+    // Стихийные дебафы: шанс = значение стихии (только если попали и цель жива).
+    if (actualDmg > 0) get().procElementalDebuffs(enemyId);
+
     // Выстрел услышали все в радиусе 20 от жертвы — бегут в бой.
     get().aggroWave(enemy.pos);
 
@@ -2403,6 +2483,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
         get().addPopup(en.pos.x, en.pos.y, res.text, res.type);
         get().addPopup(st.playerPos.x, st.playerPos.y, '+1 🏃', 'BUFF');
+        // Стихийные дебафы и на бонус-выстрелах.
+        if (dmg > 0) get().procElementalDebuffs(enemyId);
 
         setTimeout(() => {
           set((s) => ({ enemies: s.enemies.map((e) => e.id === enemyId ? { ...e, isHit: false } : e) }));

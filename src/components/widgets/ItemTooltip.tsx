@@ -11,7 +11,7 @@ import { SET_BONUSES } from '../../data/GameItems';
 import { usePlayerStore, gunSlotForWeapon, EQUIPMENT_SLOTS } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
 import { effectiveItemStats, modStatsOf, modLevelMult } from '../../utils/itemStats';
-import { socketSlotsOf, schematicBonusOf, isSocketable, schemePctFor, SCHEME_STAT_LABELS } from '../../data/schematics';
+import { socketSlotsOf, schematicBonusOf, isSocketable, schemePctFor, schemeFlatFor, SCHEME_FLAT_STATS, SCHEME_STAT_LABELS } from '../../data/schematics';
 import { useState, useEffect } from 'react';
 
 interface ItemTooltipProps {
@@ -203,14 +203,15 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
 
       {item.type === 'blueprint' && (() => {
         const stat = (item as any).blueprintStat || 'damage';
-        const pct = schemePctFor(stat, (item as any).blueprintRarity || item.quality);
+        const isFlat = SCHEME_FLAT_STATS.has(stat);
+        const pct = isFlat ? schemeFlatFor(stat, (item as any).blueprintRarity || item.quality) : schemePctFor(stat, (item as any).blueprintRarity || item.quality);
         return (
           <div style={{
             background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.3)',
             borderRadius: 6, padding: '6px 8px', marginBottom: 8,
           }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#4ade80' }}>
-              💎 {SCHEME_STAT_LABELS[stat] || stat} +{pct}%
+              💎 {SCHEME_STAT_LABELS[stat] || stat} +{pct}{isFlat ? '' : '%'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
               Вставляется в перековке, улучшает только этот предмет
@@ -419,9 +420,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
               </div>
             )}
             {(() => {
-              const bonus = schematicBonusOf(item);
-              const keys = Object.keys(bonus).filter((k) => bonus[k] > 0);
-              if (keys.length === 0) return null;
+              const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
+              if (socks.length === 0) return null;
               return (
                 <div style={{
                   marginTop: 4, padding: '5px 7px', borderRadius: 6,
@@ -429,9 +429,9 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
                   display: 'flex', flexDirection: 'column', gap: 2,
                 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#4ade80', letterSpacing: 1 }}>- БОНУС</div>
-                  {keys.map((k) => (
-                    <div key={k} style={{ fontSize: 12, color: '#4ade80' }}>
-                      {(SCHEME_STAT_LABELS[k] || STAT_LABELS[k] || k)}: +{bonus[k]}%
+                  {socks.map((s: any, i: number) => (
+                    <div key={i} style={{ fontSize: 12, color: '#4ade80' }}>
+                      {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}: +{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'}
                     </div>
                   ))}
                 </div>

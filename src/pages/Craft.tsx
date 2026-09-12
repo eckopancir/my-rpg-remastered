@@ -16,7 +16,7 @@ import {
   getNextQuality, rollBlueprint, rollYield,
 } from '../data/crafting';
 import { AMMO_GROUPS, makeBulletPack, maxStackFor, type AmmoGroup } from '../data/ammo';
-import { SCHEME_STATS, SCHEME_STAT_LABELS, schemePctFor, isSocketable, socketSlotsOf, statsForLevel, levelStatMult } from '../data/schematics';
+import { SCHEME_STATS, SCHEME_STAT_LABELS, SCHEME_FLAT_STATS, schemePctFor, schemeFlatFor, isSocketable, socketSlotsOf, statsForLevel, levelStatMult } from '../data/schematics';
 import { getSchemeImage } from '../assets/index';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem } from '../engine/items';
@@ -316,12 +316,14 @@ export const Craft = () => {
       const bp = rollBlueprint(item.quality);
       if (bp) {
         // Сфера на один случайный стат (уровня у сфер нет).
+        // Стихийные — плоская прибавка (+10, +5 за ранг), остальные — %.
         const stat = SCHEME_STATS[Math.floor(Math.random() * SCHEME_STATS.length)];
-        const pct = schemePctFor(stat, bp);
+        const isFlat = SCHEME_FLAT_STATS.has(stat);
+        const pct = isFlat ? schemeFlatFor(stat, bp) : schemePctFor(stat, bp);
         const label = SCHEME_STAT_LABELS[stat] || stat;
         blueprint = {
           id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${bp}): ${label} +${pct}%`,
+          name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${bp}): ${label} +${pct}${isFlat ? '' : '%'}`,
           type: 'blueprint', blueprintRarity: bp, blueprintStat: stat, slot: 'any', rarity: bp,
           level: 1, stats: {}, quality: bp,
           qualityColor: QUALITY_COLORS[bp] || '#a0a0a0', stackable: false,
@@ -477,7 +479,8 @@ export const Craft = () => {
     if (cur.length >= max) { addLog('❌ Гнёзда заняты — удали старую сферу', 'warning'); return; }
     const stat = (bp as any).blueprintStat || 'damage';
     if (!isSocketable(w)) { addLog('❌ Сферы только на оружие/броню', 'warning'); return; }
-    const pct = schemePctFor(stat, (bp as any).blueprintRarity || bp.quality);
+    const isFlat = SCHEME_FLAT_STATS.has(stat);
+    const pct = isFlat ? schemeFlatFor(stat, (bp as any).blueprintRarity || bp.quality) : schemePctFor(stat, (bp as any).blueprintRarity || bp.quality);
     const updated: Item = {
       ...w,
       socketSlots: max,
@@ -498,7 +501,7 @@ export const Craft = () => {
     setReforgeBlueprint(null);
     setReforgeWeapon(updated);
     playSound('craft4', 0.5);
-    addLog(`💎 Сфера: ${SCHEME_STAT_LABELS[stat] || stat} +${pct}% → ${w.displayName || w.name}`, 'loot');
+    addLog(`💎 Сфера: ${SCHEME_STAT_LABELS[stat] || stat} +${pct}${isFlat ? '' : '%'} → ${w.displayName || w.name}`, 'loot');
   }
 
   /** Удалить вставленную сферу (бесплатно). */
@@ -739,7 +742,7 @@ export const Craft = () => {
                   const lvlCost = w ? craftCostFor((w.slot as string) || 'armor', w.quality || 'Обычный') : null;
                   const bp = reforgeBlueprint;
                   const bpStat = bp ? ((bp as any).blueprintStat || 'damage') : '';
-                  const bpPct = bp ? schemePctFor(bpStat, ((bp as any).blueprintRarity || bp.quality)) : 0;
+                  const bpPct = bp ? (SCHEME_FLAT_STATS.has(bpStat) ? schemeFlatFor(bpStat, ((bp as any).blueprintRarity || bp.quality)) : schemePctFor(bpStat, ((bp as any).blueprintRarity || bp.quality))) : 0;
                   return (
                     <>
                       {/* Подъём уровня */}
@@ -785,7 +788,7 @@ export const Craft = () => {
                                   background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.25)',
                                   borderRadius: 4, fontSize: 12,
                                 }}>
-                                  <span style={{ color: '#4ade80', fontWeight: 600 }}>💎 {SCHEME_STAT_LABELS[s.stat] || s.stat} +{s.pct}%</span>
+                                  <span style={{ color: '#4ade80', fontWeight: 600 }}>💎 {SCHEME_STAT_LABELS[s.stat] || s.stat} +{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'}</span>
                                   <span
                                     onClick={() => handleRemoveScheme(i)}
                                     style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)' }}

@@ -6,17 +6,22 @@ export interface AppliedScheme {
   pct: number;
 }
 
-/** Статы, доступные сферам. */
+/** Статы, доступные сферам (% и плоская стихия). */
 export const SCHEME_STATS = [
   'damage', 'armor', 'crit', 'speed', 'accuracy',
   'evasion', 'block', 'vampir', 'punching', 'regen', 'maxHp',
+  'dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro',
 ];
 
 export const SCHEME_STAT_LABELS: Record<string, string> = {
   damage: 'Урон', armor: 'Броня', crit: 'Крит. шанс', speed: 'Скорость',
   accuracy: 'Точность', evasion: 'Уклонение', block: 'Блок',
   vampir: 'Вампиризм', punching: 'Пробитие', regen: 'Регенерация', maxHp: 'Макс. HP',
+  dpsEmi: 'ЭМИ урон', dpsFire: 'Огненный урон', dpsToxis: 'Токсичный урон', dpsExtro: 'Экстро урон',
 };
+
+/** Плоские стихийные статы (сферы дают штуки, а не %). */
+export const SCHEME_FLAT_STATS = new Set(['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro']);
 
 /** Урон/броня — +10% база, остальные — +20%; за ранг выше обычного +2.5% / +5%. */
 const SCHEME_BASE_PCT: Record<string, number> = { damage: 10, armor: 10 };
@@ -33,6 +38,13 @@ export const schemePctFor = (stat: string, rarity?: string): number => {
   const base = SCHEME_BASE_PCT[stat] ?? 20;
   const step = SCHEME_STEP_PCT[stat] ?? 5;
   return base + step * idx;
+};
+
+/** Плоский бонус стихийной сферы: +10, +5 за ранг (Обычная +10 … Божественная +40). */
+export const schemeFlatFor = (stat: string, rarity?: string): number => {
+  if (!SCHEME_FLAT_STATS.has(stat)) return schemePctFor(stat, rarity);
+  const idx = QUALITY_INDEX[rarity || 'Обычный'] ?? 0;
+  return 10 + 5 * idx;
 };
 
 const WEAPON_SLOTS = ['weapon1', 'weapon2', 'gun_pistol', 'gun_shotgun', 'gun_sniper', 'gun_heavy'];
