@@ -95,6 +95,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     };
   }, [nested, pinMode, item]);
   const equipment = usePlayerStore((s) => s.equipment);
+  // Прибитый двойник наверху — ховер-версию прячем, чтобы не висело два.
+  const activePin = useUiStore((s) => s.tooltipPin);
   const compareSlot = item.slot === 'weapon2'
     ? gunSlotForWeapon(item)
     : ((EQUIPMENT_SLOTS as readonly string[]).includes(item.slot || '') ? (item.slot as string) : null);
@@ -108,6 +110,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
   const equippedSetCount = item.set
     ? Object.values(equipment).filter((eq) => eq?.set === item.set).length
     : 0;
+
+  if (!pinMode && activePin && activePin.id === item.id) return null;
 
   return (
     <>
