@@ -4,7 +4,6 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useSound } from '../../hooks/useSound';
 import { getEnemyImage, getItemImage, images } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
-import { AMMO_GROUP_MAP, type AmmoGroup } from '../../data/ammo';
 import { backpackSlotsFor, tryInsertInto } from '../../data/backpacks';
 import { ItemTooltip } from './ItemTooltip';
 import { WapHeader } from '../ui/WapHeader';
@@ -18,7 +17,7 @@ const iconFor = (item: any): string | null => {
   if (item.image) return null;
   if (item.type === 'consumable') return getConsumableIcon(item);
   if (item.type === 'backpack') return null; // картинка по семейству через getItemImage
-  if (item.type === 'bullet') return AMMO_GROUP_MAP[(item.ammoGroup as AmmoGroup) ?? 'rifle']?.icon ?? '🔸';
+  if (item.type === 'bullet') return null; // картинка группы через getItemImage
   if (item.type === 'chest') return null;
   return null;
 };

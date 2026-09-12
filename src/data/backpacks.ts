@@ -108,10 +108,11 @@ export const tryInsertInto = (contents: Item[], slots: number, item: Item): Inse
   const next = contents.map((c) => ({ ...c }));
   if (item.type === 'bullet') {
     const cap = maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle');
+    const bq = (item as any).quality || 'Обычный';
     let qty = (item.quantity ?? 1) as number;
     for (const c of next) {
       if (qty <= 0) break;
-      if (c.type === 'bullet' && c.name === item.name && ((c.quantity ?? 1) as number) < cap) {
+      if (c.type === 'bullet' && c.name === item.name && ((c as any).quality || 'Обычный') === bq && ((c.quantity ?? 1) as number) < cap) {
         const room = cap - ((c.quantity ?? 1) as number);
         const mv = Math.min(room, qty);
         c.quantity = ((c.quantity ?? 1) as number) + mv;

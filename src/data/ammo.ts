@@ -60,6 +60,33 @@ export const ammoGroupName = (key: AmmoGroup): string => AMMO_GROUP_MAP[key]?.na
 /** Порядок качеств для таблиц (индекс 0-6). */
 const QUALITY_ORDER = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
 
+/** Индекс качества (0-6) по имени; неизвестное — 0. */
+export const bulletQualityIndex = (quality?: string): number =>
+  Math.max(0, QUALITY_ORDER.indexOf(quality || 'Обычный'));
+
+/** Бонус к урону от качества патронов: +0% и далее +5% за ранг (до +30%). */
+export const BULLET_DMG_PCT = [0, 5, 10, 15, 20, 25, 30];
+
+/** Множитель урона выстрела от качества патрона в магазине. */
+export const bulletDamageMult = (quality?: string): number =>
+  1 + (BULLET_DMG_PCT[Math.min(bulletQualityIndex(quality), BULLET_DMG_PCT.length - 1)] || 0) / 100;
+
+/** Цена пачки по качеству (как SHOP_QUALITY_MULT базара). */
+export const BULLET_QUALITY_PRICE: Record<string, number> = {
+  'Обычный': 1, 'Редкий': 2, 'Раритетный': 3, 'Эпический': 5,
+  'Смертоносный': 7, 'Легендарный': 10, 'Божественный': 14,
+};
+
+export const BULLET_QUALITY_COLORS: Record<string, string> = {
+  'Обычный': 'white', 'Редкий': 'lime', 'Раритетный': 'deepskyblue',
+  'Эпический': 'mediumpurple', 'Смертоносный': 'red',
+  'Легендарный': 'gold', 'Божественный': 'cyan',
+};
+
+/** Худшее из двух качеств (смешанный магазин бьёт по худшему). */
+export const worseQuality = (a?: string, b?: string): string =>
+  bulletQualityIndex(a) <= bulletQualityIndex(b) ? (a || 'Обычный') : (b || 'Обычный');
+
 /**
  * Бонус +патронов от магазина-мода: класс оружия × качество мода.
  * Снайпер 1→6, автомат 5→30, пистолет 2→12, дробь 1→6, пулемёт 10→60, тяжёлое 1→5.
@@ -134,23 +161,26 @@ export const weaponRangeProfile = (weapon: { name?: string; ammoType?: string })
 
 let bulletSeq = 0;
 
-/** Пачка патронов в инвентарь (агрегируется по имени в stackItems). */
-export const makeBulletPack = (group: AmmoGroup, quantity: number): Item => {
+/** Пачка патронов в инвентарь (агрегируется по имени+качеству в stackItems). */
+export const makeBulletPack = (group: AmmoGroup, quantity: number, quality = 'Обычный', qualityColor?: string): Item => {
   const def = AMMO_GROUP_MAP[group];
+  const qidx = bulletQualityIndex(quality);
+  const pct = BULLET_DMG_PCT[Math.min(qidx, BULLET_DMG_PCT.length - 1)] || 0;
+  const color = qualityColor || BULLET_QUALITY_COLORS[quality] || 'white';
   return {
     id: `ammo_${Date.now()}_${bulletSeq++}_${Math.random().toString(36).slice(2, 6)}`,
     name: def.packName,
-    displayName: `${def.packName} x${quantity}`,
+    displayName: quality === 'Обычный' ? `${def.packName} x${quantity}` : `${def.packName} x${quantity} · ${quality}`,
     type: 'bullet',
     slot: 'bullet',
     rarity: 'normal',
-    quality: 'Обычный',
-    qualityColor: 'white',
+    quality,
+    qualityColor: color,
     level: 1,
     stats: {},
-    description: `${def.desc} Стак до ${maxStackFor(group)} шт.`,
+    description: `${def.desc} Стак до ${maxStackFor(group)} шт.${pct > 0 ? ` +${pct}% к урону выстрела.` : ''}`,
     ammoGroup: group,
-    price: bulletPackPrice(group, quantity),
+    price: bulletPackPrice(group, quantity) * (BULLET_QUALITY_PRICE[quality] ?? 1),
     quantity,
   } as Item;
 };
@@ -171,7 +201,7 @@ export const ammoReserveIn = (contents: Pick<Item, 'type' | 'name' | 'quantity'>
 
 /**
  * Вернуть N патронов группы в содержимое рюкзака.
- * Сначала досыпает в неполные стаки (слотов не требует), остаток —
+ * Сначала досыпает в неполные стаки ТОГО ЖЕ КАЧЕСТВА (слотов не требует), остаток —
  * новыми пачками в свободные слоты. Возвращает {items, leftover} —
  * leftover не влез (слоты кончились, caller кладёт в инвентарь).
  */
@@ -180,20 +210,21 @@ export const addAmmoToPack = (
   group: AmmoGroup,
   n: number,
   maxSlots: number,
+  quality = 'Обычный',
 ): { items: Item[]; leftover: number } => {
   if (n <= 0) return { items: contents, leftover: 0 };
   const packName = AMMO_GROUP_MAP[group].packName;
   const maxStack = maxStackFor(group);
   let rest = n;
   const next: Item[] = contents.map((it) => {
-    if (rest > 0 && it.type === 'bullet' && it.name === packName) {
+    if (rest > 0 && it.type === 'bullet' && it.name === packName && (it.quality || 'Обычный') === quality) {
       const q = (it.quantity ?? 1) as number;
       const room = maxStack - q;
       if (room > 0) {
         const add = Math.min(room, rest);
         rest -= add;
         const nq = q + add;
-        return { ...it, quantity: nq, displayName: `${packName} x${nq}` };
+        return { ...it, quantity: nq, displayName: quality === 'Обычный' ? `${packName} x${nq}` : `${packName} x${nq} · ${quality}` };
       }
     }
     return it;
@@ -202,7 +233,7 @@ export const addAmmoToPack = (
   let packs = 0;
   while (rest > 0 && packs < freeSlots) {
     const q = Math.min(rest, maxStack);
-    next.push(makeBulletPack(group, q));
+    next.push(makeBulletPack(group, q, quality));
     rest -= q;
     packs++;
   }
@@ -210,24 +241,40 @@ export const addAmmoToPack = (
 };
 /**
  * Забрать N патронов группы из содержимого рюкзака.
- * Возвращает {items, taken}. Чистая функция — стор обновляет вызывающий.
+ * Берёт худшие первыми (хорошие бережём), смешанный забор бьёт по худшему.
+ * Возвращает {items, taken, quality}. Чистая функция — стор обновляет вызывающий.
  */
-export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { items: Item[]; taken: number } => {
-  if (n <= 0) return { items: contents, taken: 0 };
+export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { items: Item[]; taken: number; quality: string } => {
+  if (n <= 0) return { items: contents, taken: 0, quality: 'Обычный' };
   const packName = AMMO_GROUP_MAP[group].packName;
+  // Худшие первыми: сначала считаем, сколько есть каждого качества.
+  const order = [...contents]
+    .map((it, idx) => ({ it, idx }))
+    .filter(({ it }) => it.type === 'bullet' && it.name === packName)
+    .sort((a, b) => bulletQualityIndex((a.it as any).quality) - bulletQualityIndex((b.it as any).quality));
   let need = n;
   let taken = 0;
-  const next: Item[] = [];
-  for (const it of contents) {
-    if (need > 0 && it.type === 'bullet' && it.name === packName) {
-      const q = (it.quantity ?? 1) as number;
-      const use = Math.min(q, need);
-      taken += use;
-      need -= use;
-      if (q > use) next.push({ ...it, quantity: q - use });
-    } else {
-      next.push(it);
-    }
+  let worstIdx = 6;
+  const consumed = new Map<number, number>(); // idx -> сколько забрать
+  for (const { it, idx } of order) {
+    if (need <= 0) break;
+    const q = (it.quantity ?? 1) as number;
+    const use = Math.min(q, need);
+    consumed.set(idx, use);
+    taken += use;
+    need -= use;
+    worstIdx = Math.min(worstIdx, bulletQualityIndex((it as any).quality));
   }
-  return { items: next, taken };
+  if (taken === 0) return { items: contents, taken: 0, quality: 'Обычный' };
+  const next: Item[] = [];
+  contents.forEach((it, idx) => {
+    const use = consumed.get(idx) || 0;
+    if (use <= 0) { next.push(it); return; }
+    const q = ((it.quantity ?? 1) as number) - use;
+    if (q > 0) {
+      const qual = (it as any).quality || 'Обычный';
+      next.push({ ...it, quantity: q, displayName: qual === 'Обычный' ? `${packName} x${q}` : `${packName} x${q} · ${qual}` });
+    }
+  });
+  return { items: next, taken, quality: QUALITY_ORDER[worstIdx] || 'Обычный' };
 };

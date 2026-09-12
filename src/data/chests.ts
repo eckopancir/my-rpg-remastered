@@ -105,7 +105,7 @@ export const getChestLevel = (chest: Item): number => {
 export type ChestDrop =
   | { key: string; kind: 'item'; item: GeneratedItem }
   | { key: string; kind: 'resource'; def: (typeof GAME_RESOURCES)[number]; quantity: number }
-  | { key: string; kind: 'bullets'; group: (typeof AMMO_GROUPS)[number]['key']; quantity: number }
+  | { key: string; kind: 'bullets'; group: (typeof AMMO_GROUPS)[number]['key']; quantity: number; quality: string }
   | { key: string; kind: 'consumable'; abilityId: string; quantity: number }
   | { key: string; kind: 'backpack'; pack: Item }
   | { key: string; kind: 'chips'; amount: number };
@@ -152,11 +152,11 @@ export const rollChestLoot = (chest: Item): ChestDrop[] => {
   // Чипы.
   drops.push({ key: dropKey(), kind: 'chips', amount: cfg.chipBase + level * cfg.chipPerLevel });
 
-  // Сундуки от эпического и выше: пачка патронов случайной группы.
+  // Сундуки от эпического и выше: пачка патронов случайной группы, качеством сундука.
   const tierIdx = QUALITY_TIERS.findIndex((t) => t.name === quality);
   if (tierIdx >= 3) {
     const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
-    drops.push({ key: dropKey(), kind: 'bullets', group: g.key, quantity: 15 + Math.floor(Math.random() * 16) });
+    drops.push({ key: dropKey(), kind: 'bullets', group: g.key, quantity: 15 + Math.floor(Math.random() * 16), quality });
   }
 
   // Расходники по тиру сундука: виды и пачки растут с редкостью.

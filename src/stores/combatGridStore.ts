@@ -7,7 +7,7 @@ import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP } from '../data/consumables';
-import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity } from '../data/ammo';
+import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
 import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
@@ -1016,18 +1016,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Кулаки/ближний бой без патронов — виртуальный магазин.
     let startAmmo: number;
     let tookFromPack = 0;
+    let tookQuality = 'Обычный';
     if (!gun || gunIsMelee) {
       startAmmo = ammoCap;
     } else if (typeof gun.loadedAmmo === 'number') {
       startAmmo = Math.max(0, Math.min(ammoCap, gun.loadedAmmo));
     } else {
-      startAmmo = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(gun), ammoCap);
+      const res = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(gun), ammoCap);
+      startAmmo = res.taken;
       tookFromPack = startAmmo;
+      tookQuality = res.quality;
       const gs = gunSlot;
       usePlayerStore.setState((st: any) => ({
         equipment: {
           ...st.equipment,
-          [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: startAmmo } : st.equipment[gs],
+          [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: startAmmo, loadedAmmoQuality: tookQuality } : st.equipment[gs],
         },
       }));
       usePlayerStore.getState().syncEquippedItem(gs);
@@ -1391,7 +1394,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       // магазин (иначе дубли: и в рюкзаке, и в оружии).
       try {
         if (tookFromPack > 0 && gun && !gunIsMelee) {
-          usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(gun), tookFromPack);
+          usePlayerStore.getState().returnAmmoToPack(ammoTypeForWeapon(gun), tookFromPack, tookQuality);
           const gs = gunSlot;
           usePlayerStore.setState((st: any) => ({
             equipment: {
@@ -2291,6 +2294,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (gunNow && effectiveAmmoCapacity(gunNow) <= 3 && (gunNow as any).ammoCapacity) {
       effectiveDps *= 1.3;
     }
+    // Качество патронов в магазине: +0% и далее +5% за ранг.
+    const ammoMult = bulletDamageMult((gunNow as any)?.loadedAmmoQuality);
+    if (ammoMult > 1) effectiveDps *= ammoMult;
 
     const attackerStats = {
       dps: effectiveDps,
@@ -2323,7 +2329,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       enemies: s.enemies.map((e) =>
         e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } : e
       ),
-      message: `💥 ${result.text}`,
+      message: ammoMult > 1 ? `💥 ${result.text} (+${Math.round((ammoMult - 1) * 100)}% патроны)` : `💥 ${result.text}`,
       selectedEnemy: null,
       // Выстрел срывает скрытность.
       stealth: false,
@@ -2372,6 +2378,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (w2 && (w2 as any).ammoCapacity && effectiveAmmoCapacity(w2) <= 3) {
           effDps *= 1.3;
         }
+        // Качество патронов в магазине.
+        const bAmmoMult = bulletDamageMult((w2 as any)?.loadedAmmoQuality);
+        if (bAmmoMult > 1) effDps *= bAmmoMult;
 
         const atkStat = { dps: effDps, pure: pureBonus, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
         const tgtStat = applyTerrainToTarget(
@@ -2683,11 +2692,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     const group = ammoTypeForWeapon(w2);
     const need = state.maxAmmo - state.ammo;
-    const took = usePlayerStore.getState().takeAmmoFromPack(group, need);
+    const res = usePlayerStore.getState().takeAmmoFromPack(group, need);
+    const took = res.taken;
     if (took <= 0) {
       get().addMessage(`❌ Нет патронов (${ammoGroupName(group)})!`);
       return;
     }
+    // Качество магазина: пустой — качество взятых, дозарядка — худшее из двух.
+    const oldQ = (w2 as any).loadedAmmoQuality || 'Обычный';
+    const newQ = state.ammo <= 0 ? res.quality : worseQuality(oldQ, res.quality);
+    usePlayerStore.setState((st: any) => ({
+      equipment: {
+        ...st.equipment,
+        [wslot]: st.equipment[wslot] ? { ...st.equipment[wslot], loadedAmmoQuality: newQ } : st.equipment[wslot],
+      },
+    }));
     set((s) => ({ ap: s.ap - 1, ammo: s.ammo + took, message: `🔁 +${took} (AP -1)` }));
     // Магазин в оружии = итог после дозарядки (не инкремент: в бою тратился state.ammo).
     const magAfter = get().ammo;
@@ -2731,9 +2750,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     } else if (typeof nw.loadedAmmo === 'number') {
       mag = Math.max(0, Math.min(cap, nw.loadedAmmo));
     } else {
-      mag = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(nw), cap);
+      const res = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(nw), cap);
+      mag = res.taken;
       usePlayerStore.setState((st: any) => ({
-        equipment: { ...st.equipment, [next]: { ...st.equipment[next], loadedAmmo: mag } },
+        equipment: { ...st.equipment, [next]: { ...st.equipment[next], loadedAmmo: mag, loadedAmmoQuality: res.quality } },
       }));
       usePlayerStore.getState().syncEquippedItem(next);
     }

@@ -177,8 +177,8 @@ interface PlayerStore {
   emptyBackpackToInventory: () => number;
   clearBackpack: () => void;
   ensureBackpack: () => void;
-  takeAmmoFromPack: (group: AmmoGroup, n: number) => number;
-  returnAmmoToPack: (group: AmmoGroup, n: number) => number;
+  takeAmmoFromPack: (group: AmmoGroup, n: number) => { taken: number; quality: string };
+  returnAmmoToPack: (group: AmmoGroup, n: number, quality?: string) => number;
   ammoInPack: (group: AmmoGroup) => number;
   consumeFromPack: (itemId: string) => boolean;
   spendSkillPoint: (skillId: string) => boolean;
@@ -778,21 +778,21 @@ export const usePlayerStore = create<PlayerStore>()(
 
       takeAmmoFromPack: (group, n) => {
         const s = get();
-        const { items, taken } = takeAmmoFrom(s.backpackContents, group, n);
+        const { items, taken, quality } = takeAmmoFrom(s.backpackContents, group, n);
         if (taken > 0) set({ backpackContents: items });
         if (taken > 0) syncNow();
-        return taken;
+        return { taken, quality };
       },
 
       // Вернуть патроны в рюкзак (остаток магазина). Не влезло — в инвентарь.
-      returnAmmoToPack: (group, n) => {
+      returnAmmoToPack: (group, n, quality = 'Обычный') => {
         const s = get();
         if (n <= 0) return 0;
         const pack = s.equipment.backpack;
         const maxSlots = pack ? backpackSlotsFor(pack) : 0;
-        const { items, leftover } = addAmmoToPack(s.backpackContents, group, n, maxSlots);
+        const { items, leftover } = addAmmoToPack(s.backpackContents, group, n, maxSlots, quality);
         set({ backpackContents: items });
-        if (leftover > 0) useInventoryStore.getState().addItem(makeBulletPack(group, leftover));
+        if (leftover > 0) useInventoryStore.getState().addItem(makeBulletPack(group, leftover, quality));
         syncNow();
         return n - leftover;
       },

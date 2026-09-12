@@ -116,7 +116,8 @@ export const generateLoot = (
         items.push(makeConsumable(d.abilityId, 1));
       }
       const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
-      items.push(makeBulletPack(g.key, 15 + Math.floor(Math.random() * 16)));
+      const bq = getItemQuality();
+      items.push(makeBulletPack(g.key, 15 + Math.floor(Math.random() * 16), bq.name, bq.color));
       if (Math.random() < 0.01) {
         const d = BACKPACK_DEFS[Math.floor(Math.random() * BACKPACK_DEFS.length)];
         const q = getItemQuality();
@@ -171,7 +172,8 @@ export const generateLoot = (
       for (let i = 0; i < t.bulletPacks; i++) {
         const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
         const qty = t.bulletMin + Math.floor(Math.random() * (t.bulletMax - t.bulletMin + 1));
-        items.push(makeBulletPack(g.key, qty));
+        const bq = getItemQuality();
+        items.push(makeBulletPack(g.key, qty, bq.name, bq.color));
       }
     }
     // Расходники с трупов.

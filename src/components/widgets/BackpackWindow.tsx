@@ -5,7 +5,6 @@ import { useUiStore } from '../../stores/uiStore';
 import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
-import { AMMO_GROUP_MAP, type AmmoGroup } from '../../data/ammo';
 import { backpackSlotsFor, backpackDefByName } from '../../data/backpacks';
 import { getSellPrice } from '../../utils/sellPrice';
 import { ItemTooltip } from './ItemTooltip';
@@ -22,7 +21,7 @@ const cellIcon = (item: Item): string | null => {
   if (item.image) return null;
   if (item.type === 'consumable') return getConsumableIcon(item);
   if (item.type === 'backpack') return null; // картинка по семейству через getItemImage
-  if (item.type === 'bullet') return AMMO_GROUP_MAP[(item as any).ammoGroup as AmmoGroup]?.icon ?? '🔸';
+  if (item.type === 'bullet') return null; // картинка группы через getItemImage
   if (item.type === 'chest') return null;
   return null;
 };

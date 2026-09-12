@@ -11,7 +11,6 @@ import { ItemTooltip } from './ItemTooltip';
 import { ChestOpening } from './ChestOpening';
 import { chestImageFor } from '../../data/chests';
 import { getConsumableIcon } from '../../data/consumables';
-import { AMMO_GROUP_MAP, type AmmoGroup } from '../../data/ammo';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 
@@ -83,7 +82,7 @@ const stackItems = (items: Item[]): StackedItem[] => {
   const map = new Map<string, StackedItem>();
   for (const item of items) {
     if (item.type === 'material' || item.type === 'consumable' || item.type === 'bullet') {
-      const key = `${item.type}_${item.name}_${item.rarity}`;
+      const key = `${item.type}_${item.name}_${item.rarity}_${item.quality || 'Обычный'}`;
       const existing = map.get(key);
       if (existing) {
         existing.count += item.quantity || 1;
@@ -409,7 +408,7 @@ export const InventoryOverlay = () => {
                 const emojiIcon = item.type === 'consumable'
                   ? getConsumableIcon(item)
                   : item.type === 'backpack' ? null
-                  : item.type === 'bullet' ? (AMMO_GROUP_MAP[(item as any).ammoGroup as AmmoGroup]?.icon ?? '🔸')
+                  : item.type === 'bullet' ? null // картинка группы через getItemImage выше
                   : null;
 
                 return (

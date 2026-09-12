@@ -3,7 +3,7 @@ import type { Item } from '../../types/items';
 import { chestImageFor, configForQuality } from '../../data/chests';
 import { QUALITY_TIERS } from '../../engine/items';
 import { backpackDefByName, backpackSlots, backpackSlotsFor } from '../../data/backpacks';
-import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effectiveAmmoCapacity, MAGAZINE_BONUS, type AmmoGroup } from '../../data/ammo';
+import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effectiveAmmoCapacity, MAGAZINE_BONUS, bulletQualityIndex, BULLET_DMG_PCT, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
@@ -155,11 +155,15 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
         )}
       </div>
 
-      {item.type === 'bullet' && (
-        <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle')} шт.
-        </div>
-      )}
+      {item.type === 'bullet' && (() => {
+        const pct = BULLET_DMG_PCT[Math.min(bulletQualityIndex(item.quality), BULLET_DMG_PCT.length - 1)] || 0;
+        return (
+          <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
+            🔸 {ammoGroupName(((item as any).ammoGroup as AmmoGroup) || 'rifle')} · стак до {maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle')} шт.
+            <span style={{ color: '#4ade80' }}> +{pct}% к урону ({item.quality || 'Обычный'})</span>
+          </div>
+        );
+      })()}
       {item.type === 'chest' && (() => {
         const qn = item.quality || 'Обычный';
         const cfg = configForQuality(qn);

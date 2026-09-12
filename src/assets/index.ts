@@ -91,9 +91,30 @@ export const getBackpackImage = (familyOrName?: string): string | undefined => {
   return itemImageMap.get('pack_raid');
 };
 
+/** Картинка пачки патронов по имени (6 спрайтов ammo_*.png). */
+const BULLET_IMAGE_MAP: Record<string, string> = {
+  'пистолетных': 'ammo_pistol',
+  'автоматных': 'ammo_rifle',
+  'снайперских': 'ammo_sniper',
+  'дроби': 'ammo_shell',
+  'лента': 'ammo_mg',
+  'энергоячейки': 'ammo_energy',
+};
+
+/** Картинка пачки патронов по имени пачки; фолбэк — автоматные. */
+export const getBulletImage = (packName?: string): string | undefined => {
+  const s = (packName || '').toLowerCase();
+  for (const [frag, key] of Object.entries(BULLET_IMAGE_MAP)) {
+    if (s.includes(frag)) return itemImageMap.get(key);
+  }
+  return itemImageMap.get('ammo_rifle');
+};
+
 export const getItemImage = (name?: string, displayName?: string, slot?: string, type?: string): string | undefined => {
-  // Рюкзаки — картинка по семейству (9 спрайтов pack_*.png).
+  // Рюкзаки — картинка по семейству (11 спрайтов pack_*.png).
   if (type === 'backpack') return getBackpackImage(name || displayName);
+  // Патроны — картинка по группе (6 спрайтов ammo_*.png).
+  if (type === 'bullet') return getBulletImage(name || displayName);
   // Моды оружия — спрайт по слоту мода.
   if (type === 'mod' && slot && MOD_SLOT_IMAGE_MAP[slot]) {
     const bySlot = itemImageMap.get(MOD_SLOT_IMAGE_MAP[slot]);

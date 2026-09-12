@@ -198,7 +198,7 @@ export const Equipment = () => {
     const w = (pst.equipment as any)[slot];
     const loaded = w?.loadedAmmo || 0;
     if (!w || loaded <= 0) return;
-    const back = pst.returnAmmoToPack(ammoTypeForWeapon(w), loaded);
+    const back = pst.returnAmmoToPack(ammoTypeForWeapon(w), loaded, (w as any).loadedAmmoQuality || 'Обычный');
     usePlayerStore.setState((st: any) => ({
       equipment: {
         ...st.equipment,

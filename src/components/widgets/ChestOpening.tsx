@@ -4,7 +4,7 @@ import { useInventoryStore } from '../../stores/inventoryStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useSound } from '../../hooks/useSound';
-import { getItemImage } from '../../assets/index';
+import { getItemImage, getBulletImage } from '../../assets/index';
 import {
   CHEST_ART, artForQuality, getChestQuality, getChestLevel,
   rollChestLoot, makeResourceItem, type ChestDrop,
@@ -34,7 +34,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
     for (const d of drops) {
       if (d.kind === 'item') m.set(d.key, d.item as unknown as Item);
       else if (d.kind === 'resource') m.set(d.key, makeResourceItem(d.def, d.quantity));
-      else if (d.kind === 'bullets') m.set(d.key, makeBulletPack(d.group, d.quantity));
+      else if (d.kind === 'bullets') m.set(d.key, makeBulletPack(d.group, d.quantity, (d as any).quality || 'Обычный'));
       else if (d.kind === 'consumable') m.set(d.key, makeConsumable(d.abilityId, d.quantity));
       else if (d.kind === 'backpack') m.set(d.key, d.pack);
     }
@@ -92,7 +92,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
       useInventoryStore.getState().addItem(makeResourceItem(drop.def, drop.quantity));
       usePlayerStore.getState().addLog(`📦 Из сундука: ${drop.def.name} x${drop.quantity}`, 'loot');
     } else if (drop.kind === 'bullets') {
-      const pack = makeBulletPack(drop.group, drop.quantity);
+      const pack = makeBulletPack(drop.group, drop.quantity, (drop as any).quality || 'Обычный');
       useInventoryStore.getState().addItem(pack);
       usePlayerStore.getState().addLog(`📦 Из сундука: ${pack.displayName}`, 'loot');
     } else if (drop.kind === 'consumable') {
@@ -310,9 +310,12 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                       {drop.kind === 'chips' ? (
                         <div style={{ fontSize: 34, lineHeight: 1, filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.7))' }}>💾</div>
                       ) : drop.kind === 'bullets' ? (
-                        <div style={{ fontSize: 40, lineHeight: 1, filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}>
-                          {AMMO_GROUP_MAP[drop.group]?.icon ?? '🔸'}
-                        </div>
+                        <img
+                          src={getBulletImage(AMMO_GROUP_MAP[drop.group]?.packName)}
+                          alt=""
+                          draggable={false}
+                          style={{ width: 64, height: 64, objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}
+                        />
                       ) : drop.kind === 'consumable' ? (
                         <div style={{ fontSize: 40, lineHeight: 1, filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' }}>
                           {CONSUMABLE_MAP[drop.abilityId]?.icon ?? '🧪'}

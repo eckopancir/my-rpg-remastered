@@ -6,13 +6,10 @@ import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem, getItemQuality } from '../engine/items';
 import { makeBackpack } from '../data/backpacks';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
-import { AMMO_GROUPS, maxStackFor, bulletPackPrice } from '../data/ammo';
+import { AMMO_GROUPS, maxStackFor, makeBulletPack } from '../data/ammo';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS } from '../data/backpacks';
 
-const AMMO_GROUP_ICONS: Record<string, string> = Object.fromEntries(
-  AMMO_GROUPS.map((g) => [g.key, g.icon]),
-);
 const CONSUMABLE_ICONS: Record<string, string> = Object.fromEntries(
   CONSUMABLE_DEFS.map((c) => [c.abilityId, c.icon]),
 );
@@ -142,22 +139,34 @@ const generateCategoryItem = (level: number, validSlots: string[], idx: number):
 const generateShop = (level: number): ShopItem[] => {
   const items: ShopItem[] = [];
   let idx = 0;
-  for (const cat of ['weapons', 'armor', 'consumables', 'mods'] as const) {
-    const slots = CATEGORY_SLOTS[cat];
-    // По 8 товаров в категории — витрина шире.
-    for (let i = 0; i < 8; i++) {
-      const item = generateCategoryItem(level, slots, idx++);
-      if (item) items.push(item);
-    }
+  // Оружие: ровно 10.
+  for (let i = 0; i < 10; i++) {
+    const item = generateCategoryItem(level, CATEGORY_SLOTS.weapons, idx++);
+    if (item) items.push(item);
+  }
+  // Броня: 8 снаряжения + 2 рюкзака = ровно 10.
+  for (let i = 0; i < 8; i++) {
+    const item = generateCategoryItem(level, CATEGORY_SLOTS.armor, idx++);
+    if (item) items.push(item);
+  }
+  // Амуниция: ровно 10 боевых расходников.
+  for (let i = 0; i < 10; i++) {
+    const item = generateCategoryItem(level, CATEGORY_SLOTS.consumables, idx++);
+    if (item) items.push(item);
+  }
+  // Модификации: ровно 10.
+  for (let i = 0; i < 10; i++) {
+    const item = generateCategoryItem(level, CATEGORY_SLOTS.mods, idx++);
+    if (item) items.push(item);
   }
   const BASE_RESOURCES = GAME_RESOURCES.filter((r) =>
     !['Металлолом', 'Провода', 'Микросхема', 'Хим. реагент', 'Редкий сплав'].includes(r.name)
   );
   const resources = [...BASE_RESOURCES];
-  // 24 ресурса (3 ряда по 8) увеличенными стаками — материалы теперь в ходу.
-  for (let i = 0; i < 24; i++) {
+  // Ресурсы: ровно 10 увеличенными стаками.
+  for (let i = 0; i < 10; i++) {
     const def = resources[Math.floor(Math.random() * resources.length)];
-    const qty = 3 + Math.floor(Math.random() * 8);
+    const qty = 6 + Math.floor(Math.random() * 11);
     items.push({
       id: 'res_' + i + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 4),
       name: def.name,
@@ -174,20 +183,24 @@ const generateShop = (level: number): ShopItem[] => {
       resourceName: def.name,
     });
   }
-  // Расходники: сначала все 6 типов патронов, остаток — боевые расходники.
-  // Рюкзаки генерируются ниже отдельным блоком (витрина Бронника).
-  const bulletPick = [...AMMO_GROUPS];
-  for (const g of bulletPick) {
+  // Расходники: ровно 10 пачек патронов — все 6 групп + 4 случайные добором,
+  // качество каждой пачки — пирамидой (цена уже с мультипликатором качества).
+  // Рюкзаки генерируются ниже отдельным блоком (витрина Брони).
+  const bulletPick = [...AMMO_GROUPS].sort(() => Math.random() - 0.5);
+  for (let i = 0; i < 10; i++) {
+    const g = bulletPick[i % bulletPick.length];
     const qty = maxStackFor(g.key);
+    const bq = getItemQuality();
+    const proto = makeBulletPack(g.key, qty, bq.name, bq.color);
     items.push({
-      id: `ammo_${g.key}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
-      name: g.packName,
-      displayName: `${g.packName} x${qty}`,
+      id: `ammo_${g.key}_${i}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
+      name: proto.name,
+      displayName: proto.displayName,
       level: 1,
       rarity: 'common',
-      quality: 'Обычный',
-      qualityColor: '#94a3b8',
-      price: bulletPackPrice(g.key, qty),
+      quality: proto.quality,
+      qualityColor: proto.qualityColor,
+      price: proto.price,
       stats: {},
       slot: 'bullet',
       type: 'bullet',
@@ -195,26 +208,8 @@ const generateShop = (level: number): ShopItem[] => {
       ammoGroup: g.key,
     });
   }
-  const consPick = [...CONSUMABLE_DEFS].sort(() => Math.random() - 0.5).slice(0, 2);
-  for (const c of consPick) {
-    items.push({
-      id: `cons_${c.abilityId}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
-      name: c.name,
-      displayName: c.name,
-      level: 1,
-      rarity: 'common',
-      quality: 'Обычный',
-      qualityColor: '#94a3b8',
-      price: c.price + level,
-      stats: {},
-      slot: 'consumable',
-      type: 'consumable',
-      quantity: 1,
-      abilityId: c.abilityId,
-    });
-  }
   // Рюкзаки: 2 шт, качество — пирамидой, цена с мультипликатором качества.
-  // Показываются в Броннике (слот backpack).
+  // Показываются в Броне (слот backpack).
   const packPick = [...BACKPACK_DEFS].sort(() => Math.random() - 0.5).slice(0, 2);
   for (const p of packPick) {
     const pq = getItemQuality();
@@ -241,11 +236,11 @@ type SortKey = 'price' | 'level' | 'name' | 'quality';
 
 // Лавки площади: секции витрины. Цвета — акценты секций.
 const STALLS = [
-  { id: 'weapons', label: 'Кузня', icon: '⚔️', flavor: 'Оружие от местных умельцев', color: '#f87171', slots: ['weapon1', 'weapon2'] },
-  { id: 'armor', label: 'Бронник', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'pants', 'gloves', 'boots', 'backpack'] },
+  { id: 'weapons', label: 'Оружие', icon: '⚔️', flavor: 'Оружие от местных умельцев', color: '#f87171', slots: ['weapon1', 'weapon2'] },
+  { id: 'armor', label: 'Броня', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'pants', 'gloves', 'boots', 'backpack'] },
   { id: 'consumables', label: 'Амуниция', icon: '🧪', flavor: 'Амулеты, еда и мелочи', color: '#4ade80', slots: ['consumable'] },
   { id: 'mods', label: 'Модификации', icon: '🔩', flavor: 'Тюнинг снаряжения', color: '#c084fc', slots: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock', 'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'] },
-  { id: 'resources', label: 'Ресурсные ряды', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
+  { id: 'resources', label: 'Ресурсы', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
   { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны', color: '#fb923c', slots: ['bullet'] },
 ] as const;
 
@@ -276,7 +271,7 @@ const ProductCard = ({ item, buyPrice, canAfford, onBuy, onHover, onMove, onLeav
     >
       {(() => {
         const emoji = item.type === 'bullet'
-          ? (AMMO_GROUP_ICONS[(item as any).ammoGroup] ?? '🔸')
+          ? null // картинка группы через getItemImage ниже
           : item.type === 'consumable' && item.abilityId
             ? (CONSUMABLE_ICONS[item.abilityId] ?? '📦')
             : item.type === 'backpack' ? null // картинка по семейству через getItemImage ниже
