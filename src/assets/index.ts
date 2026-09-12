@@ -79,6 +79,12 @@ export const getSchemeImage = (stat?: string): string | undefined => {
   const key = SCHEME_IMAGE_MAP[(stat || '').toLowerCase()] || 'scheme_crit';
   return itemImageMap.get(key);
 };
+
+/** Кристаллы гнёзд схем (пустой/заполненный). */
+export const crystalImages = {
+  empty: itemImageMap.get('crystal_empty'),
+  filled: itemImageMap.get('crystal_filled'),
+};
 /** Картинка рюкзака по семейству (11 спрайтов pack_*.png). */
 const BACKPACK_IMAGE_MAP: Record<string, string> = {
   'поход': 'pack_pohod',

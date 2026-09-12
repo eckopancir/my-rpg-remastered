@@ -1,4 +1,4 @@
-import { getItemImage, images } from '../../assets/index';
+import { getItemImage, images, crystalImages } from '../../assets/index';
 import type { Item } from '../../types/items';
 import { chestImageFor, configForQuality } from '../../data/chests';
 import { QUALITY_TIERS } from '../../engine/items';
@@ -121,15 +121,23 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
             const max = socketSlotsOf(item);
             const filled = Array.isArray((item as any).sockets) ? (item as any).sockets.length : 0;
             return (
-              <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', flexDirection: 'column', gap: 3 }} title={`Гнёзда схем: ${filled}/${max}`}>
-                {Array.from({ length: max }).map((_, i) => (
-                  <div key={i} style={{
-                    width: 10, height: 10, transform: 'rotate(45deg)',
-                    background: i < filled ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${i < filled ? '#4ade80' : 'rgba(255,255,255,0.35)'}`,
-                    boxShadow: i < filled ? '0 0 6px rgba(74,222,128,0.9)' : 'none',
-                  }} />
-                ))}
+              <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', flexDirection: 'column', gap: 2 }} title={`Гнёзда схем: ${filled}/${max}`}>
+                {Array.from({ length: max }).map((_, i) => {
+                  const src = i < filled ? crystalImages.filled : crystalImages.empty;
+                  return src ? (
+                    <img key={i} src={src} alt="" style={{
+                      width: 14, height: 14, objectFit: 'contain',
+                      filter: i < filled ? 'drop-shadow(0 0 4px rgba(74,222,128,0.9))' : 'none',
+                    }} />
+                  ) : (
+                    <div key={i} style={{
+                      width: 10, height: 10, transform: 'rotate(45deg)',
+                      background: i < filled ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${i < filled ? '#4ade80' : 'rgba(255,255,255,0.35)'}`,
+                      boxShadow: i < filled ? '0 0 6px rgba(74,222,128,0.9)' : 'none',
+                    }} />
+                  );
+                })}
               </div>
             );
           })()}
