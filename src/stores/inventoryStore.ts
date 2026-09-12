@@ -32,6 +32,11 @@ interface InventoryStore {
   addToSell: (item: Item) => void;
   removeFromSell: (index: number) => void;
   clearSell: () => void;
+  // Избранное (звёздочки) и просмотренные (гасят бейдж NEW).
+  favorites: Record<string, true>;
+  seenIds: Record<string, true>;
+  toggleFavorite: (id: string) => void;
+  markSeen: (id: string) => void;
 }
 
 const OLD_RESOURCE_NAMES = new Set([
@@ -100,6 +105,19 @@ export const useInventoryStore = create<InventoryStore>()(
         sellItems: s.sellItems.filter((_, i) => i !== index),
       })),
       clearSell: () => set({ sellItems: [] }),
+
+      favorites: {},
+      seenIds: {},
+      toggleFavorite: (id) => set((s) => {
+        const next = { ...s.favorites };
+        if (next[id]) delete next[id];
+        else next[id] = true;
+        return { favorites: next };
+      }),
+      markSeen: (id) => set((s) => {
+        if (s.seenIds[id]) return s;
+        return { seenIds: { ...s.seenIds, [id]: true } };
+      }),
     }),
     {
       name: 'inventory',
@@ -108,6 +126,8 @@ export const useInventoryStore = create<InventoryStore>()(
         items: state.items,
         currentPage: state.currentPage,
         filterSlot: state.filterSlot,
+        favorites: state.favorites,
+        seenIds: state.seenIds,
       }),
       migrate: (persisted: any, version: number) => {
         if (!persisted?.items) return persisted;

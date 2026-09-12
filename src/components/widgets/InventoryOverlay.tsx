@@ -48,6 +48,7 @@ const getItemTimestamp = (item: Item): number => {
 
 const SORT_OPTIONS = [
   { value: '', label: 'Без сортировки' },
+  { value: 'favorite', label: 'Избранное' },
   { value: 'power', label: 'Мощность' },
   { value: 'recent', label: 'Новые' },
   { value: 'level', label: 'Уровень' },
@@ -140,6 +141,10 @@ export const InventoryOverlay = () => {
   const setInventoryPinPos = useUiStore((s) => s.setInventoryPinPos);
   const items = useInventoryStore((s) => s.items);
   const removeItem = useInventoryStore((s) => s.removeItem);
+  const favorites = useInventoryStore((s) => s.favorites);
+  const seenIds = useInventoryStore((s) => s.seenIds);
+  const toggleFavorite = useInventoryStore((s) => s.toggleFavorite);
+  const markSeen = useInventoryStore((s) => s.markSeen);
   const equipItem = usePlayerStore((s) => s.equipItem);
   const takeOutBackpack = usePlayerStore((s) => s.takeOutBackpack);
   const equipment = usePlayerStore((s) => s.equipment);
@@ -209,7 +214,10 @@ export const InventoryOverlay = () => {
       list = list.filter((s) => slotFilterKey(s.item) === filterSlot);
     }
 
-    if (sortBy === 'power') {
+    // Избранное: показываем только предметы со звёздочкой.
+    if (sortBy === 'favorite') {
+      list = list.filter((s) => favorites[s.item.id]);
+    } else if (sortBy === 'power') {
       list = [...list].sort((a, b) => calcItemPower(b.item) - calcItemPower(a.item));
     } else if (sortBy === 'recent') {
       list = [...list].sort((a, b) => getItemTimestamp(b.item) - getItemTimestamp(a.item));
@@ -224,7 +232,7 @@ export const InventoryOverlay = () => {
     }
 
     return list;
-  }, [items, filterSlot, sortBy]);
+  }, [items, filterSlot, sortBy, favorites]);
 
   const totalPages = Math.max(1, Math.ceil(processed.length / ITEMS_PER_PAGE));
   const currentPage = Math.min(page, totalPages - 1);
@@ -431,7 +439,7 @@ export const InventoryOverlay = () => {
                       playSound('laying-out-a-travel-mat', 0.5);
                       addLog(msg, msg.startsWith('❌') || msg.startsWith('⚠️') ? 'warning' : 'info');
                     }}
-                    onMouseEnter={(e) => { setHoveredItem(stacked); setHoverPos({ x: e.clientX, y: e.clientY }); }}
+                    onMouseEnter={(e) => { setHoveredItem(stacked); setHoverPos({ x: e.clientX, y: e.clientY }); markSeen(stacked.item.id); }}
                     onMouseMove={(e) => setHoverPos({ x: e.clientX, y: e.clientY })}
                     onMouseLeave={() => setHoveredItem(null)}
                     style={{
@@ -467,6 +475,24 @@ export const InventoryOverlay = () => {
                         width: 4, height: 4, borderRadius: '50%',
                         background: item.qualityColor || 'rgba(255,255,255,0.2)',
                       }} />
+                    )}
+                    {favorites[item.id] && (
+                      <div style={{
+                        position: 'absolute', top: 0, left: 2,
+                        fontSize: 11, lineHeight: 1, color: '#ffd700',
+                        textShadow: '0 0 4px rgba(255,215,0,0.8)',
+                      }}>
+                        ★
+                      </div>
+                    )}
+                    {!seenIds[item.id] && (
+                      <div style={{
+                        position: 'absolute', bottom: 1, left: 2,
+                        fontSize: 8, fontWeight: 800, lineHeight: 1,
+                        color: '#fff', animation: 'pulseText 1s infinite',
+                      }}>
+                        NEW
+                      </div>
                     )}
                   </div>
                 );
@@ -580,6 +606,17 @@ export const InventoryOverlay = () => {
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 🗑️ Выбросить
+              </div>
+              <div
+                onClick={() => { toggleFavorite(contextMenu.stacked.item.id); setContextMenu(null); }}
+                style={{
+                  padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#ffd700',
+                  borderRadius: 3, transition: 'background 80ms',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                {favorites[contextMenu.stacked.item.id] ? '☆ Убрать из избранного' : '★ В избранное'}
               </div>
               {contextMenu.stacked.item.price ? (
                 <div style={{ padding: '4px 12px', fontSize: 10, color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.04)', marginTop: 4 }}>
