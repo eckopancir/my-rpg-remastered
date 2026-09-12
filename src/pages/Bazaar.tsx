@@ -51,9 +51,18 @@ const SHOP_QUALITY_MULT: Record<string, number> = {
   'Эпический': 5, 'Раритетный': 3, 'Редкий': 2, 'Обычный': 1,
 };
 
-// Фикс цены за редкость (плоская добавка — раньше на низких уровнях её съедал кубик 0..50).
-const RARITY_PRICE_FLAT: Record<string, number> = {
-  normal: 0, common: 0, epic: 40, superepic: 90,
+// Крутая шкала снаряжения: верх — люкс (фармом специфику не достать).
+// Рюкзаки остаются на SHOP_QUALITY_MULT.
+const GEAR_QUALITY_MULT: Record<string, number> = {
+  'Божественный': 30, 'Легендарный': 18, 'Смертоносный': 11,
+  'Эпический': 7, 'Раритетный': 4, 'Редкий': 2, 'Обычный': 1,
+};
+
+// Фикс цены за редкость дефа, скейлится уровнем.
+const rarityFlat = (rarity: string, level: number): number => {
+  if (rarity === 'epic') return 3 * level;
+  if (rarity === 'superepic') return 8 * level;
+  return 0;
 };
 
 // Вес статов в цене: здоровье идёт сотнями, шансы — долями, нормируем.
@@ -108,11 +117,9 @@ const generateCategoryItem = (level: number, validSlots: string[], idx: number):
     const targetSlot = validSlots[Math.floor(Math.random() * validSlots.length)];
     const single = generateItem(GAME_ITEMS, level, null, null, targetSlot);
     if (single) {
-      // Цена: уровень + малая случайность + фикс за редкость + вес статов, всё × качество.
-      // Раньше было level*10 + rand(0..50): на низких уровнях кубик всё решал,
-      // а статы игнорировались — эпик за 50 чипов.
-      const basePrice = level * 10 + Math.floor(Math.random() * 10);
-      const qualityMultiplier = SHOP_QUALITY_MULT[single.quality] || 1;
+      // Цена: уровень×30 + случайность + фикс за редкость + вес статов, всё × качество (крутая шкала).
+      const basePrice = level * 30 + Math.floor(Math.random() * 30);
+      const qualityMultiplier = GEAR_QUALITY_MULT[single.quality] || 1;
       return {
         id: single.id + '_cat_' + idx + '_' + Date.now(),
         name: single.name,
@@ -121,7 +128,7 @@ const generateCategoryItem = (level: number, validSlots: string[], idx: number):
         rarity: single.rarity,
         quality: single.quality,
         qualityColor: single.qualityColor || 'white',
-        price: Math.floor((basePrice + (RARITY_PRICE_FLAT[single.rarity] || 0) + statPrice(single.stats || {})) * qualityMultiplier),
+        price: Math.floor((basePrice + rarityFlat(single.rarity, level) + statPrice(single.stats || {})) * qualityMultiplier),
         stats: single.stats || {},
         slot: single.slot,
         type: single.type,
