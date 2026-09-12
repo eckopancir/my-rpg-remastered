@@ -14,7 +14,7 @@ import { WapHeader } from '../components/ui/WapHeader';
 import { WapHudBar } from '../components/ui/WapHudBar';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
-import { generateItem, getItemQuality, rollModExtraStat, QUALITY_MOD_MULT } from '../engine/items';
+import { generateItem, getItemQuality, rollModExtraStat, QUALITY_MOD_MULT, QUALITY_TIERS } from '../engine/items';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
@@ -41,7 +41,8 @@ const debugAddBackpacks = () => {
   useUiStore.getState().addToast(`🎒 +${BACKPACK_DEFS.length} рюкзаков (качества роллом)`, 'loot');
 };
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
-import { getItemImage, images } from '../assets/index';
+import { SCHEME_STATS, SCHEME_STAT_LABELS, schemePctFor } from '../data/schematics';
+import { getItemImage, getSchemeImage, images } from '../assets/index';
 import { GUN_SLOTS } from '../stores/playerStore';
 
 // Полоса из 6 стволов у характеристик: клик — активный (урон с него).
@@ -144,7 +145,21 @@ const debugAddResources = (count: number) => {
       quantity: count, image: def.image,
     });
   }
-  useUiStore.getState().addToast(`📦 +${count} каждого ресурса (${GAME_RESOURCES.length} видов)`, 'loot');
+  // Схемы для перековки: по одной каждого качества, уровень = уровень игрока.
+  const lvl = usePlayerStore.getState().level;
+  for (const q of QUALITY_TIERS) {
+    const stat = SCHEME_STATS[Math.floor(Math.random() * SCHEME_STATS.length)];
+    const pct = schemePctFor(stat, q.name);
+    const label = SCHEME_STAT_LABELS[stat] || stat;
+    addItem({
+      id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: `Схема: ${label}`, displayName: `📜 Схема (${q.name}): ${label} +${pct}%`,
+      type: 'blueprint', blueprintRarity: q.name, blueprintStat: stat, slot: 'any', rarity: q.name,
+      level: lvl, stats: {}, quality: q.name, qualityColor: q.color, stackable: false,
+      image: getSchemeImage(stat),
+    } as any);
+  }
+  useUiStore.getState().addToast(`📦 +${count} каждого ресурса + 7 схем`, 'loot');
 };
 
 interface StatInfo {

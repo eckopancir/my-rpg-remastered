@@ -72,14 +72,19 @@ function SlotIcon(item: Item): string {
   return '📦';
 }
 
-function DropSlot({ item, onDrop, onRemove, label }: {
+function DropSlot({ item, onDrop, onRemove, label, onTipShow, onTipMove, onTipHide }: {
   item: Item | null; onDrop: (id: string) => void; onRemove: () => void; label?: string;
+  onTipShow?: (item: Item, e: React.MouseEvent) => void; onTipMove?: (e: React.MouseEvent) => void; onTipHide?: () => void;
 }) {
+  const url = item ? (item.image || getItemImage(item.name, item.displayName, item.slot, item.type)) : undefined;
   return (
     <div
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
       onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) onDrop(id); }}
       onClick={() => item && onRemove()}
+      onMouseEnter={(e) => { if (item && onTipShow) onTipShow(item, e); }}
+      onMouseMove={(e) => { if (item && onTipMove) onTipMove(e); }}
+      onMouseLeave={() => { if (onTipHide) onTipHide(); }}
       style={{
         width: 80, height: 80, borderRadius: 6,
         border: `2px dashed ${item ? (item.qualityColor || 'rgba(255,255,255,0.2)') : 'rgba(255,255,255,0.1)'}`,
@@ -92,7 +97,11 @@ function DropSlot({ item, onDrop, onRemove, label }: {
     >
       {item ? (
         <>
-          <span style={{ fontSize: 18 }}>{SlotIcon(item)}</span>
+          {url ? (
+            <img src={url} alt="" style={{ width: 44, height: 44, objectFit: 'contain' }} draggable={false} />
+          ) : (
+            <span style={{ fontSize: 18 }}>{SlotIcon(item)}</span>
+          )}
           <span style={{ color: item.qualityColor || '#aaa', lineHeight: 1.1, maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {item.displayName || item.name}
           </span>
@@ -572,6 +581,9 @@ export const Craft = () => {
                   {mergeSlots.map((item, idx) => (
                     <DropSlot key={idx} item={item} onDrop={handleDropToMerge}
                       onRemove={() => handleRemoveFromMergeSlot(idx)} label={`Слот ${idx + 1}`}
+                      onTipShow={(it, e) => { setTooltipItem(it); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                      onTipMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                      onTipHide={() => setTooltipItem(null)}
                     />
                   ))}
                 </div>
@@ -630,6 +642,9 @@ export const Craft = () => {
               {disassembleSlots.map((item, idx) => (
                 <DropSlot key={idx} item={item} onDrop={handleDropToDisassemble}
                   onRemove={() => handleRemoveFromDisassembleSlot(idx)} label={`Слот ${idx + 1}`}
+                  onTipShow={(it, e) => { setTooltipItem(it); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                  onTipMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                  onTipHide={() => setTooltipItem(null)}
                 />
               ))}
             </div>
@@ -670,6 +685,9 @@ export const Craft = () => {
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                   onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) handleDropToReforge(id); }}
                   onClick={() => reforgeWeapon && handleRemoveReforgeWeapon()}
+                  onMouseEnter={(e) => { if (reforgeWeapon) { setTooltipItem(reforgeWeapon); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
+                  onMouseMove={(e) => { if (reforgeWeapon) setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                  onMouseLeave={() => setTooltipItem(null)}
                   title={reforgeWeapon ? `${reforgeWeapon.displayName || reforgeWeapon.name} — клик вернуть в инвентарь` : 'Оружие или броня из инвентаря'}
                   style={{
                     width: 110, height: 110, borderRadius: 8,
@@ -695,6 +713,9 @@ export const Craft = () => {
                 {/* Малый слот: схема */}
                 <DropSlot item={reforgeBlueprint} onDrop={handleDropReforgeBp}
                   onRemove={handleRemoveReforgeBp} label="Схема"
+                  onTipShow={(it, e) => { setTooltipItem(it); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                  onTipMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                  onTipHide={() => setTooltipItem(null)}
                 />
               </div>
               {/* Слоты перековки ниже */}
