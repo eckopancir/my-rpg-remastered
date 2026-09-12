@@ -141,6 +141,7 @@ export const InventoryOverlay = () => {
   const setInventoryPinPos = useUiStore((s) => s.setInventoryPinPos);
   const items = useInventoryStore((s) => s.items);
   const removeItem = useInventoryStore((s) => s.removeItem);
+  const setItems = useInventoryStore((s) => s.setItems);
   const favorites = useInventoryStore((s) => s.favorites);
   const seenIds = useInventoryStore((s) => s.seenIds);
   const toggleFavorite = useInventoryStore((s) => s.toggleFavorite);
@@ -283,6 +284,55 @@ export const InventoryOverlay = () => {
     setOpeningChest(item);
   };
 
+  // Ключ группировки — как в stackItems (стаки по имени+качеству, остальное по id).
+  const stackKeyOf = (item: Item): string => {
+    if (item.type === 'material' || item.type === 'consumable' || item.type === 'bullet') {
+      return `${item.type}_${item.name}_${item.rarity}_${item.quality || 'Обычный'}`;
+    }
+    return `id:${item.id}`;
+  };
+
+  // Ручная раскладка: дроп на ячейку вставляет предмет в эту позицию,
+  // а не в конец. Работает только без сортировки/фильтра (иначе вид всё равно пересортирует).
+  const handleCellDrop = (paddedIdx: number, e: React.DragEvent) => {
+    const dtId = e.dataTransfer.getData('text/plain');
+    const id = dtId || useUiStore.getState().draggedItemId;
+    if (!id || id.startsWith('equip:') || id.startsWith('pack:') || id.startsWith('corpse:')) return;
+    const all = useInventoryStore.getState().items;
+    const fromIdx = all.findIndex((i) => i.id === id);
+    if (fromIdx === -1) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (sortBy || filterSlot) { addLog('📌 Убери сортировку и фильтр для ручной раскладки', 'warning'); return; }
+    const entry = padded[paddedIdx];
+    if (entry && entry.item.id === id) return; // своя же ячейка
+    const next = [...all];
+    const [moved] = next.splice(fromIdx, 1);
+    if (!entry) {
+      // Пустая ячейка: вставить после последнего объекта текущей страницы, чтобы осталось на ней.
+      let insertAt = next.length;
+      for (let i = pageItems.length - 1; i >= 0; i--) {
+        const repId = pageItems[i].item.id;
+        const li = next.findIndex((o) => o.id === repId);
+        if (li === -1) continue;
+        const key = stackKeyOf(pageItems[i].item);
+        insertAt = li + 1;
+        while (insertAt < next.length && stackKeyOf(next[insertAt]) === key) insertAt++;
+        break;
+      }
+      next.splice(insertAt, 0, moved);
+    } else {
+      // Вставить перед группой целевой ячейки.
+      const key = stackKeyOf(entry.item);
+      let at = next.findIndex((o) => o.id === entry.item.id);
+      if (at === -1) at = next.findIndex((o) => stackKeyOf(o) === key);
+      if (at === -1) next.push(moved);
+      else next.splice(at, 0, moved);
+    }
+    setItems(next);
+    playSound('clickbutton', 0.2);
+  };
+
   const handleDrop = (stacked: StackedItem) => {    const item = stacked.item;
     if (item.type === 'material' && stacked.count > 1) {
       // Reduce count
@@ -409,7 +459,7 @@ export const InventoryOverlay = () => {
               onDragOver={(e) => e.preventDefault()}
             >
               {padded.map((stacked, idx) => {
-                if (!stacked) return <div key={`empty-${idx}`} style={{ width: cellSize, height: cellSize }} />;
+                if (!stacked) return <div key={`empty-${idx}`} style={{ width: cellSize, height: cellSize }} onDrop={(e) => handleCellDrop(idx, e)} />;
 
                 const { item, count } = stacked;
                 const imgUrl = item.image
@@ -426,6 +476,7 @@ export const InventoryOverlay = () => {
                   <div
                     key={item.id}
                     draggable
+                    onDrop={(e) => handleCellDrop(idx, e)}
                     onDragStart={(e) => {
                       e.dataTransfer.setData('text/plain', item.id);
                       setDraggedItemId(item.id);
