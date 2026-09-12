@@ -53,15 +53,55 @@ export interface CraftCost {
   powder: number;
 }
 
-export const CRAFT_COST: Record<string, CraftCost> = {
-  'Обычный': { scrap: 5, wires: 3, chip: 0, reagent: 0, alloy: 0, powder: 0 },
-  'Редкий': { scrap: 8, wires: 5, chip: 2, reagent: 0, alloy: 0, powder: 0 },
-  'Раритетный': { scrap: 12, wires: 8, chip: 4, reagent: 2, alloy: 0, powder: 0 },
-  'Эпический': { scrap: 20, wires: 12, chip: 6, reagent: 4, alloy: 2, powder: 0 },
-  'Смертоносный': { scrap: 30, wires: 18, chip: 10, reagent: 6, alloy: 4, powder: 0 },
-  'Легендарный': { scrap: 45, wires: 25, chip: 15, reagent: 10, alloy: 6, powder: 0 },
-  'Божественный': { scrap: 60, wires: 35, chip: 20, reagent: 15, alloy: 10, powder: 0 },
+/** Категория предмета для крафта/разбора: броня / оружие / мод. */
+export type CraftCategory = 'armor' | 'weapon' | 'mod';
+
+export const craftCategoryOf = (item: { slot?: string; type?: string }): CraftCategory => {
+  const slot = (item as any).slot || '';
+  if ((item as any).type === 'mod' || slot.startsWith('mod_')) return 'mod';
+  if (slot === 'weapon1' || slot === 'weapon2' || slot.startsWith('gun_')) return 'weapon';
+  return 'armor';
 };
+
+const GEAR_COST: Record<CraftCategory, Record<string, CraftCost>> = {
+  // Броня: металлолом, провода, реагент, сплав.
+  armor: {
+    'Обычный': { scrap: 5, wires: 3, chip: 0, reagent: 0, alloy: 0, powder: 0 },
+    'Редкий': { scrap: 8, wires: 5, chip: 0, reagent: 0, alloy: 0, powder: 0 },
+    'Раритетный': { scrap: 12, wires: 8, chip: 0, reagent: 2, alloy: 0, powder: 0 },
+    'Эпический': { scrap: 20, wires: 12, chip: 0, reagent: 4, alloy: 2, powder: 0 },
+    'Смертоносный': { scrap: 30, wires: 18, chip: 0, reagent: 6, alloy: 4, powder: 0 },
+    'Легендарный': { scrap: 45, wires: 25, chip: 0, reagent: 10, alloy: 6, powder: 0 },
+    'Божественный': { scrap: 60, wires: 35, chip: 0, reagent: 15, alloy: 10, powder: 0 },
+  },
+  // Оружие: металлолом, сплав, порох, микросхемы.
+  weapon: {
+    'Обычный': { scrap: 5, wires: 0, chip: 0, reagent: 0, alloy: 0, powder: 3 },
+    'Редкий': { scrap: 8, wires: 0, chip: 2, reagent: 0, alloy: 0, powder: 5 },
+    'Раритетный': { scrap: 12, wires: 0, chip: 4, reagent: 0, alloy: 0, powder: 8 },
+    'Эпический': { scrap: 20, wires: 0, chip: 6, reagent: 0, alloy: 2, powder: 12 },
+    'Смертоносный': { scrap: 30, wires: 0, chip: 10, reagent: 0, alloy: 4, powder: 18 },
+    'Легендарный': { scrap: 45, wires: 0, chip: 15, reagent: 0, alloy: 6, powder: 25 },
+    'Божественный': { scrap: 60, wires: 0, chip: 20, reagent: 0, alloy: 10, powder: 35 },
+  },
+  // Модификации: металлолом, микросхемы, провода (UI создания модов — следующий шаг).
+  mod: {
+    'Обычный': { scrap: 2, wires: 3, chip: 1, reagent: 0, alloy: 0, powder: 0 },
+    'Редкий': { scrap: 3, wires: 5, chip: 2, reagent: 0, alloy: 0, powder: 0 },
+    'Раритетный': { scrap: 4, wires: 8, chip: 4, reagent: 0, alloy: 0, powder: 0 },
+    'Эпический': { scrap: 6, wires: 12, chip: 6, reagent: 0, alloy: 1, powder: 0 },
+    'Смертоносный': { scrap: 8, wires: 18, chip: 10, reagent: 0, alloy: 2, powder: 0 },
+    'Легендарный': { scrap: 10, wires: 25, chip: 15, reagent: 0, alloy: 3, powder: 0 },
+    'Божественный': { scrap: 12, wires: 35, chip: 20, reagent: 0, alloy: 4, powder: 0 },
+  },
+};
+
+/** Цена создания по слоту и качеству (категория из слота). */
+export const craftCostFor = (slot: string, quality: string): CraftCost =>
+  GEAR_COST[craftCategoryOf({ slot })][quality] || GEAR_COST.armor['Обычный'];
+
+// Совместимость: старая плоская таблица (броня).
+export const CRAFT_COST: Record<string, CraftCost> = GEAR_COST.armor;
 
 export const STAT_COUNT: Record<string, number> = {
   'Обычный': 1,
@@ -73,6 +113,33 @@ export const STAT_COUNT: Record<string, number> = {
   'Божественный': 8,
 };
 
+/** Выход разбора по категории предмета (плоские диапазоны, от качества не зависят). */
+export type DisassembleCategory = 'armor' | 'weapon' | 'mod' | 'bullet' | 'energyCell';
+
+export const disassembleCategoryOf = (item: { slot?: string; type?: string; ammoGroup?: string }): DisassembleCategory => {
+  if ((item as any).type === 'bullet') {
+    return (item as any).ammoGroup === 'energy' ? 'energyCell' : 'bullet';
+  }
+  const slot = (item as any).slot || '';
+  if ((item as any).type === 'mod' || slot.startsWith('mod_')) return 'mod';
+  if (slot === 'weapon1' || slot === 'weapon2' || slot.startsWith('gun_')) return 'weapon';
+  return 'armor';
+};
+
+const DISASSEMBLE_TABLE: Record<DisassembleCategory, Partial<Record<MaterialType, [number, number]>>> = {
+  // Броня: лом, сплав, реагент, иногда провода.
+  armor: { scrap: [3, 5], alloy: [2, 3], reagent: [1, 2], wires: [0, 1] },
+  // Оружие: лом, сплав, порох, иногда микросхема.
+  weapon: { scrap: [3, 5], alloy: [2, 3], powder: [1, 2], chip: [0, 1] },
+  // Модификации: микросхемы, провода, немного лома.
+  mod: { chip: [3, 5], wires: [3, 5], scrap: [1, 2] },
+  // Патроны: лом + 5 пороха, схем не бывает.
+  bullet: { scrap: [2, 3], powder: [5, 5] },
+  // Энергоячейки: лом + 2 реагента.
+  energyCell: { scrap: [1, 2], reagent: [2, 2] },
+};
+
+/** Старая таблица по качеству — фолбэк для прочего (рюкзаки и т.п.). */
 export const DISASSEMBLE_YIELD: Record<string, Partial<Record<MaterialType, [number, number]>>> = {
   'Обычный': { scrap: [2, 4], wires: [1, 2], powder: [1, 2] },
   'Редкий': { scrap: [3, 5], wires: [2, 3], chip: [1, 1], powder: [1, 2] },
@@ -83,14 +150,14 @@ export const DISASSEMBLE_YIELD: Record<string, Partial<Record<MaterialType, [num
   'Божественный': { scrap: [10, 15], wires: [6, 8], chip: [5, 6], reagent: [4, 5], alloy: [3, 4], powder: [4, 6] },
 };
 
-/** Рецепты патронов: цена полного стака обычной пачки (порох + металлолом). */
-export const AMMO_CRAFT_COST: Record<string, { powder: number; scrap: number }> = {
-  pistol: { powder: 2, scrap: 2 },
-  rifle: { powder: 4, scrap: 4 },
-  sniper: { powder: 3, scrap: 3 },
-  shell: { powder: 3, scrap: 3 },
-  mg: { powder: 12, scrap: 10 },
-  energy: { powder: 6, scrap: 6 },
+/** Рецепты патронов: цена полного стака обычной пачки. Энергоячейки — без пороха. */
+export const AMMO_CRAFT_COST: Record<string, { powder: number; scrap: number; reagent?: number }> = {
+  pistol: { powder: 5, scrap: 3 },
+  rifle: { powder: 10, scrap: 3 },
+  sniper: { powder: 8, scrap: 3 },
+  shell: { powder: 8, scrap: 3 },
+  mg: { powder: 20, scrap: 3 },
+  energy: { powder: 0, scrap: 3, reagent: 2 },
 };
 
 export const BLUEPRINT_DROP_CHANCE: Record<string, number> = {
@@ -144,12 +211,19 @@ export function rollBlueprint(quality: string): string | null {
   return null;
 }
 
-export function rollYield(quality: string): Record<string, number> {
-  const table = DISASSEMBLE_YIELD[quality];
-  if (!table) return {};
+export function rollYield(quality: string, item?: { slot?: string; type?: string; ammoGroup?: string }): Record<string, number> {
+  // Категорийная таблица (броня/оружие/моды/патроны/ячейки), масштабируется редкостью:
+  // Обычный ×1, далее +50% за ранг (Божественный ×4).
+  // Прочее (рюкзаки и т.п.) — старая шкала по качеству.
+  const table = item ? DISASSEMBLE_TABLE[disassembleCategoryOf(item)] : undefined;
+  const src = table || DISASSEMBLE_YIELD[quality];
+  if (!src) return {};
+  const mult = table ? 1 + 0.5 * Math.max(0, QUALITY_ORDER.indexOf(quality)) : 1;
   const result: Record<string, number> = {};
-  for (const [mat, [min, max]] of Object.entries(table)) {
-    result[mat] = Math.floor(Math.random() * (max - min + 1)) + min;
+  for (const [mat, [min, max]] of Object.entries(src)) {
+    const lo = Math.round(min * mult);
+    const hi = Math.round(max * mult);
+    result[mat] = lo >= hi ? lo : lo + Math.floor(Math.random() * (hi - lo + 1));
   }
   return result;
 }

@@ -13,6 +13,7 @@ import { GAME_ITEMS } from '../data/GameItems';
 import {
   QUALITY_ORDER, QUALITY_COLORS, SLOT_STAT_POOL, SLOT_LABELS, SLOT_ICONS,
   CRAFT_COST, MATERIAL_NAMES, STAT_COUNT, AMMO_CRAFT_COST,
+  craftCostFor, disassembleCategoryOf,
   getNextQuality, rollBlueprint, rollYield,
 } from '../data/crafting';
 import { AMMO_GROUPS, makeBulletPack, maxStackFor, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
@@ -346,7 +347,7 @@ export const Craft = () => {
     const yields: Record<string, number> = {};
     for (const item of filled) {
       if (!item.quality) continue;
-      const y = rollYield(item.quality);
+      const y = rollYield(item.quality, item);
       for (const [mat, c] of Object.entries(y)) yields[mat] = (yields[mat] || 0) + (c || 0);
     }
     const materials: Item[] = [];
@@ -365,6 +366,8 @@ export const Craft = () => {
     let blueprint: Item | null = null;
     for (const item of filled) {
       if (!item.quality || blueprint) continue;
+      // Из патронов схем не бывает.
+      if (disassembleCategoryOf(item) === 'bullet' || disassembleCategoryOf(item) === 'energyCell') continue;
       const bp = rollBlueprint(item.quality);
       if (bp) blueprint = {
         id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -454,9 +457,9 @@ export const Craft = () => {
   }
 
   const canAffordCreate = useMemo(() => {
-    if (!createBlueprint) return false;
+    if (!createBlueprint || !createSlot) return false;
     const quality = createBlueprint.blueprintRarity || 'Обычный';
-    const base = CRAFT_COST[quality];
+    const base = craftCostFor(createSlot, quality);
     if (!base) return false;
     const mul = costMultiplier;
     for (const [mat, count] of Object.entries(base)) {
@@ -470,7 +473,7 @@ export const Craft = () => {
   function handleCreate() {
     if (!createSlot || !createBlueprint) return;
     const quality = createBlueprint.blueprintRarity || 'Обычный';
-    const base = CRAFT_COST[quality];
+    const base = craftCostFor(createSlot, quality);
     if (!base) return;
     const mul = costMultiplier;
     const resourceCheck: Record<string, number> = {};
@@ -641,7 +644,7 @@ export const Craft = () => {
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, justifyContent: 'center' }}>
               {disassembleSlots.filter(Boolean).map((item, idx) => {
                 if (!item?.quality) return null;
-                const preview = rollYield(item.quality);
+                const preview = rollYield(item.quality, item);
                 return (
                   <div key={idx} style={{ fontSize: 10, padding: '3px 6px', background: 'rgba(74,222,128,0.06)', borderRadius: 4, border: '1px solid rgba(74,222,128,0.1)' }}>
                     {Object.entries(preview).map(([mat, c]) => (
@@ -796,22 +799,22 @@ export const Craft = () => {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
                       {(() => {
                         const quality = createBlueprint.blueprintRarity || 'Обычный';
-                        const base = CRAFT_COST[quality];
+                        const base = craftCostFor(createSlot, quality);
                         const mul = costMultiplier;
                         return Object.entries(base).map(([mat, count]) => {
                           if (count <= 0) return null;
                           const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
                           const needed = Math.ceil(count * mul);
                           const have = countResource(matName);
-  // Создание патронов: мгновенно, полный стак обычных за порох + металлолом.
+  // Создание патронов: мгновенно, полный стак обычных (энергоячейки — без пороха).
   function handleCraftAmmo(group: AmmoGroup) {
     const cost = AMMO_CRAFT_COST[group];
     if (!cost) return;
-    const need: Record<string, number> = {
-      [MATERIAL_NAMES.powder]: cost.powder,
-      [MATERIAL_NAMES.scrap]: cost.scrap,
-    };
-    if (!removeResources(need)) { addLog('❌ Не хватает пороха/металлолома', 'warning'); playSound('clickbutton', 0.3); return; }
+    const need: Record<string, number> = {};
+    if (cost.powder > 0) need[MATERIAL_NAMES.powder] = cost.powder;
+    if (cost.scrap > 0) need[MATERIAL_NAMES.scrap] = cost.scrap;
+    if ((cost.reagent || 0) > 0) need[MATERIAL_NAMES.reagent] = cost.reagent || 0;
+    if (!removeResources(need)) { addLog('❌ Не хватает ресурсов на патроны', 'warning'); playSound('clickbutton', 0.3); return; }
     const pack = makeBulletPack(group, maxStackFor(group), 'Обычный');
     addItem(pack);
     playSound('reloading', 0.5);
@@ -857,9 +860,11 @@ export const Craft = () => {
                       const cost = AMMO_CRAFT_COST[g.key];
                       if (!cost) return null;
                       const qty = maxStackFor(g.key);
-                      const havePowder = countResource(MATERIAL_NAMES.powder);
-                      const haveScrap = countResource(MATERIAL_NAMES.scrap);
-                      const afford = havePowder >= cost.powder && haveScrap >= cost.scrap;
+                      const parts: { name: string; have: number; need: number }[] = [];
+                      if (cost.powder > 0) parts.push({ name: MATERIAL_NAMES.powder, have: countResource(MATERIAL_NAMES.powder), need: cost.powder });
+                      if (cost.scrap > 0) parts.push({ name: MATERIAL_NAMES.scrap, have: countResource(MATERIAL_NAMES.scrap), need: cost.scrap });
+                      if ((cost.reagent || 0) > 0) parts.push({ name: MATERIAL_NAMES.reagent, have: countResource(MATERIAL_NAMES.reagent), need: cost.reagent || 0 });
+                      const afford = parts.every((p) => p.have >= p.need);
                       const img = getBulletImage(g.packName);
                       return (
                         <div key={g.key}
@@ -876,7 +881,7 @@ export const Craft = () => {
                           {img && <img src={img} alt="" style={{ width: 26, height: 26, objectFit: 'contain' }} />}
                           <span style={{ color: 'var(--text-primary)' }}>{g.name} x{qty}</span>
                           <span style={{ color: afford ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
-                            🧪{havePowder}/{cost.powder} 🔩{haveScrap}/{cost.scrap}
+                            {parts.map((p) => `${p.name} ${p.have}/${p.need}`).join(' · ')}
                           </span>
                         </div>
                       );
