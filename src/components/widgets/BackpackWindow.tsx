@@ -161,8 +161,8 @@ export const BackpackWindow = ({ onClose }: Props) => {
                 return (
                   <div
                     draggable
-                    onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); }}
-                    onDragEnd={() => {}}
+                    onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); useUiStore.getState().setDraggedItemId(item.id); }}
+                    onDragEnd={() => { useUiStore.getState().setDraggedItemId(null); }}
                     title="Тяни в инвентарь"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
                   >

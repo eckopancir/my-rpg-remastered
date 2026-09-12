@@ -14,7 +14,7 @@ import { SKILL_CLASSES } from '../data/skills';
 import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
-import { modLevelMult, demoteModStats } from '../utils/itemStats';
+import { modLevelMult, demoteModStats, effectiveItemStats } from '../utils/itemStats';
 
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'pants', 'weapon1', 'weapon2',
@@ -233,23 +233,12 @@ const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
 
 const sumItemStats = (items: (Item | null)[]): PlayerStats => {  const total = { ...EMPTY_STATS };
   for (const item of items) {
-    if (!item || !item.stats) continue;
-    for (const [k, v] of Object.entries(item.stats)) {
-      const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
+    if (!item) continue;
+    // Итоговые статы: база + моды со скейлом + сферы перековки.
+    const eff = effectiveItemStats(item);
+    for (const [k, v] of Object.entries(eff)) {
       const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
-      if (mappedKey in total) (total as any)[mappedKey] += val;
-    }
-    // Sum stats from installed mods (scaled by mod level)
-    if (item.mods) {
-      for (const mod of Object.values(item.mods)) {
-        if (!mod || !mod.stats) continue;
-        const mult = modLevelMult(mod);
-        for (const [k, v] of Object.entries(mod.stats)) {
-          const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
-          const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
-          if (mappedKey in total) (total as any)[mappedKey] += val * mult;
-        }
-      }
+      if (mappedKey in total) (total as any)[mappedKey] += v;
     }
   }
   return total;
@@ -558,26 +547,13 @@ export const usePlayerStore = create<PlayerStore>()(
         const itemPowers: PowerBreakdownItemPower[] = [];
         for (const slot of EQUIPMENT_SLOTS) {
           const item = s.equipment[slot];
-          if (!item || !item.stats) continue;
+          if (!item) continue;
           const woStats: PlayerStats = { ...newStats };
-          for (const [k, v] of Object.entries(item.stats)) {
-            const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
+          const eff = effectiveItemStats(item);
+          for (const [k, v] of Object.entries(eff)) {
             const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
             if (mappedKey in woStats && typeof woStats[mappedKey] === 'number') {
-              (woStats as any)[mappedKey] -= val;
-            }
-          }
-          if (item.mods) {
-            for (const mod of Object.values(item.mods)) {
-              if (!mod || !mod.stats) continue;
-              const mult = modLevelMult(mod);
-              for (const [k, v] of Object.entries(mod.stats)) {
-                const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
-                const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
-                if (mappedKey in woStats && typeof woStats[mappedKey] === 'number') {
-                  (woStats as any)[mappedKey] -= val * mult;
-                }
-              }
+              (woStats as any)[mappedKey] -= v;
             }
           }
           woStats.damage = Math.max(1, woStats.damage);
