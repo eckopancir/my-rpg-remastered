@@ -330,7 +330,7 @@ export const generateItem = (
 
   generatedItem.stats = finalStats;
 
-  // Гнёзда под схемы: оружие 1–5, броня 1–3 (модам и уникам не положены).
+  // Гнёзда под сферы: оружие 1–5, броня 1–3 (модам и уникам не положены).
   const isGear = generatedItem.slot === 'weapon1' || generatedItem.slot === 'weapon2'
     || generatedItem.slot.startsWith('gun_')
     || ['head', 'armor', 'pants', 'gloves', 'boots'].includes(generatedItem.slot);

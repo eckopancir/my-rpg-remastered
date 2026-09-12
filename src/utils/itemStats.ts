@@ -43,16 +43,15 @@ export const modStatsOf = (item: Item): Record<string, number> => {
 };
 
 /** Итоговые статы предмета с учётом вставленных модов (моды плюсуются к базе)
- *  и схем перековки (схемы умножают итог по своему стату). */
+ *  и сфер перековки (каждая сфера умножает: 5×+30% = ×1.3^5 = +271.3%). */
 export const effectiveItemStats = (item: Item): Record<string, number> => {
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(item.stats || {})) out[k] = num(v);
   const mods = modStatsOf(item);
   for (const [k, v] of Object.entries(mods)) out[k] = (out[k] || 0) + v;
-  const schemes = schematicBonusOf(item);
-  for (const [k, pct] of Object.entries(schemes)) {
-    if (!out[k]) continue;
-    out[k] = out[k] * (1 + pct / 100);
+  for (const s of (((item as any).sockets || []) as { stat: string; pct: number }[])) {
+    if (!s || !s.stat || !out[s.stat]) continue;
+    out[s.stat] = out[s.stat] * (1 + (s.pct || 0) / 100);
   }
   return out;
 };

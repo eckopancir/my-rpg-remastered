@@ -38,7 +38,7 @@ const SLOT_FILTERS = [
   { value: 'consumable', label: '— Расходники' },
   { value: 'backpack', label: '— Рюкзаки' },
   { value: 'bullet', label: '— Патроны' },
-  { value: 'blueprint', label: '— Схемы' },
+  { value: 'blueprint', label: '— Сферы' },
 ];
 
 const getItemTimestamp = (item: Item): number => {

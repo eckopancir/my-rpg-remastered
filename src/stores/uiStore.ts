@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { Item } from '../types/items';
 
 export interface ExpeditionEntry {
   id: string;
@@ -75,6 +76,9 @@ interface UiStore {
   setEquipmentPinPos: (pos: { x: number; y: number }) => void;
   backpackLocked: boolean;
   setBackpackLocked: (locked: boolean) => void;
+  // Прибитый тултип (T во время показа): висит сверху экрана, не персистим.
+  tooltipPin: Item | null;
+  setTooltipPin: (item: Item | null) => void;
 
   addToast: (message: string, type?: Toast['type']) => void;
   removeToast: (id: string) => void;
@@ -142,6 +146,8 @@ export const useUiStore = create<UiStore>()(
       equipmentPinPos: { x: 60, y: 60 },
       // Замочек НЕ персистим: каждая загрузка — заблочен по умолчанию.
       backpackLocked: true,
+      tooltipPin: null,
+      setTooltipPin: (item) => set({ tooltipPin: item }),
 
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),

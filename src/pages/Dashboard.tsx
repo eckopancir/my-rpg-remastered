@@ -145,21 +145,20 @@ const debugAddResources = (count: number) => {
       quantity: count, image: def.image,
     });
   }
-  // Схемы для перековки: по одной каждого качества, уровень = уровень игрока.
-  const lvl = usePlayerStore.getState().level;
+  // Сферы для перековки: по одной каждого качества.
   for (const q of QUALITY_TIERS) {
     const stat = SCHEME_STATS[Math.floor(Math.random() * SCHEME_STATS.length)];
     const pct = schemePctFor(stat, q.name);
     const label = SCHEME_STAT_LABELS[stat] || stat;
     addItem({
       id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: `Схема: ${label}`, displayName: `📜 Схема (${q.name}): ${label} +${pct}%`,
+      name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${q.name}): ${label} +${pct}%`,
       type: 'blueprint', blueprintRarity: q.name, blueprintStat: stat, slot: 'any', rarity: q.name,
-      level: lvl, stats: {}, quality: q.name, qualityColor: q.color, stackable: false,
+      level: 1, stats: {}, quality: q.name, qualityColor: q.color, stackable: false,
       image: getSchemeImage(stat),
     } as any);
   }
-  useUiStore.getState().addToast(`📦 +${count} каждого ресурса + 7 схем`, 'loot');
+  useUiStore.getState().addToast(`📦 +${count} каждого ресурса + 7 сфер`, 'loot');
 };
 
 interface StatInfo {

@@ -2,7 +2,7 @@ import { usePlayerStore, computePowerFromStats, GUN_SLOTS } from '../stores/play
 import type { PlayerStats } from '../stores/playerStore';
 import type { Item } from '../types/items';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
-import { modStatsOf } from './itemStats';
+import { modStatsOf, effectiveItemStats } from './itemStats';
 import { effectiveAmmoCapacity } from '../data/ammo';
 
 const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
@@ -70,11 +70,8 @@ export const calcItemPower = (item: Item): number => {
   const sustainedFactor = item.slot === 'weapon2' && item.ammoCapacity
     ? sustainedShotsPerTurn(effectiveAmmoCapacity(item)) / 5
     : 1;
-  // База предмета + моды со скейлом от их уровня.
-  const combined: Record<string, number> = { ...(item.stats || {}) };
-  for (const [k, v] of Object.entries(modStatsOf(item))) {
-    combined[k] = (combined[k] || 0) + v;
-  }
+  // База предмета + моды со скейлом от их уровня + сферы перековки.
+  const combined: Record<string, number> = effectiveItemStats(item);
 
   // Стволы считаем «как-если-бы-активен»: цифра стабильна до/после надевания.
   // Иначе пересчёт зануляет неактивные стволы и дельта врёт (1111 → 476).
@@ -82,10 +79,7 @@ export const calcItemPower = (item: Item): number => {
   const gunContrib = (g: Item | null): Record<string, number> => {
     const out: Record<string, number> = {};
     if (!g) return out;
-    const eff: Record<string, number> = { ...(g.stats || {}) };
-    for (const [k, v] of Object.entries(modStatsOf(g))) {
-      eff[k] = (eff[k] || 0) + v;
-    }
+    const eff: Record<string, number> = effectiveItemStats(g);
     const f = g.slot === 'weapon2' && g.ammoCapacity
       ? sustainedShotsPerTurn(effectiveAmmoCapacity(g)) / 5
       : 1;

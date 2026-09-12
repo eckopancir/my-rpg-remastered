@@ -1,4 +1,4 @@
-import { getItemImage, images, crystalImages } from '../../assets/index';
+import { getItemImage, images, crystalImages, getSchemeImage } from '../../assets/index';
 import type { Item } from '../../types/items';
 import { chestImageFor, configForQuality } from '../../data/chests';
 import { QUALITY_TIERS } from '../../engine/items';
@@ -9,6 +9,7 @@ import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 import { SET_BONUSES } from '../../data/GameItems';
 import { usePlayerStore, gunSlotForWeapon, EQUIPMENT_SLOTS } from '../../stores/playerStore';
+import { useUiStore } from '../../stores/uiStore';
 import { effectiveItemStats, modStatsOf, modLevelMult } from '../../utils/itemStats';
 import { socketSlotsOf, schematicBonusOf, isSocketable, schemePctFor, SCHEME_STAT_LABELS } from '../../data/schematics';
 import { useState, useEffect } from 'react';
@@ -19,6 +20,8 @@ interface ItemTooltipProps {
   y: number;
   // Вложенный (сравнение): шифт не отслеживаем, чтобы не плодить каскад.
   nested?: boolean;
+  // Прибитый режим: висит сверху экрана, T не перехватывает.
+  pinMode?: boolean;
 }
 
 const STAT_LABELS: Record<string, string> = {
@@ -64,22 +67,33 @@ const formatStat = (k: string, v: number): string => {
   return `${label}: ${sign}${val}`;
 };
 
-export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
-  const tooltipX = Math.min(x + 16, window.innerWidth - 280);
-  const tooltipY = Math.min(y - 10, window.innerHeight - 340);
+export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) => {
+  const tooltipX = pinMode ? Math.max(8, window.innerWidth / 2 - 140) : Math.min(x + 16, window.innerWidth - 280);
+  const tooltipY = pinMode ? 10 : Math.min(y - 10, window.innerHeight - 340);
   // Сравнение: зажатый Shift показывает надетый аналог слева.
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
     if (nested) return;
     const dn = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
     const up = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
+    // T — прибить тултип наверх экрана (читать длинные описания).
+    const pin = (e: KeyboardEvent) => {
+      if ((e as any).code !== 'KeyT' || pinMode) return;
+      const t = e.target as HTMLElement | null;
+      const tag = (t?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      e.preventDefault();
+      useUiStore.getState().setTooltipPin(item);
+    };
     window.addEventListener('keydown', dn);
     window.addEventListener('keyup', up);
+    window.addEventListener('keydown', pin);
     return () => {
       window.removeEventListener('keydown', dn);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('keydown', pin);
     };
-  }, [nested]);
+  }, [nested, pinMode, item]);
   const equipment = usePlayerStore((s) => s.equipment);
   const compareSlot = item.slot === 'weapon2'
     ? gunSlotForWeapon(item)
@@ -116,14 +130,16 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
       {imgUrl && (
         <div style={{ textAlign: 'center', marginBottom: 10, position: 'relative' }}>
           <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4 }} />
-          {/* Гнёзда под схемы: столбец кристаллов справа от картинки */}
+          {/* Гнёзда под сферы: столбец кристаллов справа от картинки */}
           {isSocketable(item) && socketSlotsOf(item) > 0 && (() => {
             const max = socketSlotsOf(item);
-            const filled = Array.isArray((item as any).sockets) ? (item as any).sockets.length : 0;
+            const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
+            const filled = socks.length;
             return (
-              <div style={{ position: 'absolute', top: 20, right: 0, display: 'flex', flexDirection: 'column', gap: 2 }} title={`Гнёзда схем: ${filled}/${max}`}>
+              <div style={{ position: 'absolute', top: 40, right: 0, display: 'flex', flexDirection: 'column', gap: 2 }} title={`Гнёзда сфер: ${filled}/${max}`}>
                 {Array.from({ length: max }).map((_, i) => {
-                  const src = i < filled ? crystalImages.filled : crystalImages.empty;
+                  // Вставлена сфера — иконка самой сферы, пустое гнездо — кристалл.
+                  const src = i < filled ? (getSchemeImage(socks[i]?.stat) || crystalImages.filled) : crystalImages.empty;
                   return src ? (
                     <img key={i} src={src} alt="" style={{
                       width: 14, height: 14, objectFit: 'contain',
@@ -191,9 +207,6 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
           }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#4ade80' }}>
               💎 {SCHEME_STAT_LABELS[stat] || stat} +{pct}%
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Уровень схемы: {item.level || 1} (нужен не ниже уровня предмета)
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
               Вставляется в перековке, улучшает только этот предмет
@@ -422,8 +435,11 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
         <span style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: item.qualityColor }}>
           {item.quality || item.type || ''}
         </span>
-        {!nested && compareItem && compareItem.id !== item.id && (
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>Shift — сравнить</span>
+        {!nested && !pinMode && compareItem && compareItem.id !== item.id && (
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>Shift — сравнить · T — наверх</span>
+        )}
+        {!nested && !pinMode && (!compareItem || compareItem.id === item.id) && (
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>T — прибить наверх</span>
         )}
         <span style={{ color: 'var(--accent-warning)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
           💾{getSellPrice(item).toLocaleString()}
@@ -431,5 +447,43 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
       </div>
     </div>
     </>
+  );
+};
+
+/** Прибитый тултип сверху экрана (T во время показа). T/✕ — открепить. */
+export const PinnedTooltipHost = () => {
+  const pin = useUiStore((s) => s.tooltipPin);
+  useEffect(() => {
+    if (!pin) return;
+    const closer = (e: KeyboardEvent) => {
+      if ((e as any).code !== 'KeyT') return;
+      const t = e.target as HTMLElement | null;
+      const tag = (t?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      useUiStore.getState().setTooltipPin(null);
+    };
+    window.addEventListener('keydown', closer);
+    return () => window.removeEventListener('keydown', closer);
+  }, [pin]);
+  if (!pin) return null;
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10000,
+      display: 'flex', justifyContent: 'center', pointerEvents: 'none',
+    }}>
+      <div style={{ position: 'relative', pointerEvents: 'auto' }}>
+        <ItemTooltip item={pin} x={0} y={0} pinMode />
+        <span
+          onClick={() => useUiStore.getState().setTooltipPin(null)}
+          style={{
+            position: 'absolute', top: 2, right: 2, cursor: 'pointer',
+            fontSize: 13, color: 'white', background: 'rgba(0,0,0,0.6)',
+            borderRadius: 4, padding: '0 6px', zIndex: 1,
+          }}
+        >
+          ✕
+        </span>
+      </div>
+    </div>
   );
 };

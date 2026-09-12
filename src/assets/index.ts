@@ -66,7 +66,7 @@ const MOD_SLOT_IMAGE_MAP: Record<string, string> = {
   mod_patch: 'бронепластина',
 };
 
-/** Картинка схемы по стату: 4 орба. */
+/** Картинка сферы по стату: 4 орба. */
 const SCHEME_IMAGE_MAP: Record<string, string> = {
   crit: 'scheme_crit', speed: 'scheme_crit', accuracy: 'scheme_crit',
   armor: 'scheme_armor', evasion: 'scheme_armor',
@@ -74,13 +74,13 @@ const SCHEME_IMAGE_MAP: Record<string, string> = {
   regen: 'scheme_regen', punching: 'scheme_regen', maxHp: 'scheme_regen',
 };
 
-/** Картинка схемы по стату бонуса; фолбэк — крит-орб. */
+/** Картинка сферы по стату бонуса; фолбэк — крит-орб. */
 export const getSchemeImage = (stat?: string): string | undefined => {
   const key = SCHEME_IMAGE_MAP[(stat || '').toLowerCase()] || 'scheme_crit';
   return itemImageMap.get(key);
 };
 
-/** Кристаллы гнёзд схем (пустой/заполненный). */
+/** Кристаллы гнёзд сфер (пустой/заполненный). */
 export const crystalImages = {
   empty: itemImageMap.get('crystal_empty'),
   filled: itemImageMap.get('crystal_filled'),

@@ -1,12 +1,12 @@
 import type { Item } from '../types/items';
 
-/** Вставленная схема: какой стат и на сколько % усиливает именно этот предмет. */
+/** Вставленная сфера: какой стат и на сколько % усиливает именно этот предмет. */
 export interface AppliedScheme {
   stat: string;
   pct: number;
 }
 
-/** Статы, доступные схемам. */
+/** Статы, доступные сферам. */
 export const SCHEME_STATS = [
   'damage', 'armor', 'crit', 'speed', 'accuracy',
   'evasion', 'block', 'vampir', 'punching', 'regen', 'maxHp',
@@ -27,7 +27,7 @@ const QUALITY_INDEX: Record<string, number> = {
   'Смертоносный': 4, 'Легендарный': 5, 'Божественный': 6,
 };
 
-/** % бонуса схемы по стату и редкости схемы. */
+/** % бонуса сферы по стату и редкости сферы. */
 export const schemePctFor = (stat: string, rarity?: string): number => {
   const idx = QUALITY_INDEX[rarity || 'Обычный'] ?? 0;
   const base = SCHEME_BASE_PCT[stat] ?? 20;
@@ -71,7 +71,7 @@ export const socketSlotsOf = (item: { id?: string; slot?: string | null; socketS
   return 0;
 };
 
-/** Суммарный % схем по каждому стату (складываются). */
+/** Суммарный % сфер по каждому стату (складываются). */
 export const schematicBonusOf = (item: Pick<Item, 'sockets'>): Record<string, number> => {
   const out: Record<string, number> = {};
   for (const s of ((item as any).sockets || []) as AppliedScheme[]) {

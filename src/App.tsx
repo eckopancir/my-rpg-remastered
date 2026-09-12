@@ -21,6 +21,7 @@ import { Adventures } from './pages/Adventures';
 import { Admin } from './pages/Admin';
 import { MusicPlayer } from './components/widgets/MusicPlayer';
 import { InventoryOverlay } from './components/widgets/InventoryOverlay';
+import { PinnedTooltipHost } from './components/widgets/ItemTooltip';
 import { ShootingRange } from './components/widgets/ShootingRange';
 import { useGameLoop } from './hooks/useGameLoop';
 import { usePlayerStore } from './stores/playerStore';
@@ -279,6 +280,7 @@ const AppContent = () => {
     <AuthGuard>
       <MusicPlayer />
       <InventoryOverlay />
+      <PinnedTooltipHost />
       {equipmentOpen && <Equipment />}
       {rangeOpen && <ShootingRange onClose={() => useUiStore.getState().setRangeOpen(false)} />}
       <AnimatePresence mode="wait">

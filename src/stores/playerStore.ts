@@ -153,6 +153,11 @@ interface PlayerStore {
   explorationDeathTimestamp: number;
   // Выбранное оружие (урон идёт только с него): слот из GUN_SLOTS.
   activeWeaponSlot: EquipmentSlot;
+  // Слоты перековки (persist на сервер через save-блоб).
+  reforgeWeapon: Item | null;
+  reforgeBlueprint: Item | null;
+  setReforgeWeapon: (w: Item | null) => void;
+  setReforgeBlueprint: (b: Item | null) => void;
 
   addLog: (msg: string, type?: LogEntry['type']) => void;
   clearLogs: () => void;
@@ -373,6 +378,10 @@ export const usePlayerStore = create<PlayerStore>()(
       powerBreakdown: { offensiveScore: 0, defensiveScore: 0, abilityItems: [], itemPowers: [] },
       explorationDeathTimestamp: 0,
       activeWeaponSlot: 'weapon2' as EquipmentSlot,
+      reforgeWeapon: null as Item | null,
+      reforgeBlueprint: null as Item | null,
+      setReforgeWeapon: (w) => set({ reforgeWeapon: w }),
+      setReforgeBlueprint: (b) => set({ reforgeBlueprint: b }),
 
       addLog: (msg, type = 'info') => set((s) => ({
         logs: pruneLogs([...s.logs, { id: s.logIdCounter, message: msg, type, ts: Date.now() }]).slice(-LOG_MAX_IN_MEMORY),
@@ -1441,6 +1450,8 @@ export const usePlayerStore = create<PlayerStore>()(
         activeEffects: state.activeEffects,
         skillPoints: state.skillPoints,
         activeWeaponSlot: state.activeWeaponSlot,
+        reforgeWeapon: state.reforgeWeapon,
+        reforgeBlueprint: state.reforgeBlueprint,
         logs: pruneLogs(state.logs).slice(-LOG_MAX_SAVED), logIdCounter: state.logIdCounter,
         explorationDeathTimestamp: state.explorationDeathTimestamp,
       }),

@@ -139,9 +139,11 @@ export const Craft = () => {
   // Merge result
   const [mergeResult, setMergeResult] = useState<Item | null>(null);
 
-  // Reforge (перековка): оружие/броня + схема
-  const [reforgeWeapon, setReforgeWeapon] = useState<Item | null>(null);
-  const [reforgeBlueprint, setReforgeBlueprint] = useState<Item | null>(null);
+  // Reforge (перековка): оружие/броня + сфера (живут в сторе — переживают refresh).
+  const reforgeWeapon = usePlayerStore((s) => s.reforgeWeapon);
+  const reforgeBlueprint = usePlayerStore((s) => s.reforgeBlueprint);
+  const setReforgeWeapon = usePlayerStore((s) => s.setReforgeWeapon);
+  const setReforgeBlueprint = usePlayerStore((s) => s.setReforgeBlueprint);
 
   // Tooltip for result items
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
@@ -303,19 +305,19 @@ export const Craft = () => {
     let blueprint: Item | null = null;
     for (const item of filled) {
       if (!item.quality || blueprint) continue;
-      // Из патронов схем не бывает.
+      // Из патронов сфер не бывает.
       if (disassembleCategoryOf(item) === 'bullet' || disassembleCategoryOf(item) === 'energyCell') continue;
       const bp = rollBlueprint(item.quality);
       if (bp) {
-        // Схема на один случайный стат, уровень = уровень разобранного предмета.
+        // Сфера на один случайный стат (уровня у сфер нет).
         const stat = SCHEME_STATS[Math.floor(Math.random() * SCHEME_STATS.length)];
         const pct = schemePctFor(stat, bp);
         const label = SCHEME_STAT_LABELS[stat] || stat;
         blueprint = {
           id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          name: `Схема: ${label}`, displayName: `📜 Схема (${bp}): ${label} +${pct}%`,
+          name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${bp}): ${label} +${pct}%`,
           type: 'blueprint', blueprintRarity: bp, blueprintStat: stat, slot: 'any', rarity: bp,
-          level: item.level || 1, stats: {}, quality: bp,
+          level: 1, stats: {}, quality: bp,
           qualityColor: QUALITY_COLORS[bp] || '#a0a0a0', stackable: false,
           image: getSchemeImage(stat),
         } as Item;
@@ -351,7 +353,7 @@ export const Craft = () => {
     playSound('craft3', 0.5);
     if (blueprint) {
       addItem(blueprint);
-      addLog(`📜 Схема: ${blueprint.displayName}`, 'loot');
+      addLog(`💎 Выпала: ${blueprint.displayName}`, 'loot');
     }
     addLog(`🔨 Разобрано ${filled.length} предмет(ов)`, 'info');
     setDisassembleSlots(Array(5).fill(null));
@@ -386,7 +388,7 @@ export const Craft = () => {
     if (reforgeBlueprint) return;
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
-    if (item.type !== 'blueprint') { addLog('❌ Сюда только схемы', 'warning'); return; }
+    if (item.type !== 'blueprint') { addLog('❌ Сюда только сферы', 'warning'); return; }
     removeItem(item.id);
     setReforgeBlueprint(item);
     playSound('install', 0.4);
@@ -459,17 +461,16 @@ export const Craft = () => {
     addLog(`⚒️ ${updated.displayName} → ${newLvl} ур.`, 'loot');
   }
 
-  /** Вставить схему из малого слота (слоты кончились — сначала удали старую). */
+  /** Вставить сферу из малого слота (слоты кончились — сначала удали старую). */
   async function handleSocketScheme() {
     const w = reforgeWeapon;
     const bp = reforgeBlueprint;
     if (!w || !bp) return;
     const max = socketSlotsOf(w);
     const cur = Array.isArray((w as any).sockets) ? [...(w as any).sockets] : [];
-    if (cur.length >= max) { addLog('❌ Гнёзда заняты — удали старую схему', 'warning'); return; }
+    if (cur.length >= max) { addLog('❌ Гнёзда заняты — удали старую сферу', 'warning'); return; }
     const stat = (bp as any).blueprintStat || 'damage';
-    if (!isSocketable(w)) { addLog('❌ Схемы только на оружие/броню', 'warning'); return; }
-    if ((bp.level || 1) < (w.level || 1)) { addLog(`❌ Схема ${bp.level || 1} ур. — нужен уровень не ниже оружия (${w.level || 1})`, 'warning'); return; }
+    if (!isSocketable(w)) { addLog('❌ Сферы только на оружие/броню', 'warning'); return; }
     const pct = schemePctFor(stat, (bp as any).blueprintRarity || bp.quality);
     const updated: Item = {
       ...w,
@@ -480,21 +481,21 @@ export const Craft = () => {
       const res = await fetch(`${base}/craft/reforge.php`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ op: 'socket', weaponId: w.id, weapon: updated, blueprintId: bp.id }) });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
-        addLog(`❌ Сервер отклонил схему: ${err?.error || res.status}`, 'warning');
+        addLog(`❌ Сервер отклонил сферу: ${err?.error || res.status}`, 'warning');
         return;
       }
     } catch {
-      addLog('❌ Ошибка сети — схема не вставлена', 'warning');
+      addLog('❌ Ошибка сети — сфера не вставлена', 'warning');
       return;
     }
     removeItem(bp.id);
     setReforgeBlueprint(null);
     setReforgeWeapon(updated);
     playSound('craft4', 0.5);
-    addLog(`💎 Схема: ${SCHEME_STAT_LABELS[stat] || stat} +${pct}% → ${w.displayName || w.name}`, 'loot');
+    addLog(`💎 Сфера: ${SCHEME_STAT_LABELS[stat] || stat} +${pct}% → ${w.displayName || w.name}`, 'loot');
   }
 
-  /** Удалить вставленную схему (бесплатно). */
+  /** Удалить вставленную сферу (бесплатно). */
   async function handleRemoveScheme(idx: number) {
     const w = reforgeWeapon;
     if (!w) return;
@@ -514,7 +515,7 @@ export const Craft = () => {
     }
     setReforgeWeapon(updated);
     playSound('clickbutton', 0.3);
-    addLog('💎 Схема извлечена', 'info');
+    addLog('💎 Сфера извлечена', 'info');
   }
 
   // Создание патронов: мгновенно, полный стак обычных (энергоячейки — без пороха).
@@ -677,7 +678,7 @@ export const Craft = () => {
             <WapHeader title="⚒️ Перековка" glow="amber" />
             <>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-                Перетащи оружие/броню в большой слот и схему в малый. Поднимай уровень до своего ({level}) и вставляй схемы в гнёзда. Уники не перековываются.
+                Перетащи оружие/броню в большой слот и сферу в малый. Поднимай уровень до своего ({level}) и вставляй сферы в гнёзда. Уники не перековываются.
               </div>
               <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center', justifyContent: 'center' }}>
                 {/* Большой слот: оружие/броня */}
@@ -710,9 +711,9 @@ export const Craft = () => {
                   )}
                 </div>
                 <span style={{ fontSize: 20, color: 'var(--text-muted)' }}>+</span>
-                {/* Малый слот: схема */}
+                {/* Малый слот: сфера */}
                 <DropSlot item={reforgeBlueprint} onDrop={handleDropReforgeBp}
-                  onRemove={handleRemoveReforgeBp} label="Схема"
+                  onRemove={handleRemoveReforgeBp} label="Сфера"
                   onTipShow={(it, e) => { setTooltipItem(it); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
                   onTipMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
                   onTipHide={() => setTooltipItem(null)}
@@ -720,9 +721,9 @@ export const Craft = () => {
               </div>
               {/* Слоты перековки ниже */}
 
-                {/* Подъём уровня и схемы ниже */}
+              {/* Подъём уровня и сферы ниже */}
 
-                {/* Подъём уровня и схемы ниже */}
+              {/* Подъём уровня и сферы ниже */}
                 {(() => {
                   const w = reforgeWeapon;
                   const maxSockets = w ? socketSlotsOf(w) : 0;
@@ -764,11 +765,11 @@ export const Craft = () => {
                           </Button>
                         </div>
                       )}
-                      {/* Схемы */}
+                      {/* Сферы */}
                       {w && (
                         <div style={{ marginBottom: 12 }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-                            Схемы ({installed.length}/{maxSockets})
+                            Сферы ({installed.length}/{maxSockets})
                           </div>
                           {installed.length > 0 && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
@@ -797,7 +798,7 @@ export const Craft = () => {
                                 borderRadius: 4, fontSize: 12, marginBottom: 8,
                               }}>
                                 <span style={{ color: bp.qualityColor || 'var(--text-primary)' }}>
-                                  {bp.displayName || bp.name} (ур. {bp.level || 1})
+                                  {bp.displayName || bp.name}
                                 </span>
                                 <Button size="sm" variant="primary" onClick={handleSocketScheme} style={{ marginLeft: 'auto' }}>
                                   Вставить
@@ -805,17 +806,12 @@ export const Craft = () => {
                               </div>
                             ) : (
                               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                                Перетащи схему в малый слот выше{bp ? '' : ' (схемы падают с разбора)'}.
+                                Перетащи сферу в малый слот выше{bp ? '' : ' (сферы падают с разбора)'}.
                               </div>
                             )
                           ) : (
                             <div style={{ fontSize: 11, color: 'var(--accent-warning)' }}>
-                              Гнёзда забиты — удали старую схему, чтобы вставить новую.
-                            </div>
-                          )}
-                          {bp && (bp.level || 1) < wLvl && (
-                            <div style={{ fontSize: 11, color: 'var(--accent-danger)', marginTop: 4 }}>
-                              Схема {bp.level || 1} ур. — нужен уровень не ниже оружия ({wLvl}).
+                              Гнёзда забиты — удали старую сферу, чтобы вставить новую.
                             </div>
                           )}
                         </div>
