@@ -29,7 +29,7 @@ import { useInventoryStore } from './stores/inventoryStore';
 import { useExplorationStore } from './stores/explorationStore';
 import { useUiStore } from './stores/uiStore';
 import { useAuthStore } from './stores/authStore';
-import { demoteModStats } from './utils/itemStats';
+import { demoteModStats, healWronglyDemoted } from './utils/itemStats';
 import { useEffect, useRef } from 'react';
 import { images } from './assets/index';
 import './styles/global.css';
@@ -194,6 +194,10 @@ const AppContent = () => {
       }
       try {
         const ps = usePlayerStore.getState();
+        // Сначала лечим ошибочно порезанные моды (потом demote их пропускает).
+        for (const it of Object.values(ps.equipment || {})) healWronglyDemoted(it);
+        for (const it of ps.backpackContents || []) healWronglyDemoted(it);
+        for (const it of useInventoryStore.getState().items) healWronglyDemoted(it);
         for (const it of Object.values(ps.equipment || {})) demoteModStats(it);
         for (const it of ps.backpackContents || []) demoteModStats(it);
       } catch { /* ignore */ }

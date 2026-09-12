@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Item } from '../types/items';
-import { demoteModStats } from '../utils/itemStats';
+import { demoteModStats, healWronglyDemoted } from '../utils/itemStats';
 
 export type InvTab = 'weapons' | 'armor' | 'mods' | 'materials' | 'all';
 export type SortKey = 'name' | 'level' | 'rarity' | 'price';
@@ -121,7 +121,7 @@ export const useInventoryStore = create<InventoryStore>()(
     }),
     {
       name: 'inventory',
-      version: 4,
+      version: 5,
       partialize: (state) => ({
         items: state.items,
         currentPage: state.currentPage,
@@ -137,6 +137,10 @@ export const useInventoryStore = create<InventoryStore>()(
         if (version < 4) {
           // Старые моды (без метки) удаляем из игры.
           persisted.items = persisted.items.filter((it: any) => !(it?.type === 'mod' && (it as any)._modv !== 2));
+        }
+        if (version < 5) {
+          // Лечение модов нового образца, ошибочно порезанных даунскейлом.
+          for (const it of persisted.items) healWronglyDemoted(it);
         }
         persisted.items = persisted.items.filter((item: any) => {
           if (item.type === 'material' || item.type === 'resources') {

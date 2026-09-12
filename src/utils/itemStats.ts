@@ -8,14 +8,15 @@ const num = (v: unknown): number =>
 export const modLevelMult = (mod: Pick<Item, 'level'>): number =>
   1 + (Math.max(1, mod.level || 1) - 1) * 0.1;
 
-/** Разовый даунскейл старых модов: раньше статы пеклись со скейлом уровня,
+/** Разовый даунскейл СТАРЫХ модов: раньше статы пеклись со скейлом уровня,
  *  теперь скейлит рантайм — делим один раз, чтобы не двоило.
+ *  Новые моды (_modv=2) уже сырые — их трогать НЕЛЬЗЯ.
  *  Идемпотентно (метка _descaled): безопасно звать повторно. */
 export const demoteModStats = (item: any): void => {
   const mods = (item as any)?.mods;
   if (!mods) return;
   for (const mod of Object.values(mods) as any[]) {
-    if (!mod || !mod.stats || (mod as any)._descaled) continue;
+    if (!mod || !mod.stats || (mod as any)._descaled || (mod as any)._modv === 2) continue;
     const f = modLevelMult(mod);
     if (f > 1) {
       for (const k of Object.keys((mod as any).stats)) {
@@ -25,6 +26,29 @@ export const demoteModStats = (item: any): void => {
     }
     (mod as any)._descaled = true;
   }
+};
+
+/** Лечение модов нового образца, ошибочно порезанных даунскейлом:
+ *  умножаем обратно на скейл уровня (моды не левелятся — инверсия точная).
+ *  Метка _healed13 — чтобы не лечить дважды (сейв мог не успеть уйти на сервер).
+ *  Вызывать один раз из миграций и загрузки. */
+export const healWronglyDemoted = (item: any): boolean => {
+  const mods = (item as any)?.mods;
+  if (!mods) return false;
+  let healed = false;
+  for (const mod of Object.values(mods) as any[]) {
+    if (!mod || !mod.stats || (mod as any)._modv !== 2 || !(mod as any)._descaled || (mod as any)._healed13) continue;
+    const f = modLevelMult(mod);
+    if (f > 1) {
+      for (const k of Object.keys((mod as any).stats)) {
+        const v = (mod as any).stats[k];
+        if (typeof v === 'number') (mod as any).stats[k] = Math.round(v * f * 10000) / 10000;
+      }
+      healed = true;
+    }
+    (mod as any)._healed13 = true;
+  }
+  return healed;
 };
 
 /** Вклад только вставленных модов по каждому стату (с учётом уровня модов). */

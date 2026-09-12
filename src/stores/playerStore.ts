@@ -14,7 +14,7 @@ import { SKILL_CLASSES } from '../data/skills';
 import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
-import { modLevelMult, demoteModStats, effectiveItemStats } from '../utils/itemStats';
+import { modLevelMult, demoteModStats, effectiveItemStats, healWronglyDemoted } from '../utils/itemStats';
 
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'pants', 'weapon1', 'weapon2',
@@ -1383,7 +1383,7 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'remastered_player',
-      version: 12,
+      version: 13,
       migrate: (persisted: any, version: number) => {
         if (version < 11 && persisted) {
           // Моды переехали на рантайм-скейл: гасим старый запечённый скейл один раз.
@@ -1412,9 +1412,26 @@ export const usePlayerStore = create<PlayerStore>()(
             );
             n += before - persisted.backpackContents.length;
           }
-          if (n > 0 && Array.isArray(persisted.logs)) {
-            persisted.logs.push({ id: Date.now(), message: `🔧 Старые моды удалены из игры (${n} шт.)`, type: 'system', ts: Date.now() });
+        if (n > 0 && Array.isArray(persisted.logs)) {
+          persisted.logs.push({ id: Date.now(), message: `🔧 Старые моды удалены из игры (${n} шт.)`, type: 'system', ts: Date.now() });
+        }
+        if (version < 13 && persisted) {
+          // Лечение модов нового образца, ошибочно порезанных даунскейлом
+          // (делил сырые статы — откатываем умножением обратно, точно).
+          let h = 0;
+          const eq = persisted.equipment || {};
+          for (const it of Object.values(eq) as any[]) {
+            if (it && healWronglyDemoted(it)) h += 1;
           }
+          if (Array.isArray(persisted.backpackContents)) {
+            for (const it of persisted.backpackContents) {
+              if (it && healWronglyDemoted(it)) h += 1;
+            }
+          }
+          if (h > 0 && Array.isArray(persisted.logs)) {
+            persisted.logs.push({ id: Date.now(), message: `🔧 Моды восстановлены после ошибочного даунскейла (${h} шт.)`, type: 'system', ts: Date.now() });
+          }
+        }
         }
         return persisted;
       },

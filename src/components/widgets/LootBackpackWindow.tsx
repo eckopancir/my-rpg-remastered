@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useUiStore } from '../../stores/uiStore';
 import { useSound } from '../../hooks/useSound';
 import { getEnemyImage, getItemImage, images } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
@@ -180,14 +181,18 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   // Drop на ячейку трупа: принимаем только из своего рюкзака.
   const onCorpseDrop = (rawId: string) => {
-    if (!rawId.startsWith('pack:')) return;
-    putToCorpse(rawId.slice(5));
+    const id = rawId || useUiStore.getState().draggedItemId || '';
+    useUiStore.getState().setDraggedItemId(null);
+    if (!id.startsWith('pack:')) return;
+    putToCorpse(id.slice(5));
   };
 
   // Drop на ячейку своего рюкзака: принимаем только с трупа.
   const onPackDrop = (rawId: string) => {
-    if (!rawId.startsWith('corpse:')) return;
-    takeFromCorpse(rawId.slice(7));
+    const id = rawId || useUiStore.getState().draggedItemId || '';
+    useUiStore.getState().setDraggedItemId(null);
+    if (!id.startsWith('corpse:')) return;
+    takeFromCorpse(id.slice(7));
   };
 
   const takeAll = () => {
@@ -244,7 +249,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                     key={item ? item.id : `p-empty-${i}`}
                     item={item}
                     onDrop={onPackDrop}
-                    onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `pack:${id}`); }}
+                    onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `pack:${id}`); useUiStore.getState().setDraggedItemId(`pack:${id}`); }}
                     onDoubleClick={() => {}}
                     onHover={item ? showTip(item) : () => {}}
                     onMove={moveTip}
@@ -278,6 +283,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                       const it = loot.find((x: any) => x.id === id);
                       if (!(it as any)?.revealed) { e.preventDefault(); return; }
                       e.dataTransfer.setData('text/plain', `corpse:${id}`);
+                      useUiStore.getState().setDraggedItemId(`corpse:${id}`);
                     }}
                     onDoubleClick={() => { if (item) takeFromCorpse(item.id); }}
                     onHover={item ? (isHidden ? showHint : showTip(item)) : () => {}}
