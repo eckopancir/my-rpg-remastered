@@ -21,7 +21,7 @@ const cellSize = 48;
 const cellIcon = (item: Item): string | null => {
   if (item.image) return null;
   if (item.type === 'consumable') return getConsumableIcon(item);
-  if (item.type === 'backpack') return '🎒';
+  if (item.type === 'backpack') return null; // картинка по семейству через getItemImage
   if (item.type === 'bullet') return AMMO_GROUP_MAP[(item as any).ammoGroup as AmmoGroup]?.icon ?? '🔸';
   if (item.type === 'chest') return null;
   return null;
@@ -113,7 +113,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
         transition={{ duration: 0.15 }}
         style={{ position: 'fixed', left: pos.x, top: pos.y, pointerEvents: 'auto', minWidth: 320, maxWidth: '92vw' }}
       >
-        <WapHeader title={`🎒 ${backpack.displayName || backpack.name} (${contents.length}/${slots})`} glow="amber" onMouseDown={onMouseDown}
+        <WapHeader title={`${backpack.displayName || backpack.name} (${contents.length}/${slots})`} glow="amber" onMouseDown={onMouseDown}
           style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))' }}>
           <span onClick={(e) => { e.stopPropagation(); playClick(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
         </WapHeader>

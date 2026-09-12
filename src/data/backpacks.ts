@@ -1,9 +1,9 @@
 import type { Item } from '../types/items';
 import { maxStackFor, type AmmoGroup } from './ammo';
 
-// Каталог рюкзаков: 8 семейств × 5 градаций = 40 штук.
+// Каталог рюкзаков: 9 семейств × 5 градаций = 45 штук.
 // Слоты = baseSlots + индекс качества предмета (Обычный 0 … Божественный 6).
-// Редкость влияет ТОЛЬКО на слоты. Картинок пока нет — эмодзи-заглушка.
+// Редкость влияет ТОЛЬКО на слоты. Картинки — pack_*.png по семейству (getBackpackImage).
 export interface BackpackDef {
   name: string;
   family: string;
@@ -18,8 +18,8 @@ const FAMILIES: { family: string; baseSlots: number; names: [string, string, str
     prices: [300, 525, 825, 1275, 1950],
   },
   {
-    family: 'Медицинский', baseSlots: 5,
-    names: ['Медицинский ранец', 'Медицинский ранец М', 'Медицинский ранец МК-2', 'Медицинский элитный', 'Медицинский прототип'],
+    family: 'Полевой', baseSlots: 5,
+    names: ['Полевой ранец', 'Полевой ранец М', 'Полевой ранец МК-2', 'Полевой элитный', 'Полевой прототип'],
     prices: [420, 675, 1050, 1575, 2400],
   },
   {
@@ -36,6 +36,11 @@ const FAMILIES: { family: string; baseSlots: number; names: [string, string, str
     family: 'Штурмовой', baseSlots: 8,
     names: ['Штурмовой рюкзак', 'Штурмовой рюкзак М', 'Штурмовой рюкзак МК-2', 'Штурмовой элитный', 'Штурмовой прототип'],
     prices: [975, 1425, 2100, 3075, 4500],
+  },
+  {
+    family: 'Десантный', baseSlots: 9,
+    names: ['Десантный рюкзак', 'Десантный рюкзак М', 'Десантный рюкзак МК-2', 'Десантный элитный', 'Десантный прототип'],
+    prices: [1150, 1700, 2450, 3550, 5150],
   },
   {
     family: 'Тактический военный', baseSlots: 10,
@@ -137,8 +142,17 @@ export const tryInsertInto = (contents: Item[], slots: number, item: Item): Inse
   return { contents: next, moved: true, leftoverQty: 0 };
 };
 
+/** Старые имена медранцев (были «Медицинский*») → новые «Полевой*» (сейвы до переименования). */
+const BACKPACK_NAME_ALIASES: Record<string, string> = {
+  'Медицинский ранец': 'Полевой ранец',
+  'Медицинский ранец М': 'Полевой ранец М',
+  'Медицинский ранец МК-2': 'Полевой ранец МК-2',
+  'Медицинский элитный': 'Полевой элитный',
+  'Медицинский прототип': 'Полевой прототип',
+};
+
 export const backpackDefByName = (name: string): BackpackDef | undefined =>
-  BACKPACK_DEFS.find((d) => d.name === name);
+  BACKPACK_DEFS.find((d) => d.name === (BACKPACK_NAME_ALIASES[name] ?? name));
 
 let backpackSeq = 0;
 

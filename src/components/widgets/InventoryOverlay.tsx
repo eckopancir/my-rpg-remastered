@@ -405,10 +405,10 @@ export const InventoryOverlay = () => {
                 const imgUrl = item.image
                   || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
                   || getItemImage(item.name, item.displayName, item.slot, item.type);
-                // Расходники, рюкзаки и патроны пока без арта — эмодзи-заглушка из дефа.
+                // Расходники и патроны пока без арта — эмодзи-заглушка из дефа; рюкзаки — картинка по семейству.
                 const emojiIcon = item.type === 'consumable'
                   ? getConsumableIcon(item)
-                  : item.type === 'backpack' ? '🎒'
+                  : item.type === 'backpack' ? null
                   : item.type === 'bullet' ? (AMMO_GROUP_MAP[(item as any).ammoGroup as AmmoGroup]?.icon ?? '🔸')
                   : null;
 

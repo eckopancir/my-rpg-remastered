@@ -17,7 +17,7 @@ const cellPx = 52;
 const iconFor = (item: any): string | null => {
   if (item.image) return null;
   if (item.type === 'consumable') return getConsumableIcon(item);
-  if (item.type === 'backpack') return '🎒';
+  if (item.type === 'backpack') return null; // картинка по семейству через getItemImage
   if (item.type === 'bullet') return AMMO_GROUP_MAP[(item.ammoGroup as AmmoGroup) ?? 'rifle']?.icon ?? '🔸';
   if (item.type === 'chest') return null;
   return null;

@@ -34,7 +34,7 @@ const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
 const SLOT_LABELS: Record<string, string> = {
   head: 'Шлем', armor: 'Броня', pants: 'Штаны', weapon1: 'Ближний бой', weapon2: 'Автомат',
   gun_pistol: 'Пистолет', gun_shotgun: 'Дробовик', gun_sniper: 'Снайперка', gun_heavy: 'Тяжёлое',
-  gloves: 'Перчатки', boots: 'Ботинки', backpack: '🎒 Рюкзак',
+  gloves: 'Перчатки', boots: 'Ботинки', backpack: 'Рюкзак',
 };
 
 // Слоты поверх силуэта + отдельный ряд оружейной сумки под куклой.

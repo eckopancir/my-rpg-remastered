@@ -279,7 +279,8 @@ const ProductCard = ({ item, buyPrice, canAfford, onBuy, onHover, onMove, onLeav
           ? (AMMO_GROUP_ICONS[(item as any).ammoGroup] ?? '🔸')
           : item.type === 'consumable' && item.abilityId
             ? (CONSUMABLE_ICONS[item.abilityId] ?? '📦')
-            : item.type === 'backpack' ? '🎒' : null;
+            : item.type === 'backpack' ? null // картинка по семейству через getItemImage ниже
+            : null;
         if (emoji) return <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{emoji}</div>;
         const url = getItemImage(item.resourceName || item.name, item.type !== 'material' ? item.displayName : undefined, (item as any).slot, (item as any).type);
         return url ? <img src={url} alt="" style={{ width: 30, height: 30, objectFit: 'contain', imageRendering: 'pixelated', borderRadius: 4, background: 'rgba(0,0,0,0.25)' }} /> : <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📦</div>;
