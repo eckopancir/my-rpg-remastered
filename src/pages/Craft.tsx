@@ -12,12 +12,14 @@ import { useSound } from '../hooks/useSound';
 import { GAME_ITEMS } from '../data/GameItems';
 import {
   QUALITY_ORDER, QUALITY_COLORS, SLOT_STAT_POOL, SLOT_LABELS, SLOT_ICONS,
-  CRAFT_COST, MATERIAL_NAMES, STAT_COUNT, getNextQuality, rollBlueprint, rollYield,
+  CRAFT_COST, MATERIAL_NAMES, STAT_COUNT, AMMO_CRAFT_COST,
+  getNextQuality, rollBlueprint, rollYield,
 } from '../data/crafting';
+import { AMMO_GROUPS, makeBulletPack, maxStackFor, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem } from '../engine/items';
 import { GAME_ITEMS as GAME_ITEMS_LIST } from '../data/GameItems';
-import { getItemImage } from '../assets/index';
+import { getItemImage, getBulletImage } from '../assets/index';
 import type { Item } from '../types/items';
 
 type Tab = 'merge' | 'disassemble' | 'create';
@@ -53,8 +55,13 @@ function generateStatValue(stat: string, level: number): number {
   return Math.round(randomInt(min, max) * mul);
 }
 
-function generateItemForSlot(slot: string, quality: string, level: number, forcedStats?: Record<string, number>): Item {
-  const pool = GAME_ITEMS.filter((i) => i.slot === slot && i.type !== 'consumable' && i.type !== 'material');
+function generateItemForSlot(slot: string, quality: string, level: number, forcedStats?: Record<string, number>, gunClass?: AmmoGroup): Item {
+  let pool = GAME_ITEMS.filter((i) => i.slot === slot && i.type !== 'consumable' && i.type !== 'material');
+  // Огнестрел: выбор класса (пистолет/автомат/дробовик/снайперка/пулемёт/тяжёлое).
+  if (slot === 'weapon2' && gunClass) {
+    const classPool = pool.filter((t) => ammoTypeForWeapon(t as any) === gunClass);
+    if (classPool.length > 0) pool = classPool;
+  }
   const template = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : undefined;
   const stats: Record<string, number> = {};
   if (forcedStats) {
@@ -78,31 +85,42 @@ function generateItemForSlot(slot: string, quality: string, level: number, force
     qualityColor: QUALITY_COLORS[quality] || '#a0a0a0',
     stats,
     image: template?.image,
+    // Магазин и тип патронов — от шаблона, иначе ствол стреляет виртуалом.
+    ammoCapacity: (template as any)?.ammoCapacity,
+    ammoType: (template as any)?.ammoType,
   };
 }
 
 function countResource(name: string): number {
-  const items = useInventoryStore.getState().items;
-  const found = items.find((i) => i.name === name && i.type === 'material');
-  return found ? found.quantity || 1 : 0;
+  // Суммируем все стаки (без качества и Обычные — один ресурс).
+  return useInventoryStore.getState().items
+    .filter((i) => i.name === name && i.type === 'material')
+    .reduce((s, i) => s + (i.quantity || 1), 0);
 }
 
 function removeResources(resources: Record<string, number>): boolean {
   const items = useInventoryStore.getState().items;
   for (const [matName, count] of Object.entries(resources)) {
     if (count <= 0) continue;
-    const found = items.find((i) => i.name === matName && i.type === 'material');
-    if (!found || (found.quantity || 1) < count) return false;
+    if (countResource(matName) < count) return false;
   }
+  // Списываем по нескольким стакам подряд.
   for (const [matName, count] of Object.entries(resources)) {
     if (count <= 0) continue;
-    const found = items.find((i) => i.name === matName && i.type === 'material')!;
-    if ((found.quantity || 1) > count) {
-      useInventoryStore.setState((s) => ({
-        items: s.items.map((i) => i.id === found.id ? { ...i, quantity: (i.quantity || 1) - count } : i),
-      }));
-    } else {
-      useInventoryStore.getState().removeItem(found.id);
+    let remaining = count;
+    const stacks = useInventoryStore.getState().items.filter((i) => i.name === matName && i.type === 'material');
+    for (const st of stacks) {
+      if (remaining <= 0) break;
+      const q = st.quantity || 1;
+      if (q > remaining) {
+        useInventoryStore.setState((s) => ({
+          items: s.items.map((i) => i.id === st.id ? { ...i, quantity: q - remaining } : i),
+        }));
+        remaining = 0;
+      } else {
+        useInventoryStore.getState().removeItem(st.id);
+        remaining -= q;
+      }
     }
   }
   return true;
@@ -157,7 +175,7 @@ export const Craft = () => {
   const removeItem = useInventoryStore((s) => s.removeItem);
   const addLog = usePlayerStore((s) => s.addLog);
   const level = usePlayerStore((s) => s.level);
-  const { playCraft } = useSound();
+  const { playSound } = useSound();
   const craftingTimer = useUiStore((s) => s.craftingTimer);
   const craftingType = useUiStore((s) => s.craftingType);
   const setCraftingTimer = useUiStore((s) => s.setCraftingTimer);
@@ -179,6 +197,7 @@ export const Craft = () => {
 
   // Create
   const [createSlot, setCreateSlot] = useState<string | null>(null);
+  const [createGunClass, setCreateGunClass] = useState<AmmoGroup>('rifle');
   const [createBlueprint, setCreateBlueprint] = useState<Item | null>(null);
   const [createSelectedStats, setCreateSelectedStats] = useState<Record<string, number>>({});
   const [createResult, setCreateResult] = useState<Item | null>(null);
@@ -239,6 +258,7 @@ export const Craft = () => {
     if (mergeSlots.some((s) => s?.id === item.id)) return;
     removeItem(item.id);
     setMergeSlots((prev) => { const next = [...prev]; next[idx] = item; return next; });
+    playSound('install', 0.4);
   }
 
   function handleRemoveFromMergeSlot(idx: number) {
@@ -246,6 +266,7 @@ export const Craft = () => {
     if (!item) return;
     addItem(item);
     setMergeSlots((prev) => { const next = [...prev]; next[idx] = null; return next; });
+    playSound('clickbutton', 0.3);
   }
 
   function startMerge() {
@@ -253,6 +274,7 @@ export const Craft = () => {
     mergeItemIdsRef.current = mergeSlots.filter(Boolean).map((i) => i!.id);
     setCraftingType('merge');
     setCraftingTimer(10);
+    playSound('craft', 0.5);
     addLog(`⬆️ Улучшение (${mergeMeta.lowestQuality})... 10 сек`, 'info');
   }
 
@@ -277,6 +299,7 @@ export const Craft = () => {
       damage: generated.damage,
     } as Item;
     setMergeResult(resultItem);
+    playSound('craft2', 0.5);
     addLog(`⬆️ Создан: ${generated.displayName} (${nextQuality})`, 'loot');
     setMergeSlots(Array(5).fill(null));
     // Сервер — писатель: ждём ok, иначе результат не выдаём (иначе призрак
@@ -303,6 +326,7 @@ export const Craft = () => {
     if (disassembleSlots.some((s) => s?.id === item.id)) return;
     removeItem(item.id);
     setDisassembleSlots((prev) => { const next = [...prev]; next[idx] = item; return next; });
+    playSound('install', 0.4);
   }
 
   function handleRemoveFromDisassembleSlot(idx: number) {
@@ -310,6 +334,7 @@ export const Craft = () => {
     if (!item) return;
     addItem(item);
     setDisassembleSlots((prev) => { const next = [...prev]; next[idx] = null; return next; });
+    playSound('clickbutton', 0.3);
   }
 
   async function handleDisassembleAll() {
@@ -329,10 +354,12 @@ export const Craft = () => {
       if (count <= 0) continue;
       const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
       if (!matName) continue;
+      // Ресурсы всегда строго Обычные — иначе плодятся дубли «с качеством/без».
       materials.push({
         id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         name: matName, displayName: matName, type: 'material', slot: 'any',
         rarity: 'common', level: 1, stats: {}, quantity: count, stackable: true,
+        quality: 'Обычный', qualityColor: '#a0a0a0',
       } as Item);
     }
     let blueprint: Item | null = null;
@@ -350,7 +377,7 @@ export const Craft = () => {
     try {
       const res = await fetch(`${base}/craft/disassemble.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({
         consumeIds,
-        materials: materials.map((m) => ({ id: m.id, name: m.name, quantity: m.quantity })),
+        materials: materials.map((m) => ({ id: m.id, name: m.name, quantity: m.quantity, quality: m.quality || 'Обычный' })),
         blueprint: blueprint ? { id: blueprint.id, name: blueprint.name, slot: blueprint.slot, quality: blueprint.quality } : null,
       }) });
       if (!res.ok) {
@@ -362,18 +389,19 @@ export const Craft = () => {
       addLog('❌ Ошибка сети — разбор не сохранён', 'warning');
       return;
     }
-    // Сервер ok: кладём ровно те же объекты (merge в существующие стаки).
+    // Сервер ok: кладём ровно те же объекты (merge в существующие Обычные стаки).
     const curItems = useInventoryStore.getState().items;
     for (const m of materials) {
-      const existing = curItems.find((i) => i.name === m.name && i.type === 'material');
+      const existing = curItems.find((i) => i.name === m.name && i.type === 'material' && (i.quality || 'Обычный') === 'Обычный');
       if (existing) {
         useInventoryStore.setState((s) => ({
-          items: s.items.map((i) => i.id === existing.id ? { ...i, quantity: (i.quantity || 1) + (m.quantity || 1) } : i),
+          items: s.items.map((i) => i.id === existing.id ? { ...i, quantity: (i.quantity || 1) + (m.quantity || 1), quality: 'Обычный', qualityColor: '#a0a0a0' } : i),
         }));
       } else {
         addItem(m);
       }
     }
+    playSound('craft3', 0.5);
     if (blueprint) {
       addItem(blueprint);
       addLog(`📜 Схема (${blueprint.quality}) при разборе`, 'loot');
@@ -464,6 +492,7 @@ export const Craft = () => {
     removeItem(createBlueprint.id);
     setCraftingType('create');
     setCraftingTimer(5);
+    playSound('craft', 0.5);
     addLog('⚙️ Создание предмета... 5 сек', 'info');
   }
 
@@ -478,8 +507,9 @@ export const Craft = () => {
         forcedStats[stat] = Number(total.toFixed(3));
       }
     }
-    const newItem = generateItemForSlot(createSlot, quality, level, forcedStats);
+    const newItem = generateItemForSlot(createSlot, quality, level, forcedStats, createSlot === 'weapon2' ? createGunClass : undefined);
     setCreateResult(newItem);
+    playSound('craft4', 0.5);
     addLog(`⚙️ Создан: ${newItem.displayName} (${quality})`, 'loot');
     setCreateBlueprint(null);
     setCreateSlot(null);
@@ -522,7 +552,7 @@ export const Craft = () => {
         <WapPanel variant="screen" padding="sm" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {([{ id: 'merge', label: '⬆️ Улучшение' }, { id: 'disassemble', label: '🔨 Разбор' }, { id: 'create', label: '⚙️ Создание' }] as const).map((t) => (
-              <Button key={t.id} size="sm" variant={tab === t.id ? 'primary' : 'ghost'} onClick={() => setTab(t.id)}>
+              <Button key={t.id} size="sm" variant={tab === t.id ? 'primary' : 'ghost'} onClick={() => { playSound('clickbutton', 0.3); setTab(t.id); }}>
                 {t.label}
               </Button>
             ))}
@@ -531,7 +561,7 @@ export const Craft = () => {
 
         {/* ============ MERGE ============ */}
         {tab === 'merge' && (
-          <WapPanel variant="metal" padding="lg">
+          <WapPanel variant="metal" padding="lg" style={{ maxWidth: 660 }}>
             <WapHeader title="⬆️ Улучшение (5 → 1)" glow="amber" />
             {craftingTimer > 0 && craftingType === 'merge' ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -585,7 +615,7 @@ export const Craft = () => {
                     {mergeResult.displayName || mergeResult.name}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Lv.{mergeResult.level}</span>
-                  <Button size="sm" variant="primary" onClick={() => { addItem(mergeResult); setMergeResult(null); setTooltipItem(null); }}>
+                  <Button size="sm" variant="primary" onClick={() => { playSound('paySell', 0.5); addItem(mergeResult); setMergeResult(null); setTooltipItem(null); }}>
                     Забрать
                   </Button>
                 </div>
@@ -596,7 +626,7 @@ export const Craft = () => {
 
         {/* ============ DISASSEMBLE ============ */}
         {tab === 'disassemble' && (
-          <WapPanel variant="metal" padding="lg">
+          <WapPanel variant="metal" padding="lg" style={{ maxWidth: 660 }}>
             <WapHeader title="🔨 Разбор на ресурсы" glow="amber" />
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
               Перетащи до 5 любых предметов (кроме ресурсов) в слоты и нажми «Разобрать все».
@@ -633,7 +663,7 @@ export const Craft = () => {
 
         {/* ============ CREATE ============ */}
         {tab === 'create' && (
-          <WapPanel variant="metal" padding="lg">
+          <WapPanel variant="metal" padding="lg" style={{ maxWidth: 660 }}>
             <WapHeader title="⚙️ Создание предмета" glow="amber" />
             {craftingTimer > 0 && craftingType === 'create' ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -651,7 +681,7 @@ export const Craft = () => {
                     {Object.entries(SLOT_LABELS).map(([slot, label]) => (
                       <Button key={slot} size="sm"
                         variant={createSlot === slot ? 'primary' : 'ghost'}
-                        onClick={() => { setCreateSlot(slot); setCreateSelectedStats({}); }}
+                        onClick={() => { playSound('clickbutton', 0.3); setCreateSlot(slot); setCreateSelectedStats({}); }}
                         style={{ fontSize: 11 }}
                       >
                         {SLOT_ICONS[slot]} {label}
@@ -659,6 +689,35 @@ export const Craft = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Step 1b: класс огнестрела */}
+                {createSlot === 'weapon2' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+                      Класс огнестрела
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {([
+                        { key: 'rifle', label: 'Автомат' }, { key: 'pistol', label: 'Пистолет' },
+                        { key: 'shell', label: 'Дробовик' }, { key: 'sniper', label: 'Снайперка' },
+                        { key: 'mg', label: 'Пулемёт' }, { key: 'energy', label: 'Тяжёлое' },
+                      ] as { key: AmmoGroup; label: string }[]).map((c) => {
+                        const g = AMMO_GROUPS.find((a) => a.key === c.key);
+                        const img = g ? getBulletImage(g.packName) : undefined;
+                        return (
+                          <Button key={c.key} size="sm"
+                            variant={createGunClass === c.key ? 'primary' : 'ghost'}
+                            onClick={() => { playSound('clickbutton', 0.3); setCreateGunClass(c.key); }}
+                            style={{ fontSize: 11 }}
+                          >
+                            {img && <img src={img} alt="" style={{ width: 18, height: 18, objectFit: 'contain', marginRight: 4 }} />}
+                            {c.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Step 2: Choose blueprint */}
                 {createSlot && (
@@ -744,7 +803,22 @@ export const Craft = () => {
                           const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
                           const needed = Math.ceil(count * mul);
                           const have = countResource(matName);
-                          return (
+  // Создание патронов: мгновенно, полный стак обычных за порох + металлолом.
+  function handleCraftAmmo(group: AmmoGroup) {
+    const cost = AMMO_CRAFT_COST[group];
+    if (!cost) return;
+    const need: Record<string, number> = {
+      [MATERIAL_NAMES.powder]: cost.powder,
+      [MATERIAL_NAMES.scrap]: cost.scrap,
+    };
+    if (!removeResources(need)) { addLog('❌ Не хватает пороха/металлолома', 'warning'); playSound('clickbutton', 0.3); return; }
+    const pack = makeBulletPack(group, maxStackFor(group), 'Обычный');
+    addItem(pack);
+    playSound('reloading', 0.5);
+    addLog(`🔸 Снаряжено: ${pack.displayName}`, 'loot');
+  }
+
+  return (
                             <span key={mat} style={{
                               fontSize: 11, padding: '2px 6px', borderRadius: 4,
                               background: have >= needed ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)',
@@ -773,7 +847,43 @@ export const Craft = () => {
                 )}
               </>
             )}
-            {createResult && (
+                {/* Патроны: мгновенное снаряжение полного стака обычных */}
+                <div style={{ marginTop: 16, marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    🔸 Снаряжение патронов (сразу в инвентарь)
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {AMMO_GROUPS.map((g) => {
+                      const cost = AMMO_CRAFT_COST[g.key];
+                      if (!cost) return null;
+                      const qty = maxStackFor(g.key);
+                      const havePowder = countResource(MATERIAL_NAMES.powder);
+                      const haveScrap = countResource(MATERIAL_NAMES.scrap);
+                      const afford = havePowder >= cost.powder && haveScrap >= cost.scrap;
+                      const img = getBulletImage(g.packName);
+                      return (
+                        <div key={g.key}
+                          onClick={() => handleCraftAmmo(g.key)}
+                          title={afford ? `Снарядить ${qty} шт` : 'Не хватает ресурсов'}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+                            borderRadius: 6, cursor: afford ? 'pointer' : 'not-allowed',
+                            opacity: afford ? 1 : 0.45,
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.08)', fontSize: 11,
+                          }}
+                        >
+                          {img && <img src={img} alt="" style={{ width: 26, height: 26, objectFit: 'contain' }} />}
+                          <span style={{ color: 'var(--text-primary)' }}>{g.name} x{qty}</span>
+                          <span style={{ color: afford ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
+                            🧪{havePowder}/{cost.powder} 🔩{haveScrap}/{cost.scrap}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {createResult && (
               <div style={{ marginTop: 16, textAlign: 'center' }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
                   Результат создания:
@@ -793,7 +903,7 @@ export const Craft = () => {
                     {createResult.displayName || createResult.name}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Lv.{createResult.level}</span>
-                  <Button size="sm" variant="primary" onClick={() => { addItem(createResult); setCreateResult(null); setTooltipItem(null); }}>
+                  <Button size="sm" variant="primary" onClick={() => { playSound('paySell', 0.5); addItem(createResult); setCreateResult(null); setTooltipItem(null); }}>
                     Забрать
                   </Button>
                 </div>

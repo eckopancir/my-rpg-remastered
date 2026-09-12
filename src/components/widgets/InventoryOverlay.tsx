@@ -82,6 +82,7 @@ const stackItems = (items: Item[]): StackedItem[] => {
   const map = new Map<string, StackedItem>();
   for (const item of items) {
     if (item.type === 'material' || item.type === 'consumable' || item.type === 'bullet') {
+      // Без качества = Обычный: иначе старые стаки не сливаются с новыми.
       const key = `${item.type}_${item.name}_${item.rarity}_${item.quality || 'Обычный'}`;
       const existing = map.get(key);
       if (existing) {

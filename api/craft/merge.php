@@ -12,19 +12,10 @@ $pdo = getDB();
 $pdo->beginTransaction();
 
 try {
-    // Verify all items to consume belong to user
+    // Расходники клиент убирает из инвентаря сразу при укладке в слоты
+    // (и синкает), поэтому к моменту завершения их может уже не быть в БД —
+    // удаляем что есть, отсутствующие не считаем ошибкой.
     $placeholders = implode(',', array_fill(0, count($input['consumeIds']), '?'));
-    $stmt = $pdo->prepare("SELECT item_id FROM inventory_items WHERE user_id = ? AND item_id IN ($placeholders)");
-    $stmt->execute(array_merge([$user['id']], $input['consumeIds']));
-    $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    $missing = array_diff($input['consumeIds'], $existing);
-    if (!empty($missing)) {
-        $pdo->rollBack();
-        jsonResponse(['error' => 'Items not found: ' . implode(',', $missing)], 400);
-    }
-
-    // Delete consumed items
     $del = $pdo->prepare("DELETE FROM inventory_items WHERE user_id = ? AND item_id IN ($placeholders)");
     $del->execute(array_merge([$user['id']], $input['consumeIds']));
 

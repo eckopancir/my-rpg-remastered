@@ -14,6 +14,7 @@ import resFuel from '../assets/images/items/res-fuel.png';
 import resReagent from '../assets/images/items/res-reagent.png';
 import resScrap from '../assets/images/items/res-scrap.png';
 import resChip from '../assets/images/items/res-chip.png';
+import resGunpowder from '../assets/images/items/res-gunpowder.png';
 
 export const GAME_RESOURCES: ItemDefinition[] = [
   { name: 'Вода', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: r1Icon },
@@ -53,6 +54,7 @@ export const GAME_RESOURCES: ItemDefinition[] = [
   { name: 'Батарейки', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resBatteries },
   { name: 'Консервы', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resCanned },
   { name: 'Лекарства', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resMeds },
+  { name: 'Порох', rarity: 'common', slot: 'any', type: 'material', stats: {}, image: resGunpowder },
 ];
 
 // Item set bonus definitions

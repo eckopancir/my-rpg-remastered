@@ -1,4 +1,4 @@
-export type MaterialType = 'scrap' | 'wires' | 'chip' | 'reagent' | 'alloy';
+export type MaterialType = 'scrap' | 'wires' | 'chip' | 'reagent' | 'alloy' | 'powder';
 
 export const MATERIAL_NAMES: Record<MaterialType, string> = {
   scrap: 'Металлолом',
@@ -6,6 +6,7 @@ export const MATERIAL_NAMES: Record<MaterialType, string> = {
   chip: 'Микросхема',
   reagent: 'Хим. реагент',
   alloy: 'Редкий сплав',
+  powder: 'Порох',
 };
 
 export const QUALITY_ORDER = [
@@ -49,16 +50,17 @@ export interface CraftCost {
   chip: number;
   reagent: number;
   alloy: number;
+  powder: number;
 }
 
 export const CRAFT_COST: Record<string, CraftCost> = {
-  'Обычный': { scrap: 5, wires: 3, chip: 0, reagent: 0, alloy: 0 },
-  'Редкий': { scrap: 8, wires: 5, chip: 2, reagent: 0, alloy: 0 },
-  'Раритетный': { scrap: 12, wires: 8, chip: 4, reagent: 2, alloy: 0 },
-  'Эпический': { scrap: 20, wires: 12, chip: 6, reagent: 4, alloy: 2 },
-  'Смертоносный': { scrap: 30, wires: 18, chip: 10, reagent: 6, alloy: 4 },
-  'Легендарный': { scrap: 45, wires: 25, chip: 15, reagent: 10, alloy: 6 },
-  'Божественный': { scrap: 60, wires: 35, chip: 20, reagent: 15, alloy: 10 },
+  'Обычный': { scrap: 5, wires: 3, chip: 0, reagent: 0, alloy: 0, powder: 0 },
+  'Редкий': { scrap: 8, wires: 5, chip: 2, reagent: 0, alloy: 0, powder: 0 },
+  'Раритетный': { scrap: 12, wires: 8, chip: 4, reagent: 2, alloy: 0, powder: 0 },
+  'Эпический': { scrap: 20, wires: 12, chip: 6, reagent: 4, alloy: 2, powder: 0 },
+  'Смертоносный': { scrap: 30, wires: 18, chip: 10, reagent: 6, alloy: 4, powder: 0 },
+  'Легендарный': { scrap: 45, wires: 25, chip: 15, reagent: 10, alloy: 6, powder: 0 },
+  'Божественный': { scrap: 60, wires: 35, chip: 20, reagent: 15, alloy: 10, powder: 0 },
 };
 
 export const STAT_COUNT: Record<string, number> = {
@@ -72,13 +74,23 @@ export const STAT_COUNT: Record<string, number> = {
 };
 
 export const DISASSEMBLE_YIELD: Record<string, Partial<Record<MaterialType, [number, number]>>> = {
-  'Обычный': { scrap: [2, 4], wires: [1, 2] },
-  'Редкий': { scrap: [3, 5], wires: [2, 3], chip: [1, 1] },
-  'Раритетный': { scrap: [4, 6], wires: [2, 4], chip: [1, 2], reagent: [1, 1] },
-  'Эпический': { scrap: [5, 8], wires: [3, 5], chip: [2, 3], reagent: [1, 2], alloy: [1, 1] },
-  'Смертоносный': { scrap: [6, 10], wires: [4, 6], chip: [3, 4], reagent: [2, 3], alloy: [1, 2] },
-  'Легендарный': { scrap: [8, 12], wires: [5, 7], chip: [4, 5], reagent: [3, 4], alloy: [2, 3] },
-  'Божественный': { scrap: [10, 15], wires: [6, 8], chip: [5, 6], reagent: [4, 5], alloy: [3, 4] },
+  'Обычный': { scrap: [2, 4], wires: [1, 2], powder: [1, 2] },
+  'Редкий': { scrap: [3, 5], wires: [2, 3], chip: [1, 1], powder: [1, 2] },
+  'Раритетный': { scrap: [4, 6], wires: [2, 4], chip: [1, 2], reagent: [1, 1], powder: [2, 3] },
+  'Эпический': { scrap: [5, 8], wires: [3, 5], chip: [2, 3], reagent: [1, 2], alloy: [1, 1], powder: [2, 4] },
+  'Смертоносный': { scrap: [6, 10], wires: [4, 6], chip: [3, 4], reagent: [2, 3], alloy: [1, 2], powder: [3, 4] },
+  'Легендарный': { scrap: [8, 12], wires: [5, 7], chip: [4, 5], reagent: [3, 4], alloy: [2, 3], powder: [3, 5] },
+  'Божественный': { scrap: [10, 15], wires: [6, 8], chip: [5, 6], reagent: [4, 5], alloy: [3, 4], powder: [4, 6] },
+};
+
+/** Рецепты патронов: цена полного стака обычной пачки (порох + металлолом). */
+export const AMMO_CRAFT_COST: Record<string, { powder: number; scrap: number }> = {
+  pistol: { powder: 2, scrap: 2 },
+  rifle: { powder: 4, scrap: 4 },
+  sniper: { powder: 3, scrap: 3 },
+  shell: { powder: 3, scrap: 3 },
+  mg: { powder: 12, scrap: 10 },
+  energy: { powder: 6, scrap: 6 },
 };
 
 export const BLUEPRINT_DROP_CHANCE: Record<string, number> = {

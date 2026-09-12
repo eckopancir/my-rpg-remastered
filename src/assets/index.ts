@@ -26,7 +26,7 @@ const RESOURCE_IMAGE_MAP: Record<string, string> = {
   'вода': 'r1', 'изолента': 'r2', 'железо': 'r3', 'дерево': 'r4',
   'инструменты': 'r5', 'гвозди': 'r6', 'пластмасса': 'r7',
   'батарейки': 'res-batteries', 'консервы': 'res-canned', 'лекарства': 'res-meds',
-  'провода': 'res-wires', 'редкийсплав': 'res-alloy', 'топливо': 'res-fuel',
+  'провода': 'res-wires', 'редкийсплав': 'res-alloy', 'топливо': 'res-fuel', 'порох': 'res-gunpowder',
   'химреагент': 'res-reagent', 'металлолом': 'res-scrap', 'микросхема': 'res-chip',
 };
 

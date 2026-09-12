@@ -27,7 +27,8 @@ try {
             $matId = $mat['id'] ?? ('mat_' . uniqid());
             $matName = $mat['name'] ?? 'Material';
             $qty = $mat['quantity'] ?? 1;
-            $data = json_encode(['type' => 'material'], JSON_UNESCAPED_UNICODE);
+            $matQuality = $mat['quality'] ?? 'Обычный';
+            $data = json_encode(['type' => 'material', 'quality' => $matQuality], JSON_UNESCAPED_UNICODE);
             $ins->execute([$user['id'], $matId, $matName, 'any', $qty, $data]);
         }
     }

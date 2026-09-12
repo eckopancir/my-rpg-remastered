@@ -12,15 +12,9 @@ $pdo = getDB();
 $pdo->beginTransaction();
 
 try {
-    // Verify blueprint belongs to user
-    $stmt = $pdo->prepare('SELECT id FROM inventory_items WHERE user_id = ? AND item_id = ?');
-    $stmt->execute([$user['id'], $input['blueprintId']]);
-    if (!$stmt->fetch()) {
-        $pdo->rollBack();
-        jsonResponse(['error' => 'Blueprint not found'], 400);
-    }
-
-    // Delete blueprint
+    // Схема и ресурсы списываются клиентом сразу при старте (и синкаются),
+    // поэтому к завершению их может уже не быть в БД — удаляем что есть.
+    // Delete blueprint (if still present)
     $del = $pdo->prepare('DELETE FROM inventory_items WHERE user_id = ? AND item_id = ?');
     $del->execute([$user['id'], $input['blueprintId']]);
 
