@@ -3,7 +3,7 @@ import type { Item } from '../../types/items';
 import { chestImageFor, configForQuality } from '../../data/chests';
 import { QUALITY_TIERS } from '../../engine/items';
 import { backpackDefByName, backpackSlots, backpackSlotsFor } from '../../data/backpacks';
-import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effectiveAmmoCapacity, MAGAZINE_BONUS, bulletQualityIndex, BULLET_DMG_PCT, type AmmoGroup } from '../../data/ammo';
+import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effectiveAmmoCapacity, MAGAZINE_BONUS, bulletQualityIndex, BULLET_DMG_PCT, bulletDamageMult, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
@@ -263,11 +263,15 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           </div>
         );
       })()}
-      {item.slot === 'weapon2' && item.ammoCapacity && (
-        <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-          📀 Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)}
-        </div>
-      )}
+      {item.slot === 'weapon2' && item.ammoCapacity && (() => {
+        const mq = (item as any).loadedAmmoQuality || 'Обычный';
+        const mm = bulletDamageMult(mq);
+        return (
+          <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
+            📀 Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)} · {mq}{mm > 1 ? ` (+${Math.round((mm - 1) * 100)}%)` : ''}
+          </div>
+        );
+      })()}
       {item.slot === 'weapon1' && (
         <div style={{ fontSize: 12, color: '#7dd3fc', marginBottom: 6 }}>
           🎯 ближний бой · бьёт 3 клетки спереди

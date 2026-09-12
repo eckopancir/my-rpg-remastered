@@ -1476,7 +1476,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           usePlayerStore.setState((st: any) => ({
             equipment: {
               ...st.equipment,
-              [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: 0 } : st.equipment[gs],
+              [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: 0, loadedAmmoQuality: 'Обычный' } : st.equipment[gs],
             },
           }));
           usePlayerStore.getState().syncEquippedItem(gs);
@@ -2923,10 +2923,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const w2 = usePlayerStore.getState().getActiveWeapon();
       if (w2 && w2.ammoCapacity) {
         try {
+          const leftAmmo = cs.ammo;
           usePlayerStore.setState((st: any) => ({
             equipment: {
               ...st.equipment,
-              [wslot]: st.equipment[wslot] ? { ...st.equipment[wslot], loadedAmmo: cs.ammo } : st.equipment[wslot],
+              [wslot]: st.equipment[wslot] ? { ...st.equipment[wslot], loadedAmmo: leftAmmo, loadedAmmoQuality: leftAmmo <= 0 ? 'Обычный' : ((w2 as any).loadedAmmoQuality || 'Обычный') } : st.equipment[wslot],
             },
           }));
           usePlayerStore.getState().syncEquippedItem(wslot);

@@ -16,10 +16,12 @@ export interface LootOptions {
 }
 
 // Выпавший огнестрел уже заряжен: 3-15 патронов в магазине (не больше вместимости).
+// Патроны обычные — качество фиксируем явно, чтобы не висело stale.
 const withChargedMags = (items: Array<any>): Array<any> => {
   for (const it of items) {
     if (it && it.slot === 'weapon2' && it.ammoCapacity && typeof it.loadedAmmo !== 'number') {
       it.loadedAmmo = Math.min(it.ammoCapacity, 3 + Math.floor(Math.random() * 13));
+      it.loadedAmmoQuality = 'Обычный';
     }
   }
   return items;

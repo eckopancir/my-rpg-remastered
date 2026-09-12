@@ -5,7 +5,7 @@ import { CustomizationModal } from '../components/widgets/CustomizationModal';
 import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
 import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, equipmentDelta, type EquipmentSlot } from '../stores/playerStore';
-import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, type AmmoGroup } from '../data/ammo';
+import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, worseQuality, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useUiStore } from '../stores/uiStore';
@@ -199,11 +199,12 @@ export const Equipment = () => {
     const loaded = w?.loadedAmmo || 0;
     if (!w || loaded <= 0) return;
     const back = pst.returnAmmoToPack(ammoTypeForWeapon(w), loaded, (w as any).loadedAmmoQuality || 'Обычный');
+    const leftAfter = Math.max(0, (w.loadedAmmo || 0) - back);
     usePlayerStore.setState((st: any) => ({
       equipment: {
         ...st.equipment,
         [slot]: st.equipment[slot]
-          ? { ...st.equipment[slot], loadedAmmo: Math.max(0, (st.equipment[slot].loadedAmmo || 0) - back) }
+          ? { ...st.equipment[slot], loadedAmmo: leftAfter, loadedAmmoQuality: leftAfter <= 0 ? 'Обычный' : ((w as any).loadedAmmoQuality || 'Обычный') }
           : null,
       },
     }));
@@ -247,12 +248,14 @@ export const Equipment = () => {
     }
     const take = Math.min(space, (ammo as any).quantity ?? 1);
     if (take <= 0) return true;
+    const packQ = (ammo as any).quality || 'Обычный';
     const left = ((ammo as any).quantity ?? 1) - take;
+    const leftName = (n: number) => packQ === 'Обычный' ? `${(ammo as any).name} x${n}` : `${(ammo as any).name} x${n} · ${packQ}`;
     if (from === 'inv') {
       if (left > 0) {
         useInventoryStore.setState((st: any) => ({
           items: st.items.map((i: any) => i.id === ammoItemId
-            ? { ...i, quantity: left, displayName: `${i.name} x${left}` }
+            ? { ...i, quantity: left, displayName: leftName(left) }
             : i),
         }));
       } else {
@@ -262,23 +265,26 @@ export const Equipment = () => {
       usePlayerStore.setState((st: any) => ({
         backpackContents: left > 0
           ? st.backpackContents.map((i: any) => i.id === ammoItemId
-            ? { ...i, quantity: left, displayName: `${i.name} x${left}` }
+            ? { ...i, quantity: left, displayName: leftName(left) }
             : i)
           : st.backpackContents.filter((i: any) => i.id !== ammoItemId),
       }));
     }
+    // Качество магазина: пустой — качество пачки, дозарядка — худшее из двух.
+    const oldQ = (w as any).loadedAmmoQuality || 'Обычный';
+    const newQ = loaded <= 0 ? packQ : worseQuality(oldQ, packQ);
     usePlayerStore.setState((st: any) => ({
       equipment: {
         ...st.equipment,
         [slot]: st.equipment[slot]
-          ? { ...st.equipment[slot], loadedAmmo: (st.equipment[slot].loadedAmmo ?? 0) + take }
+          ? { ...st.equipment[slot], loadedAmmo: (st.equipment[slot].loadedAmmo ?? 0) + take, loadedAmmoQuality: newQ }
           : st.equipment[slot],
       },
     }));
     pst.syncEquippedItem(slot);
     syncNow();
     playSound('reloading', 0.5);
-    pst.addLog(`📀 Заряжено: +${take} (магазин ${(loaded + take)}/${cap})`, 'info');
+    pst.addLog(`📀 Заряжено: +${take} (${packQ}, магазин ${(loaded + take)}/${cap})`, 'info');
     return true;
   };
 
