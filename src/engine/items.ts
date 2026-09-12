@@ -330,5 +330,14 @@ export const generateItem = (
 
   generatedItem.stats = finalStats;
 
+  // Гнёзда под схемы: оружие 1–5, броня 1–3 (модам и уникам не положены).
+  const isGear = generatedItem.slot === 'weapon1' || generatedItem.slot === 'weapon2'
+    || generatedItem.slot.startsWith('gun_')
+    || ['head', 'armor', 'pants', 'gloves', 'boots'].includes(generatedItem.slot);
+  if (isGear && !(generatedItem as any).unique) {
+    const isW = generatedItem.slot === 'weapon1' || generatedItem.slot === 'weapon2' || generatedItem.slot.startsWith('gun_');
+    (generatedItem as any).socketSlots = isW ? 1 + Math.floor(Math.random() * 5) : 1 + Math.floor(Math.random() * 3);
+  }
+
   return generatedItem;
 };

@@ -66,7 +66,20 @@ const MOD_SLOT_IMAGE_MAP: Record<string, string> = {
   mod_patch: 'бронепластина',
 };
 
-/** Картинка рюкзака по семейству (9 семейств; ключи файлов pack_*.png). */
+/** Картинка схемы по стату: 4 орба. */
+const SCHEME_IMAGE_MAP: Record<string, string> = {
+  crit: 'scheme_crit', speed: 'scheme_crit', accuracy: 'scheme_crit',
+  armor: 'scheme_armor', evasion: 'scheme_armor',
+  damage: 'scheme_damage', vampir: 'scheme_damage', block: 'scheme_damage',
+  regen: 'scheme_regen', punching: 'scheme_regen', maxHp: 'scheme_regen',
+};
+
+/** Картинка схемы по стату бонуса; фолбэк — крит-орб. */
+export const getSchemeImage = (stat?: string): string | undefined => {
+  const key = SCHEME_IMAGE_MAP[(stat || '').toLowerCase()] || 'scheme_crit';
+  return itemImageMap.get(key);
+};
+/** Картинка рюкзака по семейству (11 спрайтов pack_*.png). */
 const BACKPACK_IMAGE_MAP: Record<string, string> = {
   'поход': 'pack_pohod',
   'полев': 'pack_assault',

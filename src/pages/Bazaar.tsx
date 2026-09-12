@@ -490,6 +490,8 @@ export const Bazaar = () => {
     if (!draggableId) return;
     const item = inventoryItems.find((i) => i.id === draggableId);
     if (!item) return;
+    // Схемы не продаются.
+    if ((item as any).type === 'blueprint') { addLog('❌ Схемы не продаются — они нужны для перековки', 'warning'); return; }
     if (sellSlots.some((s) => s?.id === item.id)) return;
     setSellSlots((prev) => {
       const next = [...prev];

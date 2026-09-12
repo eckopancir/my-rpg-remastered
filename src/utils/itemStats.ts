@@ -1,4 +1,5 @@
 import type { Item } from '../types/items';
+import { schematicBonusOf } from '../data/schematics';
 
 const num = (v: unknown): number =>
   typeof v === 'object' && v !== null ? ((v as any)?.base || 0) : ((v as number) || 0);
@@ -41,11 +42,17 @@ export const modStatsOf = (item: Item): Record<string, number> => {
   return out;
 };
 
-/** Итоговые статы предмета с учётом вставленных модов (моды плюсуются к базе). */
+/** Итоговые статы предмета с учётом вставленных модов (моды плюсуются к базе)
+ *  и схем перековки (схемы умножают итог по своему стату). */
 export const effectiveItemStats = (item: Item): Record<string, number> => {
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(item.stats || {})) out[k] = num(v);
   const mods = modStatsOf(item);
   for (const [k, v] of Object.entries(mods)) out[k] = (out[k] || 0) + v;
+  const schemes = schematicBonusOf(item);
+  for (const [k, pct] of Object.entries(schemes)) {
+    if (!out[k]) continue;
+    out[k] = out[k] * (1 + pct / 100);
+  }
   return out;
 };

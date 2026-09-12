@@ -9,14 +9,15 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useAuthStore } from '../stores/authStore';
 import { useSound } from '../hooks/useSound';
-import { GAME_ITEMS } from '../data/GameItems';
 import {
-  QUALITY_ORDER, QUALITY_COLORS, SLOT_STAT_POOL, SLOT_LABELS, SLOT_ICONS,
-  CRAFT_COST, MATERIAL_NAMES, STAT_COUNT, AMMO_CRAFT_COST,
+  QUALITY_ORDER, QUALITY_COLORS,
+  MATERIAL_NAMES, AMMO_CRAFT_COST,
   craftCostFor, disassembleCategoryOf,
   getNextQuality, rollBlueprint, rollYield,
 } from '../data/crafting';
-import { AMMO_GROUPS, makeBulletPack, maxStackFor, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
+import { AMMO_GROUPS, makeBulletPack, maxStackFor, type AmmoGroup } from '../data/ammo';
+import { SCHEME_STATS, SCHEME_STAT_LABELS, schemePctFor, isSocketable, socketSlotsOf, statsForLevel, levelStatMult } from '../data/schematics';
+import { getSchemeImage } from '../assets/index';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem } from '../engine/items';
 import { GAME_ITEMS as GAME_ITEMS_LIST } from '../data/GameItems';
@@ -24,73 +25,6 @@ import { getItemImage, getBulletImage } from '../assets/index';
 import type { Item } from '../types/items';
 
 type Tab = 'merge' | 'disassemble' | 'create';
-
-const STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', crit: 'Крит', armor: 'Броня', regen: 'Реген',
-  evasion: 'Уклонение', block: 'Блок', punching: 'Пробитие', accuracy: 'Точность',
-  vampir: 'Вампиризм', speed: 'Скорость', maxHp: 'МаксHP',
-};
-
-function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function generateStatValue(stat: string, level: number): number {
-  const mul = 1 + (level - 1) * 0.1;
-  if (['crit', 'speed', 'evasion', 'block', 'punching', 'vampir', 'accuracy'].includes(stat)) {
-    return parseFloat(((Math.random() * 0.045 + 0.005) * mul).toFixed(4));
-  }
-  if (stat === 'maxHp' || stat === 'health') {
-    return Math.round(randomInt(10, 200) * mul);
-  }
-  if (stat === 'stamina') {
-    return parseFloat(((Math.random() * 0.045 + 0.005) * mul).toFixed(4));
-  }
-  if (stat === 'regen') {
-    return parseFloat(((Math.random() * 0.995 + 0.005) * mul).toFixed(3));
-  }
-  const baseRanges: Record<string, [number, number]> = {
-    damage: [3, 20], armor: [1, 15],
-  };
-  const [min, max] = baseRanges[stat] || [1, 8];
-  return Math.round(randomInt(min, max) * mul);
-}
-
-function generateItemForSlot(slot: string, quality: string, level: number, forcedStats?: Record<string, number>, gunClass?: AmmoGroup): Item {
-  let pool = GAME_ITEMS.filter((i) => i.slot === slot && i.type !== 'consumable' && i.type !== 'material');
-  // Огнестрел: выбор класса (пистолет/автомат/дробовик/снайперка/пулемёт/тяжёлое).
-  if (slot === 'weapon2' && gunClass) {
-    const classPool = pool.filter((t) => ammoTypeForWeapon(t as any) === gunClass);
-    if (classPool.length > 0) pool = classPool;
-  }
-  const template = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : undefined;
-  const stats: Record<string, number> = {};
-  if (forcedStats) {
-    Object.assign(stats, forcedStats);
-  } else {
-    const statPool = SLOT_STAT_POOL[slot] || ['damage'];
-    const count = STAT_COUNT[quality] || 1;
-    const shuffled = [...statPool].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, count);
-    for (const stat of selected) stats[stat] = generateStatValue(stat, level);
-  }
-  return {
-    id: `crafted_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    name: template?.name || `Предмет ${slot}`,
-    displayName: template?.displayName || template?.name || `Предмет ${slot}`,
-    type: slot === 'weapon1' || slot === 'weapon2' ? 'weapon' : 'armor',
-    slot,
-    rarity: quality,
-    level,
-    quality,
-    qualityColor: QUALITY_COLORS[quality] || '#a0a0a0',
-    stats,
-    image: template?.image,
-    // Магазин и тип патронов — от шаблона, иначе ствол стреляет виртуалом.
-    ammoCapacity: (template as any)?.ammoCapacity,
-    ammoType: (template as any)?.ammoType,
-  };
-}
 
 function countResource(name: string): number {
   // Суммируем все стаки (без качества и Обычные — один ресурс).
@@ -196,14 +130,9 @@ export const Craft = () => {
   // Merge result
   const [mergeResult, setMergeResult] = useState<Item | null>(null);
 
-  // Create
-  const [createSlot, setCreateSlot] = useState<string | null>(null);
-  const [createGunClass, setCreateGunClass] = useState<AmmoGroup>('rifle');
-  const [createBlueprint, setCreateBlueprint] = useState<Item | null>(null);
-  const [createSelectedStats, setCreateSelectedStats] = useState<Record<string, number>>({});
-  const [createResult, setCreateResult] = useState<Item | null>(null);
-  const createBlueprintIdRef = useRef<string | null>(null);
-  const createResourceIdsRef = useRef<string[]>([]);
+  // Reforge (перековка): оружие/броня + схема
+  const [reforgeWeapon, setReforgeWeapon] = useState<Item | null>(null);
+  const [reforgeBlueprint, setReforgeBlueprint] = useState<Item | null>(null);
 
   // Tooltip for result items
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
@@ -221,7 +150,6 @@ export const Craft = () => {
           const ctype = state.craftingType;
           state.setCraftingType(null);
           if (ctype === 'merge') handleMergeComplete();
-          else if (ctype === 'create') handleCreateComplete();
         } else {
           state.setCraftingTimer(state.craftingTimer - 1);
         }
@@ -369,19 +297,26 @@ export const Craft = () => {
       // Из патронов схем не бывает.
       if (disassembleCategoryOf(item) === 'bullet' || disassembleCategoryOf(item) === 'energyCell') continue;
       const bp = rollBlueprint(item.quality);
-      if (bp) blueprint = {
-        id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        name: `Схема: ${bp}`, displayName: `📜 Схема (${bp})`,
-        type: 'blueprint', blueprintRarity: bp, slot: 'any', rarity: bp,
-        level: 1, stats: {}, quality: bp,
-        qualityColor: QUALITY_COLORS[bp] || '#a0a0a0', stackable: false,
-      } as Item;
+      if (bp) {
+        // Схема на один случайный стат, уровень = уровень разобранного предмета.
+        const stat = SCHEME_STATS[Math.floor(Math.random() * SCHEME_STATS.length)];
+        const pct = schemePctFor(stat, bp);
+        const label = SCHEME_STAT_LABELS[stat] || stat;
+        blueprint = {
+          id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          name: `Схема: ${label}`, displayName: `📜 Схема (${bp}): ${label} +${pct}%`,
+          type: 'blueprint', blueprintRarity: bp, blueprintStat: stat, slot: 'any', rarity: bp,
+          level: item.level || 1, stats: {}, quality: bp,
+          qualityColor: QUALITY_COLORS[bp] || '#a0a0a0', stackable: false,
+          image: getSchemeImage(stat),
+        } as Item;
+      }
     }
     try {
       const res = await fetch(`${base}/craft/disassemble.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({
         consumeIds,
         materials: materials.map((m) => ({ id: m.id, name: m.name, quantity: m.quantity, quality: m.quality || 'Обычный' })),
-        blueprint: blueprint ? { id: blueprint.id, name: blueprint.name, slot: blueprint.slot, quality: blueprint.quality } : null,
+        blueprint: blueprint ? { id: blueprint.id, name: blueprint.name, displayName: blueprint.displayName, slot: blueprint.slot, quality: blueprint.quality, qualityColor: blueprint.qualityColor, level: blueprint.level, blueprintRarity: (blueprint as any).blueprintRarity, blueprintStat: (blueprint as any).blueprintStat, image: blueprint.image } : null,
       }) });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
@@ -407,128 +342,185 @@ export const Craft = () => {
     playSound('craft3', 0.5);
     if (blueprint) {
       addItem(blueprint);
-      addLog(`📜 Схема (${blueprint.quality}) при разборе`, 'loot');
+      addLog(`📜 Схема: ${blueprint.displayName}`, 'loot');
     }
     addLog(`🔨 Разобрано ${filled.length} предмет(ов)`, 'info');
     setDisassembleSlots(Array(5).fill(null));
   }
 
-  // Create: available stats for the selected slot
-  const availableStats = useMemo(() => {
-    if (!createSlot) return [];
-    return SLOT_STAT_POOL[createSlot] || [];
-  }, [createSlot]);
-
-  const maxStats = useMemo(() => {
-    if (!createBlueprint) return 0;
-    return STAT_COUNT[createBlueprint.blueprintRarity || 'Обычный'] || 1;
-  }, [createBlueprint]);
-
-  const selectedStatsCount = useMemo(() => {
-    return Object.values(createSelectedStats).reduce((s, c) => s + c, 0);
-  }, [createSelectedStats]);
-
-  const costMultiplier = useMemo(() => {
-    let m = 0;
-    for (const count of Object.values(createSelectedStats)) {
-      for (let i = 0; i < count; i++) m += Math.pow(2, i);
-    }
-    return m || 1;
-  }, [createSelectedStats]);
-
-  function incCreateStat(stat: string) {
-    const totalSelected = Object.values(createSelectedStats).reduce((s, c) => s + c, 0);
-    if (totalSelected >= maxStats) return;
-    setCreateSelectedStats((prev) => {
-      const next = { ...prev };
-      next[stat] = (next[stat] || 0) + 1;
-      return next;
-    });
+  // ============ ПЕРЕКОВКА ============
+  function handleDropToReforge(itemId: string) {
+    if (reforgeWeapon) return;
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
+    if (!isSocketable(item)) { addLog('❌ Перековывать можно только оружие и броню', 'warning'); return; }
+    if ((item as any).unique) { addLog('❌ Уники нельзя перековывать', 'warning'); return; }
+    removeItem(item.id);
+    // Старым предметам фиксируем гнёзда и базу сразу, чтобы не плавали.
+    const fixed: Item = {
+      ...item,
+      socketSlots: socketSlotsOf(item),
+      sockets: Array.isArray((item as any).sockets) ? (item as any).sockets : [],
+    };
+    setReforgeWeapon(fixed);
+    playSound('install', 0.4);
   }
 
-  function decCreateStat(stat: string) {
-    setCreateSelectedStats((prev) => {
-      if (!prev[stat] || prev[stat] <= 0) return prev;
-      const next = { ...prev };
-      next[stat] -= 1;
-      if (next[stat] <= 0) delete next[stat];
-      return next;
-    });
+  function handleRemoveReforgeWeapon() {
+    if (!reforgeWeapon) return;
+    addItem(reforgeWeapon);
+    setReforgeWeapon(null);
+    playSound('clickbutton', 0.3);
   }
 
-  const canAffordCreate = useMemo(() => {
-    if (!createBlueprint || !createSlot) return false;
-    const quality = createBlueprint.blueprintRarity || 'Обычный';
-    const base = craftCostFor(createSlot, quality);
-    if (!base) return false;
-    const mul = costMultiplier;
-    for (const [mat, count] of Object.entries(base)) {
-      if (count <= 0) continue;
-      const needed = Math.ceil(count * mul);
-      if (countResource(MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES]) < needed) return false;
-    }
-    return true;
-  }, [createBlueprint, items, costMultiplier]);
-
-  function handleCreate() {
-    if (!createSlot || !createBlueprint) return;
-    const quality = createBlueprint.blueprintRarity || 'Обычный';
-    const base = craftCostFor(createSlot, quality);
-    if (!base) return;
-    const mul = costMultiplier;
-    const resourceCheck: Record<string, number> = {};
-    for (const [mat, count] of Object.entries(base)) {
-      if (count > 0) resourceCheck[MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES]] = Math.ceil(count * mul);
-    }
-    // Capture resource IDs before removal
-    const allItems = useInventoryStore.getState().items;
-    const resourceIds: string[] = [];
-    for (const [matName, needed] of Object.entries(resourceCheck)) {
-      let remaining = needed;
-      for (const it of allItems) {
-        if (it.name === matName && it.type === 'material' && remaining > 0) { resourceIds.push(it.id); remaining -= it.quantity || 1; }
-      }
-    }
-    createBlueprintIdRef.current = createBlueprint.id;
-    createResourceIdsRef.current = resourceIds;
-    if (!removeResources(resourceCheck)) { addLog('❌ Недостаточно ресурсов', 'warning'); return; }
-    removeItem(createBlueprint.id);
-    setCraftingType('create');
-    setCraftingTimer(5);
-    playSound('craft', 0.5);
-    addLog('⚙️ Создание предмета... 5 сек', 'info');
+  function handleDropReforgeBp(itemId: string) {
+    if (reforgeBlueprint) return;
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
+    if (item.type !== 'blueprint') { addLog('❌ Сюда только схемы', 'warning'); return; }
+    removeItem(item.id);
+    setReforgeBlueprint(item);
+    playSound('install', 0.4);
   }
 
-  async function handleCreateComplete() {
-    if (!createSlot) return;
-    const quality = createBlueprint?.blueprintRarity || 'Обычный';
-    const forcedStats: Record<string, number> = {};
-    for (const [stat, count] of Object.entries(createSelectedStats)) {
-      if (count > 0) {
-        let total = 0;
-        for (let i = 0; i < count; i++) total += generateStatValue(stat, level);
-        forcedStats[stat] = Number(total.toFixed(3));
-      }
+  function handleRemoveReforgeBp() {
+    if (!reforgeBlueprint) return;
+    addItem(reforgeBlueprint);
+    setReforgeBlueprint(null);
+    playSound('clickbutton', 0.3);
+  }
+
+  /** База статов 1 ур.: сохранённая или обратным пересчётом из текущих. */
+  function baseStatsOf(w: Item): Record<string, number> {
+    if ((w as any).baseStats) return { ...((w as any).baseStats as Record<string, number>) };
+    const mult = levelStatMult(w.level || 1);
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(w.stats || {})) {
+      if (typeof v !== 'number' || v < 0) continue;
+      out[k] = v / mult;
     }
-    const newItem = generateItemForSlot(createSlot, quality, level, forcedStats, createSlot === 'weapon2' ? createGunClass : undefined);
-    setCreateResult(newItem);
-    playSound('craft4', 0.5);
-    addLog(`⚙️ Создан: ${newItem.displayName} (${quality})`, 'loot');
-    setCreateBlueprint(null);
-    setCreateSlot(null);
-    setCreateSelectedStats({});
-    // Сервер — писатель: ждём ok, иначе результат не выдаём.
+    return out;
+  }
+
+  function bumpDisplayName(w: Item, lvl: number): string {
+    const dn = w.displayName || w.name;
+    if (/\d+\s*ур\.?/.test(dn)) return dn.replace(/\d+\s*ур\.?/, `${lvl} ур.`);
+    return `${dn} ${lvl} ур.`;
+  }
+
+  /** Подъём уровня на +1 за ресурсы (потолок — уровень игрока). */
+  async function handleLevelUp() {
+    const w = reforgeWeapon;
+    if (!w) return;
+    const curLvl = w.level || 1;
+    if (curLvl >= level) { addLog(`❌ Максимум: уровень игрока (${level})`, 'warning'); return; }
+    const cost = craftCostFor((w.slot as string) || 'armor', w.quality || 'Обычный');
+    const need: Record<string, number> = {};
+    for (const [mat, count] of Object.entries(cost)) {
+      if (count > 0) need[MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES]] = count;
+    }
+    for (const [matName, count] of Object.entries(need)) {
+      if (countResource(matName) < count) { addLog('❌ Не хватает ресурсов на перековку', 'warning'); playSound('clickbutton', 0.3); return; }
+    }
+    const base1 = baseStatsOf(w);
+    const newLvl = curLvl + 1;
+    const updated: Item = {
+      ...w,
+      level: newLvl,
+      stats: statsForLevel(base1, newLvl),
+      baseStats: base1,
+      socketSlots: socketSlotsOf(w),
+      sockets: Array.isArray((w as any).sockets) ? (w as any).sockets : [],
+      displayName: bumpDisplayName(w, newLvl),
+    };
     try {
-      const res = await fetch(`${base}/craft/create.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({ blueprintId: createBlueprintIdRef.current, resourceIds: createResourceIdsRef.current, result: newItem }) });
+      const res = await fetch(`${base}/craft/reforge.php`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ op: 'levelup', weaponId: w.id, weapon: updated, needs: need }) });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
-        addLog(`❌ Сервер отклонил создание: ${err?.error || res.status}`, 'warning');
-        setCreateResult(null);
+        addLog(`❌ Сервер отклонил перековку: ${err?.error || res.status}`, 'warning');
+        return;
       }
     } catch {
-      addLog('❌ Ошибка сети — результат не сохранён', 'warning');
-      setCreateResult(null);
+      addLog('❌ Ошибка сети — уровень не поднят', 'warning');
+      return;
     }
+    removeResources(need);
+    setReforgeWeapon(updated);
+    playSound('craft2', 0.5);
+    addLog(`⚒️ ${updated.displayName} → ${newLvl} ур.`, 'loot');
+  }
+
+  /** Вставить схему из малого слота (слоты кончились — сначала удали старую). */
+  async function handleSocketScheme() {
+    const w = reforgeWeapon;
+    const bp = reforgeBlueprint;
+    if (!w || !bp) return;
+    const max = socketSlotsOf(w);
+    const cur = Array.isArray((w as any).sockets) ? [...(w as any).sockets] : [];
+    if (cur.length >= max) { addLog('❌ Гнёзда заняты — удали старую схему', 'warning'); return; }
+    const stat = (bp as any).blueprintStat || 'damage';
+    if (!isSocketable(w)) { addLog('❌ Схемы только на оружие/броню', 'warning'); return; }
+    if ((bp.level || 1) < (w.level || 1)) { addLog(`❌ Схема ${bp.level || 1} ур. — нужен уровень не ниже оружия (${w.level || 1})`, 'warning'); return; }
+    const pct = schemePctFor(stat, (bp as any).blueprintRarity || bp.quality);
+    const updated: Item = {
+      ...w,
+      socketSlots: max,
+      sockets: [...cur, { stat, pct }],
+    };
+    try {
+      const res = await fetch(`${base}/craft/reforge.php`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ op: 'socket', weaponId: w.id, weapon: updated, blueprintId: bp.id }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        addLog(`❌ Сервер отклонил схему: ${err?.error || res.status}`, 'warning');
+        return;
+      }
+    } catch {
+      addLog('❌ Ошибка сети — схема не вставлена', 'warning');
+      return;
+    }
+    removeItem(bp.id);
+    setReforgeBlueprint(null);
+    setReforgeWeapon(updated);
+    playSound('craft4', 0.5);
+    addLog(`💎 Схема: ${SCHEME_STAT_LABELS[stat] || stat} +${pct}% → ${w.displayName || w.name}`, 'loot');
+  }
+
+  /** Удалить вставленную схему (бесплатно). */
+  async function handleRemoveScheme(idx: number) {
+    const w = reforgeWeapon;
+    if (!w) return;
+    const cur = Array.isArray((w as any).sockets) ? [...(w as any).sockets] : [];
+    if (idx < 0 || idx >= cur.length) return;
+    const updated: Item = { ...w, sockets: cur.filter((_, i) => i !== idx) };
+    try {
+      const res = await fetch(`${base}/craft/reforge.php`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ op: 'socket', weaponId: w.id, weapon: updated, blueprintId: null }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        addLog(`❌ Сервер отклонил: ${err?.error || res.status}`, 'warning');
+        return;
+      }
+    } catch {
+      addLog('❌ Ошибка сети', 'warning');
+      return;
+    }
+    setReforgeWeapon(updated);
+    playSound('clickbutton', 0.3);
+    addLog('💎 Схема извлечена', 'info');
+  }
+
+  // Создание патронов: мгновенно, полный стак обычных (энергоячейки — без пороха).
+  function handleCraftAmmo(group: AmmoGroup) {
+    const cost = AMMO_CRAFT_COST[group];
+    if (!cost) return;
+    const need: Record<string, number> = {};
+    if (cost.powder > 0) need[MATERIAL_NAMES.powder] = cost.powder;
+    if (cost.scrap > 0) need[MATERIAL_NAMES.scrap] = cost.scrap;
+    if ((cost.reagent || 0) > 0) need[MATERIAL_NAMES.reagent] = cost.reagent || 0;
+    if (!removeResources(need)) { addLog('❌ Не хватает ресурсов на патроны', 'warning'); playSound('clickbutton', 0.3); return; }
+    const pack = makeBulletPack(group, maxStackFor(group), 'Обычный');
+    addItem(pack);
+    playSound('reloading', 0.5);
+    addLog(`🔸 Снаряжено: ${pack.displayName}`, 'loot');
   }
 
   return (
@@ -554,7 +546,7 @@ export const Craft = () => {
 
         <WapPanel variant="screen" padding="sm" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {([{ id: 'merge', label: '⬆️ Улучшение' }, { id: 'disassemble', label: '🔨 Разбор' }, { id: 'create', label: '⚙️ Создание' }] as const).map((t) => (
+            {([{ id: 'merge', label: '⬆️ Улучшение' }, { id: 'disassemble', label: '🔨 Разбор' }, { id: 'create', label: '⚒️ Перековка' }] as const).map((t) => (
               <Button key={t.id} size="sm" variant={tab === t.id ? 'primary' : 'ghost'} onClick={() => { playSound('clickbutton', 0.3); setTab(t.id); }}>
                 {t.label}
               </Button>
@@ -664,192 +656,152 @@ export const Craft = () => {
           </WapPanel>
         )}
 
-        {/* ============ CREATE ============ */}
+        {/* ============ REFORGE ============ */}
         {tab === 'create' && (
           <WapPanel variant="metal" padding="lg" style={{ maxWidth: 660 }}>
-            <WapHeader title="⚙️ Создание предмета" glow="amber" />
-            {craftingTimer > 0 && craftingType === 'create' ? (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div style={{ fontSize: 14, color: 'var(--accent-warning)', marginBottom: 8 }}>⚙️ Создание...</div>
-                <ProgressBar value={5 - craftingTimer} max={5} variant="accent" label={`${craftingTimer} сек`} />
+            <WapHeader title="⚒️ Перековка" glow="amber" />
+            <>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                Перетащи оружие/броню в большой слот и схему в малый. Поднимай уровень до своего ({level}) и вставляй схемы в гнёзда. Уники не перековываются.
               </div>
-            ) : (
-              <>
-                {/* Step 1: Choose slot */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-                    Шаг 1: Выбери тип предмета
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {Object.entries(SLOT_LABELS).map(([slot, label]) => (
-                      <Button key={slot} size="sm"
-                        variant={createSlot === slot ? 'primary' : 'ghost'}
-                        onClick={() => { playSound('clickbutton', 0.3); setCreateSlot(slot); setCreateSelectedStats({}); }}
-                        style={{ fontSize: 11 }}
-                      >
-                        {SLOT_ICONS[slot]} {label}
-                      </Button>
-                    ))}
-                  </div>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center', justifyContent: 'center' }}>
+                {/* Большой слот: оружие/броня */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) handleDropToReforge(id); }}
+                  onClick={() => reforgeWeapon && handleRemoveReforgeWeapon()}
+                  title={reforgeWeapon ? `${reforgeWeapon.displayName || reforgeWeapon.name} — клик вернуть в инвентарь` : 'Оружие или броня из инвентаря'}
+                  style={{
+                    width: 110, height: 110, borderRadius: 8,
+                    border: `2px dashed ${reforgeWeapon ? (reforgeWeapon.qualityColor || 'rgba(255,255,255,0.2)') : 'rgba(255,255,255,0.1)'}`,
+                    background: reforgeWeapon ? `${reforgeWeapon.qualityColor || '#222'}22` : 'rgba(255,255,255,0.03)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    cursor: reforgeWeapon ? 'pointer' : 'default', gap: 4, padding: 4,
+                  }}
+                >
+                  {reforgeWeapon ? (
+                    <>
+                      {(() => { const url = reforgeWeapon.image || getItemImage(reforgeWeapon.name, reforgeWeapon.displayName, reforgeWeapon.slot, reforgeWeapon.type); return url ? <img src={url} alt="" style={{ width: 56, height: 56, objectFit: 'contain' }} draggable={false} /> : <span style={{ fontSize: 30 }}>{SlotIcon(reforgeWeapon)}</span>; })()}
+                      <span style={{ color: reforgeWeapon.qualityColor || '#aaa', lineHeight: 1.1, fontSize: 10, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {reforgeWeapon.displayName || reforgeWeapon.name}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Lv.{reforgeWeapon.level || 1}</span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: 30, color: 'rgba(255,255,255,0.08)' }}>🗡️</span>
+                  )}
                 </div>
+                <span style={{ fontSize: 20, color: 'var(--text-muted)' }}>+</span>
+                {/* Малый слот: схема */}
+                <DropSlot item={reforgeBlueprint} onDrop={handleDropReforgeBp}
+                  onRemove={handleRemoveReforgeBp} label="Схема"
+                />
+              </div>
+              {/* Слоты перековки ниже */}
 
-                {/* Step 1b: класс огнестрела */}
-                {createSlot === 'weapon2' && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-                      Класс огнестрела
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {([
-                        { key: 'rifle', label: 'Автомат' }, { key: 'pistol', label: 'Пистолет' },
-                        { key: 'shell', label: 'Дробовик' }, { key: 'sniper', label: 'Снайперка' },
-                        { key: 'mg', label: 'Пулемёт' }, { key: 'energy', label: 'Тяжёлое' },
-                      ] as { key: AmmoGroup; label: string }[]).map((c) => {
-                        const g = AMMO_GROUPS.find((a) => a.key === c.key);
-                        const img = g ? getBulletImage(g.packName) : undefined;
-                        return (
-                          <Button key={c.key} size="sm"
-                            variant={createGunClass === c.key ? 'primary' : 'ghost'}
-                            onClick={() => { playSound('clickbutton', 0.3); setCreateGunClass(c.key); }}
-                            style={{ fontSize: 11 }}
-                          >
-                            {img && <img src={img} alt="" style={{ width: 18, height: 18, objectFit: 'contain', marginRight: 4 }} />}
-                            {c.label}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                {/* Подъём уровня и схемы ниже */}
 
-                {/* Step 2: Choose blueprint */}
-                {createSlot && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-                      Шаг 2: Вставь схему (определяет качество)
-                    </div>
-                    {(() => {
-                      const blueprints = items.filter((i) => i.type === 'blueprint');
-                      if (blueprints.length === 0) {
-                        return <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>Нет схем. Разбирай предметы.</div>;
-                      }
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {blueprints.map((bp) => (
-                            <div key={bp.id} onClick={() => { setCreateBlueprint(bp); setCreateSelectedStats({}); }}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer',
-                                background: createBlueprint?.id === bp.id ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.02)',
-                                border: `1px solid ${createBlueprint?.id === bp.id ? 'var(--border-accent)' : 'rgba(255,255,255,0.06)'}`,
-                                borderRadius: 4, fontSize: 12,
-                              }}
-                            >
-                              <span>📜</span>
-                              <span style={{ color: bp.qualityColor || 'var(--text-primary)', fontWeight: 500 }}>
-                                {bp.displayName || bp.name}
-                              </span>
-                              {createBlueprint?.id === bp.id && <span style={{ marginLeft: 'auto', color: 'var(--accent-primary)' }}>✓</span>}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-
-                {/* Step 3: Choose stats */}
-                {createSlot && createBlueprint && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-                      Шаг 3: Выбери статы ({selectedStatsCount}/{maxStats})
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {availableStats.map((stat) => {
-                        const statCount = createSelectedStats[stat] || 0;
-                        const canSelect = selectedStatsCount < maxStats;
-                        return (
-                          <div key={stat}
-                            onClick={() => canSelect && incCreateStat(stat)}
-                            onContextMenu={(e) => { e.preventDefault(); decCreateStat(stat); }}
-                            style={{
-                              padding: '5px 10px', borderRadius: 4,
-                              cursor: canSelect || statCount > 0 ? 'pointer' : 'not-allowed',
-                              background: statCount > 0 ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.03)',
-                              border: `1px solid ${statCount > 0 ? 'var(--accent-success)' : 'rgba(255,255,255,0.06)'}`,
-                              color: statCount > 0 ? 'var(--accent-success)' : 'var(--text-muted)',
-                              opacity: canSelect || statCount > 0 ? 1 : 0.35,
-                              fontSize: 12, userSelect: 'none',
-                            }}
-                          >
-                            {STAT_LABELS[stat] || stat}
-                            {statCount > 0 ? ` ×${statCount}` : ' +'}
+                {/* Подъём уровня и схемы ниже */}
+                {(() => {
+                  const w = reforgeWeapon;
+                  const maxSockets = w ? socketSlotsOf(w) : 0;
+                  const installed = w && Array.isArray((w as any).sockets) ? (w as any).sockets : [];
+                  const wLvl = w ? (w.level || 1) : 1;
+                  const canLevel = w && wLvl < level;
+                  const lvlCost = w ? craftCostFor((w.slot as string) || 'armor', w.quality || 'Обычный') : null;
+                  const bp = reforgeBlueprint;
+                  const bpStat = bp ? ((bp as any).blueprintStat || 'damage') : '';
+                  const bpPct = bp ? schemePctFor(bpStat, ((bp as any).blueprintRarity || bp.quality)) : 0;
+                  return (
+                    <>
+                      {/* Подъём уровня */}
+                      {w && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+                            Подъём уровня ({wLvl} → {wLvl + 1}, твой {level})
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 4: Resources + Craft */}
-                {createSlot && createBlueprint && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-                      Шаг 4: Ресурсы
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-                      {(() => {
-                        const quality = createBlueprint.blueprintRarity || 'Обычный';
-                        const base = craftCostFor(createSlot, quality);
-                        const mul = costMultiplier;
-                        return Object.entries(base).map(([mat, count]) => {
-                          if (count <= 0) return null;
-                          const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
-                          const needed = Math.ceil(count * mul);
-                          const have = countResource(matName);
-  // Создание патронов: мгновенно, полный стак обычных (энергоячейки — без пороха).
-  function handleCraftAmmo(group: AmmoGroup) {
-    const cost = AMMO_CRAFT_COST[group];
-    if (!cost) return;
-    const need: Record<string, number> = {};
-    if (cost.powder > 0) need[MATERIAL_NAMES.powder] = cost.powder;
-    if (cost.scrap > 0) need[MATERIAL_NAMES.scrap] = cost.scrap;
-    if ((cost.reagent || 0) > 0) need[MATERIAL_NAMES.reagent] = cost.reagent || 0;
-    if (!removeResources(need)) { addLog('❌ Не хватает ресурсов на патроны', 'warning'); playSound('clickbutton', 0.3); return; }
-    const pack = makeBulletPack(group, maxStackFor(group), 'Обычный');
-    addItem(pack);
-    playSound('reloading', 0.5);
-    addLog(`🔸 Снаряжено: ${pack.displayName}`, 'loot');
-  }
-
-  return (
-                            <span key={mat} style={{
-                              fontSize: 11, padding: '2px 6px', borderRadius: 4,
-                              background: have >= needed ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)',
-                              color: have >= needed ? 'var(--accent-success)' : 'var(--accent-danger)',
-                            }}>
-                              {matName} {have}/{needed}
-                              {mul > 1 && <span style={{ opacity: 0.5, marginLeft: 2 }}>(×{mul})</span>}
-                            </span>
-                          );
-                        });
-                      })()}
-                    </div>
-                    {costMultiplier > 1 && (
-                      <div style={{ fontSize: 10, color: 'var(--accent-warning)', textAlign: 'center', marginBottom: 8 }}>
-                        Множитель ресурсов: ×{costMultiplier} (повторы статов)
-                      </div>
-                    )}
-                    <Button variant="primary" size="md"
-                      disabled={!canAffordCreate || selectedStatsCount === 0}
-                      onClick={handleCreate}
-                      style={{ width: '100%', background: canAffordCreate && selectedStatsCount > 0 ? 'var(--accent-success)' : undefined }}
-                    >
-                      ⚙️ Создать
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
+                          {lvlCost && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                              {Object.entries(lvlCost).map(([mat, count]) => {
+                                if (count <= 0) return null;
+                                const matName = MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES];
+                                const have = countResource(matName);
+                                return (
+                                  <span key={mat} style={{
+                                    fontSize: 11, padding: '2px 6px', borderRadius: 4,
+                                    background: have >= count ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)',
+                                    color: have >= count ? 'var(--accent-success)' : 'var(--accent-danger)',
+                                  }}>
+                                    {matName} {have}/{count}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <Button variant="primary" size="md" disabled={!canLevel} onClick={handleLevelUp} style={{ width: '100%' }}>
+                            {canLevel ? `⚒️ Поднять до ${wLvl + 1} ур.` : `✅ Максимум (${wLvl} ур.)`}
+                          </Button>
+                        </div>
+                      )}
+                      {/* Схемы */}
+                      {w && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+                            Схемы ({installed.length}/{maxSockets})
+                          </div>
+                          {installed.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                              {installed.map((s: any, i: number) => (
+                                <div key={i} style={{
+                                  display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px',
+                                  background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.25)',
+                                  borderRadius: 4, fontSize: 12,
+                                }}>
+                                  <span style={{ color: '#4ade80', fontWeight: 600 }}>💎 {SCHEME_STAT_LABELS[s.stat] || s.stat} +{s.pct}%</span>
+                                  <span
+                                    onClick={() => handleRemoveScheme(i)}
+                                    style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)' }}
+                                  >
+                                    ✕ убрать (бесплатно)
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {installed.length < maxSockets ? (
+                            bp ? (
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                                background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.3)',
+                                borderRadius: 4, fontSize: 12, marginBottom: 8,
+                              }}>
+                                <span style={{ color: bp.qualityColor || 'var(--text-primary)' }}>
+                                  {bp.displayName || bp.name} (ур. {bp.level || 1})
+                                </span>
+                                <Button size="sm" variant="primary" onClick={handleSocketScheme} style={{ marginLeft: 'auto' }}>
+                                  Вставить
+                                </Button>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                Перетащи схему в малый слот выше{bp ? '' : ' (схемы падают с разбора)'}.
+                              </div>
+                            )
+                          ) : (
+                            <div style={{ fontSize: 11, color: 'var(--accent-warning)' }}>
+                              Гнёзда забиты — удали старую схему, чтобы вставить новую.
+                            </div>
+                          )}
+                          {bp && (bp.level || 1) < wLvl && (
+                            <div style={{ fontSize: 11, color: 'var(--accent-danger)', marginTop: 4 }}>
+                              Схема {bp.level || 1} ур. — нужен уровень не ниже оружия ({wLvl}).
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 {/* Патроны: мгновенное снаряжение полного стака обычных */}
                 <div style={{ marginTop: 16, marginBottom: 12 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
@@ -886,34 +838,9 @@ export const Craft = () => {
                         </div>
                       );
                     })}
+                    </div>
                   </div>
-                </div>
-                {createResult && (
-              <div style={{ marginTop: 16, textAlign: 'center' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  Результат создания:
-                </div>
-                <div
-                  onMouseEnter={(e) => { setTooltipItem(createResult); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
-                  onMouseMove={(e) => { if (tooltipItem) setTooltipPos({ x: e.clientX, y: e.clientY }); }}
-                  onMouseLeave={() => setTooltipItem(null)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 10, padding: '8px 14px',
-                    border: `1px solid ${createResult.qualityColor || 'rgba(255,255,255,0.2)'}`,
-                    borderRadius: 6, background: 'rgba(0,0,0,0.25)', fontSize: 13,
-                  }}
-                >
-                  <span style={{ fontSize: 20 }}>{SlotIcon(createResult)}</span>
-                  <span style={{ color: createResult.qualityColor || 'var(--text-primary)', fontWeight: 500 }}>
-                    {createResult.displayName || createResult.name}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Lv.{createResult.level}</span>
-                  <Button size="sm" variant="primary" onClick={() => { playSound('paySell', 0.5); addItem(createResult); setCreateResult(null); setTooltipItem(null); }}>
-                    Забрать
-                  </Button>
-                </div>
-              </div>
-            )}
+                </>
           </WapPanel>
         )}
       </div>

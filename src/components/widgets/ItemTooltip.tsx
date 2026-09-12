@@ -10,6 +10,7 @@ import { getSellPrice } from '../../utils/sellPrice';
 import { SET_BONUSES } from '../../data/GameItems';
 import { usePlayerStore, gunSlotForWeapon, EQUIPMENT_SLOTS } from '../../stores/playerStore';
 import { effectiveItemStats, modStatsOf, modLevelMult } from '../../utils/itemStats';
+import { socketSlotsOf, schematicBonusOf, isSocketable, schemePctFor, SCHEME_STAT_LABELS } from '../../data/schematics';
 import { useState, useEffect } from 'react';
 
 interface ItemTooltipProps {
@@ -115,6 +116,23 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
       {imgUrl && (
         <div style={{ textAlign: 'center', marginBottom: 10, position: 'relative' }}>
           <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4 }} />
+          {/* Гнёзда под схемы: столбец кристаллов справа от картинки */}
+          {isSocketable(item) && socketSlotsOf(item) > 0 && (() => {
+            const max = socketSlotsOf(item);
+            const filled = Array.isArray((item as any).sockets) ? (item as any).sockets.length : 0;
+            return (
+              <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', flexDirection: 'column', gap: 3 }} title={`Гнёзда схем: ${filled}/${max}`}>
+                {Array.from({ length: max }).map((_, i) => (
+                  <div key={i} style={{
+                    width: 10, height: 10, transform: 'rotate(45deg)',
+                    background: i < filled ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${i < filled ? '#4ade80' : 'rgba(255,255,255,0.35)'}`,
+                    boxShadow: i < filled ? '0 0 6px rgba(74,222,128,0.9)' : 'none',
+                  }} />
+                ))}
+              </div>
+            );
+          })()}
           {item.quality && QUALITY_STARS[item.quality] ? (
             <div style={{ position: 'absolute', top: -4, left: -4, display: 'flex', gap: 1 }}>
               {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
@@ -155,6 +173,26 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
         )}
       </div>
 
+      {item.type === 'blueprint' && (() => {
+        const stat = (item as any).blueprintStat || 'damage';
+        const pct = schemePctFor(stat, (item as any).blueprintRarity || item.quality);
+        return (
+          <div style={{
+            background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.3)',
+            borderRadius: 6, padding: '6px 8px', marginBottom: 8,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#4ade80' }}>
+              💎 {SCHEME_STAT_LABELS[stat] || stat} +{pct}%
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+              Уровень схемы: {item.level || 1} (нужен не ниже уровня предмета)
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              Вставляется в перековке, улучшает только этот предмет
+            </div>
+          </div>
+        );
+      })()}
       {item.type === 'bullet' && (() => {
         const pct = BULLET_DMG_PCT[Math.min(bulletQualityIndex(item.quality), BULLET_DMG_PCT.length - 1)] || 0;
         return (
@@ -349,6 +387,25 @@ export const ItemTooltip = ({ item, x, y, nested }: ItemTooltipProps) => {
                 })}
               </div>
             )}
+            {(() => {
+              const bonus = schematicBonusOf(item);
+              const keys = Object.keys(bonus).filter((k) => bonus[k] > 0);
+              if (keys.length === 0) return null;
+              return (
+                <div style={{
+                  marginTop: 4, padding: '5px 7px', borderRadius: 6,
+                  background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.3)',
+                  display: 'flex', flexDirection: 'column', gap: 2,
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#4ade80', letterSpacing: 1 }}>- БОНУС</div>
+                  {keys.map((k) => (
+                    <div key={k} style={{ fontSize: 12, color: '#4ade80' }}>
+                      {(SCHEME_STAT_LABELS[k] || STAT_LABELS[k] || k)}: +{bonus[k]}%
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         );
       })()}

@@ -51,6 +51,13 @@ export interface Item {
   loadedAmmo?: number;
   // Уникальная броня: плашка «УНИК», может нести штраф скорости и перки.
   unique?: boolean;
+  // Перековка: гнёзда под схемы (максимум) и вставленные схемы.
+  socketSlots?: number;
+  sockets?: { stat: string; pct: number }[];
+  // База статов 1 ур. для подъёма уровня перековкой.
+  baseStats?: Record<string, number>;
+  // Схема: какой стат усиливает.
+  blueprintStat?: string;
 }
 
 

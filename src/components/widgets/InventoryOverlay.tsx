@@ -38,6 +38,7 @@ const SLOT_FILTERS = [
   { value: 'consumable', label: '— Расходники' },
   { value: 'backpack', label: '— Рюкзаки' },
   { value: 'bullet', label: '— Патроны' },
+  { value: 'blueprint', label: '— Схемы' },
 ];
 
 const getItemTimestamp = (item: Item): number => {
@@ -122,6 +123,7 @@ const slotFilterKey = (item: Item): string => {
   if (item.type === 'chest') return 'chest';
   if (item.type === 'backpack') return 'backpack';
   if (item.type === 'bullet') return 'bullet';
+  if (item.type === 'blueprint') return 'blueprint';
   if (item.slot === 'ammo') return 'ammo';
   // Огнестрел раскладывается по классовым фильтрам.
   if (item.slot === 'weapon2') return gunSlotForWeapon(item);
