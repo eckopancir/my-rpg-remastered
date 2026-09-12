@@ -93,10 +93,10 @@ export const getBackpackImage = (familyOrName?: string): string | undefined => {
 
 /** Картинка пачки патронов по имени (6 спрайтов ammo_*.png). */
 const BULLET_IMAGE_MAP: Record<string, string> = {
-  'пистолетных': 'ammo_pistol',
-  'автоматных': 'ammo_rifle',
-  'снайперских': 'ammo_sniper',
-  'дроби': 'ammo_shell',
+  'пистолет': 'ammo_pistol',
+  'автомат': 'ammo_rifle',
+  'снайпер': 'ammo_sniper',
+  'дробь': 'ammo_shell',
   'лента': 'ammo_mg',
   'энергоячейки': 'ammo_energy',
 };

@@ -13,13 +13,29 @@ export interface AmmoGroupDef {
 }
 
 export const AMMO_GROUPS: AmmoGroupDef[] = [
-  { key: 'pistol', name: 'Пистолетные', icon: '🔸', packName: 'Пачка пистолетных патронов', price: 1, desc: 'Пистолеты и револьверы.' },
-  { key: 'rifle', name: 'Автоматные', icon: '🔶', packName: 'Пачка автоматных патронов', price: 2, desc: 'Штурмовые винтовки и ПП.' },
-  { key: 'sniper', name: 'Снайперские', icon: '🎯', packName: 'Пачка снайперских патронов', price: 5, desc: 'Точные винтовки.' },
-  { key: 'shell', name: 'Дробь', icon: '🟠', packName: 'Пачка дроби', price: 4, desc: 'Дробовики и обрезы.' },
+  { key: 'pistol', name: 'Пистолетные', icon: '🔸', packName: 'Патроны пистолетные', price: 1, desc: 'Пистолеты и револьверы.' },
+  { key: 'rifle', name: 'Автоматные', icon: '🔶', packName: 'Патроны автоматные', price: 2, desc: 'Штурмовые винтовки и ПП.' },
+  { key: 'sniper', name: 'Снайперские', icon: '🎯', packName: 'Патроны снайперские', price: 5, desc: 'Точные винтовки.' },
+  { key: 'shell', name: 'Дробь', icon: '🟠', packName: 'Дробь', price: 4, desc: 'Дробовики и обрезы.' },
   { key: 'mg', name: 'Пулемётные', icon: '⛓️', packName: 'Пулемётная лента', price: 1.5, desc: 'Пулемёты и миниганы.' },
   { key: 'energy', name: 'Энергоячейки', icon: '🔋', packName: 'Энергоячейки', price: 6, desc: 'ЭМИ, плазма, термика, гранатомёты.' },
 ];
+
+/** Старые имена пачек (были «Пачка ...») — для сейвов до переименования. */
+const LEGACY_PACK_NAMES: Record<string, AmmoGroup> = {
+  'Пачка пистолетных патронов': 'pistol',
+  'Пачка автоматных патронов': 'rifle',
+  'Пачка снайперских патронов': 'sniper',
+  'Пачка дроби': 'shell',
+};
+
+/** Пачка принадлежит группе: по ammoGroup, новому имени или старому имени. */
+export const isBulletOfGroup = (it: { type?: string; name?: string; ammoGroup?: string }, group: AmmoGroup): boolean => {
+  if ((it as any).type !== 'bullet') return false;
+  if ((it as any).ammoGroup === group) return true;
+  if (it.name === AMMO_GROUP_MAP[group].packName) return true;
+  return LEGACY_PACK_NAMES[it.name || ''] === group;
+};
 
 export const AMMO_GROUP_MAP: Record<AmmoGroup, AmmoGroupDef> = Object.fromEntries(
   AMMO_GROUPS.map((g) => [g.key, g]),
@@ -187,10 +203,9 @@ export const makeBulletPack = (group: AmmoGroup, quantity: number, quality = 'О
 
 /** Сколько патронов группы в списке предметов (инвентарь). */
 export const countAmmo = (items: Pick<Item, 'type' | 'name' | 'quantity'>[], group: AmmoGroup): number => {
-  const packName = AMMO_GROUP_MAP[group].packName;
   let total = 0;
   for (const i of items) {
-    if (i.type === 'bullet' && i.name === packName) total += i.quantity ?? 1;
+    if (isBulletOfGroup(i as any, group)) total += i.quantity ?? 1;
   }
   return total;
 };
@@ -217,14 +232,14 @@ export const addAmmoToPack = (
   const maxStack = maxStackFor(group);
   let rest = n;
   const next: Item[] = contents.map((it) => {
-    if (rest > 0 && it.type === 'bullet' && it.name === packName && (it.quality || 'Обычный') === quality) {
+    if (rest > 0 && isBulletOfGroup(it as any, group) && (it.quality || 'Обычный') === quality) {
       const q = (it.quantity ?? 1) as number;
       const room = maxStack - q;
       if (room > 0) {
         const add = Math.min(room, rest);
         rest -= add;
         const nq = q + add;
-        return { ...it, quantity: nq, displayName: quality === 'Обычный' ? `${packName} x${nq}` : `${packName} x${nq} · ${quality}` };
+        return { ...it, name: packName, quantity: nq, displayName: quality === 'Обычный' ? `${packName} x${nq}` : `${packName} x${nq} · ${quality}` };
       }
     }
     return it;
@@ -250,7 +265,7 @@ export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { i
   // Худшие первыми: сначала считаем, сколько есть каждого качества.
   const order = [...contents]
     .map((it, idx) => ({ it, idx }))
-    .filter(({ it }) => it.type === 'bullet' && it.name === packName)
+    .filter(({ it }) => isBulletOfGroup(it as any, group))
     .sort((a, b) => bulletQualityIndex((a.it as any).quality) - bulletQualityIndex((b.it as any).quality));
   let need = n;
   let taken = 0;
@@ -273,7 +288,7 @@ export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { i
     const q = ((it.quantity ?? 1) as number) - use;
     if (q > 0) {
       const qual = (it as any).quality || 'Обычный';
-      next.push({ ...it, quantity: q, displayName: qual === 'Обычный' ? `${packName} x${q}` : `${packName} x${q} · ${qual}` });
+      next.push({ ...it, name: packName, quantity: q, displayName: qual === 'Обычный' ? `${packName} x${q}` : `${packName} x${q} · ${qual}` });
     }
   });
   return { items: next, taken, quality: QUALITY_ORDER[worstIdx] || 'Обычный' };

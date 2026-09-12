@@ -1,5 +1,5 @@
 import type { Item } from '../types/items';
-import { maxStackFor, type AmmoGroup } from './ammo';
+import { maxStackFor, isBulletOfGroup, AMMO_GROUP_MAP, type AmmoGroup } from './ammo';
 
 // Каталог рюкзаков: 11 семейств × 5 градаций = 55 штук.
 // Слоты = baseSlots + индекс качества предмета (Обычный 0 … Божественный 6).
@@ -109,14 +109,19 @@ export const tryInsertInto = (contents: Item[], slots: number, item: Item): Inse
   if (item.type === 'bullet') {
     const cap = maxStackFor(((item as any).ammoGroup as AmmoGroup) || 'rifle');
     const bq = (item as any).quality || 'Обычный';
+    const bgroup = ((item as any).ammoGroup as AmmoGroup) || 'rifle';
     let qty = (item.quantity ?? 1) as number;
     for (const c of next) {
       if (qty <= 0) break;
-      if (c.type === 'bullet' && c.name === item.name && ((c as any).quality || 'Обычный') === bq && ((c.quantity ?? 1) as number) < cap) {
+      if (isBulletOfGroup(c as any, bgroup) && ((c as any).quality || 'Обычный') === bq && ((c.quantity ?? 1) as number) < cap) {
         const room = cap - ((c.quantity ?? 1) as number);
         const mv = Math.min(room, qty);
         c.quantity = ((c.quantity ?? 1) as number) + mv;
         qty -= mv;
+        // Ленивая миграция старых имён («Пачка ...») на новые.
+        const newName = AMMO_GROUP_MAP[bgroup].packName;
+        c.name = newName;
+        c.displayName = bq === 'Обычный' ? `${newName} x${c.quantity}` : `${newName} x${c.quantity} · ${bq}`;
       }
     }
     while (qty > 0) {
