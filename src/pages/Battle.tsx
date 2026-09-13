@@ -187,7 +187,6 @@ export const Battle = () => {
         case 'KeyF': playClick(); toggleStealth(); break;
         case 'KeyC': stealthKill(); break;
         case 'KeyQ': cycleWeapon(); break;
-        case 'Enter': e.preventDefault(); selectMe(); break;
         case 'KeyE': {
           if (campfire) {
             const dx = Math.abs(playerPos.x - campfire.x);
