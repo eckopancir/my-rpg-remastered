@@ -523,6 +523,8 @@ export const Bazaar = () => {
     if (!item) return;
     // Сферы не продаются.
     if ((item as any).type === 'blueprint') { addLog('❌ Сферы не продаются — они нужны для перековки', 'warning'); return; }
+    // Еда не продаётся.
+    if ((item as any).abilityId?.startsWith('food_')) { addLog('❌ Еду нельзя продать — её нужно съесть!', 'warning'); return; }
     if (sellSlots.some((s) => s?.id === item.id)) return;
     setSellSlots((prev) => {
       const next = [...prev];
