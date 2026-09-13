@@ -273,6 +273,7 @@ export const ALL_ABILITIES: AccessoryAbility[] = [
   { id: 'food_meat', name: 'Мясо', icon: '🥩', description: 'Сырое мясо. Нужно приготовить.', apCost: 1, cooldown: 0, powerRating: 0, effects: [] },
   { id: 'food_potato', name: 'Картошка', icon: '🥔', description: 'Сырая картошка. Нужно приготовить.', apCost: 1, cooldown: 0, powerRating: 0, effects: [] },
   { id: 'food_water', name: 'Вода', icon: '💧', description: 'Вода. Для приготовления.', apCost: 1, cooldown: 0, powerRating: 0, effects: [] },
+  { id: 'food_boiled_water', name: 'Кипяченая вода', icon: '♨️', description: '+1% HP.', apCost: 1, cooldown: 0, powerRating: 1, effects: [{ type: 'heal_percent', value: 1 }] },
   { id: 'food_sausage', name: 'Колбаса', icon: '🌭', description: '+2% HP.', apCost: 1, cooldown: 0, powerRating: 2, effects: [{ type: 'heal_percent', value: 2 }] },
   { id: 'food_apple', name: 'Яблоко', icon: '🍎', description: '+1% HP.', apCost: 1, cooldown: 0, powerRating: 1, effects: [{ type: 'heal_percent', value: 1 }] },
   { id: 'food_stew', name: 'Тушёнка', icon: '🥫', description: '+3% HP.', apCost: 1, cooldown: 0, powerRating: 3, effects: [{ type: 'heal_percent', value: 3 }] },

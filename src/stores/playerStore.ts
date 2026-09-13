@@ -1200,7 +1200,7 @@ export const usePlayerStore = create<PlayerStore>()(
         const FOOD_HEAL: Record<string, number> = {
           food_sausage: 2, food_apple: 1, food_stew: 3, food_bread: 2,
           food_ragu: 15, food_fried_meat: 20, food_boiled_potato: 12,
-          food_sandwich: 5, food_fried_potato: 8,
+          food_sandwich: 5, food_fried_potato: 8, food_boiled_water: 1,
         };
         if (FOOD_HEAL[abilId] !== undefined) {
           if (useCombatGridStore.getState().isCombatActive()) {

@@ -35,6 +35,7 @@ export const FOOD_STEW = F('food_stew', 'Тушёнка', '🥫', 3, 75, 'Вос
 export const FOOD_BREAD = F('food_bread', 'Хлеб', '🍞', 2, 30, 'Восстанавливает 2% HP.', false);
 
 // ─── Cooked food (crafted from recipes) — цена = сумма ингредиентов ──
+export const FOOD_BOILED_WATER = F('food_boiled_water', 'Кипяченая вода', '♨️', 1, 30, 'Вода × 2. Восстанавливает 1% HP.', false);
 export const FOOD_RAGU = F('food_ragu', 'Рагу', '🍲', 15, 190, 'Картошка + вода + мясо. Восстанавливает 15% HP.', false);
 export const FOOD_FRIED_MEAT = F('food_fried_meat', 'Жареное мясо', '🍖', 20, 300, 'Мясо × 2. Восстанавливает 20% HP.', false);
 export const FOOD_BOILED_POTATO = F('food_boiled_potato', 'Варёная картошка', '🥔', 12, 40, 'Картошка + вода. Восстанавливает 12% HP.', false);
@@ -44,13 +45,18 @@ export const FOOD_FRIED_POTATO = F('food_fried_potato', 'Жареная карт
 export const ALL_FOOD: FoodDef[] = [
   FOOD_MEAT, FOOD_POTATO, FOOD_WATER,
   FOOD_SAUSAGE, FOOD_APPLE, FOOD_STEW, FOOD_BREAD,
-  FOOD_RAGU, FOOD_FRIED_MEAT, FOOD_BOILED_POTATO, FOOD_SANDWICH, FOOD_FRIED_POTATO,
+  FOOD_BOILED_WATER, FOOD_RAGU, FOOD_FRIED_MEAT, FOOD_BOILED_POTATO, FOOD_SANDWICH, FOOD_FRIED_POTATO,
 ];
 
 export const FOOD_MAP: Record<string, FoodDef> = Object.fromEntries(ALL_FOOD.map((f) => [f.id, f]));
 
 // ─── Recipes ──────────────────────────────────────────────────────────
 export const RECIPES: RecipeDef[] = [
+  {
+    id: 'recipe_boiled_water', name: 'Кипяченая вода', icon: '♨️', result: FOOD_BOILED_WATER, healPct: 1,
+    ingredients: [{ foodId: 'food_water', qty: 2 }],
+    desc: 'Вода × 2 = Кипяченая вода (1% HP)',
+  },
   {
     id: 'recipe_ragu', name: 'Рагу', icon: '🍲', result: FOOD_RAGU, healPct: 15,
     ingredients: [{ foodId: 'food_potato', qty: 1 }, { foodId: 'food_water', qty: 1 }, { foodId: 'food_meat', qty: 1 }],

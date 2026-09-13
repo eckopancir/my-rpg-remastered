@@ -655,15 +655,15 @@ export const BattleGrid = () => {
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             </div>
-            {/* Клик-таргет — точно по клетке, без transform */}
+            {/* Клик-таргет — сдвинут 10px влево и 10px вверх от клетки */}
             <div
               onClick={() => {
                 useCombatGridStore.getState().setShowCookingMenu(true);
               }}
               style={{
                 position: 'absolute',
-                left: `${(campfire.x / 31) * 100}%`,
-                top: `${(campfire.y / 31) * 100}%`,
+                left: `calc(${(campfire.x / 31) * 100}% - 10px)`,
+                top: `calc(${(campfire.y / 31) * 100}% - 10px)`,
                 width: '6.25%', height: '6.25%',
                 zIndex: 5,
                 cursor: 'crosshair',
