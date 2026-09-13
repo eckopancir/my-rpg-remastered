@@ -44,7 +44,7 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
 }
 
 .navLink {
@@ -73,7 +73,7 @@
 /* Кнопка-картинка Dashboard: высокий бокс, чтобы картинка не торчала наружу */
 .navImageLink {
   height: 100px;
-  padding: 2px 8px;
+  padding: 2px 0;
   overflow: visible;
 }
 
