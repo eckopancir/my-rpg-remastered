@@ -77,6 +77,15 @@
   overflow: visible;
 }
 
+/* У картинки-ссылки никакой рамки/фона — ни обычной, ни ховерной, ни активной */
+.navImageLink,
+.navImageLink:hover,
+a.navImageLink.navLinkActive {
+  border-color: transparent;
+  background: transparent;
+  text-shadow: none;
+}
+
 .navLinkActive {
   color: var(--wa-accent-amber);
   background: rgba(217, 119, 6, 0.1);
