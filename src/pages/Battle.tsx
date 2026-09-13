@@ -193,7 +193,7 @@ export const Battle = () => {
           if (cf) {
             const edx = Math.abs(pp.x - cf.x);
             const edy = Math.abs(pp.y - cf.y);
-            if (edx + edy <= 2) {
+            if (edx + edy <= 1) {
               st.setShowCookingMenu(true);
               break;
             }
