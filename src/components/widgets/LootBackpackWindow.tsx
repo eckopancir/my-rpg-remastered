@@ -249,6 +249,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                     key={item ? item.id : `p-empty-${i}`}
                     item={item}
                     onDrop={onPackDrop}
+                    onDragOver={(e) => e.preventDefault()}
                     onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `pack:${id}`); useUiStore.getState().setDraggedItemId(`pack:${id}`); }}
                     onDoubleClick={() => {}}
                     onHover={item ? showTip(item) : () => {}}
@@ -279,6 +280,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                     searching={!!(item && searching[item.id])}
                     onSearch={() => { if (item) { searchCell(item.id); setHint(null); } }}
                     onDrop={onCorpseDrop}
+                    onDragOver={(e) => e.preventDefault()}
                     onDragStart={(id, e) => {
                       const it = loot.find((x: any) => x.id === id);
                       if (!(it as any)?.revealed) { e.preventDefault(); return; }

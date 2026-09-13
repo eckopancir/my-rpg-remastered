@@ -68,7 +68,8 @@ export const modStatsOf = (item: Item): Record<string, number> => {
 
 /** Итоговые статы предмета с учётом вставленных модов (моды плюсуются к базе)
  *  и сфер перековки (каждая сфера умножает: 5×+30% = ×1.3^5 = +271.3%;
- *  стихийные сферы плюсуют плоско). */
+ *  стихийные сферы плюсуют плоско).
+ *  Для weapon2 добавляет бонус от качества патронов. */
 export const effectiveItemStats = (item: Item): Record<string, number> => {
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(item.stats || {})) out[k] = num(v);
@@ -82,6 +83,18 @@ export const effectiveItemStats = (item: Item): Record<string, number> => {
     } else {
       if (!out[s.stat]) continue;
       out[s.stat] = out[s.stat] * (1 + (s.pct || 0) / 100);
+    }
+  }
+  // Бонус от качества патронов для weapon2
+  if (item.slot === 'weapon2' && item.ammoCapacity) {
+    const quality = (item as any).loadedAmmoQuality || 'Обычный';
+    const mult = bulletDamageMult(quality);
+    if (mult > 1) {
+      for (const [k, v] of Object.entries(out)) {
+        if (typeof v === 'number' && v > 0) {
+          out[k] = Math.round(v * mult);
+        }
+      }
     }
   }
   return out;
