@@ -496,20 +496,6 @@ function generateObstacles(
     markArea(enemy.pos.x - 1, enemy.pos.y - 1, 3, 3);
   }
 
-  // Campfire (1x1) — non-walkable, clickable object, 1 per battle
-  for (let attempt = 0; attempt < 80; attempt++) {
-    const x = Math.floor(Math.random() * (GRID - 1)) + 1;
-    const y = Math.floor(Math.random() * (GRID - 1)) + 1;
-    if (isAreaFree(x, y, 1, 1)) {
-      list.push({
-        id: id++, x, y, w: 1, h: 1, type: 'campfire', blocks: true, icon: 'campfire',
-        isHigh: false,
-      });
-      markArea(x, y, 1, 1);
-      break;
-    }
-  }
-
   // Big buildings (6x5) — isHigh, random image
   const bigBuildingImagesCount = 11;
   const bigCount = Math.floor(Math.random() * 2) + 3;

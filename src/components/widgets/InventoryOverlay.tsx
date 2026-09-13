@@ -270,8 +270,6 @@ export const InventoryOverlay = () => {
     const item = stacked.item;
     if (item.type !== 'consumable') { addLog(`❌ ${item.displayName || item.name} нельзя использовать`, 'warning'); return; }
     useConsumable(item);
-    removeItem(item.id);
-    addLog(`🧪 Использован ${item.displayName || item.name}`, 'heal');
     setContextMenu(null);
   };
 

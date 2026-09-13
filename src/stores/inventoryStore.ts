@@ -20,6 +20,7 @@ interface InventoryStore {
   setItems: (items: Item[]) => void;
   addItem: (item: Item) => void;
   removeItem: (id: string) => void;
+  decrementItem: (id: string) => void;
   consumeItemByName: (name: string) => void;
   moveItem: (fromIndex: number, toIndex: number) => void;
   setCurrentPage: (page: number) => void;
@@ -73,6 +74,18 @@ export const useInventoryStore = create<InventoryStore>()(
         return { items: updated };
       }),
       removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+      decrementItem: (id) => set((s) => {
+        const idx = s.items.findIndex((i) => i.id === id);
+        if (idx === -1) return s;
+        const item = s.items[idx];
+        const qty = (item.quantity ?? 1) as number;
+        if (qty > 1) {
+          const updated = [...s.items];
+          updated[idx] = { ...updated[idx], quantity: qty - 1 };
+          return { items: updated };
+        }
+        return { items: s.items.filter((_, i) => i !== idx) };
+      }),
       consumeItemByName: (name) => set((s) => {
         const idx = s.items.findIndex((i) => i.name === name);
         if (idx === -1) return s;

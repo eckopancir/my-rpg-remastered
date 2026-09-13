@@ -38,7 +38,7 @@ const ENEMY_COLORS: Record<string, string> = {
   Неизвестно: '#a1a1aa',
 };
 
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, CAMPFIRE_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
@@ -330,16 +330,6 @@ export const BattleGrid = () => {
       useCombatGridStore.getState().teleportTo(x, y);
       return;
     }
-    const obstacle = obstacleTileMap.get(`${x},${y}`);
-    if (obstacle && obstacle.icon === 'campfire') {
-      const dist = getDist(playerPos, { x, y });
-      if (dist > 2) {
-        useCombatGridStore.getState().addMessage('❌ Слишком далеко от костра');
-        return;
-      }
-      useCombatGridStore.getState().setShowCookingMenu(true);
-      return;
-    }
     const enemy = enemies.find((e) => !e.dead && e.currentHp > 0 && e.pos.x === x && e.pos.y === y);
     if (enemy) {
       // По своим не стреляем: мусорщики — друзья.
@@ -515,9 +505,7 @@ export const BattleGrid = () => {
                 }}
                 data-invalid={pathPoint?.isInvalid ? 'true' : 'false'}
               >
-                {obstacle?.isAnchor && obstacle.icon === 'campfire' ? (
-                  <span style={{ fontSize: 32, lineHeight: 1, filter: 'drop-shadow(0 0 6px rgba(255,120,0,0.8))', cursor: 'pointer', position: 'relative', zIndex: 10 }}>🔥</span>
-                ) : obstacle?.isAnchor && (
+                {obstacle?.isAnchor && (
                   <img
                     src={getBattleImage(
                       obstacle.icon === 'building' ? BIG_BUILDING_IMAGES[obstacle.imgIndex ?? 0] :
@@ -655,8 +643,14 @@ export const BattleGrid = () => {
             top: `${(campfire.y / 31) * 100}%`,
             transform: 'translate(-50%, -62%)',
             width: '6.25%', aspectRatio: '1',
-            zIndex: 3, pointerEvents: 'none',
-          }}>
+            zIndex: 4, cursor: 'pointer',
+          }}
+            onClick={() => {
+              const dist = Math.hypot(campfire.x - playerPos.x, campfire.y - playerPos.y);
+              if (dist > 2) { useCombatGridStore.getState().addMessage('❌ Слишком далеко от костра'); return; }
+              useCombatGridStore.getState().setShowCookingMenu(true);
+            }}
+          >
             <img
               src={fireFrame === 0 ? (images.campfire1 || images.campfire2) : (images.campfire2 || images.campfire1)}
               alt="campfire"

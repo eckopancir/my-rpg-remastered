@@ -5,7 +5,8 @@ import { useUiStore } from '../../stores/uiStore';
 import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
-import { backpackSlotsFor, backpackDefByName } from '../../data/backpacks';
+import { backpackSlotsFor, backpackDefByName, removeItemFromGrid } from '../../data/backpacks';
+import { FOOD_MAP } from '../../data/food';
 import { getSellPrice } from '../../utils/sellPrice';
 import { ItemTooltip } from './ItemTooltip';
 import { WapHeader } from '../ui/WapHeader';
@@ -36,6 +37,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
   const addLog = usePlayerStore((s) => s.addLog);
   const { playClick, playSound } = useSound();
   const [tip, setTip] = useState<{ item: Item; x: number; y: number } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; item: Item } | null>(null);
   const [pos, setPos] = useState(() => ({
     x: Math.max(0, (window.innerWidth - 360) / 2),
     y: Math.max(0, (window.innerHeight - 480) / 2),
@@ -166,6 +168,15 @@ export const BackpackWindow = ({ onClose }: Props) => {
               <div
                 key={item.id}
                 onDoubleClick={() => { takeOutBackpack(item.id); playSound('laying-out-a-travel-mat', 0.5); }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  const abilId = (item as any).abilityId || '';
+                  const isFood = item.type === 'consumable' && FOOD_MAP[abilId];
+                  const isConsumable = item.type === 'consumable';
+                  if (isFood || isConsumable) {
+                    setCtxMenu({ x: e.clientX, y: e.clientY, item });
+                  }
+                }}
                 onMouseEnter={(e) => setTip({ item, x: e.clientX, y: e.clientY })}
                 onMouseMove={(e) => setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t))}
                 onMouseLeave={() => setTip(null)}
@@ -260,6 +271,48 @@ export const BackpackWindow = ({ onClose }: Props) => {
           </button>
         </div>
         {tip && <ItemTooltip item={tip.item} x={tip.x} y={tip.y} />}
+
+        {ctxMenu && (
+          <div style={{
+            position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
+            background: '#1a1a2e', border: '1px solid #444', borderRadius: 8, padding: 4, minWidth: 140,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+          }}>
+            <button onClick={() => {
+              const item = ctxMenu.item;
+              const abilId = (item as any).abilityId || '';
+              const qty = (item.quantity ?? 1) as number;
+              if (qty <= 1) {
+                usePlayerStore.setState({ backpackGrid: removeItemFromGrid(backpackGrid, item.id) });
+              } else {
+                const newGrid = { ...backpackGrid, items: backpackGrid.items.map((i) => i.id === item.id ? { ...i, quantity: qty - 1 } : i) };
+                usePlayerStore.setState({ backpackGrid: newGrid });
+              }
+              usePlayerStore.getState().useConsumable({ ...item, quantity: 1 });
+              playSound('laying-out-a-travel-mat', 0.5);
+              setCtxMenu(null);
+            }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
+                color: '#eee', cursor: 'pointer', fontSize: 13, borderRadius: 4,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >🍖 Использовать</button>
+            <button onClick={() => {
+              takeOutBackpack(ctxMenu.item.id);
+              playSound('laying-out-a-travel-mat', 0.5);
+              setCtxMenu(null);
+            }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
+                color: '#eee', cursor: 'pointer', fontSize: 13, borderRadius: 4,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >📤 Вернуть в инвентарь</button>
+          </div>
+        )}
       </motion.div>
     </div>
   );
