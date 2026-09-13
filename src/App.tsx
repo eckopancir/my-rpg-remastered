@@ -144,13 +144,21 @@ const AppContent = () => {
             eq1[k] = { ...it, mods: fresh };
           }
         }
-        const pack1 = (ps0.backpackContents || []).filter((it: any) => {
+        const packItems = (ps0.backpackGrid?.items || ps0.backpackContents || []).filter((it: any) => {
           if (it?.type === 'mod' && (it as any)._modv !== 2) { stripped += 1; return false; }
           if (it?.type === 'mod' && (it as any).image) { delete (it as any).image; touched = true; }
           return true;
         });
         if (stripped > 0 || touched) {
-          usePlayerStore.setState({ equipment: eq1, backpackContents: pack1 });
+          // Rebuild grid with filtered items
+          const { createGrid, tryInsertIntoGrid, backpackSlotsFor } = await import('./data/backpacks');
+          const pack = ps0.equipment?.backpack;
+          let grid = createGrid(backpackSlotsFor(pack));
+          for (const it of packItems) {
+            const { grid: g } = tryInsertIntoGrid(grid, it);
+            grid = g;
+          }
+          usePlayerStore.setState({ equipment: eq1, backpackGrid: grid });
           usePlayerStore.getState().addLog(`🔧 Старые моды удалены из игры (${stripped} шт.)`, 'system');
           usePlayerStore.getState().recalcStats();
         }
@@ -196,10 +204,10 @@ const AppContent = () => {
         const ps = usePlayerStore.getState();
         // Сначала лечим ошибочно порезанные моды (потом demote их пропускает).
         for (const it of Object.values(ps.equipment || {})) healWronglyDemoted(it);
-        for (const it of ps.backpackContents || []) healWronglyDemoted(it);
+        for (const it of ps.backpackGrid?.items || []) healWronglyDemoted(it);
         for (const it of useInventoryStore.getState().items) healWronglyDemoted(it);
         for (const it of Object.values(ps.equipment || {})) demoteModStats(it);
-        for (const it of ps.backpackContents || []) demoteModStats(it);
+        for (const it of ps.backpackGrid?.items || []) demoteModStats(it);
       } catch { /* ignore */ }
       // Don't overwrite exploration state from server — persist middleware handles it
       // and server may re-trigger stale event processing

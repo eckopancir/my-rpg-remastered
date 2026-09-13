@@ -452,7 +452,7 @@ export const InventoryOverlay = () => {
                   }
                   return;
                 }
-                const wasInPack = usePlayerStore.getState().backpackContents.some((i) => i.id === id);
+                const wasInPack = usePlayerStore.getState().backpackGrid.items.some((i) => i.id === id);
                 takeOutBackpack(id);
                 if (wasInPack) playSound('laying-out-a-travel-mat', 0.5);
               }}

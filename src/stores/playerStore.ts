@@ -11,7 +11,7 @@ import type { ActiveEffect } from '../types/player';
 import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SKILL_CLASSES } from '../data/skills';
-import { backpackSlotsFor, makeBackpack, tryInsertInto } from '../data/backpacks';
+import { backpackSlotsFor, backpackDefByName, backpackSlots, makeBackpack, tryInsertInto, createGrid, tryInsertIntoGrid, removeItemFromGrid, findFreeSlot, placeItemAt, type BackpackGrid } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
 import { modLevelMult, demoteModStats, effectiveItemStats, healWronglyDemoted } from '../utils/itemStats';
@@ -141,7 +141,7 @@ interface PlayerStore {
   level: number; currentExp: number; expToNext: number;
   dataChips: number; baseHealth: number; stats: PlayerStats;
   equipment: EquipmentStore;
-  backpackContents: Item[];
+  backpackGrid: BackpackGrid;
   activeEffects: ActiveEffect[];
   baseUpgrades: Record<string, number>;
   skillPoints: number;
@@ -347,7 +347,7 @@ export const usePlayerStore = create<PlayerStore>()(
       dataChips: 100, baseHealth: 20000,
       stats: { ...BASE_STATS },
       equipment: emptyEquipment(),
-      backpackContents: [] as Item[],
+      backpackGrid: createGrid(0),
       activeEffects: [] as ActiveEffect[],
       travel: { isTraveling: false, isReturning: false, destination: null, remaining: 0, total: 0 },
       combat: {
@@ -600,7 +600,7 @@ export const usePlayerStore = create<PlayerStore>()(
         // Способности героя — из расходников в рюкзаке (уникальные, лимит 12).
         const seen = new Set<string>();
         const abilities: (AccessoryAbility | null)[] = [];
-        for (const it of get().backpackContents) {
+        for (const it of get().backpackGrid.items) {
           if (it.type !== 'consumable' || !(it as any).abilityId) continue;
           const aid = (it as any).abilityId as string;
           if (seen.has(aid)) continue;
@@ -710,41 +710,51 @@ export const usePlayerStore = create<PlayerStore>()(
         const item = inv.items.find((i) => i.id === itemId);
         if (!item) return '❌ Нет предмета!';
         const maxSlots = backpackSlotsFor(pack);
-        const { contents, moved, leftoverQty } = tryInsertInto(s.backpackContents, maxSlots, item);
+        // Ensure grid is sized correctly
+        let grid = s.backpackGrid;
+        const neededH = Math.max(1, Math.ceil(maxSlots / 5));
+        if (grid.h !== neededH || grid.w !== 5) {
+          grid = createGrid(maxSlots);
+          // Re-place existing items
+          for (const existing of s.backpackGrid.items) {
+            const w = existing.gridW ?? 1;
+            const h = existing.gridH ?? 1;
+            const slot = findFreeSlot(grid, w, h);
+            if (slot) grid = placeItemAt(grid, existing, slot.x, slot.y);
+          }
+        }
+        const { grid: newGrid, moved, leftoverQty } = tryInsertIntoGrid(grid, item);
         if (!moved) return '❌ Рюкзак полон!';
         inv.removeItem(item.id);
         if (leftoverQty > 0) inv.addItem({ ...item, quantity: leftoverQty });
-        set({ backpackContents: contents });
-        // Любое движение предметов — сразу на сервер, иначе refresh откатывает.
+        set({ backpackGrid: newGrid });
         syncNow();
-        // Расходники дают способности — пересчитать.
         get().recalcAbilities();
         return leftoverQty > 0 ? `⚠️ Влезло частично, в рюкзаке нет места!` : `🎒 В рюкзаке`;
       },
 
       takeOutBackpack: (itemId) => {
         const s = get();
-        const idx = s.backpackContents.findIndex((i) => i.id === itemId);
-        if (idx === -1) return;
-        const [item] = s.backpackContents.slice(idx, idx + 1);
-        const contents = s.backpackContents.filter((_, i) => i !== idx);
-        set({ backpackContents: contents });
+        const item = s.backpackGrid.items.find((i) => i.id === itemId);
+        if (!item) return;
+        const newGrid = removeItemFromGrid(s.backpackGrid, itemId);
+        set({ backpackGrid: newGrid });
         useInventoryStore.getState().addItem(item);
         syncNow();
         get().recalcAbilities();
       },
 
-      clearBackpack: () => { set({ backpackContents: [] }); syncNow(); get().recalcAbilities(); },
+      clearBackpack: () => { const pack = get().equipment.backpack; set({ backpackGrid: createGrid(backpackSlotsFor(pack)) }); syncNow(); get().recalcAbilities(); },
 
       // Выложить всё содержимое рюкзака в инвентарь. Возвращает число предметов.
       emptyBackpackToInventory: () => {
         const s = get();
-        if (s.backpackContents.length === 0) return 0;
+        if (s.backpackGrid.items.length === 0) return 0;
         const inv = useInventoryStore.getState();
-        for (const it of s.backpackContents) inv.addItem(it);
-        const n = s.backpackContents.length;
-        set({ backpackContents: [] });
-        // Сразу на сервер: иначе refresh до автосейва (60с) всё откатывает.
+        for (const it of s.backpackGrid.items) inv.addItem(it);
+        const n = s.backpackGrid.items.length;
+        const pack = s.equipment.backpack;
+        set({ backpackGrid: createGrid(backpackSlotsFor(pack)) });
         syncNow();
         get().recalcAbilities();
         return n;
@@ -755,17 +765,28 @@ export const usePlayerStore = create<PlayerStore>()(
         if (s.equipment.backpack) return;
         const pack = makeBackpack('Походный рюкзак');
         get().equipItem('backpack', pack);
-        // Стартовый боезапас — только в пустой рюкзак, чужое не затираем.
-        if (s.backpackContents.length === 0) {
-          set({ backpackContents: [makeBulletPack('rifle', 30), makeBulletPack('pistol', 12)] });
+        if (s.backpackGrid.items.length === 0) {
+          const g = createGrid(backpackSlotsFor(pack));
+          const { grid: g1 } = tryInsertIntoGrid(g, makeBulletPack('rifle', 30));
+          const { grid: g2 } = tryInsertIntoGrid(g1, makeBulletPack('pistol', 12));
+          set({ backpackGrid: g2 });
         }
       },
 
       takeAmmoFromPack: (group, n) => {
         const s = get();
-        const { items, taken, quality, breakdown } = takeAmmoFrom(s.backpackContents, group, n);
-        if (taken > 0) set({ backpackContents: items });
-        if (taken > 0) syncNow();
+        const { items, taken, quality, breakdown } = takeAmmoFrom(s.backpackGrid.items, group, n);
+        if (taken > 0) {
+          // Rebuild grid with remaining items
+          const pack = s.equipment.backpack;
+          let grid = createGrid(backpackSlotsFor(pack));
+          for (const it of items) {
+            const { grid: g } = tryInsertIntoGrid(grid, it);
+            grid = g;
+          }
+          set({ backpackGrid: grid });
+          syncNow();
+        }
         return { taken, quality, breakdown };
       },
 
@@ -775,26 +796,39 @@ export const usePlayerStore = create<PlayerStore>()(
         if (n <= 0) return 0;
         const pack = s.equipment.backpack;
         const maxSlots = pack ? backpackSlotsFor(pack) : 0;
-        const { items, leftover } = addAmmoToPack(s.backpackContents, group, n, maxSlots, quality);
-        set({ backpackContents: items });
+        // Use the old flat-array helper then rebuild grid
+        const flatItems = s.backpackGrid.items.map((i) => ({ ...i }));
+        const { items: newFlat, leftover } = addAmmoToPack(flatItems, group, n, maxSlots, quality);
+        // Rebuild grid
+        let grid = createGrid(maxSlots);
+        for (const it of newFlat) {
+          const { grid: g } = tryInsertIntoGrid(grid, it);
+          grid = g;
+        }
+        set({ backpackGrid: grid });
         if (leftover > 0) useInventoryStore.getState().addItem(makeBulletPack(group, leftover, quality));
         syncNow();
         return n - leftover;
       },
 
-      ammoInPack: (group) => countAmmo(get().backpackContents, group),
+      ammoInPack: (group) => countAmmo(get().backpackGrid.items, group),
 
       // Съесть 1 шт. предмета из рюкзака (расходники). false — нет такого.
       consumeFromPack: (itemId) => {
         const s = get();
-        const idx = s.backpackContents.findIndex((i) => i.id === itemId);
-        if (idx === -1) return false;
-        const it = s.backpackContents[idx];
+        const it = s.backpackGrid.items.find((i) => i.id === itemId);
+        if (!it) return false;
         const q = (it.quantity ?? 1) as number;
-        const contents = [...s.backpackContents];
-        if (q > 1) contents[idx] = { ...it, quantity: q - 1 };
-        else contents.splice(idx, 1);
-        set({ backpackContents: contents });
+        let grid = s.backpackGrid;
+        if (q > 1) {
+          // Decrement quantity: rebuild with updated item
+          const items = grid.items.map((i) => i.id === itemId ? { ...i, quantity: q - 1 } : i);
+          const cells = grid.cells.map((row) => [...row]);
+          grid = { ...grid, items, cells };
+        } else {
+          grid = removeItemFromGrid(grid, itemId);
+        }
+        set({ backpackGrid: grid });
         syncNow();
         get().recalcAbilities();
         return true;
@@ -1383,13 +1417,13 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'remastered_player',
-      version: 13,
+      version: 14,
       migrate: (persisted: any, version: number) => {
         if (version < 11 && persisted) {
           // Моды переехали на рантайм-скейл: гасим старый запечённый скейл один раз.
           const eq = persisted.equipment || {};
           for (const it of Object.values(eq)) demoteModStats(it);
-          for (const it of persisted.backpackContents || []) demoteModStats(it);
+          for (const it of (persisted.backpackGrid?.items || persisted.backpackContents || [])) demoteModStats(it);
         }
         if (version < 12 && persisted) {
           // Старые моды (без метки) удаляем из игры: россыпь и вставленные.
@@ -1412,8 +1446,9 @@ export const usePlayerStore = create<PlayerStore>()(
             );
             n += before - persisted.backpackContents.length;
           }
-        if (n > 0 && Array.isArray(persisted.logs)) {
-          persisted.logs.push({ id: Date.now(), message: `🔧 Старые моды удалены из игры (${n} шт.)`, type: 'system', ts: Date.now() });
+          if (n > 0 && Array.isArray(persisted.logs)) {
+            persisted.logs.push({ id: Date.now(), message: `🔧 Старые моды удалены из игры (${n} шт.)`, type: 'system', ts: Date.now() });
+          }
         }
         if (version < 13 && persisted) {
           // Лечение модов нового образца, ошибочно порезанных даунскейлом
@@ -1432,6 +1467,24 @@ export const usePlayerStore = create<PlayerStore>()(
             persisted.logs.push({ id: Date.now(), message: `🔧 Моды восстановлены после ошибочного даунскейла (${h} шт.)`, type: 'system', ts: Date.now() });
           }
         }
+        // v14: Convert old flat backpackContents array to backpackGrid
+        if (version < 14 && persisted && Array.isArray(persisted.backpackContents)) {
+          const oldItems: Item[] = persisted.backpackContents;
+          const pack = persisted.equipment?.backpack;
+          const slots = (() => {
+            try {
+              const def = backpackDefByName(pack?.name || '');
+              return def ? backpackSlots(def, pack?.quality) : 4;
+            } catch { return 4; }
+          })();
+          // Reuse the import
+          let grid = createGrid(slots);
+          for (const it of oldItems) {
+            const { grid: g } = tryInsertIntoGrid(grid, it);
+            grid = g;
+          }
+          persisted.backpackGrid = grid;
+          delete persisted.backpackContents;
         }
         return persisted;
       },
@@ -1439,7 +1492,7 @@ export const usePlayerStore = create<PlayerStore>()(
         level: state.level, currentExp: state.currentExp, expToNext: state.expToNext,
         dataChips: state.dataChips, baseHealth: state.baseHealth,
         stats: state.stats, equipment: state.equipment,
-        backpackContents: state.backpackContents,
+        backpackGrid: state.backpackGrid,
         activeEffects: state.activeEffects,
         skillPoints: state.skillPoints,
         activeWeaponSlot: state.activeWeaponSlot,

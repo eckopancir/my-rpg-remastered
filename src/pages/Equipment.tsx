@@ -242,7 +242,7 @@ export const Equipment = () => {
     let ammo = invIdx !== -1 ? invItems[invIdx] : undefined;
     let from: 'inv' | 'pack' | null = invIdx !== -1 ? 'inv' : null;
     if (!ammo) {
-      const pack = pst.backpackContents;
+      const pack = pst.backpackGrid.items;
       const packIdx = pack.findIndex((i) => i.id === ammoItemId);
       if (packIdx !== -1) { ammo = pack[packIdx]; from = 'pack'; }
     }
@@ -272,13 +272,15 @@ export const Equipment = () => {
         useInventoryStore.getState().removeItem(ammoItemId);
       }
     } else {
-      usePlayerStore.setState((st: any) => ({
-        backpackContents: left > 0
-          ? st.backpackContents.map((i: any) => i.id === ammoItemId
-            ? { ...i, quantity: left, displayName: leftName(left) }
-            : i)
-          : st.backpackContents.filter((i: any) => i.id !== ammoItemId),
-      }));
+      usePlayerStore.setState((st: any) => {
+        const grid = st.backpackGrid;
+        const items = grid.items.map((i: any) =>
+          i.id === ammoItemId
+            ? left > 0 ? { ...i, quantity: left, displayName: leftName(left) } : null
+            : i,
+        ).filter(Boolean);
+        return { backpackGrid: { ...grid, items } };
+      });
     }
     // Качество магазина: пустой — качество пачки, дозарядка — худшее из двух.
     const oldQ = (w as any).loadedAmmoQuality || 'Обычный';

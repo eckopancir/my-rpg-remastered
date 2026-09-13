@@ -72,8 +72,8 @@ export const Battle = () => {
   // Запас патронов группы АКТИВНОГО оружия (живой подсчёт из рюкзака).
   const battleWeapon = usePlayerStore((s) => s.getActiveWeapon());
   const battleAmmoGroup = battleWeapon && (battleWeapon as any).ammoCapacity ? ammoTypeForWeapon(battleWeapon) : null;
-  const battleAmmoReserve = usePlayerStore((s) => (battleAmmoGroup ? countAmmo(s.backpackContents, battleAmmoGroup) : 0));
-  const packContents = usePlayerStore((s) => s.backpackContents);
+  const battleAmmoReserve = usePlayerStore((s) => (battleAmmoGroup ? countAmmo(s.backpackGrid.items, battleAmmoGroup) : 0));
+  const packContents = usePlayerStore((s) => s.backpackGrid.items);
   // В бою инвентарь недоступен: открыт — принудительно закрываем, открыть не даём.
   const inventoryOpen = useUiStore((s) => s.inventoryOpen);
   useEffect(() => {
@@ -940,7 +940,7 @@ export const Battle = () => {
             <div
               onClick={() => {
                 const player = usePlayerStore.getState();
-                const lost = player.backpackContents.length;
+                const lost = player.backpackGrid.items.length;
                 player.addLog('💀 Поражение... Возвращение на базу.', 'warning');
                 if (lost > 0) player.addLog(`🎒 Рюкзак потерян в бою: вещей ${lost} сгинуло!`, 'warning');
                 player.clearBackpack();

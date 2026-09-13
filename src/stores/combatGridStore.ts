@@ -1662,7 +1662,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Активные способности требуют расходник из рюкзака (пассивки ammo_* — бесплатно).
     if (!ability.passive) {
       const ps = usePlayerStore.getState();
-      const stack = ps.backpackContents.find((i) => i.type === 'consumable' && (i as any).abilityId === ability.id);
+      const stack = ps.backpackGrid.items.find((i) => i.type === 'consumable' && (i as any).abilityId === ability.id);
       if (!stack) {
         const need = CONSUMABLE_MAP[ability.id]?.name || ability.name;
         get().addMessage(`❌ Нужен расходник: ${need}`);

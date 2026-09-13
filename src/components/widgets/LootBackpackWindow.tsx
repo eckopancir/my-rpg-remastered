@@ -5,7 +5,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useSound } from '../../hooks/useSound';
 import { getEnemyImage, getItemImage, images } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
-import { backpackSlotsFor, tryInsertInto } from '../../data/backpacks';
+import { backpackSlotsFor, createGrid, tryInsertIntoGrid, removeItemFromGrid, isBigItem } from '../../data/backpacks';
 import { ItemTooltip } from './ItemTooltip';
 import { WapHeader } from '../ui/WapHeader';
 import type { Item } from '../../types/items';
@@ -17,12 +17,13 @@ const cellPx = 52;
 const iconFor = (item: any): string | null => {
   if (item.image) return null;
   if (item.type === 'consumable') return getConsumableIcon(item);
-  if (item.type === 'backpack') return null; // картинка по семейству через getItemImage
-  if (item.type === 'bullet') return null; // картинка группы через getItemImage
+  if (item.type === 'backpack') return null;
+  if (item.type === 'bullet') return null;
   if (item.type === 'chest') return null;
   return null;
 };
 
+/** Отрисовать одну ячейку (1×1 или 2×2). */
 const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDoubleClick, onHover, onMove, onLeave }: {
   item: any | null;
   hidden?: boolean;
@@ -35,7 +36,10 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
   onMove: (e: React.MouseEvent) => void;
   onLeave: () => void;
 }) => {
-  // Скрытая ячейка трупа — туман неизвестности, клик = обыск 1с.
+  const w = item?.gridW ?? 1;
+  const h = item?.gridH ?? 1;
+  const sz = cellPx;
+  // Скрытая ячейка трупа — туман неизвестности.
   if (item && hidden) {
     return (
       <div
@@ -47,7 +51,8 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
         onMouseLeave={onLeave}
         title="Клик — обыскать (2с)"
         style={{
-          width: cellPx, height: cellPx,
+          gridColumn: `span ${w}`, gridRow: `span ${h}`,
+          width: '100%', height: '100%',
           background: searching
             ? 'rgba(217,119,6,0.18)'
             : 'repeating-linear-gradient(45deg, rgba(0,0,0,0.75), rgba(0,0,0,0.75) 4px, rgba(60,60,70,0.5) 4px, rgba(60,60,70,0.5) 8px)',
@@ -75,7 +80,8 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
       onMouseMove={onMove}
       onMouseLeave={onLeave}
       style={{
-        width: cellPx, height: cellPx, background: '#201c17',
+        gridColumn: `span ${w}`, gridRow: `span ${h}`,
+        width: '100%', height: '100%', background: '#201c17',
         border: `1px solid ${item?.qualityColor || 'rgba(255,235,200,0.22)'}`,
         borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative',
@@ -88,9 +94,9 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
         >
           {emoji ? (
-            <span style={{ fontSize: 26, lineHeight: 1 }}>{emoji}</span>
+            <span style={{ fontSize: w > 1 || h > 1 ? 32 : 26, lineHeight: 1 }}>{emoji}</span>
           ) : url ? (
-            <img src={url} alt="" draggable={false} style={{ width: 42, height: 42, objectFit: 'contain' }} />
+            <img src={url} alt="" draggable={false} style={{ width: w > 1 || h > 1 ? 52 : 42, height: w > 1 || h > 1 ? 52 : 42, objectFit: 'contain' }} />
           ) : (
             <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
           )}
@@ -105,6 +111,14 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
           x{item.quantity ?? 1}
         </div>
       )}
+      {item && (w > 1 || h > 1) && (
+        <div style={{
+          position: 'absolute', top: 1, left: 2, fontSize: 8, fontWeight: 700,
+          fontFamily: 'var(--font-mono)', color: '#fbbf24', pointerEvents: 'none',
+        }}>
+          {w}×{h}
+        </div>
+      )}
     </div>
   );
 };
@@ -112,12 +126,10 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
 export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | string; onClose: () => void }) => {
   const enemy = useCombatGridStore((s) => s.enemies.find((e: any) => e.id === enemyId));
   const pack = usePlayerStore((s) => s.equipment.backpack);
-  const packContents = usePlayerStore((s) => s.backpackContents);
+  const backpackGrid = usePlayerStore((s) => s.backpackGrid);
   const { playClick, playSound } = useSound();
   const [tip, setTip] = useState<{ item: Item; x: number; y: number } | null>(null);
-  // Хинт над скрытой ячейкой: hover работает и там, учит механике обыска.
   const [hint, setHint] = useState<{ x: number; y: number } | null>(null);
-  // Идёт обыск ячеек (флаг держится 1с, потом ячейка открывается навсегда).
   const [searching, setSearching] = useState<Record<string, boolean>>({});
   const timers = useRef<number[]>([]);
   useEffect(() => () => { timers.current.forEach((t) => window.clearTimeout(t)); }, []);
@@ -133,7 +145,6 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   const say = (msg: string) => useCombatGridStore.getState().addMessage(msg);
 
-  // Обыск скрытой ячейки: 1с — и содержимое видно навсегда (флаг на предмете).
   const searchCell = (itemId: string) => {
     const item = loot.find((i: any) => i.id === itemId);
     if (!item || (item as any).revealed || searching[itemId]) return;
@@ -152,34 +163,31 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
     }, 2000));
   };
 
-  // Труп -> свой рюкзак (только открытое).
+  // Труп -> свой рюкзак (grid).
   const takeFromCorpse = (itemId: string) => {
     const item = loot.find((i: any) => i.id === itemId);
     if (!item) return;
     if (!(item as any).revealed) { say('🔍 Сначала обыщи ячейку!'); return; }
     if (!pack) { say('❌ Нет рюкзака!'); return; }
-    const { contents, moved, leftoverQty } = tryInsertInto(packContents, packSlots, item);
+    const { grid: newGrid, moved, leftoverQty } = tryInsertIntoGrid(backpackGrid, item);
     if (!moved) { say('❌ Свой рюкзак полон! Освободи место.'); return; }
     const rest = loot.filter((i: any) => i.id !== itemId);
     if (leftoverQty > 0) rest.push({ ...item, quantity: leftoverQty });
     refreshEnemyLoot(rest);
-    usePlayerStore.setState({ backpackContents: contents });
+    usePlayerStore.setState({ backpackGrid: newGrid });
     playSound('laying-out-a-travel-mat', 0.5);
   };
 
-  // Свой рюкзак -> труп (освободить место свопом).
+  // Свой рюкзак -> труп.
   const putToCorpse = (itemId: string) => {
     if (loot.length >= CORPSE_SLOTS) { say('❌ Рюкзак трупа полон!'); return; }
-    const ps = usePlayerStore.getState();
-    const idx = ps.backpackContents.findIndex((i) => i.id === itemId);
-    if (idx === -1) return;
-    const item = ps.backpackContents[idx];
+    const item = backpackGrid.items.find((i) => i.id === itemId);
+    if (!item) return;
     refreshEnemyLoot([...loot, item]);
-    usePlayerStore.setState({ backpackContents: ps.backpackContents.filter((_, i) => i !== idx) });
+    usePlayerStore.setState({ backpackGrid: removeItemFromGrid(backpackGrid, itemId) });
     playSound('laying-out-a-travel-mat', 0.5);
   };
 
-  // Drop на ячейку трупа: принимаем только из своего рюкзака.
   const onCorpseDrop = (rawId: string) => {
     const id = rawId || useUiStore.getState().draggedItemId || '';
     useUiStore.getState().setDraggedItemId(null);
@@ -187,7 +195,6 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
     putToCorpse(id.slice(5));
   };
 
-  // Drop на ячейку своего рюкзака: принимаем только с трупа.
   const onPackDrop = (rawId: string) => {
     const id = rawId || useUiStore.getState().draggedItemId || '';
     useUiStore.getState().setDraggedItemId(null);
@@ -196,16 +203,15 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   };
 
   const takeAll = () => {
-    // Сначала открываем всё скрытое, потом забираем.
     let cur = loot.map((i: any) => ({ ...i, revealed: true }));
     let movedAny = false;
     for (const item of [...cur]) {
       if (!pack) { say('❌ Нет рюкзака!'); return; }
-      const { contents, moved, leftoverQty } = tryInsertInto(usePlayerStore.getState().backpackContents, packSlots, item);
+      const { grid: newGrid, moved, leftoverQty } = tryInsertIntoGrid(usePlayerStore.getState().backpackGrid, item);
       if (!moved) break;
       cur = cur.filter((i: any) => i.id !== item.id);
       if (leftoverQty > 0) cur.push({ ...item, quantity: leftoverQty });
-      usePlayerStore.setState({ backpackContents: contents });
+      usePlayerStore.setState({ backpackGrid: newGrid });
       movedAny = true;
     }
     refreshEnemyLoot(cur);
@@ -222,6 +228,26 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   const hiddenCount = loot.filter((i: any) => !(i as any).revealed).length;
   const enemyImg = getEnemyImage(enemy.faction, enemy.name);
 
+  // Build grid cells for player backpack (5 cols × N rows)
+  const gridCols = 5;
+  const gridRows = Math.max(1, Math.ceil(packSlots / gridCols));
+  const packCells: (Item | null)[] = Array(gridCols * gridRows).fill(null);
+  for (const item of backpackGrid.items) {
+    const gx = item.gridX ?? 0;
+    const gy = item.gridY ?? 0;
+    const gw = item.gridW ?? 1;
+    const gh = item.gridH ?? 1;
+    // Place item at top-left cell, mark covered cells as occupied
+    const idx = gy * gridCols + gx;
+    packCells[idx] = item;
+    for (let dy = 0; dy < gh; dy++) {
+      for (let dx = 0; dx < gw; dx++) {
+        const ci = (gy + dy) * gridCols + (gx + dx);
+        if (ci !== idx && ci < packCells.length) packCells[ci] = '__occupied__';
+      }
+    }
+  }
+
   return (
     <div className={styles.lootOverlay} onClick={onClose}>
       <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ minWidth: 640, overflow: 'hidden', borderRadius: 8, paddingTop: 0, marginTop: -50 }}>
@@ -230,26 +256,32 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
           <span onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
         </WapHeader>
         <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8 }}>
-          Тяни к себе · лишнее — обратно трупу · двойной клик — взять · скрытое — клик обыскать (1с)
+          Тяни к себе · лишнее — обратно трупу · двойной клик — взять · скрытое — клик обыскать (1с) · оружие/броня 2×2
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
-          {/* СЛЕВА: наш герой и наш рюкзак */}
+          {/* СЛЕВА: наш рюкзак (grid) */}
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <img src={images.hero} alt="hero" draggable={false} style={{ width: 44, height: 44, objectFit: 'contain' }} />
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                🎒 Мой рюкзак ({packContents.length}/{packSlots})
+                🎒 Мой рюкзак ({backpackGrid.items.length}/{packSlots})
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 5 * (cellPx + 4) }}>
-              {Array.from({ length: Math.max(packSlots, 1) }).map((_, i) => {
-                const item = packContents[i] ?? null;
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${gridCols}, ${cellPx}px)`,
+              gridTemplateRows: `repeat(${gridRows}, ${cellPx}px)`,
+              gap: 4,
+              justifyContent: 'start',
+            }}>
+              {packCells.map((cell, i) => {
+                if (cell === '__occupied__') return null; // skip covered cells
+                const item = cell as Item | null;
                 return (
                   <Cell
-                    key={item ? item.id : `p-empty-${i}`}
+                    key={item ? item.id : `p-${i}`}
                     item={item}
                     onDrop={onPackDrop}
-                    onDragOver={(e) => e.preventDefault()}
                     onDragStart={(id, e) => { e.dataTransfer.setData('text/plain', `pack:${id}`); useUiStore.getState().setDraggedItemId(`pack:${id}`); }}
                     onDoubleClick={() => {}}
                     onHover={item ? showTip(item) : () => {}}
@@ -260,7 +292,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
               })}
             </div>
           </div>
-          {/* СПРАВА: враг и его рюкзак */}
+          {/* СПРАВА: труп */}
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               {enemyImg && <img src={enemyImg} alt={enemy.name} draggable={false} style={{ width: 44, height: 44, objectFit: 'contain' }} />}
@@ -280,7 +312,6 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                     searching={!!(item && searching[item.id])}
                     onSearch={() => { if (item) { searchCell(item.id); setHint(null); } }}
                     onDrop={onCorpseDrop}
-                    onDragOver={(e) => e.preventDefault()}
                     onDragStart={(id, e) => {
                       const it = loot.find((x: any) => x.id === id);
                       if (!(it as any)?.revealed) { e.preventDefault(); return; }

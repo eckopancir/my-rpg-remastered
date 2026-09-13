@@ -64,6 +64,11 @@ export interface Item {
   blueprintStat?: string;
   // Перековка: предмет лежит в слоте ('weapon' — большой, 'bp' — малый).
   inReforge?: string;
+  // 2D grid position in backpack/corpse (Tetris-style).
+  gridX?: number;
+  gridY?: number;
+  gridW?: number;
+  gridH?: number;
 }
 
 

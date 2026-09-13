@@ -28,7 +28,7 @@ const cellIcon = (item: Item): string | null => {
 
 export const BackpackWindow = ({ onClose }: Props) => {
   const backpack = usePlayerStore((s) => s.equipment.backpack);
-  const contents = usePlayerStore((s) => s.backpackContents);
+  const contents = usePlayerStore((s) => s.backpackGrid.items);
   const putInBackpack = usePlayerStore((s) => s.putInBackpack);
   const takeOutBackpack = usePlayerStore((s) => s.takeOutBackpack);
   const emptyBackpackToInventory = usePlayerStore((s) => s.emptyBackpackToInventory);
