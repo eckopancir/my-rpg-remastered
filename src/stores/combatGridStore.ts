@@ -623,30 +623,22 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     return { damage: 0, type: 'MISS', text: 'ПРОМАХ', sound: null };
   }
 
-  const p = attacker.punching || 0;
-  let pierceFactor: number;
-  if (p >= 2.0) pierceFactor = 0.7;
-  else if (p >= 1.0) pierceFactor = 0.5;
-  else pierceFactor = p * 0.5;
-  const effectiveEnemyArmor = (target.armor || 0) * (1 - pierceFactor);
-  dmg = Math.max(0, dmg - effectiveEnemyArmor);
-
+  // Уворот проверяется до расчёта урона: промах — 0 (чистый урон мимо уворота).
   let evasionChance = target.evasion || 0;
   if (finalAccuracy > 1) {
     if (Math.random() < finalAccuracy - 1) evasionChance = 0;
   }
   if (Math.random() < evasionChance && !forcedMult) {
     playCombatSound('evasion', 0.3);
-    // Чистый урон пробивает уворот (броня/блок/уворот его не касаются).
     const pureDmg = Math.round(attacker.pure || 0);
     if (pureDmg > 0) return { damage: pureDmg, type: 'EVASION', text: `УВОРОТ −${pureDmg}`, sound: null };
     return { damage: 0, type: 'EVASION', text: 'УВОРОТ', sound: null };
   }
 
+  // 1) КРИТ сначала: множитель применяется к базовому урону.
   const critVal = attacker.crit || 0;
   let critMultiplier = 1;
   let isCrit = false;
-  // Форсированный крит xN: без ролла, сразу весомый.
   if (forcedMult > 0) {
     isCrit = true;
     critMultiplier = forcedMult;
@@ -657,8 +649,6 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     isCrit = true;
     const baseTier = Math.floor(critVal);
     const chance = Math.min(critVal - baseTier, 1);
-    // Сработавший крит всегда весомый: минимум x2. Иначе метка "КРИТ"
-    // висела бы на обычном уроне (x1) и вводила в заблуждение.
     critMultiplier = baseTier > 0
       ? (Math.random() < chance ? baseTier + 2 : baseTier + 1)
       : 2;
@@ -667,6 +657,16 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     sound = 'crit';
   }
 
+  // 2) БРОНЯ после крита: вычитаем effectiveEnemyArmor из уже умноженного урона.
+  const p = attacker.punching || 0;
+  let pierceFactor: number;
+  if (p >= 2.0) pierceFactor = 0.7;
+  else if (p >= 1.0) pierceFactor = 0.5;
+  else pierceFactor = p * 0.5;
+  const effectiveEnemyArmor = (target.armor || 0) * (1 - pierceFactor);
+  dmg = Math.max(0, dmg - effectiveEnemyArmor);
+
+  // 3) БЛОК после брони.
   const blockVal = target.block || 0;
   let isBlocked = false;
   let currentBlockReduction = 0.5;
@@ -680,12 +680,12 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     if (!sound) sound = 'block';
   }
 
-  // Incoming damage multiplier (barrier — reduces damage)
+  // 4) Барьер (incoming damage multiplier).
   if (target.incomingDamageMult !== undefined && target.incomingDamageMult < 1) {
     dmg *= target.incomingDamageMult;
   }
 
-  // Чистый урон: мимо брони/блока/уворота/барьера, крит умножает всю сумму.
+  // 5) Чистый урон: мимо брони/блока/уворота/барьера, крит умножает всю сумму.
   const pureTotal = Math.round((attacker.pure || 0) * critMultiplier);
   const displayDmg = Math.round(dmg) + pureTotal;
 
@@ -698,7 +698,6 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     text = `🔥 КРИТ x${critMultiplier}! -${displayDmg}`;
   } else if (isBlocked) {
     text = `🛡️ БЛОК -${(currentBlockReduction * 100).toFixed(0)}%! -${displayDmg}`;
-    type = 'BLOCK';
   } else {
     text = `-${displayDmg}`;
   }
