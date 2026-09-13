@@ -56,6 +56,7 @@ interface UiStore {
   inventoryPinPos: { x: number; y: number };
   equipmentPinned: boolean;
   equipmentPinPos: { x: number; y: number };
+  backpackOpen: boolean;
 
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -67,6 +68,8 @@ interface UiStore {
   setInventoryOpen: (open: boolean) => void;
   toggleEquipment: () => void;
   setEquipmentOpen: (open: boolean) => void;
+  toggleBackpack: () => void;
+  setBackpackOpen: (open: boolean) => void;
   toggleRange: () => void;
   setRangeOpen: (open: boolean) => void;
   setDraggedItemId: (id: string | null) => void;
@@ -138,6 +141,7 @@ export const useUiStore = create<UiStore>()(
       craftingLabel: '',
       inventoryOpen: false,
       equipmentOpen: false,
+      backpackOpen: false,
       rangeOpen: false,
       draggedItemId: null,
       inventoryPinned: false,
@@ -167,6 +171,8 @@ export const useUiStore = create<UiStore>()(
       toggleInventory: () => set((s) => ({ inventoryOpen: !s.inventoryOpen })),
       setEquipmentOpen: (open) => set({ equipmentOpen: open }),
       toggleEquipment: () => set((s) => ({ equipmentOpen: !s.equipmentOpen })),
+      setBackpackOpen: (open) => set({ backpackOpen: open }),
+      toggleBackpack: () => set((s) => ({ backpackOpen: !s.backpackOpen })),
       setRangeOpen: (open) => set({ rangeOpen: open }),
       toggleRange: () => set((s) => ({ rangeOpen: !s.rangeOpen })),
       setDraggedItemId: (id) => set({ draggedItemId: id }),

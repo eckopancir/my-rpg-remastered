@@ -9,6 +9,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Map } from './pages/Map';
 import { Equipment } from './pages/Equipment';
+import { BackpackWindow } from './components/widgets/BackpackWindow';
 import { Base } from './pages/Base';
 import { Bazaar } from './pages/Bazaar';
 import { Craft } from './pages/Craft';
@@ -89,6 +90,7 @@ const SAVE_INTERVAL_MS = 60000;
 const AppContent = () => {
   useGameLoop();
   const equipmentOpen = useUiStore((s) => s.equipmentOpen);
+  const backpackOpen = useUiStore((s) => s.backpackOpen);
   const rangeOpen = useUiStore((s) => s.rangeOpen);
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
   const token = useAuthStore((s) => s.token);
@@ -294,6 +296,7 @@ const AppContent = () => {
       <InventoryOverlay />
       <PinnedTooltipHost />
       {equipmentOpen && <Equipment />}
+      {backpackOpen && <BackpackWindow onClose={() => useUiStore.getState().setBackpackOpen(false)} />}
       {rangeOpen && <ShootingRange onClose={() => useUiStore.getState().setRangeOpen(false)} />}
       <AnimatePresence mode="wait">
         <Routes>

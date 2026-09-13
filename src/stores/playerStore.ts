@@ -599,11 +599,13 @@ export const usePlayerStore = create<PlayerStore>()(
 
       recalcAbilities: () => {
         // Способности героя — из расходников в рюкзаке (уникальные, лимит 12).
+        // Еда (food_*) исключена — это не способности.
         const seen = new Set<string>();
         const abilities: (AccessoryAbility | null)[] = [];
         for (const it of get().backpackGrid.items) {
           if (it.type !== 'consumable' || !(it as any).abilityId) continue;
           const aid = (it as any).abilityId as string;
+          if (aid.startsWith('food_')) continue;
           if (seen.has(aid)) continue;
           const ab = ABILITY_MAP[aid];
           if (!ab || (ab as any).passive) continue;

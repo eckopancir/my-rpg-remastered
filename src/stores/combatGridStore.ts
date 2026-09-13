@@ -1129,13 +1129,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const state = get();
     if (x < 0 || x >= GRID || y < 0 || y >= GRID) return true;
     if (isCellBlockedBy(x, y, state.obstacles)) return true;
+    if (state.campfire && state.campfire.x === x && state.campfire.y === y) return true;
     for (const e of state.enemies) {
       if (!e.dead && e.pos.x === x && e.pos.y === y && e.id !== ignoreEnemyId) return true;
     }
     return false;
   },
 
-  findPath: (from, to) => findPath(from, to, get().obstacles),
+  findPath: (from, to) => {
+    const s = get();
+    const obs = [...s.obstacles];
+    if (s.campfire) obs.push({ id: -1, x: s.campfire.x, y: s.campfire.y, w: 1, h: 1, type: 'campfire', blocks: true, icon: 'campfire' });
+    return findPath(from, to, obs);
+  },
 
   initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount) => {
     try {

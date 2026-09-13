@@ -1,4 +1,6 @@
 import { getItemImage, images, crystalImages, getSchemeImage } from '../../assets/index';
+import { getConsumableIcon } from '../../data/consumables';
+import { FOOD_MAP } from '../../data/food';
 import type { Item } from '../../types/items';
 import { chestImageFor, configForQuality } from '../../data/chests';
 import { QUALITY_TIERS } from '../../engine/items';
@@ -103,6 +105,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
   const compareItem = compareSlot ? (equipment as any)[compareSlot] : null;
   const showCompare = shiftHeld && compareItem && compareItem.id !== item.id;
   const compareX = Math.max(8, tooltipX - 276);
+  const foodIcon = item.type === 'consumable' && item.abilityId ? (FOOD_MAP[item.abilityId]?.icon || getConsumableIcon(item)) : null;
   const imgUrl = item.image
     || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
     || getItemImage(item.name, item.displayName, item.slot, item.type);
@@ -131,7 +134,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         fontFamily: 'var(--font-sans)',
       }}
     >
-      {imgUrl && (
+      {imgUrl ? (
         <div style={{ textAlign: 'center', marginBottom: 10, position: 'relative' }}>
           <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4 }} />
           {/* Гнёзда под сферы: столбец кристаллов справа от картинки */}
@@ -174,7 +177,11 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
             </div>
           </div>
         </div>
-      )}
+      ) : foodIcon ? (
+        <div style={{ textAlign: 'center', marginBottom: 10 }}>
+          <span style={{ fontSize: 72, lineHeight: 1.2 }}>{foodIcon}</span>
+        </div>
+      ) : null}
       <div style={{
         fontSize: 14, fontWeight: 600, color: item.qualityColor || 'var(--text-primary)',
         marginBottom: 6, lineHeight: 1.3,
@@ -361,7 +368,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 2 }}>
             ⭐ Сила: <span style={{ color: 'rgba(255,255,255,0.6)' }}>{Math.round(ABILITY_MAP[item.abilityId].powerRating * (1 + ((item.level || 1) - 1) * 0.05) * 3)}</span>
           </div>
-          {item.type === 'consumable' && (
+           {item.type === 'consumable' && (
             <div style={{ fontSize: 10, color: '#4ade80', marginTop: 2 }}>
               📦 Расходует: 1 шт. за использование в бою
             </div>

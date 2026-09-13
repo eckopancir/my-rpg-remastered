@@ -24,22 +24,22 @@ const F = (id: string, name: string, icon: string, healPct: number, price: numbe
   ({ id, name, icon, healPct, price, desc, isRaw });
 
 // ─── Raw food (needs cooking) ─────────────────────────────────────────
-export const FOOD_MEAT = F('food_meat', 'Мясо', '🥩', 0, 8, 'Сырое мясо. Нужно приготовить.', true);
-export const FOOD_POTATO = F('food_potato', 'Картошка', '🥔', 0, 4, 'Сырая картошка. Нужно приготовить.', true);
-export const FOOD_WATER = F('food_water', 'Вода', '💧', 0, 3, 'Чистая вода. Используется для приготовления.', true);
+export const FOOD_MEAT = F('food_meat', 'Мясо', '🥩', 0, 300, 'Сырое мясо. Нужно приготовить.', true);
+export const FOOD_POTATO = F('food_potato', 'Картошка', '🥔', 0, 50, 'Сырая картошка. Нужно приготовить.', true);
+export const FOOD_WATER = F('food_water', 'Вода', '💧', 0, 30, 'Чистая вода. Используется для приготовления.', true);
 
 // ─── Ready-to-eat food ────────────────────────────────────────────────
-export const FOOD_SAUSAGE = F('food_sausage', 'Колбаса', '🌭', 2, 10, 'Восстанавливает 2% HP.', false);
-export const FOOD_APPLE = F('food_apple', 'Яблоко', '🍎', 1, 6, 'Восстанавливает 1% HP.', false);
-export const FOOD_STEW = F('food_stew', 'Тушёнка', '🥫', 3, 12, 'Восстанавливает 3% HP.', false);
-export const FOOD_BREAD = F('food_bread', 'Хлеб', '🍞', 2, 7, 'Восстанавливает 2% HP.', false);
+export const FOOD_SAUSAGE = F('food_sausage', 'Колбаса', '🌭', 2, 100, 'Восстанавливает 2% HP.', false);
+export const FOOD_APPLE = F('food_apple', 'Яблоко', '🍎', 1, 40, 'Восстанавливает 1% HP.', false);
+export const FOOD_STEW = F('food_stew', 'Тушёнка', '🥫', 3, 150, 'Восстанавливает 3% HP.', false);
+export const FOOD_BREAD = F('food_bread', 'Хлеб', '🍞', 2, 60, 'Восстанавливает 2% HP.', false);
 
-// ─── Cooked food (crafted from recipes) ───────────────────────────────
-export const FOOD_RAGU = F('food_ragu', 'Рагу', '🍲', 15, 0, 'Картошка + вода + мясо. Восстанавливает 15% HP.', false);
-export const FOOD_FRIED_MEAT = F('food_fried_meat', 'Жареное мясо', '🍖', 20, 0, 'Мясо × 2. Восстанавливает 20% HP.', false);
-export const FOOD_BOILED_POTATO = F('food_boiled_potato', 'Варёная картошка', '🥔', 12, 0, 'Картошка + вода. Восстанавливает 12% HP.', false);
-export const FOOD_SANDWICH = F('food_sandwich', 'Бутерброд', '🥪', 5, 0, 'Колбаса + хлеб. Восстанавливает 5% HP.', false);
-export const FOOD_FRIED_POTATO = F('food_fried_potato', 'Жареная картошка', '🍟', 8, 0, 'Картошка × 2. Восстанавливает 8% HP.', false);
+// ─── Cooked food (crafted from recipes) — цена = сумма ингредиентов ──
+export const FOOD_RAGU = F('food_ragu', 'Рагу', '🍲', 15, 380, 'Картошка + вода + мясо. Восстанавливает 15% HP.', false);
+export const FOOD_FRIED_MEAT = F('food_fried_meat', 'Жареное мясо', '🍖', 20, 600, 'Мясо × 2. Восстанавливает 20% HP.', false);
+export const FOOD_BOILED_POTATO = F('food_boiled_potato', 'Варёная картошка', '🥔', 12, 80, 'Картошка + вода. Восстанавливает 12% HP.', false);
+export const FOOD_SANDWICH = F('food_sandwich', 'Бутерброд', '🥪', 5, 160, 'Колбаса + хлеб. Восстанавливает 5% HP.', false);
+export const FOOD_FRIED_POTATO = F('food_fried_potato', 'Жареная картошка', '🍟', 8, 100, 'Картошка × 2. Восстанавливает 8% HP.', false);
 
 export const ALL_FOOD: FoodDef[] = [
   FOOD_MEAT, FOOD_POTATO, FOOD_WATER,

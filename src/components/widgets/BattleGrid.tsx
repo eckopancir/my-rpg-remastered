@@ -643,11 +643,9 @@ export const BattleGrid = () => {
             top: `${(campfire.y / 31) * 100}%`,
             transform: 'translate(-50%, -62%)',
             width: '6.25%', aspectRatio: '1',
-            zIndex: 4, cursor: 'pointer',
+            zIndex: 4,
           }}
             onClick={() => {
-              const dist = Math.hypot(campfire.x - playerPos.x, campfire.y - playerPos.y);
-              if (dist > 2) { useCombatGridStore.getState().addMessage('❌ Слишком далеко от костра'); return; }
               useCombatGridStore.getState().setShowCookingMenu(true);
             }}
           >

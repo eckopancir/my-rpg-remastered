@@ -30,6 +30,7 @@ export const Header = () => {
   const expToNext = usePlayerStore((s) => s.expToNext);
   const toggleInventory = useUiStore((s) => s.toggleInventory);
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
+  const toggleBackpack = useUiStore((s) => s.toggleBackpack);
   const toggleRange = useUiStore((s) => s.toggleRange);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -107,6 +108,13 @@ export const Header = () => {
             style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
           >
             ⚔️ Equipment
+          </button>
+          <button
+            className={styles.navLink}
+            onClick={() => { playClick(); toggleBackpack(); }}
+            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
+          >
+            🎒 Backpack
           </button>
           <button
             className={styles.navLink}
