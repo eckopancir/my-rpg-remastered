@@ -72,7 +72,7 @@
 
 /* Кнопка-картинка Dashboard: высокий бокс, чтобы картинка не торчала наружу */
 .navImageLink {
-  height: 80px;
+  height: 100px;
   padding: 2px 0;
   overflow: visible;
 }
