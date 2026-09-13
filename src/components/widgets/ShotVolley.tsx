@@ -105,7 +105,7 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
 
   if (done) return null;
 
-  const muzzleSize = (kind === 'heal' ? 24 : 28) * power;
+  const muzzleSize = (kind === 'heal' ? 24 : 28) * Math.min(1, power);
   const mRot = kind === 'heal' ? 0 : (Math.atan2(seg.uy, seg.ux) * 180) / Math.PI + 90;
   const mzx = (kind === 'heal' ? shot.to.x : seg.sx) / 31 * 100;
   const mzy = (kind === 'heal' ? shot.to.y : seg.sy) / 31 * 100;
