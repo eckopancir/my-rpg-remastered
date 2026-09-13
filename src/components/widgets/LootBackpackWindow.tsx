@@ -228,7 +228,38 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   const hiddenCount = loot.filter((i: any) => !(i as any).revealed).length;
   const enemyImg = getEnemyImage(enemy.faction, enemy.name);
 
-  // Build grid cells for player backpack (5 cols × N rows)
+  // Auto-assign grid positions for corpse loot items (2×2 for weapons/armor)
+  const corpseGridCols = 5;
+  const corpseGridRows = Math.max(1, Math.ceil(CORPSE_SLOTS / corpseGridCols));
+  const corpseItems: (Item | null)[] = Array(corpseGridCols * corpseGridRows).fill(null);
+  const corpseOccupied = new Set<number>();
+  for (const item of loot) {
+    if (!item) continue;
+    const w = isBigItem(item) ? 2 : 1;
+    const h = isBigItem(item) ? 2 : 1;
+    // Find free slot
+    let placed = false;
+    for (let y = 0; y <= corpseGridRows - h && !placed; y++) {
+      for (let x = 0; x <= corpseGridCols - w && !placed; x++) {
+        const idx = y * corpseGridCols + x;
+        let canPlace = true;
+        for (let dy = 0; dy < h && canPlace; dy++) {
+          for (let dx = 0; dx < w && canPlace; dx++) {
+            if (corpseOccupied.has((y + dy) * corpseGridCols + (x + dx))) canPlace = false;
+          }
+        }
+        if (canPlace) {
+          corpseItems[idx] = { ...item, gridW: w, gridH: h, gridX: x, gridY: y };
+          for (let dy = 0; dy < h; dy++) {
+            for (let dx = 0; dx < w; dx++) {
+              corpseOccupied.add((y + dy) * corpseGridCols + (x + dx));
+            }
+          }
+          placed = true;
+        }
+      }
+    }
+  }
   const gridCols = 5;
   const gridRows = Math.max(1, Math.ceil(packSlots / gridCols));
   const packCells: (Item | null)[] = Array(gridCols * gridRows).fill(null);
@@ -300,9 +331,9 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                 {enemy.name} ({loot.length}/{CORPSE_SLOTS}){hiddenCount > 0 && ` · скрыто: ${hiddenCount}`}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(5, ${cellPx}px)`, gap: 4, marginBottom: 10, justifyContent: 'start' }}>
-              {Array.from({ length: CORPSE_SLOTS }).map((_, i) => {
-                const item = loot[i] ?? null;
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${corpseGridCols}, ${cellPx}px)`, gridTemplateRows: `repeat(${corpseGridRows}, ${cellPx}px)`, gap: 4, marginBottom: 10, justifyContent: 'start' }}>
+              {corpseItems.map((item, i) => {
+                if (item === null && corpseOccupied.has(i)) return null;
                 const isHidden = !!item && !(item as any).revealed;
                 return (
                   <Cell
