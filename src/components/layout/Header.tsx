@@ -40,7 +40,6 @@ const imageNavItems = [
   { to: '/base', label: 'Base', off: baseOff, on: baseOn },
   { to: '/bazaar', label: 'Bazaar', off: bazaarOff, on: bazaarOn },
   { to: '/craft', label: 'Craft', off: craftOff, on: craftOn },
-  { to: '/settings', label: 'Settings', off: settingsOff, on: settingsOn },
 ];
 
 const navItems: { to: string; label: string }[] = [];
@@ -153,6 +152,16 @@ export const Header = () => {
             </NavLink>
           ))}
           <button
+            className={`${styles.navLink} ${styles.navImageLink} ${rangeOpen ? styles.navLinkActive : ''}`}
+            onClick={() => { playClick(); toggleRange(); }}
+            onMouseEnter={() => setHoverImg('range')}
+            onMouseLeave={() => setHoverImg(null)}
+            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
+            title="Shooting Range"
+          >
+            <img src={hoverImg === 'range' || rangeOpen ? polygonOn : polygonOff} alt="Shooting Range" style={{ height: 94, width: 'auto', display: 'block' }} />
+          </button>
+          <button
             className={`${styles.navLink} ${styles.navImageLink} ${equipmentOpen ? styles.navLinkActive : ''}`}
             onClick={() => { playClick(); toggleEquipment(); }}
             onMouseEnter={() => setHoverImg('equipment')}
@@ -180,16 +189,23 @@ export const Header = () => {
           >
             <img src={hoverImg === 'inventory' || inventoryOpen ? inventoryOn : inventoryOff} alt="Inventory" style={{ height: 94, width: 'auto', display: 'block' }} />
           </button>
-          <button
-            className={`${styles.navLink} ${styles.navImageLink} ${rangeOpen ? styles.navLinkActive : ''}`}
-            onClick={() => { playClick(); toggleRange(); }}
-            onMouseEnter={() => setHoverImg('range')}
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              `${styles.navLink} ${styles.navImageLink} ${isActive ? styles.navLinkActive : ''}`
+            }
+            onClick={guardCombatNav}
+            onMouseEnter={() => setHoverImg('/settings')}
             onMouseLeave={() => setHoverImg(null)}
-            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
-            title="Shooting Range"
           >
-            <img src={hoverImg === 'range' || rangeOpen ? polygonOn : polygonOff} alt="Shooting Range" style={{ height: 94, width: 'auto', display: 'block' }} />
-          </button>
+            {({ isActive }) => (
+              <img
+                src={hoverImg === '/settings' || isActive ? settingsOn : settingsOff}
+                alt="Settings"
+                style={{ height: 94, width: 'auto', display: 'block' }}
+              />
+            )}
+          </NavLink>
         </nav>
       </div>
       <div className={styles.right}>
