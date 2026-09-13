@@ -100,7 +100,6 @@ export const Battle = () => {
   const isSelected = useCombatGridStore((s) => s.isSelected);
   const cursorPos = useCombatGridStore((s) => s.cursorPos);
   const playerPos = useCombatGridStore((s) => s.playerPos);
-  const campfire = useCombatGridStore((s) => s.campfire);
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const myTerrain = getTerrainBonus(playerPos, obstacles);
   const myTerrainText = [
@@ -188,11 +187,14 @@ export const Battle = () => {
         case 'KeyC': stealthKill(); break;
         case 'KeyQ': cycleWeapon(); break;
         case 'KeyE': {
-          if (campfire) {
-            const dx = Math.abs(playerPos.x - campfire.x);
-            const dy = Math.abs(playerPos.y - campfire.y);
-            if (dx + dy <= 2) {
-              useCombatGridStore.getState().setShowCookingMenu(true);
+          const st = useCombatGridStore.getState();
+          const cf = st.campfire;
+          const pp = st.playerPos;
+          if (cf) {
+            const edx = Math.abs(pp.x - cf.x);
+            const edy = Math.abs(pp.y - cf.y);
+            if (edx + edy <= 2) {
+              st.setShowCookingMenu(true);
               break;
             }
           }
