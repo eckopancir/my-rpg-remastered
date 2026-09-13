@@ -433,7 +433,7 @@ export const ShootingRange = ({ onClose }: Props) => {
               {Math.round(effEvasionPct * 100)}%
             </b>{(stats.accuracy || 0) >= 2 && ' (меткость 200% пробивает уворот полностью)'}
           </div>
-          <StepperField label="БЛОК (0–3)" value={cfg.block} step={0.5} min={0} max={3}
+          <StepperField label="БЛОК (0–5)" value={cfg.block} step={0.5} min={0} max={5}
             format={(v) => String(round1(v))} onCommit={(v) => commitCfg('block', v)} />
           <div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1, marginBottom: 4 }}>ТИП МАНЕКЕНА</div>
