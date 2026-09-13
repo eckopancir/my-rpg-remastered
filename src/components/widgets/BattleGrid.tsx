@@ -637,25 +637,39 @@ export const BattleGrid = () => {
 
         {/* Костёр лагеря — виден всегда (свет видно издалека), кадры 300мс */}
         {campfire && (images.campfire1 || images.campfire2) && (
-          <div style={{
-            position: 'absolute',
-            left: `${(campfire.x / 31) * 100}%`,
-            top: `${(campfire.y / 31) * 100}%`,
-            transform: 'translate(-50%, -62%)',
-            width: '6.25%', aspectRatio: '1',
-            zIndex: 4,
-          }}
-            onClick={() => {
-              useCombatGridStore.getState().setShowCookingMenu(true);
-            }}
-          >
-            <img
-              src={fireFrame === 0 ? (images.campfire1 || images.campfire2) : (images.campfire2 || images.campfire1)}
-              alt="campfire"
-              draggable={false}
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          <>
+            {/* Визуал костра (декоративный, без клика) */}
+            <div style={{
+              position: 'absolute',
+              left: `${(campfire.x / 31) * 100}%`,
+              top: `${(campfire.y / 31) * 100}%`,
+              transform: 'translate(-50%, -62%)',
+              width: '6.25%', aspectRatio: '1',
+              zIndex: 4,
+              pointerEvents: 'none',
+            }}>
+              <img
+                src={fireFrame === 0 ? (images.campfire1 || images.campfire2) : (images.campfire2 || images.campfire1)}
+                alt="campfire"
+                draggable={false}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            </div>
+            {/* Клик-таргет — точно по клетке, без transform */}
+            <div
+              onClick={() => {
+                useCombatGridStore.getState().setShowCookingMenu(true);
+              }}
+              style={{
+                position: 'absolute',
+                left: `${(campfire.x / 31) * 100}%`,
+                top: `${(campfire.y / 31) * 100}%`,
+                width: '6.25%', height: '6.25%',
+                zIndex: 5,
+                cursor: 'crosshair',
+              }}
             />
-          </div>
+          </>
         )}
 
         {/* Реплики и статусы — верхний слой: поверх тумана, костра и всех объектов */}
