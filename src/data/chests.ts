@@ -159,8 +159,8 @@ export const rollChestLoot = (chest: Item): ChestDrop[] => {
     drops.push({ key: dropKey(), kind: 'bullets', group: g.key, quantity: 15 + Math.floor(Math.random() * 16), quality });
   }
 
-  // Расходники по тиру сундука: виды и пачки растут с редкостью.
-  const consPool = [...CONSUMABLE_DEFS];
+  // Расходники по тиру сундука: виды и пачки растут с редкостью (еда исключена).
+  const consPool = CONSUMABLE_DEFS.filter((d) => !d.abilityId.startsWith('food_'));
   for (let i = consPool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [consPool[i], consPool[j]] = [consPool[j], consPool[i]];

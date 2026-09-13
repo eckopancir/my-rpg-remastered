@@ -2,6 +2,7 @@ import { generateItem, getItemQuality, QUALITY_TIERS, type ItemDefinition } from
 import { GAME_RESOURCES } from '../data/GameItems';
 import { AMMO_GROUPS, makeBulletPack } from '../data/ammo';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
+import { ALL_FOOD } from '../data/food';
 import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
 
 export type CorpseRank = 'regular' | 'tough' | 'boss';
@@ -25,6 +26,13 @@ const withChargedMags = (items: Array<any>): Array<any> => {
     }
   }
   return items;
+};
+
+// Еда с трупа — 10% шанс, 1 шт. случайная из ALL_FOOD (сырьё + готовое).
+const rollFoodDrop = (): any | null => {
+  if (Math.random() >= 0.1) return null;
+  const f = ALL_FOOD[Math.floor(Math.random() * ALL_FOOD.length)];
+  return makeConsumable(f.id, 1);
 };
 
 // Рюкзак трупа — 20 ячеек (5×4): приоритет содержимого.
@@ -116,6 +124,8 @@ export const generateLoot = (
         const d = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
         items.push(makeConsumable(d.abilityId, 1));
       }
+      const bossFood = rollFoodDrop();
+      if (bossFood) items.push(bossFood);
       const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
       const bq = getItemQuality();
       items.push(makeBulletPack(g.key, 15 + Math.floor(Math.random() * 16), bq.name, bq.color));
@@ -183,6 +193,9 @@ export const generateLoot = (
       const d = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
       items.push(makeConsumable(d.abilityId, 1));
     }
+    // Еда с трупа — 10%.
+    const food = rollFoodDrop();
+    if (food) items.push(food);
     // Рюкзак с босса (качество — пирамидой).
     if (t.packChance > 0 && Math.random() < t.packChance) {
       const d = BACKPACK_DEFS[Math.floor(Math.random() * BACKPACK_DEFS.length)];
@@ -237,6 +250,10 @@ export const generateLoot = (
       });
     }
   }
+
+  // Еда — 10% (legacy-путь без rank).
+  const legacyFood = rollFoodDrop();
+  if (legacyFood) items.push(legacyFood);
 
   return withChargedMags(items);
 };
