@@ -219,7 +219,7 @@ export interface CombatGridStore {
   reinforceSpawned: boolean;
   battleId: number;
   say: (enemyId: number | string, text: string, ms?: number) => void;
-  triggerRevengeDialogues: (deadPos: { x: number; y: number }, deadName: string) => void;
+  triggerRevengeDialogues: (deadPos: { x: number; y: number }, callsign?: string) => void;
   spawnReinforcements: () => void;
   // Волна агро: все враги (кроме союзников) в радиусе R от точки вступают в бой.
   aggroWave: (center: { x: number; y: number }, radius?: number) => void;
@@ -805,16 +805,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }, ms);
   },
   // Месть союзников: живые враги в радиусе 12 клеток видят смерть и реагируют (25% шанс).
-  triggerRevengeDialogues: (deadPos, deadName) => {
+  triggerRevengeDialogues: (deadPos, callsign?: string) => {
     const R = 12;
-    const REVENGE = [
-      `${deadName}!!`, `${deadName}!!!`, `Нет!! ${deadName}!!`,
-      `За ${deadName}!!`, `Я тебя найду!`, `Ты не уйдешь живой!`,
-      `Плати за ${deadName}!`, `Разорву тебя!`, `Как ты посмел?!`,
-      `${deadName}, держись!..`, `Убью тебя за это!`, `Сволочь!`,
-      `Держись, ${deadName}!`, `Не можешь так просто...`, `Я тебя достану!`,
-      `Валим его!`, `Не дам уйти!`, `Кто следующий?!`,
-      `${deadName} не простит!`, `За себя и за ${deadName}!`,
+    const GENERIC = [
+      `Я тебя найду!`, `Ты не уйдешь живой!`, `Разорву тебя!`,
+      `Как ты посмел?!`, `Убью тебя за это!`, `Сволочь!`,
+      `Не можешь так просто...`, `Я тебя достану!`, `Валим его!`,
+      `Не дам уйти!`, `Кто следующий?!`, `Плати кровью!`,
+      `Ты за это поплатишься!`, `Никуда не уйдешь!`, `Готовься!`,
+      `Сейчас тебя!`, `Держись!`, `Конец тебе!`,
+    ];
+    const NAMED: Array<(n: string) => string> = [
+      (n) => `${n}!!`, (n) => `${n}!!!`, (n) => `Нет!! ${n}!!`,
+      (n) => `За ${n}!!`, (n) => `Плати за ${n}!`, (n) => `${n}, держись!..`,
+      (n) => `Держись, ${n}!`, (n) => `За себя и за ${n}!`,
+      (n) => `${n} не простит!`, (n) => `Валеру убили!`, (n) => `За себя и за Сашку!`,
     ];
     const enemies = get().enemies;
     for (const e of enemies) {
@@ -824,7 +829,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const dy = e.pos.y - deadPos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= R && Math.random() < 0.25) {
-        const phrase = REVENGE[Math.floor(Math.random() * REVENGE.length)];
+        let phrase: string;
+        if (callsign && Math.random() < 0.5) {
+          phrase = NAMED[Math.floor(Math.random() * NAMED.length)](callsign);
+        } else {
+          phrase = GENERIC[Math.floor(Math.random() * GENERIC.length)];
+        }
         get().say(e.id, phrase, 4000);
       }
     }
@@ -1066,7 +1076,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           next = { ...next, dead: true, loot: freshLoot, looted: false, isHit: false };
           get().addBattleLog(`💀 ${next.name} сгорел!`);
           get().addMessage(`💀 ${next.name} сгорел! Кликни для лута`);
-          get().triggerRevengeDialogues(next.pos, next.name);
+          get().triggerRevengeDialogues(next.pos, (next as any).callsign);
           wavesCheck = true;
         }
       }
@@ -2576,7 +2586,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           message: `💀 ${updatedEnemy.name} уничтожен! Кликни для лута`,
         }));
         get().addBattleLog(`💀 ${updatedEnemy.name} уничтожен!`);
-        get().triggerRevengeDialogues(updatedEnemy.pos, updatedEnemy.name);
+        get().triggerRevengeDialogues(updatedEnemy.pos, (updatedEnemy as any).callsign);
         const allDead = get().enemies.every((e) => e.dead);
         if (allDead) {
           const hasReserve = get().reserve.length > 0;
