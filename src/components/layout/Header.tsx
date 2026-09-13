@@ -9,14 +9,23 @@ import { images } from '../../assets/index';
 import styles from './Header.module.css';
 import dashA2 from '../../assets/images/ui/a2.png';
 import dashA1 from '../../assets/images/ui/a1.png';
+import skillsOff from '../../assets/images/ui/skills-off.jpg';
+import skillsOn from '../../assets/images/ui/skills-on.jpg';
+import mapOff from '../../assets/images/ui/map-off.jpg';
+import mapOn from '../../assets/images/ui/map-on.jpg';
+import travelOff from '../../assets/images/ui/travel-off.jpg';
+import travelOn from '../../assets/images/ui/travel-on.jpg';
 import hpIconImg from '../../assets/images/ui/hp-icon.png';
 import staminaPlateImg from '../../assets/images/ui/stamina-plate.png';
 import levelIconImg from '../../assets/images/ui/level-icon.png';
 
+const imageNavItems = [
+  { to: '/skills', label: 'Skills', off: skillsOff, on: skillsOn },
+  { to: '/map', label: 'Map', off: mapOff, on: mapOn },
+  { to: '/adventure', label: 'Travel', off: travelOff, on: travelOn },
+];
+
 const navItems = [
-  { to: '/skills', label: '⭐ Skills' },
-  { to: '/map', label: '🗺️ Map' },
-  { to: '/adventure', label: '🔍 Travel' },
   { to: '/base', label: '🏢 Base' },
   { to: '/bazaar', label: '🏪 Bazaar' },
   { to: '/craft', label: '🔧 CRAFT' },
@@ -38,7 +47,7 @@ export const Header = () => {
   const navigate = useNavigate();
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [dashHover, setDashHover] = useState(false);
+  const [hoverImg, setHoverImg] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Настройка «Подтверждение выхода из боя»: уход с арены через навигацию — с вопросом.
@@ -54,10 +63,12 @@ export const Header = () => {
     }
   };
 
-  // Предзагрузка ховер-картинки, чтобы не мигало при первом наведении.
+  // Предзагрузка ховер-картинок, чтобы не мигало при первом наведении.
   useEffect(() => {
-    const img = new Image();
-    img.src = dashA1;
+    for (const src of [dashA1, skillsOn, mapOn, travelOn]) {
+      const img = new Image();
+      img.src = src;
+    }
   }, []);
 
   useEffect(() => {
@@ -81,15 +92,37 @@ export const Header = () => {
               `${styles.navLink} ${styles.navImageLink} ${isActive ? styles.navLinkActive : ''}`
             }
             onClick={guardCombatNav}
-            onMouseEnter={() => setDashHover(true)}
-            onMouseLeave={() => setDashHover(false)}
+            onMouseEnter={() => setHoverImg('/dashboard')}
+            onMouseLeave={() => setHoverImg(null)}
           >
-            <img
-              src={dashHover ? dashA1 : dashA2}
-              alt="Dashboard"
-              style={{ height: 94, width: 'auto', display: 'block' }}
-            />
+            {({ isActive }) => (
+              <img
+                src={hoverImg === '/dashboard' || isActive ? dashA1 : dashA2}
+                alt="Dashboard"
+                style={{ height: 94, width: 'auto', display: 'block' }}
+              />
+            )}
           </NavLink>
+          {imageNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `${styles.navLink} ${styles.navImageLink} ${isActive ? styles.navLinkActive : ''}`
+              }
+              onClick={guardCombatNav}
+              onMouseEnter={() => setHoverImg(item.to)}
+              onMouseLeave={() => setHoverImg(null)}
+            >
+              {({ isActive }) => (
+                <img
+                  src={hoverImg === item.to || isActive ? item.on : item.off}
+                  alt={item.label}
+                  style={{ height: 94, width: 'auto', display: 'block' }}
+                />
+              )}
+            </NavLink>
+          ))}
           {navItems.map((item) => (
             <NavLink
               key={item.to}
