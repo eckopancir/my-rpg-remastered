@@ -195,10 +195,8 @@ export const Battle = () => {
             const edy = Math.abs(pp.y - cf.y);
             if (edx + edy <= 1) {
               st.setShowCookingMenu(true);
-              break;
             }
           }
-          selectMe();
           break;
         }
         case 'Digit1': selectAbility(0); break;
