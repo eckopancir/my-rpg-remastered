@@ -5,6 +5,7 @@ import { generateEnemy } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
 import { GAME_ITEMS, SET_BONUSES } from '../data/GameItems';
 import { useInventoryStore } from './inventoryStore';
+import { useCombatGridStore } from './combatGridStore';
 import { useAuthStore } from './authStore';
 import type { Item } from '../types/items';
 import type { ActiveEffect } from '../types/player';
@@ -1193,20 +1194,23 @@ export const usePlayerStore = create<PlayerStore>()(
           get().addLog(`❌ ${item.displayName || item.name} нужно приготовить на костре!`, 'warning');
           return;
         }
-        // Food healing: heal HP directly
+        // Food: cannot eat during active combat
         const FOOD_HEAL: Record<string, number> = {
           food_sausage: 2, food_apple: 1, food_stew: 3, food_bread: 2,
           food_ragu: 15, food_fried_meat: 20, food_boiled_potato: 12,
           food_sandwich: 5, food_fried_potato: 8,
         };
         if (FOOD_HEAL[abilId] !== undefined) {
+          if (useCombatGridStore.getState().isCombatActive()) {
+            get().addLog(`❌ Нельзя есть во время боя!`, 'warning');
+            return;
+          }
           const pct = FOOD_HEAL[abilId];
           const s = get();
           const heal = Math.round(s.stats.maxHp * pct / 100);
           const newHp = Math.min(s.stats.maxHp, s.stats.currentHp + heal);
           set({ stats: { ...s.stats, currentHp: newHp } });
           get().addLog(`🍖 ${item.displayName || item.name}: +${pct}% HP (+${heal})`, 'heal');
-          // Consume 1 from stack
           const qty = (item.quantity ?? 1) as number;
           if (qty > 1) {
             useInventoryStore.getState().decrementItem(item.id);

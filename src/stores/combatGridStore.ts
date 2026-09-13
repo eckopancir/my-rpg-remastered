@@ -236,6 +236,7 @@ export interface CombatGridStore {
   // Скрытность: моделька полупрозрачна, замечают только в упор. Слетает при выстреле/обнаружении.
   stealth: boolean;
   toggleStealth: () => void;
+  isCombatActive: () => boolean;
 
   playerAbilities: (AccessoryAbility | null)[];
   abilityCooldowns: number[];
@@ -782,6 +783,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     set({ stealth: true });
     get().addMessage('🕵️ Скрытность: обычные замечают в 3, часовые — в 10 клетках');
+  },
+
+  isCombatActive: () => {
+    const s = get();
+    if (!s.isActive) return false;
+    return s.enemies.some((e) => !e.dead && e.currentHp > 0 && e.knowsPlayer);
   },
   markExplored: (cells) => set((s) => {
     let changed = false;
