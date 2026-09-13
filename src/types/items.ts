@@ -51,6 +51,8 @@ export interface Item {
   loadedAmmo?: number;
   // Качество патронов в магазине (Обычный по умолчанию).
   loadedAmmoQuality?: string;
+  // Разбивка патронов в магазине по качествам: { quality: count }.
+  loadedAmmoBreakdown?: Record<string, number>;
   // Уникальная броня: плашка «УНИК», может нести штраф скорости и перки.
   unique?: boolean;
   // Перековка: гнёзда под сферы (максимум) и вставленные сферы.

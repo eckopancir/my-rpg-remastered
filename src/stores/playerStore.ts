@@ -182,7 +182,7 @@ interface PlayerStore {
   emptyBackpackToInventory: () => number;
   clearBackpack: () => void;
   ensureBackpack: () => void;
-  takeAmmoFromPack: (group: AmmoGroup, n: number) => { taken: number; quality: string };
+  takeAmmoFromPack: (group: AmmoGroup, n: number) => { taken: number; quality: string; breakdown: Record<string, number> };
   returnAmmoToPack: (group: AmmoGroup, n: number, quality?: string) => number;
   ammoInPack: (group: AmmoGroup) => number;
   consumeFromPack: (itemId: string) => boolean;
@@ -763,10 +763,10 @@ export const usePlayerStore = create<PlayerStore>()(
 
       takeAmmoFromPack: (group, n) => {
         const s = get();
-        const { items, taken, quality } = takeAmmoFrom(s.backpackContents, group, n);
+        const { items, taken, quality, breakdown } = takeAmmoFrom(s.backpackContents, group, n);
         if (taken > 0) set({ backpackContents: items });
         if (taken > 0) syncNow();
-        return { taken, quality };
+        return { taken, quality, breakdown };
       },
 
       // Вернуть патроны в рюкзак (остаток магазина). Не влезло — в инвентарь.

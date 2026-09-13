@@ -1107,7 +1107,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       usePlayerStore.setState((st: any) => ({
         equipment: {
           ...st.equipment,
-          [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: startAmmo, loadedAmmoQuality: tookQuality } : st.equipment[gs],
+          [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: startAmmo, loadedAmmoQuality: tookQuality, loadedAmmoBreakdown: res.breakdown } : st.equipment[gs],
         },
       }));
       usePlayerStore.getState().syncEquippedItem(gs);
@@ -1476,7 +1476,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           usePlayerStore.setState((st: any) => ({
             equipment: {
               ...st.equipment,
-              [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: 0, loadedAmmoQuality: 'Обычный' } : st.equipment[gs],
+              [gs]: st.equipment[gs] ? { ...st.equipment[gs], loadedAmmo: 0, loadedAmmoQuality: 'Обычный', loadedAmmoBreakdown: undefined } : st.equipment[gs],
             },
           }));
           usePlayerStore.getState().syncEquippedItem(gs);
@@ -2784,12 +2784,20 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Качество магазина: пустой — качество взятых, дозарядка — худшее из двух.
     const oldQ = (w2 as any).loadedAmmoQuality || 'Обычный';
     const newQ = state.ammo <= 0 ? res.quality : worseQuality(oldQ, res.quality);
-    usePlayerStore.setState((st: any) => ({
-      equipment: {
-        ...st.equipment,
-        [wslot]: st.equipment[wslot] ? { ...st.equipment[wslot], loadedAmmoQuality: newQ } : st.equipment[wslot],
-      },
-    }));
+    usePlayerStore.setState((st: any) => {
+      const cur = st.equipment[wslot];
+      if (!cur) return st;
+      const bd = { ...((cur as any).loadedAmmoBreakdown || {}) };
+      for (const [q, cnt] of Object.entries(res.breakdown)) {
+        bd[q] = (bd[q] || 0) + cnt;
+      }
+      return {
+        equipment: {
+          ...st.equipment,
+          [wslot]: { ...cur, loadedAmmoQuality: newQ, loadedAmmoBreakdown: bd },
+        },
+      };
+    });
     set((s) => ({ ap: s.ap - 1, ammo: s.ammo + took, message: `🔁 +${took} (AP -1)` }));
     // Магазин в оружии = итог после дозарядки (не инкремент: в бою тратился state.ammo).
     const magAfter = get().ammo;
@@ -2817,10 +2825,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const curSlot = pst.activeWeaponSlot;
     const curGun = (pst.equipment as any)[curSlot];
     if (curGun && curGun.ammoCapacity) {
+      // Сортируем breakdown: убираемqualities с нулевым количеством.
+      const curBd = (curGun as any).loadedAmmoBreakdown;
+      const cleanBd = curBd ? Object.fromEntries(Object.entries(curBd).filter(([, v]) => (v as number) > 0)) : undefined;
       usePlayerStore.setState((st: any) => ({
         equipment: {
           ...st.equipment,
-          [curSlot]: { ...st.equipment[curSlot], loadedAmmo: state.ammo },
+          [curSlot]: { ...st.equipment[curSlot], loadedAmmo: state.ammo, loadedAmmoBreakdown: cleanBd },
         },
       }));
       pst.syncEquippedItem(curSlot);
@@ -2836,7 +2847,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const res = usePlayerStore.getState().takeAmmoFromPack(ammoTypeForWeapon(nw), cap);
       mag = res.taken;
       usePlayerStore.setState((st: any) => ({
-        equipment: { ...st.equipment, [next]: { ...st.equipment[next], loadedAmmo: mag, loadedAmmoQuality: res.quality } },
+        equipment: { ...st.equipment, [next]: { ...st.equipment[next], loadedAmmo: mag, loadedAmmoQuality: res.quality, loadedAmmoBreakdown: res.breakdown } },
       }));
       usePlayerStore.getState().syncEquippedItem(next);
     }
@@ -2924,12 +2935,36 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (w2 && w2.ammoCapacity) {
         try {
           const leftAmmo = cs.ammo;
-          usePlayerStore.setState((st: any) => ({
-            equipment: {
-              ...st.equipment,
-              [wslot]: st.equipment[wslot] ? { ...st.equipment[wslot], loadedAmmo: leftAmmo, loadedAmmoQuality: leftAmmo <= 0 ? 'Обычный' : ((w2 as any).loadedAmmoQuality || 'Обычный') } : st.equipment[wslot],
-            },
-          }));
+          usePlayerStore.setState((st: any) => {
+            const cur = st.equipment[wslot];
+            if (!cur) return st;
+            const oldBd: Record<string, number> = (cur as any).loadedAmmoBreakdown || {};
+            const oldTotal = Object.values(oldBd).reduce((a, b) => a + (b as number), 0) as number;
+            let newBd: Record<string, number> | undefined;
+            if (leftAmmo <= 0) {
+              newBd = undefined;
+            } else if (oldTotal > 0) {
+              // Пропорционально уменьшаем breakdown под leftAmmo.
+              newBd = {};
+              let assigned = 0;
+              const entries = Object.entries(oldBd).filter(([, v]) => (v as number) > 0);
+              for (let i = 0; i < entries.length; i++) {
+                const [q, cnt] = entries[i];
+                const share = i === entries.length - 1
+                  ? leftAmmo - assigned
+                  : Math.round((cnt as number) / oldTotal * leftAmmo);
+                if (share > 0) { newBd[q] = share; assigned += share; }
+              }
+            } else {
+              newBd = undefined;
+            }
+            return {
+              equipment: {
+                ...st.equipment,
+                [wslot]: { ...cur, loadedAmmo: leftAmmo, loadedAmmoQuality: leftAmmo <= 0 ? 'Обычный' : ((w2 as any).loadedAmmoQuality || 'Обычный'), loadedAmmoBreakdown: newBd },
+              },
+            };
+          });
           usePlayerStore.getState().syncEquippedItem(wslot);
         } catch { /* best effort */ }
       }

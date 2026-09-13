@@ -198,20 +198,30 @@ export const Equipment = () => {
     const w = (pst.equipment as any)[slot];
     const loaded = w?.loadedAmmo || 0;
     if (!w || loaded <= 0) return;
-    const back = pst.returnAmmoToPack(ammoTypeForWeapon(w), loaded, (w as any).loadedAmmoQuality || 'Обычный');
-    const leftAfter = Math.max(0, (w.loadedAmmo || 0) - back);
+    const bd: Record<string, number> = (w as any).loadedAmmoBreakdown || {};
+    const qualities = Object.keys(bd);
+    let totalBack = 0;
+    if (qualities.length > 0) {
+      for (const q of qualities) {
+        const cnt = bd[q] || 0;
+        if (cnt > 0) totalBack += pst.returnAmmoToPack(ammoTypeForWeapon(w), cnt, q);
+      }
+    } else {
+      totalBack = pst.returnAmmoToPack(ammoTypeForWeapon(w), loaded, (w as any).loadedAmmoQuality || 'Обычный');
+    }
+    const leftAfter = Math.max(0, loaded - totalBack);
     usePlayerStore.setState((st: any) => ({
       equipment: {
         ...st.equipment,
         [slot]: st.equipment[slot]
-          ? { ...st.equipment[slot], loadedAmmo: leftAfter, loadedAmmoQuality: leftAfter <= 0 ? 'Обычный' : ((w as any).loadedAmmoQuality || 'Обычный') }
+          ? { ...st.equipment[slot], loadedAmmo: leftAfter, loadedAmmoQuality: leftAfter <= 0 ? 'Обычный' : ((w as any).loadedAmmoQuality || 'Обычный'), loadedAmmoBreakdown: leftAfter > 0 ? (w as any).loadedAmmoBreakdown : undefined }
           : null,
       },
     }));
     pst.syncEquippedItem(slot);
     syncNow();
     playSound('reloading', 0.5);
-    pst.addLog(`📤 Магазин выгружен в рюкзак (+${back})`, 'info');
+    pst.addLog(`📤 Магазин выгружен в рюкзак (+${totalBack})`, 'info');
   };
 
   // Зарядить надетый ствол патронами перетаскиванием на его слот.
@@ -273,14 +283,18 @@ export const Equipment = () => {
     // Качество магазина: пустой — качество пачки, дозарядка — худшее из двух.
     const oldQ = (w as any).loadedAmmoQuality || 'Обычный';
     const newQ = loaded <= 0 ? packQ : worseQuality(oldQ, packQ);
-    usePlayerStore.setState((st: any) => ({
-      equipment: {
-        ...st.equipment,
-        [slot]: st.equipment[slot]
-          ? { ...st.equipment[slot], loadedAmmo: (st.equipment[slot].loadedAmmo ?? 0) + take, loadedAmmoQuality: newQ }
-          : st.equipment[slot],
-      },
-    }));
+    usePlayerStore.setState((st: any) => {
+      const cur = st.equipment[slot];
+      if (!cur) return st;
+      const bd: Record<string, number> = loaded <= 0 ? {} : { ...((cur as any).loadedAmmoBreakdown || {}) };
+      bd[packQ] = (bd[packQ] || 0) + take;
+      return {
+        equipment: {
+          ...st.equipment,
+          [slot]: { ...cur, loadedAmmo: (cur.loadedAmmo ?? 0) + take, loadedAmmoQuality: newQ, loadedAmmoBreakdown: bd },
+        },
+      };
+    });
     pst.syncEquippedItem(slot);
     syncNow();
     playSound('reloading', 0.5);

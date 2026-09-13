@@ -257,10 +257,10 @@ export const addAmmoToPack = (
 /**
  * Забрать N патронов группы из содержимого рюкзака.
  * Берёт худшие первыми (хорошие бережём), смешанный забор бьёт по худшему.
- * Возвращает {items, taken, quality}. Чистая функция — стор обновляет вызывающий.
+ * Возвращает {items, taken, quality, breakdown}. Чистая функция — стор обновляет вызывающий.
  */
-export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { items: Item[]; taken: number; quality: string } => {
-  if (n <= 0) return { items: contents, taken: 0, quality: 'Обычный' };
+export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { items: Item[]; taken: number; quality: string; breakdown: Record<string, number> } => {
+  if (n <= 0) return { items: contents, taken: 0, quality: 'Обычный', breakdown: {} };
   const packName = AMMO_GROUP_MAP[group].packName;
   // Худшие первыми: сначала считаем, сколько есть каждого качества.
   const order = [...contents]
@@ -271,6 +271,7 @@ export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { i
   let taken = 0;
   let worstIdx = 6;
   const consumed = new Map<number, number>(); // idx -> сколько забрать
+  const breakdown: Record<string, number> = {};
   for (const { it, idx } of order) {
     if (need <= 0) break;
     const q = (it.quantity ?? 1) as number;
@@ -279,8 +280,10 @@ export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { i
     taken += use;
     need -= use;
     worstIdx = Math.min(worstIdx, bulletQualityIndex((it as any).quality));
+    const qual = (it as any).quality || 'Обычный';
+    breakdown[qual] = (breakdown[qual] || 0) + use;
   }
-  if (taken === 0) return { items: contents, taken: 0, quality: 'Обычный' };
+  if (taken === 0) return { items: contents, taken: 0, quality: 'Обычный', breakdown: {} };
   const next: Item[] = [];
   contents.forEach((it, idx) => {
     const use = consumed.get(idx) || 0;
@@ -291,5 +294,5 @@ export const takeAmmoFrom = (contents: Item[], group: AmmoGroup, n: number): { i
       next.push({ ...it, name: packName, quantity: q, displayName: qual === 'Обычный' ? `${packName} x${q}` : `${packName} x${q} · ${qual}` });
     }
   });
-  return { items: next, taken, quality: QUALITY_ORDER[worstIdx] || 'Обычный' };
+  return { items: next, taken, quality: QUALITY_ORDER[worstIdx] || 'Обычный', breakdown };
 };
