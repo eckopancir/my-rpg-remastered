@@ -81,7 +81,7 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
         rot: ang + 90,
         delay,
         flight: baseFlight,
-        size: 18 * power * (kind === 'spread' ? 0.65 : 1),
+        size: 18 * Math.min(1, power) * (kind === 'spread' ? 0.65 : 1),
         filter: KIND_TINT[kind] || 'none',
       });
     }
