@@ -1,5 +1,6 @@
 import type { Item } from '../types/items';
 import { schematicBonusOf } from '../data/schematics';
+import { bulletDamageMult } from '../data/ammo';
 
 const num = (v: unknown): number =>
   typeof v === 'object' && v !== null ? ((v as any)?.base || 0) : ((v as number) || 0);
