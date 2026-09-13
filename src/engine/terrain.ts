@@ -120,7 +120,7 @@ export const terrainSummary = (
   const parts: string[] = [];
   if (b.evasion > 0) parts.push(`🌀+${Math.round(b.evasion * 100)}%`);
   if (b.armor > 0) parts.push(`🛡️+${Math.round(b.armor * 100)}%`);
-  if (b.block > 0) parts.push(`🧱+${Math.round(b.block * 100)}%`);
+  if (b.block > 0) parts.push(`🧱+${Math.round(b.block * 10)}%`);
   if (parts.length === 0) return { text: '📍 —', detail: `(${pos.x},${pos.y}): укрытий рядом нет` };
   return {
     text: `📍 ${parts.join(' ')}`,

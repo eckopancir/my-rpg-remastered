@@ -104,7 +104,7 @@ export const Battle = () => {
   const myTerrainText = [
     myTerrain.evasion > 0 ? `🌀+${Math.round(myTerrain.evasion * 100)}%` : '',
     myTerrain.armor > 0 ? `🛡️+${Math.round(myTerrain.armor * 100)}%` : '',
-    myTerrain.block > 0 ? `🧱+${Math.round(myTerrain.block * 100)}%` : '',
+    myTerrain.block > 0 ? `🧱+${Math.round(myTerrain.block * 10)}%` : '',
   ].filter(Boolean).join(' ');
   const isVictory = useCombatGridStore((s) => s.isVictory);
   const isDefeat = useCombatGridStore((s) => s.isDefeat);
@@ -634,7 +634,7 @@ export const Battle = () => {
               Math.round(hoverTarget.maxHp / 10) +
               Math.round(hoverTarget.armor) * 2 +
               Math.round((hoverTarget.evasion || 0) * 100) * 5 +
-              Math.round((hoverTarget.block || 0) * 100) * 3 +
+              Math.round((hoverTarget.block || 0) * 10) * 3 +
               Math.round((hoverTarget.crit || 0) * 100) * 2 +
               Math.round((hoverTarget.punching || 0) * 100) * 2;
             const ratio = ePow / Math.max(1, Math.round(stats.power || 0));
@@ -707,7 +707,7 @@ export const Battle = () => {
                 <span>🎯 Метк. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.accuracy || 0) * 100)}%</b></span>
                 <span>💥 Крит <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.crit || 0) * 100)}%</b></span>
                 <span>🌀 Увор. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.evasion || 0) * 100)}%</b></span>
-                <span>🧱 Блок <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.block || 0) * 100)}%</b></span>
+                <span>🧱 Блок <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.block || 0) * 10)}%</b></span>
                 <span>👊 Проб. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.punching || 0) * 100)}%</b></span>
                 <span>🩸 Вамп. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.vampir || 0) * 100)}%</b></span>
                 <span>📏 Дальн. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.rangeDistance || 7}</b></span>
@@ -718,7 +718,7 @@ export const Battle = () => {
                 const etext = [
                   et.evasion > 0 ? `🌀+${Math.round(et.evasion * 100)}%` : '',
                   et.armor > 0 ? `🛡️+${Math.round(et.armor * 100)}%` : '',
-                  et.block > 0 ? `🧱+${Math.round(et.block * 100)}%` : '',
+                  et.block > 0 ? `🧱+${Math.round(et.block * 10)}%` : '',
                 ].filter(Boolean).join(' ');
                 return etext ? (
                   <div title={et.sources.join('; ')} style={{ fontSize: 11, color: '#4ade80', padding: '0 12px 8px' }}>
@@ -815,7 +815,7 @@ export const Battle = () => {
                 <span>🎯 Метк.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.accuracy || 0) * 100)}%</b></span>
                 <span>💥 Крит: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.crit || 0) * 100)}%</b></span>
                 <span>🌀 Увор.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.evasion || 0) * 100)}%</b></span>
-                <span>🧱 Блок: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.block || 0) * 100)}%</b></span>
+                <span>🧱 Блок: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.block || 0) * 10)}%</b></span>
                 <span>👊 Проб.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.punching || 0) * 100)}%</b></span>
                 <span>🩸 Вамп.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.vampir || 0) * 100)}%</b></span>
               </div>

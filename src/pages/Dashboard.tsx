@@ -260,7 +260,7 @@ export const Dashboard = () => {
     { label: 'CRIT', value: `${(stats.crit * 100).toFixed(1)}%`, desc: 'Шанс критического удара.', breakpoints: ['1-100% → ×2', '101-200% → ×3', '201-300% → ×4', '301-400% → ×5'] },
     { label: 'ACC', value: `${(stats.accuracy * 100).toFixed(0)}%`, desc: 'Меткость. Определяет шанс попадания.' },
     { label: 'EVA', value: `${(stats.evasion * 100).toFixed(1)}%`, desc: 'Уклонение. Шанс избежать атаки.' },
-    { label: 'BLK', value: `${(stats.block * 100).toFixed(1)}%`, desc: 'Блок. Шанс заблокировать часть урона.', breakpoints: ['<200% → 50%', '≥200% → 80%', '≥300% → 90%'] },
+    { label: 'BLK', value: `${(stats.block * 10).toFixed(1)}%`, desc: 'Блок. Шанс заблокировать атаку полностью.', breakpoints: ['<20% → 50%', '≥20% → 80%', '≥30% → 90%'] },
     { label: 'REG', value: stats.regen.toFixed(1), desc: 'Регенерация HP/мин.' },
     { label: 'VAMP', value: `${(stats.vampir * 100).toFixed(1)}%`, desc: 'Вампиризм. % урона → HP.' },
     { label: 'PCH', value: `${(stats.punching * 100).toFixed(1)}%`, desc: 'Пробитие. Игнорирует % брони врага.' },

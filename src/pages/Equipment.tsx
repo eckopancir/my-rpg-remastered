@@ -58,8 +58,8 @@ const statValue = (k: string, v: number): { label: string; val: string; color: s
     // Прячем только базовую точность 0.1 без бонусов — шум.
     if (k === 'accuracy' && v === 0.1) return null;
     const label = STAT_LABELS[k] || k;
-    const pctKeys = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'incomingDamageMult'];
-    const val = pctKeys.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
+    const pctKeys = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'incomingDamageMult'];
+    const val = k === 'block' ? `${(v * 10).toFixed(v >= 0.1 ? 1 : 2)}%` : pctKeys.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
     const color = ['damage', 'crit', 'accuracy', 'punching', 'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'].includes(k)
       ? '#f87171' : k === 'maxHp' || k === 'armor' || k === 'evasion' || k === 'block'
         ? '#4ade80' : '#94a3b8';

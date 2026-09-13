@@ -93,8 +93,8 @@ export interface GridEnemy {
   wasSentry?: boolean;
   // Тихая смерть (скрытное убийство): без крика и звуков смерти.
   silentDeath?: boolean;
-  // Стихийные дебафы игрока (горение/токсин/экстро/ЭМИ): живут весь бой.
-  debuffs?: { burn?: boolean; tox?: boolean; extro?: boolean; emi?: boolean };
+  // Стихийные дебафы игрока (горение/токсин/экстро/ЭМИ): живут 10 раундов.
+  debuffs?: { burn?: boolean; tox?: boolean; extro?: boolean; emi?: boolean; turns?: number };
   // Позывной (досье), отступление к медику/костру, сдача в плен.
   callsign?: string;
   retreating?: boolean;
@@ -219,6 +219,7 @@ export interface CombatGridStore {
   reinforceSpawned: boolean;
   battleId: number;
   say: (enemyId: number | string, text: string, ms?: number) => void;
+  triggerRevengeDialogues: (deadPos: { x: number; y: number }, deadName: string) => void;
   spawnReinforcements: () => void;
   // Волна агро: все враги (кроме союзников) в радиусе R от точки вступают в бой.
   aggroWave: (center: { x: number; y: number }, radius?: number) => void;
@@ -803,6 +804,31 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }));
     }, ms);
   },
+  // Месть союзников: живые враги в радиусе 12 клеток видят смерть и реагируют (25% шанс).
+  triggerRevengeDialogues: (deadPos, deadName) => {
+    const R = 12;
+    const REVENGE = [
+      `${deadName}!!`, `${deadName}!!!`, `Нет!! ${deadName}!!`,
+      `За ${deadName}!!`, `Я тебя найду!`, `Ты не уйдешь живой!`,
+      `Плати за ${deadName}!`, `Разорву тебя!`, `Как ты посмел?!`,
+      `${deadName}, держись!..`, `Убью тебя за это!`, `Сволочь!`,
+      `Держись, ${deadName}!`, `Не можешь так просто...`, `Я тебя достану!`,
+      `Валим его!`, `Не дам уйти!`, `Кто следующий?!`,
+      `${deadName} не простит!`, `За себя и за ${deadName}!`,
+    ];
+    const enemies = get().enemies;
+    for (const e of enemies) {
+      if (e.dead || (e as any).dead) continue;
+      if ((e as any).faction === 'Союзник') continue;
+      const dx = e.pos.x - deadPos.x;
+      const dy = e.pos.y - deadPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= R && Math.random() < 0.25) {
+        const phrase = REVENGE[Math.floor(Math.random() * REVENGE.length)];
+        get().say(e.id, phrase, 4000);
+      }
+    }
+  },
   // Подкрепление с угла карты (20 ход): отложенные в pendingReinforce враги.
   spawnReinforcements: () => {
     const s = get();
@@ -987,17 +1013,18 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const pStats = usePlayerStore.getState().stats;
     const en = get().enemies.find((e) => e.id === targetId);
     if (!en || en.dead || (en.currentHp || 0) <= 0) return;
-    const roll = (val: number) => (val || 0) > 0 && Math.random() * 100 < Math.min(100, val);
+    const roll = (val: number) => (val || 0) > 0 && Math.random() * 100 < Math.min(100, val / 10);
     const db = { ...((en as GridEnemy).debuffs || {}) };
+    const turns = 10;
     const notes: string[] = [];
-    if (!db.burn && roll(pStats.dpsFire || 0)) { db.burn = true; notes.push('🔥 ГОРЕНИЕ'); }
-    if (!db.tox && roll(pStats.dpsToxis || 0)) { db.tox = true; notes.push('☠️ ТОКСИН'); }
+    if (!db.burn && roll(pStats.dpsFire || 0)) { db.burn = true; db.turns = turns; notes.push('🔥 ГОРЕНИЕ'); }
+    if (!db.tox && roll(pStats.dpsToxis || 0)) { db.tox = true; db.turns = turns; notes.push('☠️ ТОКСИН'); }
     if (!db.extro && roll(pStats.dpsExtro || 0)) {
-      db.extro = true; notes.push('💫 −25% АТАКА');
+      db.extro = true; db.turns = turns; notes.push('💫 −25% АТАКА');
       set((s) => ({ enemies: s.enemies.map((e) => e.id === targetId ? { ...e, damage: (e.damage || 0) * 0.75, dps: (e.dps || 0) * 0.75 } : e) }));
     }
     if (!db.emi && roll(pStats.dpsEmi || 0)) {
-      db.emi = true; notes.push('⚡ −50% БЛОК');
+      db.emi = true; db.turns = turns; notes.push('⚡ −50% БЛОК');
       set((s) => ({ enemies: s.enemies.map((e) => e.id === targetId ? { ...e, block: (e.block || 0) * 0.5 } : e) }));
     }
     if (notes.length === 0) return;
@@ -1016,6 +1043,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const n = e as GridEnemy;
       if (n.dead || !n.debuffs) return e;
       let next: GridEnemy = { ...n };
+      // Decrement turns
+      if ((next.debuffs?.turns ?? 0) > 0) {
+        next = { ...next, debuffs: { ...next.debuffs, turns: (next.debuffs!.turns || 1) - 1 } };
+      }
+      // Burn: 3% maxHP per tick
       if (next.debuffs?.burn && (next.currentHp || 0) > 0) {
         const dmg = Math.max(1, Math.round((next.maxHp || 1) * 0.03));
         next.currentHp = Math.max(0, (next.currentHp || 0) - dmg);
@@ -1034,15 +1066,33 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           next = { ...next, dead: true, loot: freshLoot, looted: false, isHit: false };
           get().addBattleLog(`💀 ${next.name} сгорел!`);
           get().addMessage(`💀 ${next.name} сгорел! Кликни для лута`);
+          get().triggerRevengeDialogues(next.pos, next.name);
           wavesCheck = true;
         }
       }
+      // Toxin: -3% armor per tick
       if (!next.dead && next.debuffs?.tox && (next.currentHp || 0) > 0 && (next.armor || 0) > 0) {
         next = { ...next, armor: Math.max(0, +((next.armor || 0) * 0.97).toFixed(3)) };
         if (get().turnCount % 3 === 0) {
           get().addPopup(next.pos.x, next.pos.y, '☠️−броня', 'DEBUFF');
           get().addBattleLog(`☠️ ${next.name}: броня разъедена (${next.armor})`);
         }
+        changed = true;
+      }
+      // Remove expired debuffs
+      if (!next.dead && (next.debuffs?.turns ?? 0) <= 0 && next.debuffs) {
+        const hadExtro = next.debuffs.extro;
+        const hadEmi = next.debuffs.emi;
+        // Restore extro/emi stat penalties
+        if (hadExtro) {
+          next = { ...next, damage: (next.damage || 0) / 0.75, dps: (next.dps || 0) / 0.75 };
+        }
+        if (hadEmi) {
+          next = { ...next, block: (next.block || 0) / 0.5 };
+        }
+        next = { ...next, debuffs: undefined };
+        get().addPopup(next.pos.x, next.pos.y, '✅ ДЕБАФ СНЯТ', 'DEBUFF');
+        get().addBattleLog(`✅ ${next.name}: дебафы спали`);
         changed = true;
       }
       return next;
@@ -2526,6 +2576,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           message: `💀 ${updatedEnemy.name} уничтожен! Кликни для лута`,
         }));
         get().addBattleLog(`💀 ${updatedEnemy.name} уничтожен!`);
+        get().triggerRevengeDialogues(updatedEnemy.pos, updatedEnemy.name);
         const allDead = get().enemies.every((e) => e.dead);
         if (allDead) {
           const hasReserve = get().reserve.length > 0;

@@ -386,13 +386,16 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {posKeys.slice(0, 10).map((k) => {
-              const isPct = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
+              const isPct = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
+              const isBlock = k === 'block';
               const shown = isPct
                 ? (() => { const p = Math.abs(disp[k]) * 100; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
+                : isBlock
+                ? (() => { const p = Math.abs(disp[k]) * 10; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
                 : undefined;
               return (
                 <div key={k} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>{isPct ? `${STAT_LABELS[k] || k}: +${shown}` : formatStat(k, disp[k])}</span>
+                  <span>{(isPct || isBlock) ? `${STAT_LABELS[k] || k}: +${shown}` : formatStat(k, disp[k])}</span>
                 {fromMods[k] ? (
                   <span title="Бонус от модов" style={{ fontSize: 10, color: '#4ade80', background: 'rgba(34,197,94,0.12)', padding: '0 5px', borderRadius: 3 }}>
                     🔧+{(Math.abs(fromMods[k]) >= 1 ? Math.abs(fromMods[k]).toFixed(1) : Math.abs(fromMods[k]).toFixed(3))}
@@ -411,9 +414,12 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
                 {negKeys.map((k) => {
                   const label = STAT_LABELS[k] || k;
                   const v = disp[k];
-                  const isPct = ['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
+                  const isPct = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
+                  const isBlockNeg = k === 'block';
                   const shown = isPct
                     ? (() => { const p = Math.abs(v) * 100; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
+                    : isBlockNeg
+                    ? (() => { const p = Math.abs(v) * 10; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
                     : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(3)}`;
                   return (
                     <div key={k} style={{ fontSize: 12, color: '#f87171', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
