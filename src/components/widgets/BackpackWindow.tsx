@@ -16,19 +16,20 @@ interface Props {
 }
 
 const cellSize = 48;
+const GRID_COLS = 5;
 
 const cellIcon = (item: Item): string | null => {
   if (item.image) return null;
   if (item.type === 'consumable') return getConsumableIcon(item);
-  if (item.type === 'backpack') return null; // картинка по семейству через getItemImage
-  if (item.type === 'bullet') return null; // картинка группы через getItemImage
+  if (item.type === 'backpack') return null;
+  if (item.type === 'bullet') return null;
   if (item.type === 'chest') return null;
   return null;
 };
 
 export const BackpackWindow = ({ onClose }: Props) => {
   const backpack = usePlayerStore((s) => s.equipment.backpack);
-  const contents = usePlayerStore((s) => s.backpackGrid.items);
+  const backpackGrid = usePlayerStore((s) => s.backpackGrid);
   const putInBackpack = usePlayerStore((s) => s.putInBackpack);
   const takeOutBackpack = usePlayerStore((s) => s.takeOutBackpack);
   const emptyBackpackToInventory = usePlayerStore((s) => s.emptyBackpackToInventory);
@@ -43,9 +44,26 @@ export const BackpackWindow = ({ onClose }: Props) => {
   const [dragging, setDragging] = useState(false);
 
   const slots = backpackSlotsFor(backpack);
-  const cells: (Item | null)[] = Array.from({ length: Math.max(slots, 1) }, (_, i) => contents[i] ?? null);
+  const gridRows = Math.max(1, Math.ceil(slots / GRID_COLS));
+  const contents = backpackGrid.items;
 
-  // Инфо по рюкзаку: семейство, занятость, состав, стоимость содержимого.
+  // Build occupied map for grid rendering
+  const occupied = useMemo(() => {
+    const occ = new Set<string>();
+    for (const it of backpackGrid.items) {
+      const gx = it.gridX ?? 0;
+      const gy = it.gridY ?? 0;
+      const gw = it.gridW ?? 1;
+      const gh = it.gridH ?? 1;
+      for (let dy = 0; dy < gh; dy++) {
+        for (let dx = 0; dx < gw; dx++) {
+          occ.add(`${gx + dx},${gy + dy}`);
+        }
+      }
+    }
+    return occ;
+  }, [backpackGrid.items]);
+
   const info = useMemo(() => {
     const byType: Record<string, number> = {};
     let value = 0;
@@ -90,7 +108,6 @@ export const BackpackWindow = ({ onClose }: Props) => {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    // dataTransfer иногда пуст (браузер/iframe) — фолбэк на draggedItemId из стора.
     const dtId = e.dataTransfer.getData('text/plain');
     const itemId = dtId || useUiStore.getState().draggedItemId;
     if (!itemId) return;
@@ -126,62 +143,93 @@ export const BackpackWindow = ({ onClose }: Props) => {
             boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
             padding: 12,
             display: 'grid',
-            gridTemplateColumns: `repeat(5, ${cellSize}px)`,
+            gridTemplateColumns: `repeat(${GRID_COLS}, ${cellSize}px)`,
+            gridTemplateRows: `repeat(${gridRows}, ${cellSize}px)`,
             gap: 4,
             justifyContent: 'center',
           }}
         >
-          {cells.map((item, i) => (
-            <div
-              key={item ? item.id : `empty-${i}`}
-              onDoubleClick={() => { if (item) { takeOutBackpack(item.id); playSound('laying-out-a-travel-mat', 0.5); } }}
-              onMouseEnter={(e) => { if (item) setTip({ item, x: e.clientX, y: e.clientY }); }}
-              onMouseMove={(e) => { if (item) setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t)); }}
-              onMouseLeave={() => setTip(null)}
-              title={item ? 'Двойной клик — вернуть в инвентарь' : 'Перетащи сюда из инвентаря'}
-              style={{
-                width: cellSize, height: cellSize,
-                background: '#0f0f15',
-                border: `1px solid ${item?.qualityColor || 'rgba(255,255,255,0.08)'}`,
-                borderRadius: 3,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: item ? 'pointer' : 'default', position: 'relative',
-              }}
-            >
-              {item && (() => {
-                const emoji = cellIcon(item);
-                const url = emoji ? undefined : (item.image || getItemImage(item.name, item.displayName, item.slot, item.type));
-                const body = emoji ? (
-                  <span style={{ fontSize: 26, lineHeight: 1 }}>{emoji}</span>
-                ) : url ? (
-                  <img src={url} alt="" draggable={false} style={{ width: 40, height: 40, objectFit: 'contain' }} />
-                ) : (
-                  <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
-                );
-                return (
-                  <div
-                    draggable
-                    onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); useUiStore.getState().setDraggedItemId(item.id); }}
-                    onDragEnd={() => { useUiStore.getState().setDraggedItemId(null); }}
-                    title="Тяни в инвентарь"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
-                  >
-                    {body}
-                  </div>
-                );
-              })()}
-              {item && ((item.quantity ?? 1) > 1 || item.type === 'bullet') && (
-                <div style={{
-                  position: 'absolute', bottom: 1, right: 2,
-                  fontSize: 9, fontWeight: 600, fontFamily: 'var(--font-mono)',
-                  color: '#fff', background: 'rgba(0,0,0,0.65)',
-                  borderRadius: 2, padding: '0 3px', lineHeight: '13px',
-                }}>
-                  x{item.quantity ?? 1}
+          {/* Render placed items with grid spans */}
+          {backpackGrid.items.map((item) => {
+            const w = item.gridW ?? 1;
+            const h = item.gridH ?? 1;
+            const emoji = cellIcon(item);
+            const url = emoji ? undefined : (item.image || getItemImage(item.name, item.displayName, item.slot, item.type));
+            const body = emoji ? (
+              <span style={{ fontSize: w > 1 || h > 1 ? 30 : 26, lineHeight: 1 }}>{emoji}</span>
+            ) : url ? (
+              <img src={url} alt="" draggable={false} style={{ width: w > 1 || h > 1 ? 44 : 40, height: w > 1 || h > 1 ? 44 : 40, objectFit: 'contain' }} />
+            ) : (
+              <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
+            );
+            return (
+              <div
+                key={item.id}
+                onDoubleClick={() => { takeOutBackpack(item.id); playSound('laying-out-a-travel-mat', 0.5); }}
+                onMouseEnter={(e) => setTip({ item, x: e.clientX, y: e.clientY })}
+                onMouseMove={(e) => setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t))}
+                onMouseLeave={() => setTip(null)}
+                title="Двойной клик — вернуть в инвентарь"
+                style={{
+                  gridColumn: `${(item.gridX ?? 0) + 1} / span ${w}`,
+                  gridRow: `${(item.gridY ?? 0) + 1} / span ${h}`,
+                  background: '#0f0f15',
+                  border: `1px solid ${item.qualityColor || 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: 3,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', position: 'relative',
+                }}
+              >
+                <div
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); useUiStore.getState().setDraggedItemId(item.id); }}
+                  onDragEnd={() => { useUiStore.getState().setDraggedItemId(null); }}
+                  title="Тяни в инвентарь"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
+                >
+                  {body}
                 </div>
-              )}
-            </div>
-          ))}
+                {((item.quantity ?? 1) > 1 || item.type === 'bullet') && (
+                  <div style={{
+                    position: 'absolute', bottom: 1, right: 2,
+                    fontSize: 9, fontWeight: 600, fontFamily: 'var(--font-mono)',
+                    color: '#fff', background: 'rgba(0,0,0,0.65)',
+                    borderRadius: 2, padding: '0 3px', lineHeight: '13px',
+                  }}>
+                    x{item.quantity ?? 1}
+                  </div>
+                )}
+                {(w > 1 || h > 1) && (
+                  <div style={{
+                    position: 'absolute', top: 1, left: 2, fontSize: 8, fontWeight: 700,
+                    fontFamily: 'var(--font-mono)', color: '#fbbf24', pointerEvents: 'none',
+                  }}>
+                    {w}×{h}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {/* Empty cells */}
+          {Array.from({ length: gridRows * GRID_COLS }).map((_, i) => {
+            const x = i % GRID_COLS;
+            const y = Math.floor(i / GRID_COLS);
+            if (occupied.has(`${x},${y}`)) return null;
+            if (x >= GRID_COLS || y >= gridRows) return null;
+            return (
+              <div
+                key={`empty-${i}`}
+                title="Перетащи сюда из инвентаря"
+                style={{
+                  gridColumn: `${x + 1}`, gridRow: `${y + 1}`,
+                  width: cellSize, height: cellSize,
+                  background: '#0f0f15',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 3,
+                }}
+              />
+            );
+          })}
         </div>
         <div style={{
           marginTop: 6, padding: '8px 10px', borderRadius: 8,
@@ -193,7 +241,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
           <div>Состав: {Object.keys(info.byType).length > 0
             ? Object.entries(info.byType).map(([t, n]) => `${t} x${n}`).join(' · ')
             : 'пусто'}</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Тяни предметы из инвентаря · двойной клик — вернуть обратно · таскается за шапку</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Оружие/броня занимают 2×2 · Тяни из инвентаря · двойной клик — обратно</div>
           <button
             onClick={() => {
               const n = emptyBackpackToInventory();

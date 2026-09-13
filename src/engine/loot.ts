@@ -27,9 +27,8 @@ const withChargedMags = (items: Array<any>): Array<any> => {
   return items;
 };
 
-// Рюкзак трупа — 10 ячеек: приоритет содержимого (предмет, рюкзак,
-// расходник, патроны, ресурсы), лишнее не спавнится.
-export const CORPSE_SLOTS = 10;
+// Рюкзак трупа — 20 ячеек (5×4): приоритет содержимого.
+export const CORPSE_SLOTS = 20;
 
 const RANK_TABLE: Record<CorpseRank, { itemChance: number; itemMin: number; itemMax: number; resChance: number; resTypes: number; resMin: number; resMax: number; bestOf: number; bulletChance: number; bulletPacks: number; bulletMin: number; bulletMax: number; consChance: number; consMax: number; packChance: number }> = {
   // Обычный военный: ~3.0 в среднем.
