@@ -156,9 +156,9 @@ export const BackpackWindow = ({ onClose }: Props) => {
             const emoji = cellIcon(item);
             const url = emoji ? undefined : (item.image || getItemImage(item.name, item.displayName, item.slot, item.type));
             const body = emoji ? (
-              <span style={{ fontSize: w > 1 || h > 1 ? 30 : 26, lineHeight: 1 }}>{emoji}</span>
+              <span style={{ fontSize: w > 1 || h > 1 ? 48 : 26, lineHeight: 1 }}>{emoji}</span>
             ) : url ? (
-              <img src={url} alt="" draggable={false} style={{ width: w > 1 || h > 1 ? 44 : 40, height: w > 1 || h > 1 ? 44 : 40, objectFit: 'contain' }} />
+              <img src={url} alt="" draggable={false} style={{ width: w > 1 || h > 1 ? '85%' : 40, height: w > 1 || h > 1 ? '85%' : 40, objectFit: 'contain' }} />
             ) : (
               <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
             );

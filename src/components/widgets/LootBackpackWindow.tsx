@@ -91,12 +91,12 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
         <div
           draggable
           onDragStart={(e) => onDragStart(item.id, e)}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab', width: '100%', height: '100%' }}
         >
           {emoji ? (
-            <span style={{ fontSize: w > 1 || h > 1 ? 32 : 26, lineHeight: 1 }}>{emoji}</span>
+            <span style={{ fontSize: w > 1 || h > 1 ? 48 : 26, lineHeight: 1 }}>{emoji}</span>
           ) : url ? (
-            <img src={url} alt="" draggable={false} style={{ width: w > 1 || h > 1 ? 52 : 42, height: w > 1 || h > 1 ? 52 : 42, objectFit: 'contain' }} />
+            <img src={url} alt="" draggable={false} style={{ width: w > 1 || h > 1 ? '85%' : 42, height: w > 1 || h > 1 ? '85%' : 42, objectFit: 'contain' }} />
           ) : (
             <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
           )}
