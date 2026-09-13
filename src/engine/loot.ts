@@ -28,9 +28,9 @@ const withChargedMags = (items: Array<any>): Array<any> => {
   return items;
 };
 
-// Еда с трупа — 10% шанс, 1 шт. случайная из ALL_FOOD (сырьё + готовое).
+// Еда с трупа — 30% шанс, 1 шт. случайная из ALL_FOOD (сырьё + готовое).
 const rollFoodDrop = (): any | null => {
-  if (Math.random() >= 0.1) return null;
+  if (Math.random() >= 0.3) return null;
   const f = ALL_FOOD[Math.floor(Math.random() * ALL_FOOD.length)];
   return makeConsumable(f.id, 1);
 };
@@ -193,7 +193,7 @@ export const generateLoot = (
       const d = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
       items.push(makeConsumable(d.abilityId, 1));
     }
-    // Еда с трупа — 10%.
+    // Еда с трупа — 30%.
     const food = rollFoodDrop();
     if (food) items.push(food);
     // Рюкзак с босса (качество — пирамидой).
@@ -251,7 +251,7 @@ export const generateLoot = (
     }
   }
 
-  // Еда — 10% (legacy-путь без rank).
+  // Еда — 30% (legacy-путь без rank).
   const legacyFood = rollFoodDrop();
   if (legacyFood) items.push(legacyFood);
 

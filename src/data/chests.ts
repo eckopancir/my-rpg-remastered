@@ -152,9 +152,9 @@ export const rollChestLoot = (chest: Item): ChestDrop[] => {
   // Чипы.
   drops.push({ key: dropKey(), kind: 'chips', amount: cfg.chipBase + level * cfg.chipPerLevel });
 
-  // Сундуки от эпического и выше: пачка патронов случайной группы, качеством сундука.
-  const tierIdx = QUALITY_TIERS.findIndex((t) => t.name === quality);
-  if (tierIdx >= 3) {
+  // Патроны: 1-3 пачки случайных групп, качеством сундука (все тиры).
+  const bulletPacks = 1 + Math.floor(Math.random() * 3);
+  for (let b = 0; b < bulletPacks; b++) {
     const g = AMMO_GROUPS[Math.floor(Math.random() * AMMO_GROUPS.length)];
     drops.push({ key: dropKey(), kind: 'bullets', group: g.key, quantity: 15 + Math.floor(Math.random() * 16), quality });
   }
