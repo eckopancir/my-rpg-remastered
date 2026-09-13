@@ -49,7 +49,7 @@ const applyClamps = (s: PlayerStats): void => {
   s.armor = Math.max(0, s.armor);
   s.regen = Math.max(0, s.regen);
   s.evasion = Math.min(0.9, Math.max(0, s.evasion));
-  s.block = Math.min(0.9, Math.max(0, s.block));
+  s.block = Math.min(5.0, Math.max(0, s.block));
   s.punching = Math.max(0, s.punching);
   s.accuracy = Math.min(2, Math.max(0.1, s.accuracy));
   s.vampir = Math.min(0.5, Math.max(0, s.vampir));

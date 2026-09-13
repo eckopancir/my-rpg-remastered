@@ -306,10 +306,10 @@ export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: num
   const offensiveScore = effectiveDPS * 3;
 
   const FIGHT_TIME = 30;
-  const blockRed = stats.block < 2.0 ? stats.block * 0.5 : stats.block < 3.0 ? 0.8 : 0.9;
+  const blockChance = Math.min(stats.block * 0.1, 0.5);
+  const blockEHP = blockChance > 0 && blockChance < 1 ? 1000 * blockChance / (1 - blockChance) : Infinity;
   const armorEHP = stats.armor * FIGHT_TIME;
   const evasionEHP = stats.evasion < 1 ? 1000 * stats.evasion / (1 - stats.evasion) : Infinity;
-  const blockEHP = blockRed < 1 ? 1000 * blockRed / (1 - blockRed) : Infinity;
   const regenEHP = stats.regen * FIGHT_TIME;
   const vampirEHP = stats.vampir * effectiveDPS * FIGHT_TIME;
 
@@ -489,7 +489,7 @@ export const usePlayerStore = create<PlayerStore>()(
           armor: Math.max(0, BASE_STATS.armor + equipBonus.armor + effectBonus.armor + skillBonus.armor + setBonus.armor),
           regen: Math.max(0, BASE_STATS.regen + equipBonus.regen + effectBonus.regen + skillBonus.regen + setBonus.regen),
           evasion: Math.min(0.9, Math.max(0, BASE_STATS.evasion + equipBonus.evasion + effectBonus.evasion + skillBonus.evasion + setBonus.evasion)),
-          block: Math.min(0.9, Math.max(0, BASE_STATS.block + equipBonus.block + effectBonus.block + skillBonus.block + setBonus.block)),
+          block: Math.min(5.0, Math.max(0, BASE_STATS.block + equipBonus.block + effectBonus.block + skillBonus.block + setBonus.block)),
           punching: Math.max(0, BASE_STATS.punching + equipBonus.punching + effectBonus.punching + skillBonus.punching + setBonus.punching),
           accuracy: Math.min(2, Math.max(0.1, BASE_STATS.accuracy + equipBonus.accuracy + effectBonus.accuracy + skillBonus.accuracy + setBonus.accuracy)),
           vampir: Math.min(5.0, Math.max(0, BASE_STATS.vampir + equipBonus.vampir + effectBonus.vampir + skillBonus.vampir + setBonus.vampir)),
@@ -561,7 +561,7 @@ export const usePlayerStore = create<PlayerStore>()(
           woStats.armor = Math.max(0, woStats.armor);
           woStats.regen = Math.max(0, woStats.regen);
           woStats.evasion = Math.min(0.9, Math.max(0, woStats.evasion));
-          woStats.block = Math.min(0.9, Math.max(0, woStats.block));
+          woStats.block = Math.min(5.0, Math.max(0, woStats.block));
           woStats.punching = Math.max(0, woStats.punching);
           woStats.accuracy = Math.min(2, Math.max(0.1, woStats.accuracy));
           woStats.vampir = Math.min(5.0, Math.max(0, woStats.vampir));

@@ -66,10 +66,7 @@ const getCritMultiplier = (critVal: number): number => {
 };
 
 const getBlockReduction = (blockVal: number): number => {
-  if (blockVal >= 3.0) return 0.9;
-  if (blockVal >= 2.0) return 0.8;
-  if (blockVal >= 1.0) return 0.7;
-  return 0.5;
+  return 1.0;
 };
 
 export const calculateCombatStep = (
@@ -136,22 +133,32 @@ export const calculateCombatStep = (
       continue;
     }
 
-    // Crit check — cascade tiers (шанс, не гарантия)
+      // Crit → Block → Armor (new order)
     if (player.crit > 0 && Math.random() < Math.min(1, player.crit)) {
       const critMult = getCritMultiplier(player.crit);
       dmg *= critMult;
       messages.push(`💥 КРИТ x${critMult}!`);
     }
 
-    const playerPierce = player.punching || 0;
-    let playerPierceFactor: number;
-    if (playerPierce >= 2.0) playerPierceFactor = 0.7;
-    else if (playerPierce >= 1.0) playerPierceFactor = 0.5;
-    else playerPierceFactor = playerPierce * 0.5;
-    const effectiveEnemyArmor = enemy.armor * (1 - playerPierceFactor);
-    const actualArmorReduction = Math.min(dmg, effectiveEnemyArmor);
-    dmg = Math.max(0, dmg - actualArmorReduction);
-    enemyArmorAbsorbed += actualArmorReduction;
+    const enemyBlockChance = Math.min(enemy.block * 0.1, 0.5);
+    if (enemyBlockChance > 0 && Math.random() < enemyBlockChance) {
+      enemyBlocks++;
+      enemyDmgBlocked += dmg;
+      dmg = 0;
+      messages.push(`🧱 Враг блокирует всю атаку! (шанс ${Math.round(enemyBlockChance * 100)}%)`);
+    }
+
+    if (dmg > 0) {
+      const playerPierce = player.punching || 0;
+      let playerPierceFactor: number;
+      if (playerPierce >= 3.0) playerPierceFactor = 0.7;
+      else if (playerPierce >= 1.0) playerPierceFactor = 0.5 + (playerPierce - 1.0) * 0.1;
+      else playerPierceFactor = playerPierce * 0.5;
+      const effectiveEnemyArmor = enemy.armor * (1 - playerPierceFactor);
+      const actualArmorReduction = Math.min(dmg, effectiveEnemyArmor);
+      dmg = Math.max(0, dmg - actualArmorReduction);
+      enemyArmorAbsorbed += actualArmorReduction;
+    }
 
     let evasionSuccess = false;
     if (Math.random() < enemy.evasion) evasionSuccess = true;
@@ -160,14 +167,6 @@ export const calculateCombatStep = (
     }
     if (evasionSuccess) { enemyEvasions++; continue; }
 
-    if (Math.random() < Math.min(1, enemy.block)) {
-      enemyBlocks++;
-      const blockReduction = getBlockReduction(enemy.block);
-      const blocked = dmg * blockReduction;
-      enemyDmgBlocked += blocked;
-      dmg *= 1 - blockReduction;
-      if (enemy.block >= 2.0) messages.push(`🧱 Враг блокирует ${Math.round(blockReduction * 100)}% урона (блок ${Math.round(enemy.block * 100)}%)`);
-    }
     totalPlayerDmgDealt += dmg;
   }
 
@@ -175,22 +174,32 @@ export const calculateCombatStep = (
     let dmg = enemy.dps;
     if (Math.random() > enemy.accuracy && enemy.accuracy < 1) continue;
 
-    // Crit check for enemy (шанс, не гарантия)
+    // Crit → Block → Armor (new order)
     if (enemy.crit > 0 && Math.random() < Math.min(1, enemy.crit)) {
       const critMult = getCritMultiplier(enemy.crit);
       dmg *= critMult;
       messages.push(`💥 Враг критует x${critMult}!`);
     }
 
-    const enemyPierce = enemy.punching || 0;
-    let enemyPierceFactor: number;
-    if (enemyPierce >= 2.0) enemyPierceFactor = 0.7;
-    else if (enemyPierce >= 1.0) enemyPierceFactor = 0.5;
-    else enemyPierceFactor = enemyPierce * 0.5;
-    const effectivePlayerArmor = player.armor * (1 - enemyPierceFactor);
-    const actualArmorReduction = Math.min(dmg, effectivePlayerArmor);
-    dmg = Math.max(0, dmg - actualArmorReduction);
-    playerArmorAbsorbed += actualArmorReduction;
+    const playerBlockChance = Math.min(player.block * 0.1, 0.5);
+    if (playerBlockChance > 0 && Math.random() < playerBlockChance) {
+      playerBlocks++;
+      playerDmgBlocked += dmg;
+      dmg = 0;
+      messages.push(`🧱 Ты блокируешь всю атаку! (шанс ${Math.round(playerBlockChance * 100)}%)`);
+    }
+
+    if (dmg > 0) {
+      const enemyPierce = enemy.punching || 0;
+      let enemyPierceFactor: number;
+      if (enemyPierce >= 3.0) enemyPierceFactor = 0.7;
+      else if (enemyPierce >= 1.0) enemyPierceFactor = 0.5 + (enemyPierce - 1.0) * 0.1;
+      else enemyPierceFactor = enemyPierce * 0.5;
+      const effectivePlayerArmor = player.armor * (1 - enemyPierceFactor);
+      const actualArmorReduction = Math.min(dmg, effectivePlayerArmor);
+      dmg = Math.max(0, dmg - actualArmorReduction);
+      playerArmorAbsorbed += actualArmorReduction;
+    }
 
     let evasionSuccess = false;
     if (Math.random() < player.evasion) evasionSuccess = true;
@@ -199,14 +208,6 @@ export const calculateCombatStep = (
     }
     if (evasionSuccess) { playerEvasions++; continue; }
 
-    if (Math.random() < Math.min(1, player.block)) {
-      playerBlocks++;
-      const blockReduction = getBlockReduction(player.block);
-      const blocked = dmg * blockReduction;
-      playerDmgBlocked += blocked;
-      dmg *= 1 - blockReduction;
-      if (player.block >= 2.0) messages.push(`🧱 Ты блокируешь ${Math.round(blockReduction * 100)}% урона (блок ${Math.round(player.block * 100)}%)`);
-    }
     totalEnemyDmgDealt += dmg;
   }
 

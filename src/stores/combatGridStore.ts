@@ -616,14 +616,13 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   const isNightTime = currentHour >= 0 && currentHour < 6 && !useUiStore.getState().forceDay;
   const nightPenalty = isNightTime && !attacker.isPlayer ? 0.2 : 0;
   const finalAccuracy = Math.max(0, (attacker.accuracy || 0) - nightPenalty);
-  // Форсированный крит (первый выстрел из скрытности): всегда попадает и критует.
   const forcedMult = (attacker as any).forceCritMult || 0;
 
   if (Math.random() > finalAccuracy && finalAccuracy < 1 && !forcedMult) {
     return { damage: 0, type: 'MISS', text: 'ПРОМАХ', sound: null };
   }
 
-  // Уворот проверяется до расчёта урона: промах — 0 (чистый урон мимо уворота).
+  // Уворот проверяется до расчёта урона.
   let evasionChance = target.evasion || 0;
   if (finalAccuracy > 1) {
     if (Math.random() < finalAccuracy - 1) evasionChance = 0;
@@ -635,7 +634,7 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     return { damage: 0, type: 'EVASION', text: 'УВОРОТ', sound: null };
   }
 
-  // 1) КРИТ сначала: множитель применяется к базовому урону.
+  // 1) КРИТ: множитель к базовому урону.
   const critVal = attacker.crit || 0;
   let critMultiplier = 1;
   let isCrit = false;
@@ -657,47 +656,44 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     sound = 'crit';
   }
 
-  // 2) БРОНЯ после крита: вычитаем effectiveEnemyArmor из уже умноженного урона.
-  const p = attacker.punching || 0;
-  let pierceFactor: number;
-  if (p >= 2.0) pierceFactor = 0.7;
-  else if (p >= 1.0) pierceFactor = 0.5;
-  else pierceFactor = p * 0.5;
-  const effectiveEnemyArmor = (target.armor || 0) * (1 - pierceFactor);
-  dmg = Math.max(0, dmg - effectiveEnemyArmor);
-
-  // 3) БЛОК после брони.
+  // 2) БЛОК после крита: chance = blockValue × 0.1, кап 50%. При срабатывании — 100% поглощение.
   const blockVal = target.block || 0;
-  let isBlocked = false;
-  let currentBlockReduction = 0.5;
-  if (blockVal > 0 && Math.random() < Math.min(1, blockVal)) {
-    isBlocked = true;
-    if (blockVal >= 3.0) currentBlockReduction = 0.9;
-    else if (blockVal >= 2.0) currentBlockReduction = 0.8;
-    else if (blockVal >= 1.0) currentBlockReduction = 0.7;
-    else currentBlockReduction = 0.5;
-    dmg *= 1 - currentBlockReduction;
+  const blockChance = Math.min(blockVal * 0.1, 0.5);
+  const isBlocked = blockChance > 0 && Math.random() < blockChance;
+  if (isBlocked) {
+    dmg = 0;
     if (!sound) sound = 'block';
   }
 
+  // 3) БРОНЯ после блока: punch 0–1 → 0–50%, 1–3 → 50–70%, 3+ → 70% кап.
+  if (dmg > 0) {
+    const p = attacker.punching || 0;
+    let pierceFactor: number;
+    if (p >= 3.0) pierceFactor = 0.7;
+    else if (p >= 1.0) pierceFactor = 0.5 + (p - 1.0) * 0.1;
+    else pierceFactor = p * 0.5;
+    const effectiveEnemyArmor = (target.armor || 0) * (1 - pierceFactor);
+    dmg = Math.max(0, dmg - effectiveEnemyArmor);
+  }
+
   // 4) Барьер (incoming damage multiplier).
-  if (target.incomingDamageMult !== undefined && target.incomingDamageMult < 1) {
+  if (dmg > 0 && target.incomingDamageMult !== undefined && target.incomingDamageMult < 1) {
     dmg *= target.incomingDamageMult;
   }
 
-  // 5) Чистый урон: мимо брони/блока/уворота/барьера, крит умножает всю сумму.
+  // 5) Чистый урон: мимо брони/блока/барьера, крит умножает.
   const pureTotal = Math.round((attacker.pure || 0) * critMultiplier);
   const displayDmg = Math.round(dmg) + pureTotal;
 
   const isRealCrit = isCrit && critMultiplier > 1;
-  if (isRealCrit && isBlocked) {
-    text = `💥 КРИТ ЗАБЛОКИРОВАН! -${displayDmg}`;
+  if (isBlocked && pureTotal > 0) {
+    text = `🛡️ БЛОКИРОВАН! -${displayDmg}`;
     type = 'BLOCK';
-    sound = 'block';
+  } else if (isBlocked) {
+    text = `🛡️ БЛОКИРОВАН! -${displayDmg}`;
+    type = 'BLOCK';
   } else if (isRealCrit) {
     text = `🔥 КРИТ x${critMultiplier}! -${displayDmg}`;
-  } else if (isBlocked) {
-    text = `🛡️ БЛОК -${(currentBlockReduction * 100).toFixed(0)}%! -${displayDmg}`;
   } else {
     text = `-${displayDmg}`;
   }
