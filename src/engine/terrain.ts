@@ -14,7 +14,7 @@ const BLOCK_NEAR = new Set(['o8', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16
 
 export const EVASION_WOODS_BONUS = 0.05;
 export const ARMOR_NEAR_BONUS = 0.05;
-export const BLOCK_NEAR_BONUS = 0.05;
+export const BLOCK_NEAR_BONUS = 0.25;
 
 export interface TerrainBonus {
   evasion: number;
@@ -84,7 +84,7 @@ export const getTerrainBonus = (
       }
       if (BLOCK_NEAR.has(key)) {
         out.block += BLOCK_NEAR_BONUS;
-        out.sources.push(`${label}: +5% к блоку (рядом)`);
+        out.sources.push(`${label}: +25% к блоку (рядом)`);
       }
     }
   }
