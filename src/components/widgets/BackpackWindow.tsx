@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
@@ -48,6 +49,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
   const slots = backpackSlotsFor(backpack);
   const gridRows = Math.max(1, Math.ceil(slots / GRID_COLS));
   const contents = backpackGrid.items;
+  const inCombat = useCombatGridStore((s) => s.isActive && s.enemies.some((e) => !e.dead && e.knowsPlayer));
 
   // Build occupied map for grid rendering
   const occupied = useMemo(() => {
@@ -167,7 +169,11 @@ export const BackpackWindow = ({ onClose }: Props) => {
             return (
               <div
                 key={item.id}
-                onDoubleClick={() => { takeOutBackpack(item.id); playSound('laying-out-a-travel-mat', 0.5); }}
+                onDoubleClick={() => {
+                  if (inCombat) { addLog('⚔️ На арене нельзя доставать из рюкзака!', 'warning'); return; }
+                  takeOutBackpack(item.id);
+                  playSound('laying-out-a-travel-mat', 0.5);
+                }}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   const abilId = (item as any).abilityId || '';
@@ -258,16 +264,16 @@ export const BackpackWindow = ({ onClose }: Props) => {
               const n = emptyBackpackToInventory();
               if (n > 0) { playSound('laying-out-a-travel-mat', 0.5); addLog(`📤 Выложено из рюкзака: ${n} шт.`, 'info'); }
             }}
-            disabled={contents.length === 0}
+            disabled={contents.length === 0 || inCombat}
             style={{
               marginTop: 6, width: '100%', padding: '6px 0',
-              background: contents.length === 0 ? 'transparent' : 'rgba(217,119,6,0.15)',
+              background: contents.length === 0 || inCombat ? 'transparent' : 'rgba(217,119,6,0.15)',
               border: '1px solid rgba(217,119,6,0.4)', borderRadius: 6,
-              color: contents.length === 0 ? 'var(--text-muted)' : '#fbbf24',
-              cursor: contents.length === 0 ? 'default' : 'pointer', fontSize: 12, fontWeight: 600,
+              color: contents.length === 0 || inCombat ? 'var(--text-muted)' : '#fbbf24',
+              cursor: contents.length === 0 || inCombat ? 'default' : 'pointer', fontSize: 12, fontWeight: 600,
             }}
           >
-            📤 Выложить всё ({contents.length})
+            {inCombat ? '⚔️ На арене нельзя' : `📤 Выложить всё (${contents.length})`}
           </button>
         </div>
         {tip && <ItemTooltip item={tip.item} x={tip.x} y={tip.y} />}
@@ -300,17 +306,18 @@ export const BackpackWindow = ({ onClose }: Props) => {
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >🍖 Использовать</button>
             <button onClick={() => {
+              if (inCombat) { addLog('⚔️ На арене нельзя доставать из рюкзака!', 'warning'); setCtxMenu(null); return; }
               takeOutBackpack(ctxMenu.item.id);
               playSound('laying-out-a-travel-mat', 0.5);
               setCtxMenu(null);
             }}
               style={{
                 width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
-                color: '#eee', cursor: 'pointer', fontSize: 13, borderRadius: 4,
+                color: inCombat ? '#666' : '#eee', cursor: inCombat ? 'not-allowed' : 'pointer', fontSize: 13, borderRadius: 4,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+              onMouseEnter={(e) => { if (!inCombat) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >📤 Вернуть в инвентарь</button>
+            >{inCombat ? '⚔️ Нельзя на арене' : '📤 Вернуть в инвентарь'}</button>
           </div>
         )}
       </motion.div>
