@@ -115,7 +115,7 @@ export const Header = () => {
               <img
                 src={hoverImg === '/dashboard' || isActive ? dashA1 : dashA2}
                 alt="Dashboard"
-                style={{ height: 94, width: 'auto', display: 'block' }}
+                className={styles.navImage}
               />
             )}
           </NavLink>
@@ -134,7 +134,7 @@ export const Header = () => {
                 <img
                   src={hoverImg === item.to || isActive ? item.on : item.off}
                   alt={item.label}
-                  style={{ height: 94, width: 'auto', display: 'block' }}
+                  className={styles.navImage}
                 />
               )}
             </NavLink>
@@ -159,7 +159,7 @@ export const Header = () => {
             style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
             title="Shooting Range"
           >
-            <img src={hoverImg === 'range' || rangeOpen ? polygonOn : polygonOff} alt="Shooting Range" style={{ height: 94, width: 'auto', display: 'block' }} />
+            <img src={hoverImg === 'range' || rangeOpen ? polygonOn : polygonOff} alt="Shooting Range" className={styles.navImage} />
           </button>
           <button
             className={`${styles.navLink} ${styles.navImageLink} ${equipmentOpen ? styles.navLinkActive : ''}`}
@@ -169,7 +169,7 @@ export const Header = () => {
             style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
             title="Equipment"
           >
-            <img src={hoverImg === 'equipment' || equipmentOpen ? equipmentOn : equipmentOff} alt="Equipment" style={{ height: 94, width: 'auto', display: 'block' }} />
+            <img src={hoverImg === 'equipment' || equipmentOpen ? equipmentOn : equipmentOff} alt="Equipment" className={styles.navImage} />
           </button>
           {/* Скрыта: нет картинки-кнопки для Backpack — код оставлен, вернуть = убрать display: 'none' */}
           <button
@@ -187,7 +187,7 @@ export const Header = () => {
             style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
             title="Inventory"
           >
-            <img src={hoverImg === 'inventory' || inventoryOpen ? inventoryOn : inventoryOff} alt="Inventory" style={{ height: 94, width: 'auto', display: 'block' }} />
+            <img src={hoverImg === 'inventory' || inventoryOpen ? inventoryOn : inventoryOff} alt="Inventory" className={styles.navImage} />
           </button>
           <NavLink
             to="/settings"
@@ -202,7 +202,7 @@ export const Header = () => {
               <img
                 src={hoverImg === '/settings' || isActive ? settingsOn : settingsOff}
                 alt="Settings"
-                style={{ height: 94, width: 'auto', display: 'block' }}
+                className={styles.navImage}
               />
             )}
           </NavLink>
