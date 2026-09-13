@@ -142,10 +142,11 @@ export const Header = () => {
           >
             ⚔️ Equipment
           </button>
+          {/* Скрыта: нет картинки-кнопки для Backpack — код оставлен, вернуть = убрать display: 'none' */}
           <button
             className={styles.navLink}
             onClick={() => { playClick(); toggleBackpack(); }}
-            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
+            style={{ display: 'none', background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
           >
             🎒 Backpack
           </button>
