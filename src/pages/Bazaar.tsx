@@ -9,6 +9,7 @@ import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { AMMO_GROUPS, maxStackFor, makeBulletPack } from '../data/ammo';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS } from '../data/backpacks';
+import { ALL_FOOD as ALL_FOOD_DATA } from '../data/food';
 
 const CONSUMABLE_ICONS: Record<string, string> = Object.fromEntries(
   CONSUMABLE_DEFS.map((c) => [c.abilityId, c.icon]),
@@ -215,6 +216,27 @@ const generateShop = (level: number): ShopItem[] => {
       ammoGroup: g.key,
     });
   }
+  // Еда: 10 random food items (raw + ready-to-eat), cheap prices
+  const foodPick = [...ALL_FOOD_DATA].sort(() => Math.random() - 0.5).slice(0, 10);
+  for (let i = 0; i < foodPick.length; i++) {
+    const fd = foodPick[i];
+    const qty = 1 + Math.floor(Math.random() * 3);
+    items.push({
+      id: `food_${fd.id}_${i}_${Date.now()}_${Math.random().toString(36).slice(2, 4)}`,
+      name: fd.name,
+      displayName: `${fd.name} x${qty}`,
+      level: 1,
+      rarity: 'common',
+      quality: 'Обычный',
+      qualityColor: '#fb923c',
+      price: fd.price * qty,
+      stats: {},
+      slot: 'consumable',
+      type: 'consumable',
+      abilityId: fd.id,
+      quantity: qty,
+    });
+  }
   // Рюкзаки: 2 шт, качество — пирамидой, цена с мультипликатором качества.
   // Показываются в Броне (слот backpack).
   const packPick = [...BACKPACK_DEFS].sort(() => Math.random() - 0.5).slice(0, 2);
@@ -248,6 +270,7 @@ const STALLS = [
   { id: 'consumables', label: 'Амуниция', icon: '🧪', flavor: 'Амулеты, еда и мелочи', color: '#4ade80', slots: ['consumable'] },
   { id: 'mods', label: 'Модификации', icon: '🔩', flavor: 'Тюнинг снаряжения', color: '#c084fc', slots: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock', 'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'] },
   { id: 'resources', label: 'Ресурсы', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
+  { id: 'food', label: 'Еда', icon: '🍖', flavor: 'Продукты и припасы', color: '#fb923c', slots: [] as string[] },
   { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны', color: '#fb923c', slots: ['bullet'] },
 ] as const;
 
@@ -430,9 +453,10 @@ export const Bazaar = () => {
   // Товары лавки из отсортированного списка.
   const stallItems = (id: string): ShopItem[] => {
     if (id === 'resources') return sortedShop.filter((item) => item.type === 'material');
+    if (id === 'food') return sortedShop.filter((item) => item.type === 'consumable' && item.abilityId?.startsWith('food_'));
     const stall = STALLS.find((s) => s.id === id);
     const validSlots = stall ? [...stall.slots] : [];
-    return sortedShop.filter((item) => validSlots.includes(item.slot));
+    return sortedShop.filter((item) => validSlots.includes(item.slot) && !(id === 'consumables' && item.abilityId?.startsWith('food_')));
   };
 
   const handleBuy = async (shopItem: ShopItem) => {

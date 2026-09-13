@@ -245,6 +245,8 @@ export interface CombatGridStore {
   isTeleporting: boolean;
   isPlacingMine: boolean;
   immortalityTurns: number;
+  showCookingMenu: boolean;
+  setShowCookingMenu: (show: boolean) => void;
 
   cardRarityName: string | null;
   initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }, allyCount?: number) => boolean;
@@ -492,6 +494,20 @@ function generateObstacles(
   markArea(playerPos.x - 1, playerPos.y - 1, 3, 3);
   for (const enemy of enemies) {
     markArea(enemy.pos.x - 1, enemy.pos.y - 1, 3, 3);
+  }
+
+  // Campfire (1x1) — non-walkable, clickable object, 1 per battle
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const x = Math.floor(Math.random() * (GRID - 1)) + 1;
+    const y = Math.floor(Math.random() * (GRID - 1)) + 1;
+    if (isAreaFree(x, y, 1, 1)) {
+      list.push({
+        id: id++, x, y, w: 1, h: 1, type: 'campfire', blocks: true, icon: 'campfire',
+        isHigh: false,
+      });
+      markArea(x, y, 1, 1);
+      break;
+    }
   }
 
   // Big buildings (6x5) — isHigh, random image
@@ -996,6 +1012,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isTeleporting: false,
   isPlacingMine: false,
   immortalityTurns: 0,
+  showCookingMenu: false,
+  setShowCookingMenu: (show: boolean) => set({ showCookingMenu: show }),
   cardRarityName: null,
 
   addMessage: (msg) => set({ message: msg }),
@@ -3034,7 +3052,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       corpseSearch: null, alarmRaised: false, noSleep: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
-      playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, cardRarityName: null,
+      playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, showCookingMenu: false, cardRarityName: null,
       ammo: MAX_AMMO, maxAmmo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
     });
   },

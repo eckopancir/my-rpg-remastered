@@ -5,6 +5,7 @@ import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { BattleGrid } from '../components/widgets/BattleGrid';
+import { CookingMenu } from '../components/widgets/CookingMenu';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
@@ -611,6 +612,7 @@ export const Battle = () => {
       {/* Center - Battle Grid */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <BattleGrid />
+        <CookingMenu />
         {/* Vignette */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,
