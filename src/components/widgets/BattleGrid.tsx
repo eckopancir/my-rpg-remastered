@@ -637,39 +637,22 @@ export const BattleGrid = () => {
 
         {/* Костёр лагеря — виден всегда (свет видно издалека), кадры 300мс */}
         {campfire && (images.campfire1 || images.campfire2) && (
-          <>
-            {/* Визуал костра (декоративный, без клика) */}
-            <div style={{
-              position: 'absolute',
-              left: `${(campfire.x / 31) * 100}%`,
-              top: `${(campfire.y / 31) * 100}%`,
-              transform: 'translate(-50%, -62%)',
-              width: '6.25%', aspectRatio: '1',
-              zIndex: 4,
-              pointerEvents: 'none',
-            }}>
-              <img
-                src={fireFrame === 0 ? (images.campfire1 || images.campfire2) : (images.campfire2 || images.campfire1)}
-                alt="campfire"
-                draggable={false}
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              />
-            </div>
-            {/* Клик-таргет — сдвинут 10px влево и 10px вверх от клетки */}
-            <div
-              onClick={() => {
-                useCombatGridStore.getState().setShowCookingMenu(true);
-              }}
-              style={{
-                position: 'absolute',
-                left: `calc(${(campfire.x / 31) * 100}% - 10px)`,
-                top: `calc(${(campfire.y / 31) * 100}% - 10px)`,
-                width: '6.25%', height: '6.25%',
-                zIndex: 5,
-                cursor: 'crosshair',
-              }}
+          <div style={{
+            position: 'absolute',
+            left: `${(campfire.x / 31) * 100}%`,
+            top: `${(campfire.y / 31) * 100}%`,
+            transform: 'translate(-50%, -62%)',
+            width: '6.25%', aspectRatio: '1',
+            zIndex: 4,
+            pointerEvents: 'none',
+          }}>
+            <img
+              src={fireFrame === 0 ? (images.campfire1 || images.campfire2) : (images.campfire2 || images.campfire1)}
+              alt="campfire"
+              draggable={false}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
-          </>
+          </div>
         )}
 
         {/* Реплики и статусы — верхний слой: поверх тумана, костра и всех объектов */}
