@@ -98,8 +98,10 @@ export const Battle = () => {
   const enemies = useCombatGridStore((s) => s.enemies);
   const isMoving = useCombatGridStore((s) => s.isMoving);
   const isSelected = useCombatGridStore((s) => s.isSelected);
+  const campfire = useCombatGridStore((s) => s.campfire);
   const cursorPos = useCombatGridStore((s) => s.cursorPos);
   const playerPos = useCombatGridStore((s) => s.playerPos);
+  const nearCampfire = campfire && Math.abs(playerPos.x - campfire.x) + Math.abs(playerPos.y - campfire.y) <= 2;
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const myTerrain = getTerrainBonus(playerPos, obstacles);
   const myTerrainText = [
@@ -193,7 +195,7 @@ export const Battle = () => {
           if (cf) {
             const edx = Math.abs(pp.x - cf.x);
             const edy = Math.abs(pp.y - cf.y);
-            if (edx + edy <= 1) {
+            if (edx + edy <= 2) {
               st.setShowCookingMenu(true);
             }
           }
@@ -380,20 +382,25 @@ export const Battle = () => {
             {/* Action buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div
-                onClick={() => { playClick(); selectMe(); }}
+                onClick={() => {
+                  if (nearCampfire) {
+                    playClick();
+                    useCombatGridStore.getState().setShowCookingMenu(true);
+                  }
+                }}
                 style={{
                   padding: '9px', borderRadius: 6,
-                  border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'rgba(255,255,255,0.12)'}`,
-                  background: isSelected ? 'rgba(217,119,6,0.15)' : 'rgba(255,255,255,0.03)',
-                  color: isSelected ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                  cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
+                  border: `1px solid ${nearCampfire ? 'rgba(74,222,128,0.6)' : 'rgba(255,255,255,0.08)'}`,
+                  background: nearCampfire ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.03)',
+                  color: nearCampfire ? '#4ade80' : 'var(--text-muted)',
+                  cursor: nearCampfire ? 'pointer' : 'not-allowed',
                   fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
                   opacity: turn !== 'player' ? 0.4 : 1,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}
               >
-                <span>🎯 Выбор</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>E {isSelected ? '●' : '○'}</span>
+                <span>🔥 Костёр</span>
+                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>E {nearCampfire ? '●' : '○'}</span>
               </div>
 
               <div
