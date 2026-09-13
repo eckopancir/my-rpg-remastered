@@ -15,6 +15,20 @@ import mapOff from '../../assets/images/ui/map-off.jpg';
 import mapOn from '../../assets/images/ui/map-on.jpg';
 import travelOff from '../../assets/images/ui/travel-off.jpg';
 import travelOn from '../../assets/images/ui/travel-on.jpg';
+import baseOff from '../../assets/images/ui/base-off.jpg';
+import baseOn from '../../assets/images/ui/base-on.jpg';
+import bazaarOff from '../../assets/images/ui/bazaar-off.jpg';
+import bazaarOn from '../../assets/images/ui/bazaar-on.jpg';
+import craftOff from '../../assets/images/ui/craft-off.jpg';
+import craftOn from '../../assets/images/ui/craft-on.jpg';
+import equipmentOff from '../../assets/images/ui/equipment-off.jpg';
+import equipmentOn from '../../assets/images/ui/equipment-on.jpg';
+import inventoryOff from '../../assets/images/ui/inventory-off.jpg';
+import inventoryOn from '../../assets/images/ui/inventory-on.jpg';
+import polygonOff from '../../assets/images/ui/polygon-off.jpg';
+import polygonOn from '../../assets/images/ui/polygon-on.jpg';
+import settingsOff from '../../assets/images/ui/settings-off.jpg';
+import settingsOn from '../../assets/images/ui/settings-on.jpg';
 import hpIconImg from '../../assets/images/ui/hp-icon.png';
 import staminaPlateImg from '../../assets/images/ui/stamina-plate.png';
 import levelIconImg from '../../assets/images/ui/level-icon.png';
@@ -23,13 +37,13 @@ const imageNavItems = [
   { to: '/skills', label: 'Skills', off: skillsOff, on: skillsOn },
   { to: '/map', label: 'Map', off: mapOff, on: mapOn },
   { to: '/adventure', label: 'Travel', off: travelOff, on: travelOn },
+  { to: '/base', label: 'Base', off: baseOff, on: baseOn },
+  { to: '/bazaar', label: 'Bazaar', off: bazaarOff, on: bazaarOn },
+  { to: '/craft', label: 'Craft', off: craftOff, on: craftOn },
+  { to: '/settings', label: 'Settings', off: settingsOff, on: settingsOn },
 ];
 
-const navItems = [
-  { to: '/base', label: '🏢 Base' },
-  { to: '/bazaar', label: '🏪 Bazaar' },
-  { to: '/craft', label: '🔧 CRAFT' },
-];
+const navItems: { to: string; label: string }[] = [];
 
 export const Header = () => {
   const level = usePlayerStore((s) => s.level);
@@ -41,6 +55,9 @@ export const Header = () => {
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
   const toggleBackpack = useUiStore((s) => s.toggleBackpack);
   const toggleRange = useUiStore((s) => s.toggleRange);
+  const inventoryOpen = useUiStore((s) => s.inventoryOpen);
+  const equipmentOpen = useUiStore((s) => s.equipmentOpen);
+  const rangeOpen = useUiStore((s) => s.rangeOpen);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const { playClick } = useSound();
@@ -65,7 +82,7 @@ export const Header = () => {
 
   // Предзагрузка ховер-картинок, чтобы не мигало при первом наведении.
   useEffect(() => {
-    for (const src of [dashA1, skillsOn, mapOn, travelOn]) {
+    for (const src of [dashA1, skillsOn, mapOn, travelOn, baseOn, bazaarOn, craftOn, equipmentOn, inventoryOn, polygonOn, settingsOn]) {
       const img = new Image();
       img.src = src;
     }
@@ -136,11 +153,14 @@ export const Header = () => {
             </NavLink>
           ))}
           <button
-            className={styles.navLink}
+            className={`${styles.navLink} ${styles.navImageLink} ${equipmentOpen ? styles.navLinkActive : ''}`}
             onClick={() => { playClick(); toggleEquipment(); }}
-            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
+            onMouseEnter={() => setHoverImg('equipment')}
+            onMouseLeave={() => setHoverImg(null)}
+            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
+            title="Equipment"
           >
-            ⚔️ Equipment
+            <img src={hoverImg === 'equipment' || equipmentOpen ? equipmentOn : equipmentOff} alt="Equipment" style={{ height: 94, width: 'auto', display: 'block' }} />
           </button>
           {/* Скрыта: нет картинки-кнопки для Backpack — код оставлен, вернуть = убрать display: 'none' */}
           <button
@@ -151,22 +171,25 @@ export const Header = () => {
             🎒 Backpack
           </button>
           <button
-            className={styles.navLink}
+            className={`${styles.navLink} ${styles.navImageLink} ${inventoryOpen ? styles.navLinkActive : ''}`}
             onClick={() => { playClick(); toggleInventory(); }}
-            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
+            onMouseEnter={() => setHoverImg('inventory')}
+            onMouseLeave={() => setHoverImg(null)}
+            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
+            title="Inventory"
           >
-            🎒 Inventory
+            <img src={hoverImg === 'inventory' || inventoryOpen ? inventoryOn : inventoryOff} alt="Inventory" style={{ height: 94, width: 'auto', display: 'block' }} />
           </button>
           <button
-            className={styles.navLink}
+            className={`${styles.navLink} ${styles.navImageLink} ${rangeOpen ? styles.navLinkActive : ''}`}
             onClick={() => { playClick(); toggleRange(); }}
-            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--wa-font-hud)', fontSize: 12 }}
+            onMouseEnter={() => setHoverImg('range')}
+            onMouseLeave={() => setHoverImg(null)}
+            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
+            title="Shooting Range"
           >
-            🎯 Shooting Range
+            <img src={hoverImg === 'range' || rangeOpen ? polygonOn : polygonOff} alt="Shooting Range" style={{ height: 94, width: 'auto', display: 'block' }} />
           </button>
-          <NavLink to="/settings" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`} onClick={guardCombatNav}>
-            ⚙️ Settings
-          </NavLink>
         </nav>
       </div>
       <div className={styles.right}>
