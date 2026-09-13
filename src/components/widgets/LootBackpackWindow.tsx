@@ -330,6 +330,23 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
               {packCells.map((cell, i) => {
                 if (cell === '__occupied__') return null; // skip covered cells
                 const item = cell as Item | null;
+                if (!item && i >= packSlots) {
+                  return (
+                    <div
+                      key={`plock-${i}`}
+                      title="Закрыто — нет слота"
+                      style={{
+                        width: '100%', height: '100%',
+                        background: 'rgba(60,10,10,0.5)',
+                        border: '1px solid rgba(255,60,60,0.25)',
+                        borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 16, opacity: 0.5, pointerEvents: 'none',
+                      }}
+                    >
+                      🔒
+                    </div>
+                  );
+                }
                 return (
                   <Cell
                     key={item ? item.id : `p-${i}`}

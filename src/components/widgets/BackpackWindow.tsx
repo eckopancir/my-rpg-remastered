@@ -227,12 +227,31 @@ export const BackpackWindow = ({ onClose }: Props) => {
               </div>
             );
           })}
-          {/* Empty cells */}
+          {/* Empty cells (лишние ячейки последнего ряда — заблокированы) */}
           {Array.from({ length: gridRows * GRID_COLS }).map((_, i) => {
             const x = i % GRID_COLS;
             const y = Math.floor(i / GRID_COLS);
             if (occupied.has(`${x},${y}`)) return null;
             if (x >= GRID_COLS || y >= gridRows) return null;
+            if (i >= slots) {
+              return (
+                <div
+                  key={`locked-${i}`}
+                  title="Закрыто — нет слота"
+                  style={{
+                    gridColumn: `${x + 1}`, gridRow: `${y + 1}`,
+                    width: cellSize, height: cellSize,
+                    background: 'rgba(60,10,10,0.5)',
+                    border: '1px solid rgba(255,60,60,0.25)',
+                    borderRadius: 3,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, opacity: 0.5, pointerEvents: 'none',
+                  }}
+                >
+                  🔒
+                </div>
+              );
+            }
             return (
               <div
                 key={`empty-${i}`}

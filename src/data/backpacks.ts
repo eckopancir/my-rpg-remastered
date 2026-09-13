@@ -3,6 +3,7 @@ import { maxStackFor, isBulletOfGroup, AMMO_GROUP_MAP, type AmmoGroup } from './
 
 // Каталог рюкзаков: 11 семейств × 5 градаций = 55 штук.
 // Слоты = baseSlots + индекс качества предмета (Обычный 0 … Божественный 6).
+// Базы 10…26 (минимум 10 = 2 ряда по 5).
 // Редкость влияет ТОЛЬКО на слоты. Картинки — pack_*.png по семейству (getBackpackImage).
 export interface BackpackDef {
   name: string;
@@ -13,57 +14,57 @@ export interface BackpackDef {
 
 const FAMILIES: { family: string; baseSlots: number; names: [string, string, string, string, string]; prices: [number, number, number, number, number] }[] = [
   {
-    family: 'Походный', baseSlots: 4,
+    family: 'Походный', baseSlots: 10,
     names: ['Походный рюкзак', 'Походный рюкзак М', 'Походный рюкзак МК-2', 'Походный элитный', 'Походный прототип'],
     prices: [300, 525, 825, 1275, 1950],
   },
   {
-    family: 'Полевой', baseSlots: 5,
+    family: 'Полевой', baseSlots: 11,
     names: ['Полевой ранец', 'Полевой ранец М', 'Полевой ранец МК-2', 'Полевой элитный', 'Полевой прототип'],
     prices: [420, 675, 1050, 1575, 2400],
   },
   {
-    family: 'Рейдовый', baseSlots: 6,
+    family: 'Рейдовый', baseSlots: 12,
     names: ['Рейдовый рюкзак', 'Рейдовый рюкзак М', 'Рейдовый рюкзак МК-2', 'Рейдовый элитный', 'Рейдовый прототип'],
     prices: [570, 900, 1350, 2025, 3000],
   },
   {
-    family: 'Сталкерский', baseSlots: 7,
+    family: 'Сталкерский', baseSlots: 13,
     names: ['Сталкерский рюкзак', 'Сталкерский рюкзак М', 'Сталкерский рюкзак МК-2', 'Сталкерский элитный', 'Сталкерский прототип'],
     prices: [750, 1125, 1650, 2475, 3600],
   },
   {
-    family: 'Штурмовой', baseSlots: 8,
+    family: 'Штурмовой', baseSlots: 14,
     names: ['Штурмовой рюкзак', 'Штурмовой рюкзак М', 'Штурмовой рюкзак МК-2', 'Штурмовой элитный', 'Штурмовой прототип'],
     prices: [975, 1425, 2100, 3075, 4500],
   },
   {
-    family: 'Десантный', baseSlots: 9,
+    family: 'Десантный', baseSlots: 15,
     names: ['Десантный рюкзак', 'Десантный рюкзак М', 'Десантный рюкзак МК-2', 'Десантный элитный', 'Десантный прототип'],
     prices: [1150, 1700, 2450, 3550, 5150],
   },
   {
-    family: 'Тактический военный', baseSlots: 10,
+    family: 'Тактический военный', baseSlots: 16,
     names: ['Тактический военный', 'Тактический военный М', 'Тактический военный МК-2', 'Тактический элитный', 'Тактический прототип'],
     prices: [1350, 1950, 2850, 4050, 5850],
   },
   {
-    family: 'Армейский', baseSlots: 12,
+    family: 'Армейский', baseSlots: 18,
     names: ['Армейский рюкзак', 'Армейский рюкзак М', 'Армейский рюкзак МК-2', 'Армейский элитный', 'Армейский прототип'],
     prices: [1800, 2600, 3700, 5300, 7600],
   },
   {
-    family: 'Экспедиционный', baseSlots: 14,
+    family: 'Экспедиционный', baseSlots: 20,
     names: ['Экспедиционный рюкзак', 'Экспедиционный рюкзак М', 'Экспедиционный рюкзак МК-2', 'Экспедиционный элитный', 'Экспедиционный прототип'],
     prices: [2300, 3300, 4700, 6700, 9600],
   },
   {
-    family: 'Ветеранский', baseSlots: 16,
+    family: 'Ветеранский', baseSlots: 22,
     names: ['Ветеранский рюкзак', 'Ветеранский рюкзак М', 'Ветеранский рюкзак МК-2', 'Ветеранский элитный', 'Ветеранский прототип'],
     prices: [5200, 7500, 11000, 16000, 23000],
   },
   {
-    family: 'Экзо', baseSlots: 20,
+    family: 'Экзо', baseSlots: 26,
     names: ['Экзо рюкзак', 'Экзо рюкзак М', 'Экзо рюкзак МК-2', 'Экзо элитный', 'Экзо прототип'],
     prices: [9000, 13000, 19000, 27000, 39000],
   },
@@ -82,11 +83,11 @@ const QUALITY_SLOT_BONUS: Record<string, number> = {
 export const backpackSlots = (def: BackpackDef, qualityName?: string): number =>
   def.baseSlots + (QUALITY_SLOT_BONUS[qualityName ?? 'Обычный'] ?? 0);
 
-/** Слоты надетого рюкзака; неизвестный — 4 как у походного. */
+/** Слоты надетого рюкзака; неизвестный — 10 как у походного. */
 export const backpackSlotsFor = (item: { name?: string; quality?: string } | null | undefined): number => {
   if (!item) return 0;
   const def = backpackDefByName(item.name || '');
-  if (!def) return 4;
+  if (!def) return 10;
   return backpackSlots(def, item.quality);
 };
 
@@ -206,6 +207,8 @@ export const isBigItem = (item: Item): boolean => {
 export interface BackpackGrid {
   w: number;
   h: number;
+  /** Валидных ячеек (первые `slots` в row-major). Лишние ячейки сетки 5×h заблокированы. */
+  slots?: number;
   cells: (string | null)[][];
   items: Item[];
 }
@@ -215,7 +218,16 @@ export const createGrid = (slots: number): BackpackGrid => {
   const w = GRID_W;
   const h = Math.max(1, Math.ceil(slots / w));
   const cells: (string | null)[][] = Array.from({ length: h }, () => Array(w).fill(null));
-  return { w, h, cells, items: [] };
+  return { w, h, slots, cells, items: [] };
+};
+
+/** Сколько ячеек валидно (старые сейвы без slots → вся сетка). */
+export const gridSlots = (grid: BackpackGrid): number => grid.slots ?? grid.w * grid.h;
+
+/** Ячейка usable: внутри сетки И в пределах slots (лишние ячейки последнего ряда закрыты). */
+export const isCellUsable = (grid: BackpackGrid, x: number, y: number): boolean => {
+  if (x < 0 || y < 0 || x >= grid.w || y >= grid.h) return false;
+  return y * grid.w + x < gridSlots(grid);
 };
 
 /** Проверить, свободны ли ячейки (x..x+w-1, y..y+h-1). */
@@ -223,6 +235,7 @@ export const canPlaceAt = (grid: BackpackGrid, x: number, y: number, w: number, 
   if (x < 0 || y < 0 || x + w > grid.w || y + h > grid.h) return false;
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
+      if (!isCellUsable(grid, x + dx, y + dy)) return false;
       if (grid.cells[y + dy][x + dx] !== null) return false;
     }
   }
