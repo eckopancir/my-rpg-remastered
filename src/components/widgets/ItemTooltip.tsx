@@ -147,12 +147,10 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     <div
       style={{
         position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 9999,
-        width: 320,
-        overflow: 'visible',
+        width: 'fit-content', minWidth: 320,
         background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
         border: '1px solid rgba(255,255,255,0.09)',
         borderRadius: 10,
-        overflow: 'hidden',
         boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 2px 0 rgba(255,255,255,0.04) inset',
         pointerEvents: 'auto',
         fontFamily: 'var(--font-sans)',
@@ -218,7 +216,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         </div>
       </div>
       </div>
-      <div style={{ padding: '0 14px 12px' }}>
+      <div style={{ padding: '0 14px 12px', maxWidth: 350 }}>
       {item.type === 'blueprint' && (() => {
         const stat = (item as any).blueprintStat || 'damage';
         const isFlat = SCHEME_FLAT_STATS.has(stat);
@@ -342,7 +340,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
 
       {/* set bonuses — спойлер, раскрывается через 3с */}
       {item.set && SET_BONUSES[item.set] && (
-        <div style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 8, marginBottom: 10, overflow: 'hidden' }}>
+        <div style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 8, marginBottom: 10, overflow: 'hidden', maxWidth: 320 }}>
           <div
             onClick={() => setSpoilersOpen((o) => !o)}
             style={{ padding: '7px 8px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', pointerEvents: 'auto', userSelect: 'none' }}
@@ -363,7 +361,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
                   const isAchieved = equippedSetCount >= tier.count;
                   const isMax = idx === SET_BONUSES[item.set].length - 1;
                   return (
-                    <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4 }}>
+                    <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4, wordBreak: 'break-word' }}>
                       {isAchieved ? '◆ ' : isMax ? '◇ ' : '◇ '}({tier.count}) {bonusStr}
                     </div>
                   );
@@ -463,7 +461,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       })()}
 
       {item.description && (
-        <div style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.38)', fontStyle: 'italic', lineHeight: 1.4 }}>
+        <div style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.38)', fontStyle: 'italic', lineHeight: 1.4, maxWidth: 320, wordBreak: 'break-word' }}>
           {item.description}
         </div>
       )}
