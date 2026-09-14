@@ -395,14 +395,23 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       })()}
 
       {/* footer: price + rarity badge in rarity color */}
-      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, fontSize: 12 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontWeight: 600 }}>
-          <span>⬢</span> {getSellPrice(item).toLocaleString()}
-        </span>
-        <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: qc, border: `1px solid ${qc}55`, background: `${qc}14`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3 }}>
-          {item.quality || item.type}
-        </span>
-      </div>
+      {(() => {
+        const QUALITY_HEX: Record<string, string> = {
+          'Обычный': '#a0a0a0', 'Редкий': '#4ade80', 'Раритетный': '#60a5fa',
+          'Эпический': '#a855f7', 'Смертоносный': '#ef4444', 'Легендарный': '#fbbf24', 'Божественный': '#22d3ee',
+        };
+        const hex = QUALITY_HEX[item.quality || ''] || (qc.startsWith('#') ? qc : '#a0a0a0');
+        return (
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, fontSize: 12 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontWeight: 600 }}>
+              <span>⬢</span> {getSellPrice(item).toLocaleString()}
+            </span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
+              {item.quality || item.type}
+            </span>
+          </div>
+        );
+      })()}
 
       {item.description && (
         <div style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.38)', fontStyle: 'italic', lineHeight: 1.4 }}>
