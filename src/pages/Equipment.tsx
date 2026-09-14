@@ -53,6 +53,14 @@ const STAT_LABELS: Record<string, string> = {
   incomingDamageMult: 'Получаемый урон', bonusAp: 'Доп. AP', shieldCharges: 'Заряды щита',
 };
 
+// Палитра как в тултипе: красный урон, синий защита, зелёный живучесть, жёлтый точность/мобильность.
+const STAT_TT_COLORS: Record<string, string> = {
+  damage: '#f87171', punching: '#f87171', vampir: '#f87171', dpsExtro: '#f87171', dpsFire: '#f87171',
+  armor: '#60a5fa', block: '#60a5fa', evasion: '#60a5fa', dpsEmi: '#60a5fa',
+  regen: '#4ade80', maxHp: '#4ade80', maxStamina: '#4ade80', luck: '#4ade80', incomingDamageMult: '#4ade80', dpsToxis: '#4ade80',
+  crit: '#fbbf24', accuracy: '#fbbf24', speed: '#fbbf24',
+};
+
 const statValue = (k: string, v: number): { label: string; val: string; color: string } | null => {
     // Нули показываем (скорость 0 от штрафов должна быть видна, красным).
     // Прячем только базовую точность 0.1 без бонусов — шум.
@@ -60,9 +68,7 @@ const statValue = (k: string, v: number): { label: string; val: string; color: s
     const label = STAT_LABELS[k] || k;
     const pctKeys = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'incomingDamageMult'];
     const val = k === 'block' ? `${(v * 10).toFixed(v >= 0.1 ? 1 : 2)}%` : pctKeys.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
-    const color = ['damage', 'crit', 'accuracy', 'punching', 'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'].includes(k)
-      ? '#f87171' : k === 'maxHp' || k === 'armor' || k === 'evasion' || k === 'block'
-        ? '#4ade80' : '#94a3b8';
+    const color = STAT_TT_COLORS[k] || '#d1d5db';
     return { label, val, color };
   };
 
@@ -375,13 +381,13 @@ export const Equipment = () => {
     const isHover = hoverSlot === slot;
 
     const stars = item?.quality ? (QUALITY_STARS[item.quality] || 0) : 0;
+    // Рамки нейтральные, как в тултипе. Цвет только у функциональных состояний:
+    // активный ствол и дроп-таргет при перетаскивании.
     const frame = isActiveGun
       ? '#22c55e'
       : isDragTarget
         ? 'rgba(34,197,94,0.8)'
-        : item
-          ? (item.qualityColor || '#818cf8')
-          : 'rgba(255,255,255,0.14)';
+        : 'rgba(255,255,255,0.09)';
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
     return (
       <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -405,9 +411,9 @@ export const Equipment = () => {
             background: isDragTarget
               ? 'rgba(34,197,94,0.15)'
               : item
-                ? `linear-gradient(135deg, ${item.qualityColor || '#818cf8'}26, rgba(0,0,0,0.45))`
+                ? 'linear-gradient(180deg, #232323 0%, #1a1a1a 60%, #20242a 100%)'
                 : 'rgba(0,0,0,0.35)',
-            border: `2px ${item || isDragTarget ? 'solid' : 'dashed'} ${frame}`,
+            border: `${isActiveGun || isDragTarget ? 2 : 1}px ${item || isDragTarget ? 'solid' : 'dashed'} ${frame}`,
             borderRadius: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: isActiveGun
@@ -415,9 +421,9 @@ export const Equipment = () => {
               : isDragTarget
                 ? '0 0 18px rgba(34,197,94,0.5)'
                 : isHover
-                  ? `0 0 14px ${(item?.qualityColor || '#818cf8') + '88'}`
+                  ? '0 0 14px rgba(255,255,255,0.15)'
                   : item
-                    ? `0 0 10px ${(item.qualityColor || '#818cf8') + '55'}`
+                    ? '0 4px 12px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.04) inset'
                     : 'none',
             cursor: item ? 'grab' : 'pointer',
             transition: 'all 120ms',
@@ -448,7 +454,7 @@ export const Equipment = () => {
         </div>
         <div style={{
           fontSize: 10, lineHeight: 1.2, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1,
-          color: item ? (item.qualityColor || 'var(--text-secondary)') : 'var(--text-muted)',
+          color: 'var(--text-secondary)',
           maxWidth: slotW + 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {SLOT_LABELS[slot] || caption}
@@ -502,14 +508,10 @@ export const Equipment = () => {
       </WapHeader>
 
       <div style={{
-        background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
-        border: '2px solid rgba(217,119,6,0.2)',
-        borderRadius: '0 0 8px 8px',
-        boxShadow: [
-          '0 0 0 1px rgba(217,119,6,0.3)',
-          '0 0 12px rgba(217,119,6,0.06)',
-          'inset 0 0 30px rgba(217,119,6,0.02)',
-        ].join(', '),
+        background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
+        border: '1px solid rgba(255,255,255,0.09)',
+        borderRadius: '0 0 10px 10px',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 2px 0 rgba(255,255,255,0.04) inset',
         padding: 20,
         display: 'flex', gap: 20, minWidth: 700, maxWidth: '100%',
       }}>
@@ -633,7 +635,11 @@ export const Equipment = () => {
             padding: 16, background: 'rgba(255,255,255,0.02)',
             border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)', marginBottom: 12 }}>📊 ХАРАКТЕРИСТИКИ</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              <span style={{ width: 14, height: 1, background: 'rgba(251,191,36,0.4)' }} />
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#fbbf24' }}>◆ ХАРАКТЕРИСТИКИ</span>
+              <span style={{ flex: 1, height: 1, background: 'rgba(251,191,36,0.14)' }} />
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, marginBottom: 10 }}>
               <span style={{ color: 'rgba(255,255,255,0.5)' }}>Мощность</span>
               <span
@@ -646,16 +652,19 @@ export const Equipment = () => {
               </span>
             </div>
             <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(217,119,6,0.3), transparent)', marginBottom: 8 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {KEY_STATS.map((k) => {
                 const sv = statValue(k, stats[k] ?? 0);
                 if (!sv) return null;
                 // Зелёным — норма, красным — занижено штрафом экипировки.
                 const lowered = (equipDelta[k as keyof typeof equipDelta] ?? 0) < 0;
                 return (
-                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#a0aec0' }}>{sv.label}</span>
-                    <span style={{ color: lowered ? '#f87171' : '#4ade80', fontWeight: 600 }}>{sv.val}</span>
+                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
+                    <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
+                      <span style={{ color: lowered ? '#f87171' : sv.color, fontWeight: 600 }}>{sv.val}</span>{' '}
+                      <span style={{ color: 'rgba(255,255,255,0.72)' }}>{sv.label}</span>
+                    </span>
                   </div>
                 );
               })}
@@ -682,9 +691,12 @@ export const Equipment = () => {
                   {entries.map((e) => {
                     const lowered = (equipDelta[e.key as keyof typeof equipDelta] ?? 0) < 0;
                     return (
-                      <div key={e.key} style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: 8 }}>
-                        <span style={{ color: '#a0aec0' }}>{e.label}</span>
-                        <span style={{ color: lowered ? '#f87171' : '#4ade80', fontWeight: 600 }}>{e.val}</span>
+                      <div key={e.key} style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8, fontSize: 12, lineHeight: 1.4 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
+                        <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
+                          <span style={{ color: lowered ? '#f87171' : e.color, fontWeight: 600 }}>{e.val}</span>{' '}
+                          <span style={{ color: 'rgba(255,255,255,0.72)' }}>{e.label}</span>
+                        </span>
                       </div>
                     );
                   })}
