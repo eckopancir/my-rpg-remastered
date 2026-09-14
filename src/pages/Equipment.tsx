@@ -408,6 +408,7 @@ export const Equipment = () => {
           style={{
             width: slotW,
             height: slotH,
+            position: 'relative',
             background: isDragTarget
               ? 'rgba(34,197,94,0.15)'
               : item
@@ -429,9 +430,16 @@ export const Equipment = () => {
             transition: 'all 120ms',
           }}
         >
+          {/* Полоска редкости сверху слота — как 3px-линия в тултипе */}
+          {item && (
+            <div style={{
+              position: 'absolute', top: 0, left: 8, right: 8, height: 2,
+              background: item.qualityColor || '#818cf8', opacity: 0.9, borderRadius: 2,
+            }} />
+          )}
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated' }} /> : null; })()}
+              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', filter: `drop-shadow(0 0 6px ${(item.qualityColor || '#818cf8') + '66'})` }} /> : null; })()}
               <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 2, textAlign: 'center' }}>
                 {item.level || 0} ур.
               </div>
@@ -454,7 +462,7 @@ export const Equipment = () => {
         </div>
         <div style={{
           fontSize: 10, lineHeight: 1.2, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1,
-          color: 'var(--text-secondary)',
+          color: item ? (item.qualityColor || 'var(--text-secondary)') : 'var(--text-muted)',
           maxWidth: slotW + 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {SLOT_LABELS[slot] || caption}
