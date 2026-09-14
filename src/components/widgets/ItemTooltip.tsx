@@ -1,4 +1,6 @@
 import { getItemImage, images, crystalImages, getSchemeImage } from '../../assets/index';
+import iconBullets from '../../assets/images/ui/icon-bullets.png';
+import iconScope from '../../assets/images/ui/icon-scope.png';
 import { getConsumableIcon } from '../../data/consumables';
 import { FOOD_MAP } from '../../data/food';
 import type { Item } from '../../types/items';
@@ -271,14 +273,16 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         const mq = (item as any).loadedAmmoQuality || 'Обычный';
         const mm = bulletDamageMult(mq);
         return (
-          <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6 }}>
-            📀 Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)} · {mq}{mm > 1 ? ` (+${Math.round((mm - 1) * 100)}%)` : ''}
+          <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <img src={iconBullets} alt="" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(1.2)' }} />
+            <span>Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)} · {mq}{mm > 1 ? ` (+${Math.round((mm - 1) * 100)}%)` : ''}</span>
           </div>
         );
       })()}
       {item.slot === 'weapon1' && (
-        <div style={{ fontSize: 12, color: '#7dd3fc', marginBottom: 6 }}>
-          🎯 ближний бой · бьёт 3 клетки спереди
+        <div style={{ fontSize: 12, color: '#7dd3fc', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <img src={iconScope} alt="" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(1.2)' }} />
+          <span>ближний бой · бьёт 3 клетки спереди</span>
         </div>
       )}
       {item.slot === 'weapon2' && (() => {
@@ -290,8 +294,9 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           prof.fast ? '⚡ темп' : null,
         ].filter(Boolean).join(' · ');
         return (
-          <div style={{ fontSize: 12, color: '#7dd3fc', marginBottom: 6 }}>
-            🎯 {tags}
+          <div style={{ fontSize: 12, color: '#7dd3fc', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <img src={iconScope} alt="" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(1.2)' }} />
+            <span>{tags}</span>
           </div>
         );
       })()}
