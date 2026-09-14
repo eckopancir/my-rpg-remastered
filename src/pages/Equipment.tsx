@@ -78,13 +78,25 @@ const STAT_TT_COLORS: Record<string, string> = {
   crit: '#fbbf24', accuracy: '#fbbf24', speed: '#fbbf24',
 };
 
+const PCT_KEYS = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'];
+
+// Формат штрафа экипировки для подписи рядом: "-3%".
+const fmtPenalty = (k: string, d: number): string => {
+  const a = Math.abs(d);
+  if (k === 'block') return `${(a * 10).toFixed(a >= 0.1 ? 1 : 2)}%`;
+  if (PCT_KEYS.includes(k)) {
+    const p = a * 100;
+    return `${p >= 10 ? p.toFixed(0) : p.toFixed(1).replace(/\.0$/, '')}%`;
+  }
+  return `${a >= 100 ? a.toFixed(0) : a >= 1 ? a.toFixed(1) : a.toFixed(2)}`;
+};
+
 const statValue = (k: string, v: number): { label: string; val: string; color: string } | null => {
     // Нули показываем (скорость 0 от штрафов должна быть видна, красным).
     // Прячем только базовую точность 0.1 без бонусов — шум.
     if (k === 'accuracy' && v === 0.1) return null;
     const label = STAT_LABELS[k] || k;
-    const pctKeys = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'];
-    const val = k === 'block' ? `${(v * 10).toFixed(v >= 0.1 ? 1 : 2)}%` : pctKeys.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
+    const val = k === 'block' ? `${(v * 10).toFixed(v >= 0.1 ? 1 : 2)}%` : PCT_KEYS.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
     const color = STAT_TT_COLORS[k] || '#d1d5db';
     return { label, val, color };
   };
@@ -386,18 +398,19 @@ export const Equipment = () => {
   const avgStars = equippedCount > 0 ? equippedItems.reduce((s, it) => s + (QUALITY_STARS[it.quality || ''] || 0), 0) / equippedCount : 0;
 
   // Строка характеристики в стиле тултипа: ◇ цветное значение + лейбл.
+  // Штраф экипировки — красной подписью рядом ("-3%"), значение всегда цветом палитры.
   const renderStatRow = (k: string, valOverride?: string) => {
     const sv = statValue(k, (stats as any)[k] ?? 0);
     if (!sv) return null;
-    // Красным — занижено штрафом экипировки. Уклонение и скорость почти всегда
-    // в минусе от снаряжения — для них всегда цвета палитры (синий/жёлтый).
-    const lowered = (equipDelta[k as keyof typeof equipDelta] ?? 0) < 0 && k !== 'evasion' && k !== 'speed';
+    const d = (equipDelta[k as keyof typeof equipDelta] ?? 0) as number;
+    const penalty = d < 0 ? fmtPenalty(k, d) : null;
     return (
       <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
         <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
         <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
-          <span style={{ color: lowered ? '#f87171' : sv.color, fontWeight: 600 }}>{valOverride ?? sv.val}</span>{' '}
+          <span style={{ color: sv.color, fontWeight: 600 }}>{valOverride ?? sv.val}</span>{' '}
           <span style={{ color: 'rgba(255,255,255,0.72)' }}>{sv.label}</span>
+          {penalty && <span style={{ color: '#f87171', fontSize: 10, marginLeft: 6 }}>-{penalty}</span>}
         </span>
       </div>
     );
