@@ -448,11 +448,11 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
         <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '4px 8px', minWidth: 56 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>⚡ {itemPower}</span>
-          <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>мощность</span>
+          <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>мощность</span>
         </span>
         <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 600, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>⬢</span> {getSellPrice(item).toLocaleString()}</span>
-          <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
+          <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
         </span>
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
           {item.quality || item.type}
