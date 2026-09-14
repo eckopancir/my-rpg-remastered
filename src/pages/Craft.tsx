@@ -15,7 +15,7 @@ import {
   craftCostFor, disassembleCategoryOf,
   getNextQuality, rollBlueprint, rollYield,
 } from '../data/crafting';
-import { AMMO_GROUPS, makeBulletPack, maxStackFor, type AmmoGroup } from '../data/ammo';
+import { AMMO_GROUPS, makeBulletPack, maxStackFor, countAmmo, type AmmoGroup } from '../data/ammo';
 import { SCHEME_STATS, SCHEME_STAT_LABELS, SCHEME_FLAT_STATS, schemePctFor, schemeFlatFor, isSocketable, socketSlotsOf, statsForLevel, levelStatMult } from '../data/schematics';
 import { getSchemeImage } from '../assets/index';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
@@ -124,6 +124,7 @@ export const Craft = () => {
   const removeItem = useInventoryStore((s) => s.removeItem);
   const addLog = usePlayerStore((s) => s.addLog);
   const level = usePlayerStore((s) => s.level);
+  const backpackGrid = usePlayerStore((s) => s.backpackGrid);
   const { playSound } = useSound();
   const craftingTimer = useUiStore((s) => s.craftingTimer);
   const craftingType = useUiStore((s) => s.craftingType);
@@ -828,45 +829,123 @@ export const Craft = () => {
                     </>
                   );
                 })()}
-                {/* Патроны: мгновенное снаряжение полного стака обычных */}
-                <div style={{ marginTop: 16, marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-                    🔸 Снаряжение патронов (сразу в инвентарь)
+                {/* ═══════ АРСЕНАЛ: снаряжение патронов ═══════ */}
+                <WapPanel variant="metal" padding="lg" style={{ marginTop: 20, border: '1px solid rgba(217,119,6,0.25)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 8,
+                      background: 'linear-gradient(135deg, #d97706, #92400e)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                      boxShadow: '0 0 12px rgba(217,119,6,0.3)',
+                    }}>🎯</div>
+                    <div>
+                      <div style={{ fontFamily: 'var(--wa-font-display)', fontSize: 14, fontWeight: 700, color: '#fbbf24', letterSpacing: 2 }}>АРСЕНАЛ</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: 0.5 }}>Снаряжение патронов · сразу в рюкзак</div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 10 }}>
                     {AMMO_GROUPS.map((g) => {
                       const cost = AMMO_CRAFT_COST[g.key];
                       if (!cost) return null;
                       const qty = maxStackFor(g.key);
-                      const parts: { name: string; have: number; need: number }[] = [];
-                      if (cost.powder > 0) parts.push({ name: MATERIAL_NAMES.powder, have: countResource(MATERIAL_NAMES.powder), need: cost.powder });
-                      if (cost.scrap > 0) parts.push({ name: MATERIAL_NAMES.scrap, have: countResource(MATERIAL_NAMES.scrap), need: cost.scrap });
-                      if ((cost.reagent || 0) > 0) parts.push({ name: MATERIAL_NAMES.reagent, have: countResource(MATERIAL_NAMES.reagent), need: cost.reagent || 0 });
-                      const afford = parts.every((p) => p.have >= p.need);
+                      const afford = (cost.powder <= 0 || countResource(MATERIAL_NAMES.powder) >= cost.powder)
+                        && (cost.scrap <= 0 || countResource(MATERIAL_NAMES.scrap) >= cost.scrap)
+                        && (!(cost.reagent) || countResource(MATERIAL_NAMES.reagent) >= (cost.reagent || 0));
                       const img = getBulletImage(g.packName);
+                      const stock = countAmmo(backpackGrid.items, g.key);
+                      const colors: Record<string, string> = {
+                        pistol: '#f59e0b', rifle: '#4ade80', sniper: '#22d3ee',
+                        shell: '#f97316', mg: '#ef4444', energy: '#a78bfa',
+                      };
+                      const col = colors[g.key] || '#94a3b8';
+                      const parts: { name: string; icon: string; have: number; need: number }[] = [];
+                      if (cost.powder > 0) parts.push({ name: MATERIAL_NAMES.powder, icon: '🔥', have: countResource(MATERIAL_NAMES.powder), need: cost.powder });
+                      if (cost.scrap > 0) parts.push({ name: MATERIAL_NAMES.scrap, icon: '⚙️', have: countResource(MATERIAL_NAMES.scrap), need: cost.scrap });
+                      if ((cost.reagent || 0) > 0) parts.push({ name: MATERIAL_NAMES.reagent, icon: '🧪', have: countResource(MATERIAL_NAMES.reagent), need: cost.reagent || 0 });
                       return (
-                        <div key={g.key}
-                          onClick={() => handleCraftAmmo(g.key)}
-                          title={afford ? `Снарядить ${qty} шт` : 'Не хватает ресурсов'}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
-                            borderRadius: 6, cursor: afford ? 'pointer' : 'not-allowed',
-                            opacity: afford ? 1 : 0.45,
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(255,255,255,0.08)', fontSize: 11,
-                          }}
-                        >
-                          {img && <img src={img} alt="" style={{ width: 26, height: 26, objectFit: 'contain' }} />}
-                          <span style={{ color: 'var(--text-primary)' }}>{g.name} x{qty}</span>
-                          <span style={{ color: afford ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
-                            {parts.map((p) => `${p.name} ${p.have}/${p.need}`).join(' · ')}
-                          </span>
+                        <div key={g.key} style={{
+                          position: 'relative', overflow: 'hidden',
+                          background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
+                          border: `1px solid ${afford ? col + '40' : 'rgba(255,255,255,0.06)'}`,
+                          borderRadius: 10, padding: '12px 14px',
+                          opacity: afford ? 1 : 0.5,
+                          transition: 'border-color 0.2s, box-shadow 0.2s',
+                          boxShadow: afford ? `inset 0 1px 0 ${col}15` : 'none',
+                        }}>
+                          {/* Accent stripe top */}
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${col}60, transparent)` }} />
+
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                            {/* Bullet icon */}
+                            <div style={{
+                              width: 48, height: 48, borderRadius: 8, flexShrink: 0,
+                              background: `linear-gradient(135deg, ${col}15, ${col}08)`,
+                              border: `1px solid ${col}30`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              boxShadow: afford ? `0 0 16px ${col}20` : 'none',
+                            }}>
+                              {img && <img src={img} alt="" style={{ width: 34, height: 34, objectFit: 'contain', filter: `drop-shadow(0 0 4px ${col}40)` }} />}
+                            </div>
+
+                            {/* Info */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: col }}>{g.icon} {g.name}</span>
+                                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>×{qty}</span>
+                              </div>
+                              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 6, lineHeight: 1.3 }}>{g.desc}</div>
+
+                              {/* Resource chips */}
+                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                                {parts.map((p) => (
+                                  <div key={p.name} style={{
+                                    display: 'flex', alignItems: 'center', gap: 4,
+                                    padding: '2px 7px', borderRadius: 4,
+                                    background: p.have >= p.need ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
+                                    border: `1px solid ${p.have >= p.need ? 'rgba(74,222,128,0.25)' : 'rgba(248,113,113,0.25)'}`,
+                                    fontSize: 10, fontFamily: 'var(--wa-font-hud)',
+                                  }}>
+                                    <span>{p.icon}</span>
+                                    <span style={{ color: p.have >= p.need ? '#4ade80' : '#f87171', fontWeight: 600 }}>
+                                      {p.have}/{p.need}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Stock + craft button */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                {stock > 0 && (
+                                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                                    📦 в рюкзаке: <span style={{ color: col, fontWeight: 600 }}>{stock}</span>
+                                  </div>
+                                )}
+                                <button
+                                  onClick={() => handleCraftAmmo(g.key)}
+                                  disabled={!afford}
+                                  style={{
+                                    marginLeft: 'auto', padding: '4px 14px', borderRadius: 5, border: 'none', cursor: afford ? 'pointer' : 'not-allowed',
+                                    fontSize: 11, fontWeight: 700, fontFamily: 'var(--wa-font-hud)', letterSpacing: 0.5,
+                                    color: afford ? '#0d0d0d' : '#555',
+                                    background: afford ? `linear-gradient(135deg, ${col}, ${col}cc)` : 'rgba(255,255,255,0.06)',
+                                    boxShadow: afford ? `0 0 10px ${col}40, 0 2px 4px rgba(0,0,0,0.3)` : 'none',
+                                    transition: 'all 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => { if (afford) { e.currentTarget.style.boxShadow = `0 0 18px ${col}60, 0 2px 6px rgba(0,0,0,0.4)`; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                                  onMouseLeave={(e) => { if (afford) { e.currentTarget.style.boxShadow = `0 0 10px ${col}40, 0 2px 4px rgba(0,0,0,0.3)`; e.currentTarget.style.transform = 'none'; } }}
+                                >
+                                  ⚡ СНАРЯДИТЬ
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
-                    </div>
                   </div>
-                </>
+                </WapPanel>
+            </>
           </WapPanel>
         )}
       </div>
