@@ -468,14 +468,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       )}
       {!nested && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-            {item.quality && (
-              <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '3px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
-                <span style={{ fontSize: 10, fontWeight: 700 }}>{item.quality}</span>
-              </span>
-            )}
-          </div>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '8px 0' }} />
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '10px 0 8px' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
             <span>SHIFT сравнить · T закрепить</span>
             <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: 'rgba(255,255,255,0.55)', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
