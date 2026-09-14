@@ -163,14 +163,12 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       <div style={{ background: `linear-gradient(180deg, ${hex}26 0%, ${hex}14 32%, ${hex}07 58%, transparent 92%)`, position: 'relative' }}>
         {/* топ-оверлей на фоне картинки: слева ранг+звёзды, справа мощность — поменяли местами */}
         <div style={{ position: 'absolute', top: 6, left: 8, right: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'none', zIndex: 1 }}>
-          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
-              {item.quality || item.type}
-            </span>
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '3px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
+            <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{item.quality || item.type}</span>
             {item.quality && QUALITY_STARS[item.quality] ? (
               <span style={{ display: 'inline-flex', gap: 1, color: hex, textShadow: `0 0 6px ${hex}55`, lineHeight: 1 }}>
                 {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
-                  <span key={i} style={{ fontSize: 10 }}>★</span>
+                  <span key={i} style={{ fontSize: 8 }}>★</span>
                 ))}
               </span>
             ) : null}
