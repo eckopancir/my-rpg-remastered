@@ -57,11 +57,13 @@ const OVERLAY_SLOTS = EQUIPMENT_SLOTS.filter((s) => !s.startsWith('gun_')) as Eq
 const GUN_ROW_SLOTS = EQUIPMENT_SLOTS.filter((s) => s.startsWith('gun_')) as EquipmentSlot[];
 
 // Ключевые характеристики для сводки (остальное — под «Показать все»).
-const KEY_STATS = ['damage', 'armor', 'maxHp', 'crit', 'evasion', 'speed', 'regen'] as const;
+const MAIN_STATS = ['damage', 'armor', 'maxStamina'] as const;
+const SECOND_STATS = ['accuracy', 'crit', 'speed', 'punching', 'vampir', 'block', 'evasion', 'maxHp', 'regen'] as const;
+const ELEM_STATS = ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] as const;
 
 const STAT_LABELS: Record<string, string> = {
   damage: 'Урон', crit: 'Крит. шанс', armor: 'Броня', regen: 'Регенерация',
-  evasion: 'Уклонение', block: 'Блок', punching: 'Дробящий', accuracy: 'Точность',
+  evasion: 'Уклонение', block: 'Блок', punching: 'Дробящий', accuracy: 'Меткость',
   vampir: 'Вампиризм', speed: 'Скорость', maxHp: 'Макс. HP',
   maxStamina: 'Выносливость', dpsEmi: 'ЭМИ урон', dpsToxis: 'Токсичный урон',
   dpsExtro: 'Экстро урон', dpsFire: 'Огненный урон',
@@ -116,7 +118,6 @@ export const Equipment = () => {
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [hoverSlot, setHoverSlot] = useState<string | null>(null);
-  const [showAllStats, setShowAllStats] = useState(false);
   const [customizing, setCustomizing] = useState<{ item: Item | null; slot: string } | null>(null);
   const [backpackOpen, setBackpackOpen] = useState(false);
   // Замочек рюкзака живёт в сторе — переживает обновление страницы.
@@ -384,6 +385,23 @@ export const Equipment = () => {
   const avgLevel = equippedCount > 0 ? equippedItems.reduce((s, it) => s + (it.level || 0), 0) / equippedCount : 0;
   const avgStars = equippedCount > 0 ? equippedItems.reduce((s, it) => s + (QUALITY_STARS[it.quality || ''] || 0), 0) / equippedCount : 0;
 
+  // Строка характеристики в стиле тултипа: ◇ цветное значение + лейбл.
+  const renderStatRow = (k: string, valOverride?: string) => {
+    const sv = statValue(k, (stats as any)[k] ?? 0);
+    if (!sv) return null;
+    // Красным — занижено штрафом экипировки.
+    const lowered = (equipDelta[k as keyof typeof equipDelta] ?? 0) < 0;
+    return (
+      <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
+        <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
+        <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
+          <span style={{ color: lowered ? '#f87171' : sv.color, fontWeight: 600 }}>{valOverride ?? sv.val}</span>{' '}
+          <span style={{ color: 'rgba(255,255,255,0.72)' }}>{sv.label}</span>
+        </span>
+      </div>
+    );
+  };
+
   const renderSlotBox = (slot: EquipmentSlot, compact = false) => {
     const item = equipment[slot];
     const isGun = (GUN_SLOTS as readonly string[]).includes(slot);
@@ -494,15 +512,6 @@ export const Equipment = () => {
       </div>
     );
   };
-
-  const statGroups: { label: string; keys: (keyof typeof stats)[] }[] = [
-    { label: '⚔️ Боевые', keys: ['damage', 'crit', 'accuracy', 'punching'] },
-    { label: '🛡️ Защита', keys: ['armor', 'evasion', 'block', 'maxHp'] },
-    { label: '♻️ Прочее', keys: ['maxStamina', 'regen', 'vampir', 'speed'] },
-    { label: '🔥 Стихийные', keys: ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] },
-  ];
-  // В полном древе не дублируем краткий список сверху.
-  const KEY_SET = new Set<string>(KEY_STATS as readonly string[]);
 
   return (
     <motion.div
@@ -673,57 +682,31 @@ export const Equipment = () => {
               </span>
             </div>
             <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(217,119,6,0.3), transparent)', marginBottom: 8 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {KEY_STATS.map((k) => {
-                const sv = statValue(k, stats[k] ?? 0);
-                if (!sv) return null;
-                // Зелёным — норма, красным — занижено штрафом экипировки.
-                const lowered = (equipDelta[k as keyof typeof equipDelta] ?? 0) < 0;
-                return (
-                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
-                    <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
-                      <span style={{ color: lowered ? '#f87171' : sv.color, fontWeight: 600 }}>{sv.val}</span>{' '}
-                      <span style={{ color: 'rgba(255,255,255,0.72)' }}>{sv.label}</span>
-                    </span>
-                  </div>
-                );
-              })}
+            {/* Главные — в отдельной рамке */}
+            <div style={{
+              background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.18)',
+              borderRadius: 8, padding: '8px 10px', marginBottom: 10,
+              display: 'flex', flexDirection: 'column', gap: 5,
+            }}>
+              {MAIN_STATS.map((k) => renderStatRow(k))}
             </div>
-            <button
-              onClick={() => setShowAllStats((v) => !v)}
-              style={{
-                marginTop: 10, width: '100%', padding: '6px 0',
-                background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 6, color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12,
-              }}
-            >
-              {showAllStats ? '▴ Скрыть полное древо' : '▾ Показать все характеристики'}
-            </button>
-            {showAllStats && statGroups.map((g) => {
-              const entries = g.keys
-                .filter((k) => !KEY_SET.has(k as string))
-                .map((k) => ({ key: k, ...(statValue(k, stats[k] ?? 0) ?? { label: '', val: '', color: '' }) }))
-                .filter((e) => e.label);
-              if (entries.length === 0) return null;
-              return (
-                <div key={g.label} style={{ fontSize: 12, lineHeight: 1.7, marginTop: 8 }}>
-                  <div style={{ color: '#a16207', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 1 }}>{g.label}</div>
-                  {entries.map((e) => {
-                    const lowered = (equipDelta[e.key as keyof typeof equipDelta] ?? 0) < 0;
-                    return (
-                      <div key={e.key} style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8, fontSize: 12, lineHeight: 1.4 }}>
-                        <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
-                        <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
-                          <span style={{ color: lowered ? '#f87171' : e.color, fontWeight: 600 }}>{e.val}</span>{' '}
-                          <span style={{ color: 'rgba(255,255,255,0.72)' }}>{e.label}</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
+              {SECOND_STATS.map((k) => renderStatRow(k))}
+            </div>
+            {/* Стихийный урон — отдельное окно, всегда 1 знак после запятой */}
+            <div style={{
+              background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+              borderRadius: 8, padding: '8px 10px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <span style={{ width: 14, height: 1, background: 'rgba(251,191,36,0.4)' }} />
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#fbbf24' }}>◆ СТИХИЙНЫЙ УРОН</span>
+                <span style={{ flex: 1, height: 1, background: 'rgba(251,191,36,0.14)' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {ELEM_STATS.map((k) => renderStatRow(k, ((stats as any)[k] ?? 0).toFixed(1)))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
