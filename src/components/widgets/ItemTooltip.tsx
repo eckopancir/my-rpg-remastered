@@ -79,6 +79,13 @@ const formatStat = (k: string, v: number): string => {
 export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) => {
   const tooltipX = pinMode ? Math.max(8, window.innerWidth / 2 - 140) : Math.min(x + 16, window.innerWidth - 280);
   const tooltipY = pinMode ? 10 : Math.min(y - 10, window.innerHeight - 340);
+  // Спойлеры сета/сфер — изначально свернуты, через 3с плавно раскрываются.
+  const [spoilersOpen, setSpoilersOpen] = useState(false);
+  useEffect(() => {
+    setSpoilersOpen(false);
+    const t = setTimeout(() => setSpoilersOpen(true), 3000);
+    return () => clearTimeout(t);
+  }, [item.id]);
   // Сравнение: зажатый Shift показывает надетый аналог слева.
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
@@ -143,15 +150,16 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         borderRadius: 10,
         overflow: 'hidden',
         boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 2px 0 rgba(255,255,255,0.04) inset',
-        pointerEvents: 'none',
+        pointerEvents: 'auto',
         fontFamily: 'var(--font-sans)',
       }}
     >
       {/* тонкая линия качества внутри */}
       <div style={{ height: 3, background: hex, opacity: 0.95 }} />
-      {/* картинка сверху большая — вплотную к полоске, переливание внутри фона картинки */}
+      {/* переливание цвета редкости: от полоски через картинку до названия */}
+      <div style={{ background: `linear-gradient(180deg, ${hex}26 0%, ${hex}14 32%, ${hex}07 58%, transparent 92%)` }}>
       {(imgUrl || foodIcon) && (
-        <div style={{ textAlign: 'center', padding: '4px 14px 0', position: 'relative', background: `linear-gradient(180deg, ${hex}18, ${hex}07 55%, transparent)` }}>
+        <div style={{ textAlign: 'center', padding: '6px 14px 0', position: 'relative' }}>
           {imgUrl ? (
             <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
           ) : (
@@ -176,7 +184,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           })()}
         </div>
       )}
-      <div style={{ padding: '10px 14px 12px' }}>
+        <div style={{ padding: '8px 14px 12px' }}>
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.3, marginBottom: 2, textTransform: 'capitalize' }}>
           {item.quality || item.rarity || SLOT_LABELS[item.slot || ''] || item.type || 'Предмет'}
         </div>
@@ -193,7 +201,9 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           {item.slot && <span>• {SLOT_LABELS[item.slot] || item.slot}</span>}
           {item.slot && MOD_SLOTS_MAP[item.slot] && <span>• ⚙ {item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>}
         </div>
-
+      </div>
+      </div>
+      <div style={{ padding: '0 14px 12px' }}>
       {item.type === 'blueprint' && (() => {
         const stat = (item as any).blueprintStat || 'damage';
         const isFlat = SCHEME_FLAT_STATS.has(stat);
@@ -312,22 +322,37 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       {/* divider like screenshot */}
       <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '10px 0 10px' }} />
 
-      {/* set bonuses — compact */}
+      {/* set bonuses — спойлер, раскрывается через 3с */}
       {item.set && SET_BONUSES[item.set] && (
-        <div style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 8, padding: '7px 8px', marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#c084fc', marginBottom: 4 }}>
-            Сет «{item.set}» — {equippedSetCount}/{SET_BONUSES[item.set].at(-1)?.count ?? '?'}
+        <div style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 8, marginBottom: 10, overflow: 'hidden' }}>
+          <div
+            onClick={() => setSpoilersOpen((o) => !o)}
+            style={{ padding: '7px 8px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', pointerEvents: 'auto', userSelect: 'none' }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#c084fc', flex: 1 }}>◆ Сет «{item.set}» — {equippedSetCount}/{SET_BONUSES[item.set].at(-1)?.count ?? '?'}</span>
+            <span style={{ fontSize: 10, color: 'rgba(200,180,255,0.6)', transform: spoilersOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)' }}>▼</span>
           </div>
-          {SET_BONUSES[item.set].map((tier, idx) => {
-            const bonusStr = Object.entries(tier.bonuses).map(([k, v]) => `${STAT_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v >= 1 ? v : v.toFixed(3)}`).join(', ');
-            const isAchieved = equippedSetCount >= tier.count;
-            const isMax = idx === SET_BONUSES[item.set].length - 1;
-            return (
-              <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4 }}>
-                {isAchieved ? '◆ ' : isMax ? '◇ ' : '◇ '}({tier.count}) {bonusStr}
+          <div style={{
+            display: 'grid',
+            gridTemplateRows: spoilersOpen ? '1fr' : '0fr',
+            opacity: spoilersOpen ? 1 : 0,
+            transition: 'grid-template-rows 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.35s ease',
+          }}>
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ padding: '0 8px 7px' }}>
+                {SET_BONUSES[item.set].map((tier, idx) => {
+                  const bonusStr = Object.entries(tier.bonuses).map(([k, v]) => `${STAT_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v >= 1 ? v : v.toFixed(3)}`).join(', ');
+                  const isAchieved = equippedSetCount >= tier.count;
+                  const isMax = idx === SET_BONUSES[item.set].length - 1;
+                  return (
+                    <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4 }}>
+                      {isAchieved ? '◆ ' : isMax ? '◇ ' : '◇ '}({tier.count}) {bonusStr}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -384,19 +409,34 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
               const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
               if (socks.length === 0) return null;
               return (
-                <div style={{ marginTop: 4, paddingTop: 6, borderTop: '1px dashed rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ marginTop: 4, paddingTop: 6, borderTop: '1px dashed rgba(255,255,255,0.07)' }}>
+                  <div
+                    onClick={() => setSpoilersOpen((o) => !o)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', pointerEvents: 'auto', userSelect: 'none' }}
+                  >
                     <span style={{ width: 14, height: 1, background: 'rgba(74,222,128,0.4)' }} />
-                    ◆ БОНУСЫ СФЕР
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#4ade80' }}>◆ БОНУСЫ СФЕР</span>
                     <span style={{ flex: 1, height: 1, background: 'rgba(74,222,128,0.14)' }} />
-                    <span style={{ fontWeight: 600, color: 'rgba(74,222,128,0.7)', letterSpacing: 0.3 }}>{socks.length}/{socketSlotsOf(item)}</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(74,222,128,0.7)', letterSpacing: 0.3 }}>{socks.length}/{socketSlotsOf(item)}</span>
+                    <span style={{ fontSize: 9, color: 'rgba(74,222,128,0.6)', transform: spoilersOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)' }}>▼</span>
                   </div>
-                  {socks.map((s: any, i: number) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                      <span style={{ color: 'rgba(74,222,128,0.5)', fontSize: 10 }}>◇</span>
-                      <span style={{ color: '#4ade80' }}>+{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'} {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}</span>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateRows: spoilersOpen ? '1fr' : '0fr',
+                    opacity: spoilersOpen ? 1 : 0,
+                    transition: 'grid-template-rows 0.5s cubic-bezier(0.22,1,0.36,1), opacity 0.32s ease',
+                  }}>
+                    <div style={{ overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 6 }}>
+                        {socks.map((s: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                            <span style={{ color: 'rgba(74,222,128,0.5)', fontSize: 10 }}>◇</span>
+                            <span style={{ color: '#4ade80' }}>+{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'} {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
               );
             })()}
@@ -404,15 +444,17 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         );
       })()}
 
-      {/* footer: мощность + цена (белая) + редкость */}
-      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '2px 7px' }}>
-          ⚡ {itemPower}
+      {/* footer: мощность + цена (жёлтая) + редкость */}
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '4px 8px', minWidth: 56 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>⚡ {itemPower}</span>
+          <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>мощность</span>
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fff', fontWeight: 600, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 4, padding: '2px 7px' }}>
-          <span style={{ color: '#fff' }}>⬢</span> {getSellPrice(item).toLocaleString()}
+        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 600, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>⬢</span> {getSellPrice(item).toLocaleString()}</span>
+          <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
           {item.quality || item.type}
         </span>
       </div>
