@@ -149,11 +149,9 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     >
       {/* тонкая линия качества внутри */}
       <div style={{ height: 3, background: hex, opacity: 0.95 }} />
-      {/* мягкое переливание цвета редкости от полоски к картинке */}
-      <div style={{ height: 36, background: `linear-gradient(180deg, ${hex}1F, ${hex}08 55%, transparent)`, opacity: 0.95 }} />
-      {/* картинка сверху большая как раньше */}
+      {/* картинка сверху большая — вплотную к полоске, переливание внутри фона картинки */}
       {(imgUrl || foodIcon) && (
-        <div style={{ textAlign: 'center', padding: '10px 14px 0', position: 'relative' }}>
+        <div style={{ textAlign: 'center', padding: '4px 14px 0', position: 'relative', background: `linear-gradient(180deg, ${hex}18, ${hex}07 55%, transparent)` }}>
           {imgUrl ? (
             <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
           ) : (
@@ -375,10 +373,10 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           );
         };
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {posKeys.slice(0, 12).map((k) => renderRow(k, disp[k], false))}
             {negKeys.length > 0 && (
-              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {negKeys.map((k) => renderRow(k, disp[k], true))}
               </div>
             )}
@@ -386,7 +384,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
               const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
               if (socks.length === 0) return null;
               return (
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ marginTop: 4, paddingTop: 6, borderTop: '1px dashed rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 5 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ width: 14, height: 1, background: 'rgba(74,222,128,0.4)' }} />
                     ◆ БОНУСЫ СФЕР
@@ -406,13 +404,13 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         );
       })()}
 
-      {/* footer: мощность + цена + редкость */}
-      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, flexWrap: 'wrap' }}>
+      {/* footer: мощность + цена (белая) + редкость */}
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '2px 7px' }}>
           ⚡ {itemPower}
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontWeight: 600 }}>
-          <span>⬢</span> {getSellPrice(item).toLocaleString()}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fff', fontWeight: 600, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 4, padding: '2px 7px' }}>
+          <span style={{ color: '#fff' }}>⬢</span> {getSellPrice(item).toLocaleString()}
         </span>
         <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
           {item.quality || item.type}
