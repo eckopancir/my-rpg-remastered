@@ -147,7 +147,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     <div
       style={{
         position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 9999,
-        width: 'fit-content', minWidth: 320,
+        width: 320,
+        overflow: 'visible',
         background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
         border: '1px solid rgba(255,255,255,0.09)',
         borderRadius: 10,
