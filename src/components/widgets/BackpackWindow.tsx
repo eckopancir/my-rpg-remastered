@@ -118,7 +118,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
         transition={{ duration: 0.15 }}
         style={{ position: 'fixed', left: pos.x, top: pos.y, pointerEvents: 'auto', minWidth: 320, maxWidth: '92vw' }}
       >
-        <WapHeader title={`${backpack.displayName || backpack.name} (${contents.length}/${slots})`} glow="amber" onMouseDown={onMouseDown}
+        <WapHeader title={`${backpack.displayName || backpack.name}`} glow="amber" onMouseDown={onMouseDown}
           style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))' }}>
           <span onClick={(e) => { e.stopPropagation(); playClick(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
         </WapHeader>
@@ -257,6 +257,9 @@ export const BackpackWindow = ({ onClose }: Props) => {
           background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
           fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.7,
         }}>
+          <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+            {contents.length}/{slots}
+          </div>
           <button
             onClick={() => {
               const n = emptyBackpackToInventory();
