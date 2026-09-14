@@ -159,16 +159,27 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     >
       {/* тонкая линия качества внутри */}
       <div style={{ height: 3, background: hex, opacity: 0.95 }} />
-      {/* звёзды редкости — сразу после полоски, слева перед картинкой */}
-      {item.quality && QUALITY_STARS[item.quality] ? (
-        <div style={{ padding: '4px 14px 0', display: 'flex', gap: 2, color: 'rgba(255,255,255,0.45)', lineHeight: 1 }}>
-          {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
-            <span key={i} style={{ fontSize: 10 }}>★</span>
-          ))}
+      {/* переливание цвета редкости: от полоски через картинку до названия — без новой территории, всё на фоне картинки */}
+      <div style={{ background: `linear-gradient(180deg, ${hex}26 0%, ${hex}14 32%, ${hex}07 58%, transparent 92%)`, position: 'relative' }}>
+        {/* топ-оверлей на фоне картинки: слева мощность, справа редкость + звёзды цветом редкости */}
+        <div style={{ position: 'absolute', top: 6, left: 8, right: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'none', zIndex: 1 }}>
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.22)', borderRadius: 4, padding: '3px 6px', minWidth: 52 }}>
+            <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>⚡ {itemPower}</span>
+            <span style={{ fontSize: 6, fontWeight: 600, letterSpacing: 0.5, color: 'rgba(251,191,36,0.75)', marginTop: 1, textTransform: 'uppercase' }}>мощность</span>
+          </span>
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
+              {item.quality || item.type}
+            </span>
+            {item.quality && QUALITY_STARS[item.quality] ? (
+              <span style={{ display: 'inline-flex', gap: 1, color: hex, textShadow: `0 0 6px ${hex}55`, lineHeight: 1 }}>
+                {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
+                  <span key={i} style={{ fontSize: 10 }}>★</span>
+                ))}
+              </span>
+            ) : null}
+          </span>
         </div>
-      ) : null}
-      {/* переливание цвета редкости: от полоски через картинку до названия */}
-      <div style={{ background: `linear-gradient(180deg, ${hex}26 0%, ${hex}14 32%, ${hex}07 58%, transparent 92%)` }}>
       {(imgUrl || foodIcon) && (
         <div style={{ textAlign: 'center', padding: '4px 14px 0', position: 'relative' }}>
           {imgUrl ? (
@@ -455,30 +466,22 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         );
       })()}
 
-      {/* footer: мощность + редкость */}
-      <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, flexWrap: 'wrap' }}>
-        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '4px 8px', minWidth: 56 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>⚡ {itemPower}</span>
-          <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>мощность</span>
-        </span>
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
-          {item.quality || item.type}
-        </span>
-      </div>
-
       {item.description && (
         <div style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.38)', fontStyle: 'italic', lineHeight: 1.4 }}>
           {item.description}
         </div>
       )}
       {!nested && (
-        <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
-          <span>SHIFT сравнить · T закрепить</span>
-          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: 'rgba(255,255,255,0.55)', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>💾</span> {getSellPrice(item).toLocaleString()}</span>
-            <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(255,255,255,0.45)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
-          </span>
-        </div>
+        <>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '10px 0 8px' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
+            <span>SHIFT сравнить · T закрепить</span>
+            <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: 'rgba(255,255,255,0.55)', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>💾</span> {getSellPrice(item).toLocaleString()}</span>
+              <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(255,255,255,0.45)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
+            </span>
+          </div>
+        </>
       )}
       </div>
     </div>
