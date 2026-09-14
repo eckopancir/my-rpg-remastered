@@ -29,20 +29,6 @@ const cellIcon = (item: Item): string | null => {
   return null;
 };
 
-// qualityColor бывает hex и именованным (white/gold/...) — безопасный rgba.
-const NAMED_RGB: Record<string, string> = {
-  white: '255,255,255', lime: '0,255,0', deepskyblue: '0,191,255',
-  mediumpurple: '147,112,219', red: '255,0,0', gold: '255,215,0', cyan: '0,255,255',
-};
-const withAlpha = (c: string, a: number): string => {
-  if (c.startsWith('#')) {
-    const h = c.slice(1).padEnd(6, '8').slice(0, 6);
-    const n = parseInt(/^[0-9a-fA-F]{6}$/.test(h) ? h : '818cf8', 16);
-    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-  }
-  return `rgba(${NAMED_RGB[c.toLowerCase()] || '129,140,248'},${a})`;
-};
-
 export const BackpackWindow = ({ onClose }: Props) => {
   const backpack = usePlayerStore((s) => s.equipment.backpack);
   const backpackGrid = usePlayerStore((s) => s.backpackGrid);
@@ -173,7 +159,6 @@ export const BackpackWindow = ({ onClose }: Props) => {
             const h = item.gridH ?? 1;
             const emoji = cellIcon(item);
             const url = emoji ? undefined : (item.image || getItemImage(item.name, item.displayName, item.slot, item.type));
-            const qc = item.qualityColor || '#818cf8';
             const body = emoji ? (
               <span style={{ fontSize: w > 1 || h > 1 ? 48 : 26, lineHeight: 1 }}>{emoji}</span>
             ) : url ? (
@@ -205,23 +190,13 @@ export const BackpackWindow = ({ onClose }: Props) => {
                 style={{
                   gridColumn: `${(item.gridX ?? 0) + 1} / span ${w}`,
                   gridRow: `${(item.gridY ?? 0) + 1} / span ${h}`,
-                  background: 'linear-gradient(180deg, #0e0e11 0%, #16161a 100%)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 6,
+                  background: '#0f0f15',
+                  border: `1px solid ${item.qualityColor || 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: 3,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', position: 'relative', overflow: 'hidden',
-                  boxShadow: `0 0 10px ${withAlpha(qc, 0.25)}, inset 0 2px 8px rgba(0,0,0,0.7)`,
+                  cursor: 'pointer', position: 'relative',
                 }}
               >
-                {/* Свечение качества за предметом */}
-                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(ellipse 72% 66% at 50% 55%, ${withAlpha(qc, 0.3)}, transparent 70%)` }} />
-                {/* Уголки качества */}
-                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
-                  <div style={{ position: 'absolute', top: 2, left: 2, width: 7, height: 7, borderTop: `2px solid ${qc}`, borderLeft: `2px solid ${qc}`, borderTopLeftRadius: 4 }} />
-                  <div style={{ position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderTop: `2px solid ${qc}`, borderRight: `2px solid ${qc}`, borderTopRightRadius: 4 }} />
-                  <div style={{ position: 'absolute', bottom: 2, left: 2, width: 7, height: 7, borderBottom: `2px solid ${qc}`, borderLeft: `2px solid ${qc}`, borderBottomLeftRadius: 4 }} />
-                  <div style={{ position: 'absolute', bottom: 2, right: 2, width: 7, height: 7, borderBottom: `2px solid ${qc}`, borderRight: `2px solid ${qc}`, borderBottomRightRadius: 4 }} />
-                </div>
                 <div
                   draggable
                   onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); useUiStore.getState().setDraggedItemId(item.id); }}
@@ -266,10 +241,9 @@ export const BackpackWindow = ({ onClose }: Props) => {
                   style={{
                     gridColumn: `${x + 1}`, gridRow: `${y + 1}`,
                     width: cellSize, height: cellSize,
-                    background: 'linear-gradient(180deg, #160d0d 0%, #100b0b 100%)',
-                    border: '1px solid rgba(255,60,60,0.2)',
-                    borderRadius: 6,
-                    boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.7)',
+                    background: 'rgba(60,10,10,0.5)',
+                    border: '1px solid rgba(255,60,60,0.25)',
+                    borderRadius: 3,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 14, opacity: 0.5, pointerEvents: 'none',
                   }}
@@ -285,10 +259,9 @@ export const BackpackWindow = ({ onClose }: Props) => {
                 style={{
                   gridColumn: `${x + 1}`, gridRow: `${y + 1}`,
                   width: cellSize, height: cellSize,
-                  background: 'linear-gradient(180deg, #0e0e11 0%, #141418 100%)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: 6,
-                  boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.6)',
+                  background: '#0f0f15',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 3,
                 }}
               />
             );
