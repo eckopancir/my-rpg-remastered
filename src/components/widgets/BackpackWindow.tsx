@@ -29,6 +29,20 @@ const cellIcon = (item: Item): string | null => {
   return null;
 };
 
+// qualityColor бывает hex и именованным (white/gold/...) — безопасный rgba.
+const NAMED_RGB: Record<string, string> = {
+  white: '255,255,255', lime: '0,255,0', deepskyblue: '0,191,255',
+  mediumpurple: '147,112,219', red: '255,0,0', gold: '255,215,0', cyan: '0,255,255',
+};
+const withAlpha = (c: string, a: number): string => {
+  if (c.startsWith('#')) {
+    const h = c.slice(1).padEnd(6, '8').slice(0, 6);
+    const n = parseInt(/^[0-9a-fA-F]{6}$/.test(h) ? h : '818cf8', 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  }
+  return `rgba(${NAMED_RGB[c.toLowerCase()] || '129,140,248'},${a})`;
+};
+
 export const BackpackWindow = ({ onClose }: Props) => {
   const backpack = usePlayerStore((s) => s.equipment.backpack);
   const backpackGrid = usePlayerStore((s) => s.backpackGrid);
@@ -141,10 +155,10 @@ export const BackpackWindow = ({ onClose }: Props) => {
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           style={{
-            background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
-            border: '2px solid rgba(217,119,6,0.2)',
-            borderRadius: '0 0 8px 8px',
-            boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
+            background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
+            border: '1px solid rgba(217,119,6,0.35)',
+            borderRadius: '0 0 10px 10px',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 0 24px rgba(217,119,6,0.08), 0 2px 0 rgba(255,255,255,0.04) inset',
             padding: 12,
             display: 'grid',
             gridTemplateColumns: `repeat(${GRID_COLS}, ${cellSize}px)`,
@@ -159,6 +173,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
             const h = item.gridH ?? 1;
             const emoji = cellIcon(item);
             const url = emoji ? undefined : (item.image || getItemImage(item.name, item.displayName, item.slot, item.type));
+            const qc = item.qualityColor || '#818cf8';
             const body = emoji ? (
               <span style={{ fontSize: w > 1 || h > 1 ? 48 : 26, lineHeight: 1 }}>{emoji}</span>
             ) : url ? (
@@ -190,13 +205,23 @@ export const BackpackWindow = ({ onClose }: Props) => {
                 style={{
                   gridColumn: `${(item.gridX ?? 0) + 1} / span ${w}`,
                   gridRow: `${(item.gridY ?? 0) + 1} / span ${h}`,
-                  background: '#0f0f15',
-                  border: `1px solid ${item.qualityColor || 'rgba(255,255,255,0.08)'}`,
-                  borderRadius: 3,
+                  background: 'linear-gradient(180deg, #0e0e11 0%, #16161a 100%)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 6,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', position: 'relative',
+                  cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                  boxShadow: `0 0 10px ${withAlpha(qc, 0.25)}, inset 0 2px 8px rgba(0,0,0,0.7)`,
                 }}
               >
+                {/* Свечение качества за предметом */}
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(ellipse 72% 66% at 50% 55%, ${withAlpha(qc, 0.3)}, transparent 70%)` }} />
+                {/* Уголки качества */}
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
+                  <div style={{ position: 'absolute', top: 2, left: 2, width: 7, height: 7, borderTop: `2px solid ${qc}`, borderLeft: `2px solid ${qc}`, borderTopLeftRadius: 4 }} />
+                  <div style={{ position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderTop: `2px solid ${qc}`, borderRight: `2px solid ${qc}`, borderTopRightRadius: 4 }} />
+                  <div style={{ position: 'absolute', bottom: 2, left: 2, width: 7, height: 7, borderBottom: `2px solid ${qc}`, borderLeft: `2px solid ${qc}`, borderBottomLeftRadius: 4 }} />
+                  <div style={{ position: 'absolute', bottom: 2, right: 2, width: 7, height: 7, borderBottom: `2px solid ${qc}`, borderRight: `2px solid ${qc}`, borderBottomRightRadius: 4 }} />
+                </div>
                 <div
                   draggable
                   onDragStart={(e) => { e.dataTransfer.setData('text/plain', item.id); useUiStore.getState().setDraggedItemId(item.id); }}
@@ -241,9 +266,10 @@ export const BackpackWindow = ({ onClose }: Props) => {
                   style={{
                     gridColumn: `${x + 1}`, gridRow: `${y + 1}`,
                     width: cellSize, height: cellSize,
-                    background: 'rgba(60,10,10,0.5)',
-                    border: '1px solid rgba(255,60,60,0.25)',
-                    borderRadius: 3,
+                    background: 'linear-gradient(180deg, #160d0d 0%, #100b0b 100%)',
+                    border: '1px solid rgba(255,60,60,0.2)',
+                    borderRadius: 6,
+                    boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.7)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 14, opacity: 0.5, pointerEvents: 'none',
                   }}
@@ -259,9 +285,10 @@ export const BackpackWindow = ({ onClose }: Props) => {
                 style={{
                   gridColumn: `${x + 1}`, gridRow: `${y + 1}`,
                   width: cellSize, height: cellSize,
-                  background: '#0f0f15',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 3,
+                  background: 'linear-gradient(180deg, #0e0e11 0%, #141418 100%)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: 6,
+                  boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.6)',
                 }}
               />
             );
@@ -269,7 +296,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
         </div>
         <div style={{
           marginTop: 6, padding: '8px 10px', borderRadius: 8,
-          background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(217,119,6,0.25)',
+          background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
           fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.7,
         }}>
           <div>Семейство: <b style={{ color: 'var(--text-primary)' }}>{info.family}</b> (база {info.base} + качество)</div>
@@ -300,8 +327,9 @@ export const BackpackWindow = ({ onClose }: Props) => {
         {ctxMenu && (
           <div style={{
             position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
-            background: '#1a1a2e', border: '1px solid #444', borderRadius: 8, padding: 4, minWidth: 140,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+            background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
+            border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: 4, minWidth: 140,
+            boxShadow: '0 16px 48px rgba(0,0,0,0.75)',
           }}>
             <button onClick={() => {
               const item = ctxMenu.item;
