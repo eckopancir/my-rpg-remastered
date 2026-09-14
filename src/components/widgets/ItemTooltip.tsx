@@ -124,6 +124,11 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
   if (!pinMode && activePin && activePin.id === item.id) return null;
 
   const qc = item.qualityColor || '#6b7280';
+  const QUALITY_HEX_MAP: Record<string, string> = {
+    'Обычный': '#a0a0a0', 'Редкий': '#4ade80', 'Раритетный': '#60a5fa',
+    'Эпический': '#a855f7', 'Смертоносный': '#ef4444', 'Легендарный': '#fbbf24', 'Божественный': '#22d3ee',
+  };
+  const hex = QUALITY_HEX_MAP[item.quality || ''] || (qc.startsWith('#') ? qc : '#a0a0a0');
   return (
     <>
     {showCompare && !nested && (
@@ -133,7 +138,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       style={{
         position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 9999,
         width: 320,
-        background: 'linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%)',
+        background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
         border: '1px solid rgba(255,255,255,0.09)',
         borderRadius: 10,
         overflow: 'hidden',
@@ -143,7 +148,9 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       }}
     >
       {/* тонкая линия качества внутри */}
-      <div style={{ height: 3, background: qc, opacity: 0.95 }} />
+      <div style={{ height: 3, background: hex, opacity: 0.95 }} />
+      {/* мягкое переливание цвета редкости от полоски к картинке */}
+      <div style={{ height: 36, background: `linear-gradient(180deg, ${hex}1F, ${hex}08 55%, transparent)`, opacity: 0.95 }} />
       {/* картинка сверху большая как раньше */}
       {(imgUrl || foodIcon) && (
         <div style={{ textAlign: 'center', padding: '10px 14px 0', position: 'relative' }}>
@@ -187,7 +194,6 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           <span>Lv.{item.level || 1}</span>
           {item.slot && <span>• {SLOT_LABELS[item.slot] || item.slot}</span>}
           {item.slot && MOD_SLOTS_MAP[item.slot] && <span>• ⚙ {item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>}
-          <span style={{ color: '#fbbf24', fontWeight: 600 }}>⚡{itemPower}</span>
         </div>
 
       {item.type === 'blueprint' && (() => {
@@ -381,6 +387,12 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
               if (socks.length === 0) return null;
               return (
                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 14, height: 1, background: 'rgba(74,222,128,0.4)' }} />
+                    ◆ БОНУСЫ СФЕР
+                    <span style={{ flex: 1, height: 1, background: 'rgba(74,222,128,0.14)' }} />
+                    <span style={{ fontWeight: 600, color: 'rgba(74,222,128,0.7)', letterSpacing: 0.3 }}>{socks.length}/{socketSlotsOf(item)}</span>
+                  </div>
                   {socks.map((s: any, i: number) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                       <span style={{ color: 'rgba(74,222,128,0.5)', fontSize: 10 }}>◇</span>
@@ -394,24 +406,18 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         );
       })()}
 
-      {/* footer: price + rarity badge in rarity color */}
-      {(() => {
-        const QUALITY_HEX: Record<string, string> = {
-          'Обычный': '#a0a0a0', 'Редкий': '#4ade80', 'Раритетный': '#60a5fa',
-          'Эпический': '#a855f7', 'Смертоносный': '#ef4444', 'Легендарный': '#fbbf24', 'Божественный': '#22d3ee',
-        };
-        const hex = QUALITY_HEX[item.quality || ''] || (qc.startsWith('#') ? qc : '#a0a0a0');
-        return (
-          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, fontSize: 12 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontWeight: 600 }}>
-              <span>⬢</span> {getSellPrice(item).toLocaleString()}
-            </span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
-              {item.quality || item.type}
-            </span>
-          </div>
-        );
-      })()}
+      {/* footer: мощность + цена + редкость */}
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '2px 7px' }}>
+          ⚡ {itemPower}
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontWeight: 600 }}>
+          <span>⬢</span> {getSellPrice(item).toLocaleString()}
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
+          {item.quality || item.type}
+        </span>
+      </div>
 
       {item.description && (
         <div style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.38)', fontStyle: 'italic', lineHeight: 1.4 }}>
