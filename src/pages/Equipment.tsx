@@ -83,7 +83,7 @@ const statValue = (k: string, v: number): { label: string; val: string; color: s
     // Прячем только базовую точность 0.1 без бонусов — шум.
     if (k === 'accuracy' && v === 0.1) return null;
     const label = STAT_LABELS[k] || k;
-    const pctKeys = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'incomingDamageMult'];
+    const pctKeys = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'];
     const val = k === 'block' ? `${(v * 10).toFixed(v >= 0.1 ? 1 : 2)}%` : pctKeys.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
     const color = STAT_TT_COLORS[k] || '#d1d5db';
     return { label, val, color };
@@ -685,7 +685,7 @@ export const Equipment = () => {
             <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(217,119,6,0.3), transparent)', marginBottom: 8 }} />
             {/* Главные — в отдельной рамке */}
             <div style={{
-              background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.18)',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: 8, padding: '8px 10px', marginBottom: 10,
               display: 'flex', flexDirection: 'column', gap: 5,
             }}>
