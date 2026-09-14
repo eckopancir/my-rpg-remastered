@@ -130,14 +130,19 @@ export const BackpackWindow = ({ onClose }: Props) => {
             border: '1px solid rgba(217,119,6,0.35)',
             borderRadius: '0 0 10px 10px',
             boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 0 24px rgba(217,119,6,0.08), 0 2px 0 rgba(255,255,255,0.04) inset',
-            padding: 12,
+            padding: '8px 12px 12px',
+          }}
+        >
+          <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+            {contents.length}/{slots}
+          </div>
+          <div style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${GRID_COLS}, ${cellSize}px)`,
             gridTemplateRows: `repeat(${gridRows}, ${cellSize}px)`,
             gap: 4,
             justifyContent: 'center',
-          }}
-        >
+          }}>
           {/* Render placed items with grid spans */}
           {backpackGrid.items.map((item) => {
             const w = item.gridW ?? 1;
@@ -251,15 +256,13 @@ export const BackpackWindow = ({ onClose }: Props) => {
               />
             );
           })}
+          </div>
         </div>
         <div style={{
           marginTop: 6, padding: '8px 10px', borderRadius: 8,
           background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
           fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.7,
         }}>
-          <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-            {contents.length}/{slots}
-          </div>
           <button
             onClick={() => {
               const n = emptyBackpackToInventory();
@@ -267,7 +270,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
             }}
             disabled={contents.length === 0 || inCombat}
             style={{
-              marginTop: 6, width: '100%', padding: '6px 0',
+              width: '100%', padding: '6px 0',
               background: contents.length === 0 || inCombat ? 'transparent' : 'rgba(217,119,6,0.15)',
               border: '1px solid rgba(217,119,6,0.4)', borderRadius: 6,
               color: contents.length === 0 || inCombat ? 'var(--text-muted)' : '#fbbf24',
