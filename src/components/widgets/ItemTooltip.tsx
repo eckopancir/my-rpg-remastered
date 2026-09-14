@@ -55,6 +55,13 @@ const MOD_SLOTS_MAP: Record<string, string[]> = {
   boots: ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
 };
 
+const STAT_COLORS: Record<string, string> = {
+  damage: '#f87171', crit: '#fbbf24', armor: '#60a5fa', regen: '#4ade80',
+  evasion: '#22d3ee', block: '#a5b4fc', punching: '#fb923c', accuracy: '#a3e635',
+  vampir: '#f43f5e', speed: '#facc15', health: '#f472b6', maxHp: '#f472b6',
+  stamina: '#38bdf8', dpsEmi: '#a78bfa', dpsToxis: '#84cc16', dpsExtro: '#c084fc', dpsFire: '#ef4444', luck: '#fde68a',
+};
+
 const QUALITY_STARS: Record<string, number> = {
   'Обычный': 1, 'Редкий': 2, 'Раритетный': 3, 'Эпический': 4,
   'Смертоносный': 5, 'Легендарный': 6, 'Божественный': 7,
@@ -116,6 +123,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
 
   if (!pinMode && activePin && activePin.id === item.id) return null;
 
+  const qc = item.qualityColor || '#6b7280';
   return (
     <>
     {showCompare && !nested && (
@@ -124,89 +132,86 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     <div
       style={{
         position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 9999,
-        width: 260,
-        background: images.tooltip ? `url(${images.tooltip}) no-repeat center / 100% 100%, #12121a` : '#12121a',
-        border: `1.5px solid ${item.qualityColor || '#818cf8'}`,
-        borderRadius: 'var(--radius-md)',
-        padding: 14,
-        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 12px ${item.qualityColor || '#818cf8'}33`,
+        width: 320,
+        background: 'linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%)',
+        border: '1px solid rgba(255,255,255,0.09)',
+        borderRadius: 10,
+        overflow: 'hidden',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 2px 0 rgba(255,255,255,0.04) inset',
         pointerEvents: 'none',
         fontFamily: 'var(--font-sans)',
       }}
     >
-      {imgUrl ? (
-        <div style={{ textAlign: 'center', marginBottom: 10, position: 'relative' }}>
-          <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4 }} />
-          {/* Гнёзда под сферы: столбец кристаллов справа от картинки */}
-          {isSocketable(item) && socketSlotsOf(item) > 0 && (() => {
-            const max = socketSlotsOf(item);
-            const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
-            const filled = socks.length;
-            return (
-              <div style={{ position: 'absolute', top: 40, right: 0, display: 'flex', flexDirection: 'column', gap: 2 }} title={`Гнёзда сфер: ${filled}/${max}`}>
-                {Array.from({ length: max }).map((_, i) => {
-                  // Вставлена сфера — иконка самой сферы, пустое гнездо — кристалл.
-                  const src = i < filled ? (getSchemeImage(socks[i]?.stat) || crystalImages.filled) : crystalImages.empty;
-                  return src ? (
-                    <img key={i} src={src} alt="" style={{
-                      width: 14, height: 14, objectFit: 'contain',
-                      filter: i < filled ? 'drop-shadow(0 0 4px rgba(74,222,128,0.9))' : 'none',
-                    }} />
-                  ) : (
-                    <div key={i} style={{
-                      width: 10, height: 10, transform: 'rotate(45deg)',
-                      background: i < filled ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.06)',
-                      border: `1px solid ${i < filled ? '#4ade80' : 'rgba(255,255,255,0.35)'}`,
-                      boxShadow: i < filled ? '0 0 6px rgba(74,222,128,0.9)' : 'none',
-                    }} />
-                  );
-                })}
-              </div>
-            );
-          })()}
-          {item.quality && QUALITY_STARS[item.quality] ? (
-            <div style={{ position: 'absolute', top: -4, left: -4, display: 'flex', gap: 1 }}>
-              {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
-                <span key={i} style={{ fontSize: 10, color: '#fbbf24', textShadow: '0 0 4px rgba(251,191,36,0.6)' }}>★</span>
-              ))}
+      {/* тонкая линия качества внутри */}
+      <div style={{ height: 3, background: qc, opacity: 0.95 }} />
+      <div style={{ padding: '12px 14px 12px' }}>
+        {/* header: текст слева, картинка справа */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.3, marginBottom: 2, textTransform: 'capitalize' }}>
+              {item.quality || item.rarity || SLOT_LABELS[item.slot || ''] || item.type || 'Предмет'}
             </div>
-          ) : null}
-          <div style={{ position: 'absolute', top: -4, right: -4 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#fbbf24', background: 'rgba(0,0,0,0.7)', padding: '1px 5px', borderRadius: 4, border: '1px solid rgba(251,191,36,0.3)' }}>
-              ⚡{itemPower}
+            <div style={{
+              fontSize: 15, fontWeight: 700, color: qc,
+              lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)',
+              wordBreak: 'break-word',
+            }}>
+              {item.displayName || item.name}
+            </div>
+            {(item as any).unique && (
+              <div style={{
+                display: 'inline-block', marginTop: 6, fontSize: 9, fontWeight: 800, letterSpacing: 1.6,
+                color: '#ffd700', background: 'rgba(255,215,0,0.10)',
+                border: '1px solid rgba(255,215,0,0.35)', borderRadius: 4,
+                padding: '2px 6px',
+              }}>
+                УНИК
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.45)', flexWrap: 'wrap' }}>
+              <span>Lv.{item.level || 1}</span>
+              {item.slot && <span>• {SLOT_LABELS[item.slot] || item.slot}</span>}
+              {item.slot && MOD_SLOTS_MAP[item.slot] && (
+                <span>• ⚙ {item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>
+              )}
+              <span style={{ color: '#fbbf24', fontWeight: 600 }}>⚡{itemPower}</span>
             </div>
           </div>
+          {/* картинка справа */}
+          <div style={{
+            width: 84, height: 84, flexShrink: 0,
+            background: 'radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.07), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.2))',
+            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            {imgUrl ? (
+              <img src={imgUrl} alt="" style={{ width: 76, height: 76, objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.6))' }} />
+            ) : foodIcon ? (
+              <span style={{ fontSize: 48, lineHeight: 1 }}>{foodIcon}</span>
+            ) : (
+              <span style={{ fontSize: 28, opacity: 0.2 }}>?</span>
+            )}
+            {/* гнёзда — маленький столбец поверх картинки справа */}
+            {isSocketable(item) && socketSlotsOf(item) > 0 && (() => {
+              const max = socketSlotsOf(item);
+              const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
+              const filled = socks.length;
+              return (
+                <div style={{ position: 'absolute', top: 4, right: 3, display: 'flex', flexDirection: 'column', gap: 3 }} title={`Гнёзда: ${filled}/${max}`}>
+                  {Array.from({ length: max }).map((_, i) => {
+                    const src = i < filled ? (getSchemeImage(socks[i]?.stat) || crystalImages.filled) : crystalImages.empty;
+                    return src ? (
+                      <img key={i} src={src} alt="" style={{ width: 11, height: 11, objectFit: 'contain', filter: i < filled ? 'drop-shadow(0 0 4px rgba(74,222,128,0.9))' : 'opacity(0.5)' }} />
+                    ) : (
+                      <div key={i} style={{ width: 8, height: 8, transform: 'rotate(45deg)', background: i < filled ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.08)', border: `1px solid ${i < filled ? '#4ade80' : 'rgba(255,255,255,0.25)'}` }} />
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
         </div>
-      ) : foodIcon ? (
-        <div style={{ textAlign: 'center', marginBottom: 10 }}>
-          <span style={{ fontSize: 72, lineHeight: 1.2 }}>{foodIcon}</span>
-        </div>
-      ) : null}
-      <div style={{
-        fontSize: 14, fontWeight: 600, color: item.qualityColor || 'var(--text-primary)',
-        marginBottom: 6, lineHeight: 1.3,
-      }}>
-        {item.displayName || item.name}
-      </div>
-      {(item as any).unique && (
-        <div style={{
-          display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: 2,
-          color: '#ffd700', background: 'rgba(255,215,0,0.1)',
-          border: '1px solid rgba(255,215,0,0.5)', borderRadius: 4,
-          padding: '1px 7px', marginBottom: 8,
-        }}>
-          🔥 УНИК
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-        <span>Lv.{item.level || 1}</span>
-        {item.slot && (
-          <span>• Слот: {SLOT_LABELS[item.slot] || item.slot}</span>
-        )}
-        {item.slot && MOD_SLOTS_MAP[item.slot] && (
-          <span>• ⚙️{item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>
-        )}
-      </div>
 
       {item.type === 'blueprint' && (() => {
         const stat = (item as any).blueprintStat || 'damage';
@@ -323,28 +328,22 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           </div>
         );
       })()}
-      <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />
+      {/* divider like screenshot */}
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '10px 0 10px' }} />
 
+      {/* set bonuses — compact */}
       {item.set && SET_BONUSES[item.set] && (
-        <div style={{
-          background: 'rgba(88,28,135,0.08)', border: '1px solid rgba(88,28,135,0.2)',
-          borderRadius: 6, padding: '6px 8px', marginBottom: 8,
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#c084fc', marginBottom: 4 }}>
-            📦 Сет «{item.set}» — {equippedSetCount}/{SET_BONUSES[item.set].at(-1)?.count ?? '?'}
+        <div style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 8, padding: '7px 8px', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#c084fc', marginBottom: 4 }}>
+            Сет «{item.set}» — {equippedSetCount}/{SET_BONUSES[item.set].at(-1)?.count ?? '?'}
           </div>
           {SET_BONUSES[item.set].map((tier, idx) => {
-            const bonusStr = Object.entries(tier.bonuses)
-              .map(([k, v]) => `${STAT_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v >= 1 ? v : v.toFixed(3)}`)
-              .join(', ');
+            const bonusStr = Object.entries(tier.bonuses).map(([k, v]) => `${STAT_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v >= 1 ? v : v.toFixed(3)}`).join(', ');
             const isAchieved = equippedSetCount >= tier.count;
             const isMax = idx === SET_BONUSES[item.set].length - 1;
             return (
-              <div key={idx} style={{
-                fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.4)',
-                marginTop: 2, lineHeight: 1.4,
-              }}>
-                {isAchieved ? '✅ ' : isMax ? '🏆 ' : ''}({tier.count}) {bonusStr}
+              <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4 }}>
+                {isAchieved ? '◆ ' : isMax ? '◇ ' : '◇ '}({tier.count}) {bonusStr}
               </div>
             );
           })}
@@ -352,34 +351,18 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       )}
 
       {item.abilityId && ABILITY_MAP[item.abilityId] && (
-        <div style={{
-          background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)',
-          borderRadius: 6, padding: '6px 8px', marginBottom: 8,
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#fbbf24' }}>
+        <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.14)', borderRadius: 8, padding: '7px 8px', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>
             {ABILITY_MAP[item.abilityId].icon} {ABILITY_MAP[item.abilityId].name}
           </div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
-            {ABILITY_MAP[item.abilityId].description}
-          </div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
-            {ABILITY_MAP[item.abilityId].apCost} AP | КД: {ABILITY_MAP[item.abilityId].cooldown} хода
-          </div>
-          <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 2 }}>
-            ⭐ Сила: <span style={{ color: 'rgba(255,255,255,0.6)' }}>{Math.round(ABILITY_MAP[item.abilityId].powerRating * (1 + ((item.level || 1) - 1) * 0.05) * 3)}</span>
-          </div>
-           {item.type === 'consumable' && (
-            <div style={{ fontSize: 10, color: '#4ade80', marginTop: 2 }}>
-              📦 Расходует: 1 шт. за использование в бою
-            </div>
-          )}
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{ABILITY_MAP[item.abilityId].description}</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>{ABILITY_MAP[item.abilityId].apCost} AP · КД {ABILITY_MAP[item.abilityId].cooldown}</div>
+          {item.type === 'consumable' && <div style={{ fontSize: 10, color: '#4ade80', marginTop: 3 }}>Расходует: 1 шт.</div>}
         </div>
       )}
 
+      {/* stats — like screenshot: diamond + colored value */}
       {(() => {
-        // Статы с учётом вставленных модов: шлем 30 + мод 1 покажет 31.
-        // Штрафы (минусы) — отдельно красным блоком, они не растут с уровнем.
-        // Сами моды показываем сразу со скейлом от их уровня.
         const eff = effectiveItemStats(item);
         const fromMods = modStatsOf(item);
         const modMult = item.type === 'mod' ? modLevelMult(item) : 1;
@@ -388,67 +371,43 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         const posKeys = Object.keys(eff).filter((k) => eff[k] > 0);
         const negKeys = Object.keys(eff).filter((k) => eff[k] < 0);
         if (posKeys.length === 0 && negKeys.length === 0) {
-          return <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Нет характеристик</div>;
+          return <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>Нет характеристик</div>;
         }
+        const renderRow = (k: string, v: number, isNeg: boolean) => {
+          const col = STAT_COLORS[k] || (isNeg ? '#f87171' : '#d1d5db');
+          const isPct = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
+          const isBlock = k === 'block';
+          const shown = isPct ? `${(Math.abs(v) * 100).toFixed(v < 0.01 ? 1 : 0)}%` : isBlock ? `${(Math.abs(v) * 10).toFixed(1)}%` : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(2)}`;
+          const sign = isNeg ? '-' : '+';
+          const label = STAT_LABELS[k] || k;
+          return (
+            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
+              <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
+              <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
+                <span style={{ color: col, fontWeight: 600 }}>{sign}{shown}</span>{' '}
+                <span style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</span>
+                {fromMods[k] ? <span style={{ color: '#4ade80', fontSize: 10, marginLeft: 6 }}> ( +{Math.abs(fromMods[k]) >= 1 ? Math.abs(fromMods[k]).toFixed(1) : Math.abs(fromMods[k]).toFixed(2)} мод )</span> : null}
+              </span>
+            </div>
+          );
+        };
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {posKeys.slice(0, 10).map((k) => {
-              const isPct = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
-              const isBlock = k === 'block';
-              const shown = isPct
-                ? (() => { const p = Math.abs(disp[k]) * 100; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
-                : isBlock
-                ? (() => { const p = Math.abs(disp[k]) * 10; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
-                : undefined;
-              return (
-                <div key={k} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>{(isPct || isBlock) ? `${STAT_LABELS[k] || k}: +${shown}` : formatStat(k, disp[k])}</span>
-                {fromMods[k] ? (
-                  <span title="Бонус от модов" style={{ fontSize: 10, color: '#4ade80', background: 'rgba(34,197,94,0.12)', padding: '0 5px', borderRadius: 3 }}>
-                    🔧+{(Math.abs(fromMods[k]) >= 1 ? Math.abs(fromMods[k]).toFixed(1) : Math.abs(fromMods[k]).toFixed(3))}
-                  </span>
-                ) : null}
-              </div>
-              );
-            })}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {posKeys.slice(0, 12).map((k) => renderRow(k, disp[k], false))}
             {negKeys.length > 0 && (
-              <div style={{
-                marginTop: 4, padding: '5px 7px', borderRadius: 6,
-                background: 'rgba(248,113,113,0.07)', border: '1px solid rgba(248,113,113,0.25)',
-                display: 'flex', flexDirection: 'column', gap: 2,
-              }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#f87171', letterSpacing: 1 }}>➖ ШТРАФЫ</div>
-                {negKeys.map((k) => {
-                  const label = STAT_LABELS[k] || k;
-                  const v = disp[k];
-                  const isPct = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
-                  const isBlockNeg = k === 'block';
-                  const shown = isPct
-                    ? (() => { const p = Math.abs(v) * 100; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
-                    : isBlockNeg
-                    ? (() => { const p = Math.abs(v) * 10; return `${Number.isInteger(p) ? p : p.toFixed(1)}%`; })()
-                    : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(3)}`;
-                  return (
-                    <div key={k} style={{ fontSize: 12, color: '#f87171', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>{label}: -{shown}</span>
-                    </div>
-                  );
-                })}
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {negKeys.map((k) => renderRow(k, disp[k], true))}
               </div>
             )}
             {(() => {
               const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
               if (socks.length === 0) return null;
               return (
-                <div style={{
-                  marginTop: 4, padding: '5px 7px', borderRadius: 6,
-                  background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.3)',
-                  display: 'flex', flexDirection: 'column', gap: 2,
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#4ade80', letterSpacing: 1 }}>- БОНУС</div>
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {socks.map((s: any, i: number) => (
-                    <div key={i} style={{ fontSize: 12, color: '#4ade80' }}>
-                      {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}: +{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'}
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                      <span style={{ color: 'rgba(74,222,128,0.5)', fontSize: 10 }}>◇</span>
+                      <span style={{ color: '#4ade80' }}>+{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'} {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}</span>
                     </div>
                   ))}
                 </div>
@@ -458,13 +417,30 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         );
       })()}
 
-      <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: item.qualityColor }}>
-          {item.quality || item.type || ''}
+      {/* footer: weight/style price like screenshot */}
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ opacity: 0.6 }}>◈</span> {(item as any).weight?.toFixed?.(2) ?? '0.10'}
         </span>
-        <span style={{ color: 'var(--accent-warning)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
-          💾{getSellPrice(item).toLocaleString()}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fbbf24' }}>
+          <span>⬢</span> {getSellPrice(item).toLocaleString()}
         </span>
+        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'rgba(255,255,255,0.28)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '2px 6px' }}>
+          {item.quality || item.type}
+        </span>
+      </div>
+
+      {item.description && (
+        <div style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.38)', fontStyle: 'italic', lineHeight: 1.4 }}>
+          {item.description}
+        </div>
+      )}
+      {!nested && (
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
+          <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>Y</span>
+          <span>SHIFT сравнить · T закрепить</span>
+        </div>
+      )}
       </div>
     </div>
     </>
