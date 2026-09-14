@@ -80,8 +80,16 @@ const formatStat = (k: string, v: number): string => {
 };
 
 export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) => {
-  const tooltipX = pinMode ? Math.max(8, window.innerWidth / 2 - 140) : Math.min(x + 16, window.innerWidth - 280);
-  const tooltipY = pinMode ? 10 : Math.min(y - 10, window.innerHeight - 340);
+  // Тултип fit-content, реальная ширина ~320-360px. Если справа от курсора
+  // нет места — разворачиваем слева от курсора, чтобы не уезжать за экран.
+  const TOOLTIP_W = 360;
+  const flipLeft = !pinMode && x + 16 + TOOLTIP_W > window.innerWidth;
+  const tooltipX = pinMode
+    ? Math.max(8, window.innerWidth / 2 - 140)
+    : flipLeft
+      ? Math.max(8, x - TOOLTIP_W - 16)
+      : x + 16;
+  const tooltipY = pinMode ? 10 : Math.max(8, Math.min(y - 10, window.innerHeight - 340));
   // Спойлеры сета/сфер — изначально свернуты, через 3с плавно раскрываются.
   const [spoilersOpen, setSpoilersOpen] = useState(false);
   useEffect(() => {
