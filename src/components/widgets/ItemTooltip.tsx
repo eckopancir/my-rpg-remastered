@@ -147,7 +147,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     <div
       style={{
         position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 9999,
-        width: 320,
+        width: 'fit-content', minWidth: 320, maxWidth: 480,
         background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
         border: '1px solid rgba(255,255,255,0.09)',
         borderRadius: 10,
@@ -202,7 +202,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         </div>
       )}
         <div style={{ padding: '8px 14px 12px' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: hex, lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)', wordBreak: 'break-word' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: hex, lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)', textAlign: 'center', whiteSpace: 'nowrap' }}>
           {item.displayName || item.name}
         </div>
         {(item as any).unique && (
