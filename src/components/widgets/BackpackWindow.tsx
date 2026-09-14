@@ -6,9 +6,8 @@ import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
-import { backpackSlotsFor, backpackDefByName, removeItemFromGrid } from '../../data/backpacks';
+import { backpackSlotsFor, removeItemFromGrid } from '../../data/backpacks';
 import { FOOD_MAP } from '../../data/food';
-import { getSellPrice } from '../../utils/sellPrice';
 import { ItemTooltip } from './ItemTooltip';
 import { WapHeader } from '../ui/WapHeader';
 import type { Item } from '../../types/items';
@@ -67,20 +66,6 @@ export const BackpackWindow = ({ onClose }: Props) => {
     }
     return occ;
   }, [backpackGrid.items]);
-
-  const info = useMemo(() => {
-    const byType: Record<string, number> = {};
-    let value = 0;
-    let ammo = 0;
-    for (const it of contents) {
-      const t = it.type || 'прочее';
-      byType[t] = (byType[t] || 0) + 1;
-      value += getSellPrice(it);
-      if (it.type === 'bullet') ammo += (it.quantity ?? 1) as number;
-    }
-    const def = backpack ? backpackDefByName(backpack.name || '') : undefined;
-    return { byType, value, ammo, family: def?.family ?? '—', base: def?.baseSlots ?? slots };
-  }, [contents, backpack, slots]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     dragRef.current.dragging = true;
@@ -272,12 +257,6 @@ export const BackpackWindow = ({ onClose }: Props) => {
           background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
           fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.7,
         }}>
-          <div>Семейство: <b style={{ color: 'var(--text-primary)' }}>{info.family}</b> (база {info.base} + качество)</div>
-          <div>Занято: <b style={{ color: 'var(--text-primary)' }}>{contents.length}/{slots}</b> · патронов: <b style={{ color: 'var(--text-primary)' }}>{info.ammo}</b> · value: <b style={{ color: '#fbbf24' }}>💾{info.value.toLocaleString()}</b></div>
-          <div>Состав: {Object.keys(info.byType).length > 0
-            ? Object.entries(info.byType).map(([t, n]) => `${t} x${n}`).join(' · ')
-            : 'пусто'}</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Оружие/броня занимают 2×2 · Тяни из инвентаря · двойной клик — обратно</div>
           <button
             onClick={() => {
               const n = emptyBackpackToInventory();
@@ -292,7 +271,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
               cursor: contents.length === 0 || inCombat ? 'default' : 'pointer', fontSize: 12, fontWeight: 600,
             }}
           >
-            {inCombat ? '⚔️ На арене нельзя' : `📤 Выложить всё (${contents.length})`}
+            {inCombat ? 'На арене нельзя' : `Выложить всё (${contents.length})`}
           </button>
         </div>
         {tip && <ItemTooltip item={tip.item} x={tip.x} y={tip.y} />}
