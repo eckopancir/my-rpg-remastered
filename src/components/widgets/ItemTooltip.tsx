@@ -56,10 +56,11 @@ const MOD_SLOTS_MAP: Record<string, string[]> = {
 };
 
 const STAT_COLORS: Record<string, string> = {
-  damage: '#f87171', crit: '#fbbf24', armor: '#60a5fa', regen: '#4ade80',
-  evasion: '#22d3ee', block: '#a5b4fc', punching: '#fb923c', accuracy: '#a3e635',
-  vampir: '#f43f5e', speed: '#facc15', health: '#f472b6', maxHp: '#f472b6',
-  stamina: '#38bdf8', dpsEmi: '#a78bfa', dpsToxis: '#84cc16', dpsExtro: '#c084fc', dpsFire: '#ef4444', luck: '#fde68a',
+  // 4 группы: красный урон, синий защита, зелёный живучесть, жёлтый точность/мобильность
+  damage: '#f87171', punching: '#f87171', vampir: '#f87171', dpsExtro: '#f87171', dpsFire: '#f87171',
+  armor: '#60a5fa', block: '#60a5fa', evasion: '#60a5fa', dpsEmi: '#60a5fa',
+  regen: '#4ade80', health: '#4ade80', maxHp: '#4ade80', stamina: '#4ade80', luck: '#4ade80', incomingDamageMult: '#4ade80', dpsToxis: '#4ade80',
+  crit: '#fbbf24', accuracy: '#fbbf24', speed: '#fbbf24',
 };
 
 const QUALITY_STARS: Record<string, number> = {
