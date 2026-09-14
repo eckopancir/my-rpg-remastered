@@ -1,6 +1,7 @@
 import { getItemImage, images, crystalImages, getSchemeImage } from '../../assets/index';
 import iconBullets from '../../assets/images/ui/icon-bullets.png';
 import iconScope from '../../assets/images/ui/icon-scope.png';
+import chipIcon from '../../assets/images/items/res-chip.png';
 import { getConsumableIcon } from '../../data/consumables';
 import { FOOD_MAP } from '../../data/food';
 import type { Item } from '../../types/items';
@@ -188,8 +189,15 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         </div>
       )}
         <div style={{ padding: '8px 14px 12px' }}>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.3, marginBottom: 2, textTransform: 'capitalize' }}>
-          {item.quality || item.rarity || SLOT_LABELS[item.slot || ''] || item.type || 'Предмет'}
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.3, marginBottom: 2, textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span>{item.quality || item.rarity || SLOT_LABELS[item.slot || ''] || item.type || 'Предмет'}</span>
+          {item.quality && QUALITY_STARS[item.quality] ? (
+            <span style={{ display: 'inline-flex', gap: 1, color: hex, textShadow: `0 0 6px ${hex}66`, lineHeight: 1 }}>
+              {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
+                <span key={i} style={{ fontSize: 10 }}>★</span>
+              ))}
+            </span>
+          ) : null}
         </div>
         <div style={{ fontSize: 15, fontWeight: 700, color: qc, lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)', wordBreak: 'break-word' }}>
           {item.displayName || item.name}
@@ -457,7 +465,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>мощность</span>
         </span>
         <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 600, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>⬢</span> {getSellPrice(item).toLocaleString()}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><img src={chipIcon} alt="" style={{ width: 14, height: 14, objectFit: 'contain', imageRendering: 'pixelated' }} /> {getSellPrice(item).toLocaleString()}</span>
           <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(251,191,36,0.7)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
         </span>
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
