@@ -133,7 +133,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
             padding: '8px 12px 12px',
           }}
         >
-          <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>
+          <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
             {contents.length}/{slots}
           </div>
           <div style={{
