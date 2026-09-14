@@ -417,46 +417,46 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {posKeys.slice(0, 12).map((k) => renderRow(k, disp[k], false))}
-            {negKeys.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {negKeys.map((k) => renderRow(k, disp[k], true))}
-              </div>
-            )}
-            {(() => {
-              const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
-              if (socks.length === 0) return null;
-              return (
-                <div style={{ marginTop: 4, paddingTop: 6, borderTop: '1px dashed rgba(255,255,255,0.07)' }}>
-                  <div
-                    onClick={() => setSpoilersOpen((o) => !o)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', pointerEvents: 'auto', userSelect: 'none' }}
-                  >
-                    <span style={{ width: 14, height: 1, background: 'rgba(74,222,128,0.4)' }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#4ade80' }}>◆ БОНУСЫ СФЕР</span>
-                    <span style={{ flex: 1, height: 1, background: 'rgba(74,222,128,0.14)' }} />
-                    <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(74,222,128,0.7)', letterSpacing: 0.3 }}>{socks.length}/{socketSlotsOf(item)}</span>
-                    <span style={{ fontSize: 9, color: 'rgba(74,222,128,0.6)', transform: spoilersOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)' }}>▼</span>
-                  </div>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateRows: spoilersOpen ? '1fr' : '0fr',
-                    opacity: spoilersOpen ? 1 : 0,
-                    transition: 'grid-template-rows 0.5s cubic-bezier(0.22,1,0.36,1), opacity 0.32s ease',
-                  }}>
-                    <div style={{ overflow: 'hidden' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 6 }}>
-                        {socks.map((s: any, i: number) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                            <span style={{ color: 'rgba(74,222,128,0.5)', fontSize: 10 }}>◇</span>
-                            <span style={{ color: '#4ade80' }}>+{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'} {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}</span>
-                          </div>
-                        ))}
+              {negKeys.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {negKeys.map((k) => renderRow(k, disp[k], true))}
+                </div>
+              )}
+              {(() => {
+                const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
+                if (socks.length === 0) return null;
+                return (
+                  <div style={{ marginTop: 4, paddingTop: 6, borderTop: '1px dashed rgba(255,255,255,0.07)' }}>
+                    <div
+                      onClick={() => setSpoilersOpen((o) => !o)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', pointerEvents: 'auto', userSelect: 'none' }}
+                    >
+                      <span style={{ width: 14, height: 1, background: 'rgba(74,222,128,0.4)' }} />
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#4ade80' }}>◆ БОНУСЫ СФЕР</span>
+                      <span style={{ flex: 1, height: 1, background: 'rgba(74,222,128,0.14)' }} />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(74,222,128,0.7)', letterSpacing: 0.3 }}>{socks.length}/{socketSlotsOf(item)}</span>
+                      <span style={{ fontSize: 9, color: 'rgba(74,222,128,0.6)', transform: spoilersOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)' }}>▼</span>
+                    </div>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateRows: spoilersOpen ? '1fr' : '0fr',
+                      opacity: spoilersOpen ? 1 : 0,
+                      transition: 'grid-template-rows 0.5s cubic-bezier(0.22,1,0.36,1), opacity 0.32s ease',
+                    }}>
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 6 }}>
+                          {socks.map((s: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                              <span style={{ color: 'rgba(74,222,128,0.5)', fontSize: 10 }}>◇</span>
+                              <span style={{ color: '#4ade80' }}>+{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'} {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
           </div>
         );
       })()}
@@ -468,18 +468,20 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       )}
       {!nested && (
         <>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '10px 0 8px' }} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            {item.quality && (
+              <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '3px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
+                <span style={{ fontSize: 10, fontWeight: 700 }}>{item.quality}</span>
+              </span>
+            )}
+          </div>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '8px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
             <span>SHIFT сравнить · T закрепить</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: 'rgba(255,255,255,0.55)', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>💾</span> {getSellPrice(item).toLocaleString()}</span>
-                <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(255,255,255,0.45)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
-              </span>
-              <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '3px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
-                <span style={{ fontSize: 10, fontWeight: 700 }}>{item.quality || item.type}</span>
-              </span>
-            </div>
+            <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: 'rgba(255,255,255,0.55)', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>💾</span> {getSellPrice(item).toLocaleString()}</span>
+              <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(255,255,255,0.45)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
+            </span>
           </div>
         </>
       )}
