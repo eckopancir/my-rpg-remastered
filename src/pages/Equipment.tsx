@@ -389,8 +389,9 @@ export const Equipment = () => {
   const renderStatRow = (k: string, valOverride?: string) => {
     const sv = statValue(k, (stats as any)[k] ?? 0);
     if (!sv) return null;
-    // Красным — занижено штрафом экипировки.
-    const lowered = (equipDelta[k as keyof typeof equipDelta] ?? 0) < 0;
+    // Красным — занижено штрафом экипировки. Уклонение и скорость почти всегда
+    // в минусе от снаряжения — для них всегда цвета палитры (синий/жёлтый).
+    const lowered = (equipDelta[k as keyof typeof equipDelta] ?? 0) < 0 && k !== 'evasion' && k !== 'speed';
     return (
       <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
         <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
