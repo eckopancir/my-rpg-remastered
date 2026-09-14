@@ -19,6 +19,20 @@ const QUALITY_STARS: Record<string, number> = {
   'Смертоносный': 5, 'Легендарный': 6, 'Божественный': 7,
 };
 
+// qualityColor бывает hex и именованным (white/gold/...) — безопасный rgba.
+const NAMED_RGB: Record<string, string> = {
+  white: '255,255,255', lime: '0,255,0', deepskyblue: '0,191,255',
+  mediumpurple: '147,112,219', red: '255,0,0', gold: '255,215,0', cyan: '0,255,255',
+};
+const withAlpha = (c: string, a: number): string => {
+  if (c.startsWith('#')) {
+    const h = c.slice(1).padEnd(6, '8').slice(0, 6);
+    const n = parseInt(/^[0-9a-fA-F]{6}$/.test(h) ? h : '818cf8', 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  }
+  return `rgba(${NAMED_RGB[c.toLowerCase()] || '129,140,248'},${a})`;
+};
+
 const S = 1.38;
 const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   head: { top: Math.round(12 * S), left: Math.round(45 * S) },
@@ -381,14 +395,11 @@ export const Equipment = () => {
     const isHover = hoverSlot === slot;
 
     const stars = item?.quality ? (QUALITY_STARS[item.quality] || 0) : 0;
-    // Цветная рамка качества + перелив сверху на фон, как в тултипе.
+    // RPG-ячейка: утопленный тёмный металл + уголки качества + свечение за предметом.
     // Зелёный только у функциональных состояний (активный ствол, дроп-таргет).
     const qc = item?.qualityColor || '#818cf8';
-    const frame = isActiveGun
-      ? '#22c55e'
-      : isDragTarget
-        ? 'rgba(34,197,94,0.9)'
-        : qc;
+    const cc = isActiveGun ? '#22c55e' : isDragTarget ? '#4ade80' : qc;
+    const glowBase = isActiveGun || isDragTarget ? '#22c55e' : qc;
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
     const starCount = compact ? Math.min(stars, 5) : stars;
     return (
@@ -411,27 +422,40 @@ export const Equipment = () => {
             width: slotW,
             height: slotH,
             position: 'relative',
+            overflow: 'hidden',
             background: item
-              ? `linear-gradient(180deg, ${qc}30 0%, ${qc}16 25%, transparent 55%), linear-gradient(180deg, #242424 0%, #1a1a1a 60%, #20242a 100%)`
+              ? 'linear-gradient(180deg, #0e0e11 0%, #16161a 100%)'
               : isDragTarget
                 ? 'rgba(34,197,94,0.15)'
                 : 'rgba(0,0,0,0.35)',
-            border: `1px ${item || isDragTarget ? 'solid' : 'dashed'} ${frame}`,
+            border: `1px ${item || isDragTarget ? 'solid' : 'dashed'} ${item ? 'rgba(255,255,255,0.08)' : (isDragTarget ? 'rgba(34,197,94,0.8)' : 'rgba(255,255,255,0.14)')}`,
             borderRadius: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: isActiveGun
-              ? '0 0 18px rgba(34,197,94,0.7)'
+              ? '0 0 18px rgba(34,197,94,0.7), inset 0 2px 10px rgba(0,0,0,0.75)'
               : isDragTarget && item
-                ? '0 0 18px rgba(34,197,94,0.5)'
-                : isHover && item
-                  ? `0 0 14px ${qc}66`
-                  : item
-                    ? `0 0 10px ${qc}44, 0 4px 12px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.04) inset`
-                    : 'none',
+                ? '0 0 18px rgba(34,197,94,0.5), inset 0 2px 10px rgba(0,0,0,0.75)'
+                : item
+                  ? `0 0 14px ${withAlpha(qc, 0.28)}, inset 0 2px 10px rgba(0,0,0,0.75), 0 1px 0 rgba(255,255,255,0.03)`
+                  : 'none',
             cursor: item ? 'grab' : 'pointer',
             transition: 'all 120ms',
+            filter: isHover && item ? 'brightness(1.12)' : 'none',
           }}
         >
+          {item && (
+            <>
+              {/* Свечение качества за предметом */}
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(ellipse 72% 66% at 50% 55%, ${withAlpha(glowBase, 0.32)}, transparent 70%)` }} />
+              {/* Уголки качества */}
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2, filter: (isHover || isActiveGun || isDragTarget) ? `drop-shadow(0 0 3px ${cc})` : 'none' }}>
+                <div style={{ position: 'absolute', top: 3, left: 3, width: 9, height: 9, borderTop: `2px solid ${cc}`, borderLeft: `2px solid ${cc}`, borderTopLeftRadius: 5 }} />
+                <div style={{ position: 'absolute', top: 3, right: 3, width: 9, height: 9, borderTop: `2px solid ${cc}`, borderRight: `2px solid ${cc}`, borderTopRightRadius: 5 }} />
+                <div style={{ position: 'absolute', bottom: 3, left: 3, width: 9, height: 9, borderBottom: `2px solid ${cc}`, borderLeft: `2px solid ${cc}`, borderBottomLeftRadius: 5 }} />
+                <div style={{ position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderBottom: `2px solid ${cc}`, borderRight: `2px solid ${cc}`, borderBottomRightRadius: 5 }} />
+              </div>
+            </>
+          )}
           {/* Звёзды редкости — вертикально слева на фоне слота */}
           {item && starCount > 0 && (
             <div style={{ position: 'absolute', left: 3, top: 4, display: 'flex', flexDirection: 'column', pointerEvents: 'none', zIndex: 1 }}>
@@ -442,8 +466,8 @@ export const Equipment = () => {
           )}
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', filter: `drop-shadow(0 0 6px ${(item.qualityColor || '#818cf8') + '66'})` }} /> : null; })()}
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1, marginTop: 2, textAlign: 'center' }}>
+              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 6px ${withAlpha(qc, 0.4)})` }} /> : null; })()}
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', lineHeight: 1, marginTop: 2, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, padding: '1px 4px' }}>
                 {item.level || 0} ур.
               </div>
               {isGun && (item as any).ammoCapacity != null && (
