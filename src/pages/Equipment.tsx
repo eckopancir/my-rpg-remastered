@@ -34,14 +34,15 @@ const withAlpha = (c: string, a: number): string => {
 };
 
 const S = 1.38;
+// Вертикаль шлем/броня/ноги/ботинки: равный отступ 25px (слот 64px).
 const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   head: { top: Math.round(12 * S), left: Math.round(45 * S) },
-  armor: { top: Math.round(100 * S) - 12, left: Math.round(45 * S) },
-  pants: { top: Math.round(146 * S), left: Math.round(45 * S) },
+  armor: { top: 106, left: Math.round(45 * S) },
+  pants: { top: 196, left: Math.round(45 * S) },
   weapon1: { top: Math.round(120 * S), left: Math.round(-35 * S) },
   weapon2: { top: Math.round(120 * S), left: Math.round(125 * S) },
   gloves: { top: Math.round(60 * S), left: Math.round(-20 * S) },
-  boots: { top: Math.round(196 * S), left: Math.round(45 * S) },
+  boots: { top: 285, left: Math.round(45 * S) },
   backpack: { top: Math.round(60 * S), left: Math.round(125 * S) },
 };
 
@@ -394,16 +395,14 @@ export const Equipment = () => {
     const isDragTarget = !!draggedItemId && validDropSlots.has(slot);
     const isHover = hoverSlot === slot;
 
-    const stars = item?.quality ? (QUALITY_STARS[item.quality] || 0) : 0;
     // RPG-ячейка: утопленный тёмный металл + уголки качества + свечение за предметом.
     // Зелёный только у функциональных состояний (активный ствол, дроп-таргет).
     const qc = item?.qualityColor || '#818cf8';
     const cc = isActiveGun ? '#22c55e' : isDragTarget ? '#4ade80' : qc;
     const glowBase = isActiveGun || isDragTarget ? '#22c55e' : qc;
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
-    const starCount = compact ? Math.min(stars, 5) : stars;
     return (
-      <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+      <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         <div
           onDrop={(e) => handleDrop(slot, e)}
           onDragOver={handleDragOver}
@@ -455,14 +454,6 @@ export const Equipment = () => {
                 <div style={{ position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderBottom: `2px solid ${cc}`, borderRight: `2px solid ${cc}`, borderBottomRightRadius: 5 }} />
               </div>
             </>
-          )}
-          {/* Звёзды редкости — вертикально слева на фоне слота */}
-          {item && starCount > 0 && (
-            <div style={{ position: 'absolute', left: 3, top: 4, display: 'flex', flexDirection: 'column', pointerEvents: 'none', zIndex: 1 }}>
-              {Array.from({ length: starCount }).map((_, i) => (
-                <span key={i} style={{ fontSize: compact ? 7 : 8, lineHeight: 1.15, color: '#fbbf24', textShadow: '0 0 6px rgba(251,191,36,0.55)' }}>★</span>
-              ))}
-            </div>
           )}
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -539,9 +530,9 @@ export const Equipment = () => {
 
       <div style={{
         background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
-        border: '1px solid rgba(255,255,255,0.09)',
+        border: '1px solid rgba(217,119,6,0.35)',
         borderRadius: '0 0 10px 10px',
-        boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 2px 0 rgba(255,255,255,0.04) inset',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 0 24px rgba(217,119,6,0.08), 0 2px 0 rgba(255,255,255,0.04) inset',
         padding: 20,
         display: 'flex', gap: 20, minWidth: 700, maxWidth: '100%',
       }}>
