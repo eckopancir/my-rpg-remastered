@@ -134,26 +134,19 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   const timers = useRef<number[]>([]);
   useEffect(() => () => { timers.current.forEach((t) => window.clearTimeout(t)); }, []);
 
-  const [pos, setPos] = useState({ x: Math.max(0, (window.innerWidth - 640) / 2), y: Math.max(0, (window.innerHeight - 500) / 2) });
-  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
+  const dragRef = useRef({ dragging: false });
   const [dragging, setDragging] = useState(false);
 
   const onDragStart = useCallback((e: React.MouseEvent) => {
-    dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, startPosX: pos.x, startPosY: pos.y };
+    dragRef.current = { dragging: true };
     setDragging(true);
-  }, [pos]);
+  }, []);
 
   useEffect(() => {
     if (!dragging) return;
-    const onMove = (e: MouseEvent) => {
-      const d = dragRef.current;
-      if (!d.dragging) return;
-      setPos({ x: d.startPosX + e.clientX - d.startX, y: d.startPosY + e.clientY - d.startY });
-    };
     const onUp = () => { dragRef.current.dragging = false; setDragging(false); };
-    window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    return () => { window.removeEventListener('mouseup', onUp); };
   }, [dragging]);
 
   const packSlots = backpackSlotsFor(pack);
@@ -303,7 +296,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   return (
     <div className={styles.lootOverlay} onClick={onClose}>
-      <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', left: pos.x, top: pos.y, minWidth: 640, overflow: 'hidden', borderRadius: 8, paddingTop: 0, marginTop: 0 }}>
+      <div className={styles.lootWindow} onClick={(e) => e.stopPropagation()} style={{ minWidth: 640, overflow: 'hidden', borderRadius: 8, paddingTop: 0, marginTop: 0 }}>
         <WapHeader title="🎒 Обыск" glow="amber" onMouseDown={onDragStart}
           style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))', margin: '0 -20px 12px', width: 'calc(100% + 40px)', cursor: dragging ? 'grabbing' : 'grab' }}>
           <span onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
