@@ -161,13 +161,9 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       <div style={{ height: 3, background: hex, opacity: 0.95 }} />
       {/* переливание цвета редкости: от полоски через картинку до названия — без новой территории, всё на фоне картинки */}
       <div style={{ background: `linear-gradient(180deg, ${hex}26 0%, ${hex}14 32%, ${hex}07 58%, transparent 92%)`, position: 'relative' }}>
-        {/* топ-оверлей на фоне картинки: слева мощность, справа редкость + звёзды цветом редкости */}
+        {/* топ-оверлей на фоне картинки: слева ранг+звёзды, справа мощность — поменяли местами */}
         <div style={{ position: 'absolute', top: 6, left: 8, right: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'none', zIndex: 1 }}>
-          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.22)', borderRadius: 4, padding: '3px 6px', minWidth: 52 }}>
-            <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>⚡ {itemPower}</span>
-            <span style={{ fontSize: 6, fontWeight: 600, letterSpacing: 0.5, color: 'rgba(251,191,36,0.75)', marginTop: 1, textTransform: 'uppercase' }}>мощность</span>
-          </span>
-          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
               {item.quality || item.type}
             </span>
@@ -178,6 +174,10 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
                 ))}
               </span>
             ) : null}
+          </span>
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.22)', borderRadius: 4, padding: '3px 6px', minWidth: 52 }}>
+            <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>⚡ {itemPower}</span>
+            <span style={{ fontSize: 6, fontWeight: 600, letterSpacing: 0.5, color: 'rgba(251,191,36,0.75)', marginTop: 1, textTransform: 'uppercase' }}>мощность</span>
           </span>
         </div>
       {(imgUrl || foodIcon) && (
@@ -192,7 +192,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
             const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
             const filled = socks.length;
             return (
-              <div style={{ position: 'absolute', top: 22, right: 14, display: 'flex', flexDirection: 'column', gap: 3 }} title={`Гнёзда: ${filled}/${max}`}>
+              <div style={{ position: 'absolute', top: 62, right: 14, display: 'flex', flexDirection: 'column', gap: 3 }} title={`Гнёзда: ${filled}/${max}`}>
                 {Array.from({ length: max }).map((_, i) => {
                   const src = i < filled ? (getSchemeImage(socks[i]?.stat) || crystalImages.filled) : crystalImages.empty;
                   return src ? (
