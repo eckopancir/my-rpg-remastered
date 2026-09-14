@@ -844,7 +844,7 @@ export const Craft = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 8 }}>
                     {AMMO_GROUPS.map((g) => {
                       const cost = AMMO_CRAFT_COST[g.key];
                       if (!cost) return null;
@@ -868,75 +868,53 @@ export const Craft = () => {
                           position: 'relative', overflow: 'hidden',
                           background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
                           border: `1px solid ${afford ? col + '40' : 'rgba(255,255,255,0.06)'}`,
-                          borderRadius: 10, padding: '12px 14px',
+                          borderRadius: 8, padding: '8px 10px',
                           opacity: afford ? 1 : 0.5,
                           transition: 'border-color 0.2s, box-shadow 0.2s',
                           boxShadow: afford ? `inset 0 1px 0 ${col}15` : 'none',
                         }}>
-                          {/* Accent stripe top */}
                           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${col}60, transparent)` }} />
-
-                          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                            {/* Bullet icon */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {/* Icon */}
                             <div style={{
-                              width: 48, height: 48, borderRadius: 8, flexShrink: 0,
+                              width: 36, height: 36, borderRadius: 6, flexShrink: 0,
                               background: `linear-gradient(135deg, ${col}15, ${col}08)`,
                               border: `1px solid ${col}30`,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              boxShadow: afford ? `0 0 16px ${col}20` : 'none',
                             }}>
-                              {img && <img src={img} alt="" style={{ width: 34, height: 34, objectFit: 'contain', filter: `drop-shadow(0 0 4px ${col}40)` }} />}
+                              {img && <img src={img} alt="" style={{ width: 26, height: 26, objectFit: 'contain', filter: `drop-shadow(0 0 3px ${col}40)` }} />}
                             </div>
-
-                            {/* Info */}
+                            {/* Name + chips */}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
-                                <span style={{ fontSize: 13, fontWeight: 700, color: col }}>{g.icon} {g.name}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: col, whiteSpace: 'nowrap' }}>{g.icon} {g.name}</span>
                                 <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>×{qty}</span>
+                                {stock > 0 && <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 'auto' }}>📦{stock}</span>}
                               </div>
-                              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 6, lineHeight: 1.3 }}>{g.desc}</div>
-
-                              {/* Resource chips */}
-                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                                 {parts.map((p) => (
-                                  <div key={p.name} style={{
-                                    display: 'flex', alignItems: 'center', gap: 4,
-                                    padding: '2px 7px', borderRadius: 4,
+                                  <span key={p.name} style={{
+                                    padding: '1px 5px', borderRadius: 3,
                                     background: p.have >= p.need ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
-                                    border: `1px solid ${p.have >= p.need ? 'rgba(74,222,128,0.25)' : 'rgba(248,113,113,0.25)'}`,
-                                    fontSize: 10, fontFamily: 'var(--wa-font-hud)',
-                                  }}>
-                                    <span>{p.icon}</span>
-                                    <span style={{ color: p.have >= p.need ? '#4ade80' : '#f87171', fontWeight: 600 }}>
-                                      {p.have}/{p.need}
-                                    </span>
-                                  </div>
+                                    border: `1px solid ${p.have >= p.need ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}`,
+                                    fontSize: 9, fontFamily: 'var(--wa-font-hud)', fontWeight: 600,
+                                    color: p.have >= p.need ? '#4ade80' : '#f87171',
+                                  }}>{p.icon} {p.have}/{p.need}</span>
                                 ))}
-                              </div>
-
-                              {/* Stock + craft button */}
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                {stock > 0 && (
-                                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                                    📦 в рюкзаке: <span style={{ color: col, fontWeight: 600 }}>{stock}</span>
-                                  </div>
-                                )}
                                 <button
                                   onClick={() => handleCraftAmmo(g.key)}
                                   disabled={!afford}
                                   style={{
-                                    marginLeft: 'auto', padding: '4px 14px', borderRadius: 5, border: 'none', cursor: afford ? 'pointer' : 'not-allowed',
-                                    fontSize: 11, fontWeight: 700, fontFamily: 'var(--wa-font-hud)', letterSpacing: 0.5,
+                                    marginLeft: 'auto', padding: '2px 10px', borderRadius: 4, border: 'none', cursor: afford ? 'pointer' : 'not-allowed',
+                                    fontSize: 10, fontWeight: 700, fontFamily: 'var(--wa-font-hud)',
                                     color: afford ? '#0d0d0d' : '#555',
                                     background: afford ? `linear-gradient(135deg, ${col}, ${col}cc)` : 'rgba(255,255,255,0.06)',
-                                    boxShadow: afford ? `0 0 10px ${col}40, 0 2px 4px rgba(0,0,0,0.3)` : 'none',
-                                    transition: 'all 0.15s',
+                                    boxShadow: afford ? `0 0 8px ${col}30` : 'none',
+                                    transition: 'all 0.15s', whiteSpace: 'nowrap',
                                   }}
-                                  onMouseEnter={(e) => { if (afford) { e.currentTarget.style.boxShadow = `0 0 18px ${col}60, 0 2px 6px rgba(0,0,0,0.4)`; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-                                  onMouseLeave={(e) => { if (afford) { e.currentTarget.style.boxShadow = `0 0 10px ${col}40, 0 2px 4px rgba(0,0,0,0.3)`; e.currentTarget.style.transform = 'none'; } }}
-                                >
-                                  ⚡ СНАРЯДИТЬ
-                                </button>
+                                  onMouseEnter={(e) => { if (afford) e.currentTarget.style.boxShadow = `0 0 14px ${col}50`; }}
+                                  onMouseLeave={(e) => { if (afford) e.currentTarget.style.boxShadow = `0 0 8px ${col}30`; }}
+                                >⚡ СНАРЯДИТЬ</button>
                               </div>
                             </div>
                           </div>
