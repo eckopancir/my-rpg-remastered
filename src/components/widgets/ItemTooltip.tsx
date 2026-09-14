@@ -161,18 +161,15 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       <div style={{ height: 3, background: hex, opacity: 0.95 }} />
       {/* переливание цвета редкости: от полоски через картинку до названия — без новой территории, всё на фоне картинки */}
       <div style={{ background: `linear-gradient(180deg, ${hex}26 0%, ${hex}14 32%, ${hex}07 58%, transparent 92%)`, position: 'relative' }}>
-        {/* топ-оверлей на фоне картинки: слева ранг+звёзды, справа мощность — поменяли местами */}
+        {/* топ-оверлей на фоне картинки: слева звёзды редкости, справа мощность */}
         <div style={{ position: 'absolute', top: 6, left: 8, right: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'none', zIndex: 1 }}>
-          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '3px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
-            <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>{item.quality || item.type}</span>
-            {item.quality && QUALITY_STARS[item.quality] ? (
-              <span style={{ display: 'inline-flex', gap: 1, color: hex, textShadow: `0 0 6px ${hex}55`, lineHeight: 1 }}>
-                {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
-                  <span key={i} style={{ fontSize: 8 }}>★</span>
-                ))}
-              </span>
-            ) : null}
-          </span>
+          {item.quality && QUALITY_STARS[item.quality] ? (
+            <span style={{ display: 'inline-flex', gap: 2, color: '#fbbf24', textShadow: '0 0 8px rgba(251,191,36,0.55)', lineHeight: 1 }}>
+              {Array.from({ length: QUALITY_STARS[item.quality] }).map((_, i) => (
+                <span key={i} style={{ fontSize: 14 }}>★</span>
+              ))}
+            </span>
+          ) : <span />}
           <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.22)', borderRadius: 4, padding: '3px 6px', minWidth: 52 }}>
             <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>⚡ {itemPower}</span>
             <span style={{ fontSize: 6, fontWeight: 600, letterSpacing: 0.5, color: 'rgba(251,191,36,0.75)', marginTop: 1, textTransform: 'uppercase' }}>мощность</span>
@@ -205,7 +202,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         </div>
       )}
         <div style={{ padding: '8px 14px 12px' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)', wordBreak: 'break-word' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: hex, lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)', wordBreak: 'break-word' }}>
           {item.displayName || item.name}
         </div>
         {(item as any).unique && (
@@ -296,13 +293,13 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       {item.slot === 'weapon1' && (
         <div style={{ fontSize: 12, color: '#7dd3fc', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
           <img src={iconScope} alt="" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(1.2)' }} />
-          <span>ближний бой · бьёт 3 клетки спереди</span>
+          <span>Ближний бой · бьёт 3 клетки спереди</span>
         </div>
       )}
       {item.slot === 'weapon2' && (() => {
         const prof = weaponRangeProfile(item);
         const tags = [
-          `дальность ${prof.range}`,
+          `Дальность ${prof.range}`,
           prof.cone ? 'веер' : null,
           prof.aoe ? `💥 площадь ${prof.aoe}` : null,
           prof.fast ? '⚡ темп' : null,
@@ -474,10 +471,15 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '10px 0 8px' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
             <span>SHIFT сравнить · T закрепить</span>
-            <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: 'rgba(255,255,255,0.55)', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>💾</span> {getSellPrice(item).toLocaleString()}</span>
-              <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(255,255,255,0.45)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: 'rgba(255,255,255,0.55)', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>💾</span> {getSellPrice(item).toLocaleString()}</span>
+                <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(255,255,255,0.45)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
+              </span>
+              <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: hex, border: `1px solid ${hex}`, background: `${hex}18`, borderRadius: 4, padding: '3px 7px', letterSpacing: 0.3, boxShadow: `0 0 8px ${hex}22` }}>
+                <span style={{ fontSize: 10, fontWeight: 700 }}>{item.quality || item.type}</span>
+              </span>
+            </div>
           </div>
         </>
       )}
