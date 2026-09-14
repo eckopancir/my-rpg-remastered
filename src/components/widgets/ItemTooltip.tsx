@@ -144,73 +144,50 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     >
       {/* тонкая линия качества внутри */}
       <div style={{ height: 3, background: qc, opacity: 0.95 }} />
-      <div style={{ padding: '12px 14px 12px' }}>
-        {/* header: текст слева, картинка справа */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.3, marginBottom: 2, textTransform: 'capitalize' }}>
-              {item.quality || item.rarity || SLOT_LABELS[item.slot || ''] || item.type || 'Предмет'}
-            </div>
-            <div style={{
-              fontSize: 15, fontWeight: 700, color: qc,
-              lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)',
-              wordBreak: 'break-word',
-            }}>
-              {item.displayName || item.name}
-            </div>
-            {(item as any).unique && (
-              <div style={{
-                display: 'inline-block', marginTop: 6, fontSize: 9, fontWeight: 800, letterSpacing: 1.6,
-                color: '#ffd700', background: 'rgba(255,215,0,0.10)',
-                border: '1px solid rgba(255,215,0,0.35)', borderRadius: 4,
-                padding: '2px 6px',
-              }}>
-                УНИК
+      {/* картинка сверху большая как раньше */}
+      {(imgUrl || foodIcon) && (
+        <div style={{ textAlign: 'center', padding: '10px 14px 0', position: 'relative' }}>
+          {imgUrl ? (
+            <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
+          ) : (
+            <span style={{ fontSize: 72, lineHeight: 1.2 }}>{foodIcon}</span>
+          )}
+          {isSocketable(item) && socketSlotsOf(item) > 0 && (() => {
+            const max = socketSlotsOf(item);
+            const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
+            const filled = socks.length;
+            return (
+              <div style={{ position: 'absolute', top: 22, right: 14, display: 'flex', flexDirection: 'column', gap: 3 }} title={`Гнёзда: ${filled}/${max}`}>
+                {Array.from({ length: max }).map((_, i) => {
+                  const src = i < filled ? (getSchemeImage(socks[i]?.stat) || crystalImages.filled) : crystalImages.empty;
+                  return src ? (
+                    <img key={i} src={src} alt="" style={{ width: 13, height: 13, objectFit: 'contain', filter: i < filled ? 'drop-shadow(0 0 4px rgba(74,222,128,0.9))' : 'opacity(0.5)' }} />
+                  ) : (
+                    <div key={i} style={{ width: 9, height: 9, transform: 'rotate(45deg)', background: i < filled ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.08)', border: `1px solid ${i < filled ? '#4ade80' : 'rgba(255,255,255,0.25)'}` }} />
+                  );
+                })}
               </div>
-            )}
-            <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.45)', flexWrap: 'wrap' }}>
-              <span>Lv.{item.level || 1}</span>
-              {item.slot && <span>• {SLOT_LABELS[item.slot] || item.slot}</span>}
-              {item.slot && MOD_SLOTS_MAP[item.slot] && (
-                <span>• ⚙ {item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>
-              )}
-              <span style={{ color: '#fbbf24', fontWeight: 600 }}>⚡{itemPower}</span>
-            </div>
+            );
+          })()}
+        </div>
+      )}
+      <div style={{ padding: '10px 14px 12px' }}>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', letterSpacing: 0.3, marginBottom: 2, textTransform: 'capitalize' }}>
+          {item.quality || item.rarity || SLOT_LABELS[item.slot || ''] || item.type || 'Предмет'}
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: qc, lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)', wordBreak: 'break-word' }}>
+          {item.displayName || item.name}
+        </div>
+        {(item as any).unique && (
+          <div style={{ display: 'inline-block', marginTop: 6, fontSize: 9, fontWeight: 800, letterSpacing: 1.6, color: '#ffd700', background: 'rgba(255,215,0,0.10)', border: '1px solid rgba(255,215,0,0.35)', borderRadius: 4, padding: '2px 6px' }}>
+            УНИК
           </div>
-          {/* картинка справа */}
-          <div style={{
-            width: 84, height: 84, flexShrink: 0,
-            background: 'radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.07), transparent 70%), linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.2))',
-            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            position: 'relative', overflow: 'hidden',
-          }}>
-            {imgUrl ? (
-              <img src={imgUrl} alt="" style={{ width: 76, height: 76, objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.6))' }} />
-            ) : foodIcon ? (
-              <span style={{ fontSize: 48, lineHeight: 1 }}>{foodIcon}</span>
-            ) : (
-              <span style={{ fontSize: 28, opacity: 0.2 }}>?</span>
-            )}
-            {/* гнёзда — маленький столбец поверх картинки справа */}
-            {isSocketable(item) && socketSlotsOf(item) > 0 && (() => {
-              const max = socketSlotsOf(item);
-              const socks = Array.isArray((item as any).sockets) ? (item as any).sockets : [];
-              const filled = socks.length;
-              return (
-                <div style={{ position: 'absolute', top: 4, right: 3, display: 'flex', flexDirection: 'column', gap: 3 }} title={`Гнёзда: ${filled}/${max}`}>
-                  {Array.from({ length: max }).map((_, i) => {
-                    const src = i < filled ? (getSchemeImage(socks[i]?.stat) || crystalImages.filled) : crystalImages.empty;
-                    return src ? (
-                      <img key={i} src={src} alt="" style={{ width: 11, height: 11, objectFit: 'contain', filter: i < filled ? 'drop-shadow(0 0 4px rgba(74,222,128,0.9))' : 'opacity(0.5)' }} />
-                    ) : (
-                      <div key={i} style={{ width: 8, height: 8, transform: 'rotate(45deg)', background: i < filled ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.08)', border: `1px solid ${i < filled ? '#4ade80' : 'rgba(255,255,255,0.25)'}` }} />
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.45)', flexWrap: 'wrap' }}>
+          <span>Lv.{item.level || 1}</span>
+          {item.slot && <span>• {SLOT_LABELS[item.slot] || item.slot}</span>}
+          {item.slot && MOD_SLOTS_MAP[item.slot] && <span>• ⚙ {item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>}
+          <span style={{ color: '#fbbf24', fontWeight: 600 }}>⚡{itemPower}</span>
         </div>
 
       {item.type === 'blueprint' && (() => {
@@ -417,15 +394,12 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         );
       })()}
 
-      {/* footer: weight/style price like screenshot */}
-      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ opacity: 0.6 }}>◈</span> {(item as any).weight?.toFixed?.(2) ?? '0.10'}
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fbbf24' }}>
+      {/* footer: price + rarity badge in rarity color */}
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, fontSize: 12 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#fbbf24', fontWeight: 600 }}>
           <span>⬢</span> {getSellPrice(item).toLocaleString()}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'rgba(255,255,255,0.28)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '2px 6px' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: qc, border: `1px solid ${qc}55`, background: `${qc}14`, borderRadius: 4, padding: '2px 7px', letterSpacing: 0.3 }}>
           {item.quality || item.type}
         </span>
       </div>
@@ -436,9 +410,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         </div>
       )}
       {!nested && (
-        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
-          <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>Y</span>
-          <span>SHIFT сравнить · T закрепить</span>
+        <div style={{ marginTop: 10, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
+          SHIFT сравнить · T закрепить
         </div>
       )}
       </div>
