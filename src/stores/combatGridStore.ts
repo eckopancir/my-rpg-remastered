@@ -1677,7 +1677,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (state.ap < ability.apCost) { get().addMessage('❌ Не хватает AP'); return; }
 
     // Активные способности требуют расходник из рюкзака (пассивки ammo_* — бесплатно).
-    if (!ability.passive) {
+    // ZeroTree / капстоун бесплатные — пропуск расходника
+    const isFree = !!(usePlayerStore.getState() as any).zeroTreeAbilities?.some((a: any) => a.id === ability.id) || ability.id.startsWith('cap_');
+    if (!ability.passive && !isFree) {
       const ps = usePlayerStore.getState();
       const stack = ps.backpackGrid.items.find((i) => i.type === 'consumable' && (i as any).abilityId === ability.id);
       if (!stack) {
@@ -1692,6 +1694,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         return;
       }
       get().addBattleLog(`🧪 Использован расходник: ${stack.displayName || stack.name}`);
+    } else if (isFree) {
+      get().addBattleLog(`✨ Бесплатная способность: ${ability.name}`);
     }
 
     // Barrage: fire 20 random shots, no target needed

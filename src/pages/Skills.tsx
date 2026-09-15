@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { usePlayerStore } from '../stores/playerStore';
@@ -29,6 +30,7 @@ export const Skills = () => {
   const resetSkills = usePlayerStore((s) => s.resetSkills);
   const loadSkills = usePlayerStore((s) => s.loadSkills);
   const level = usePlayerStore((s) => s.level);
+  const navigate = useNavigate();
 
   useEffect(() => { loadSkills(); }, []);
 
@@ -45,7 +47,10 @@ export const Skills = () => {
     >
       <WapPanel variant="metal" padding="lg">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>⭐ Древо навыков</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>⭐ Древо навыков</div>
+            <Button size="sm" variant="ghost" onClick={() => navigate('/skills/zero')} style={{ border: '1px solid #00d4ff', color: '#00d4ff' }}>◈ ZeroTree</Button>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)' }}>
               Ур. {level} — 🎯 {skillPoints} очков{hasPending ? ` (${pendingTotal} в ожидании)` : ''}
@@ -100,70 +105,71 @@ export const Skills = () => {
                   </div>
                 </div>
 
-                {/* Skills */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {cls.skills.map((sk) => {
-                    const current = skills[sk.id] || 0;
-                    const pending = pendingSkills[sk.id] || 0;
-                    const total = current + pending;
-                    const isMaxed = total >= sk.maxPoints;
-                    const classTotal = spent;
-                    const locked = classTotal < sk.reqPoints && total === 0;
-
+                {/* Skills — RPG tiers */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[0,2,5,10,20].map(tier => {
+                    const tierSkills = cls.skills.filter(s => s.reqPoints === tier);
+                    if (tierSkills.length === 0) return null;
+                    const isCapstoneTier = tier === 20;
                     return (
-                      <div
-                        key={sk.id}
-                        onClick={() => {
-                          if (!locked && !isMaxed && skillPoints > 0) {
-                            allocateSkill(sk.id);
-                          }
-                        }}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          if (pending > 0) deallocateSkill(sk.id);
-                        }}
-                        style={{
-                          padding: '8px 10px',
-                          background: current > 0 ? `${cls.color}15` : pending > 0 ? `${cls.color}10` : 'rgba(255,255,255,0.02)',
-                          border: `1px solid ${pending > 0 ? cls.color + '88' : current > 0 ? cls.color + '44' : locked ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)'}`,
-                          borderRadius: 'var(--radius-sm)',
-                          cursor: locked || isMaxed || skillPoints <= 0 ? 'default' : 'pointer',
-                          opacity: locked ? 0.4 : 1,
-                          transition: 'all 100ms',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                            <span style={{ fontSize: 16, flexShrink: 0 }}>{sk.icon}</span>
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ fontSize: 12, fontWeight: 500, overflowWrap: 'break-word' }}>{sk.name}</div>
-                              <div style={{ fontSize: 10, color: 'var(--text-muted)', overflowWrap: 'break-word' }}>{sk.desc}</div>
-                              <div style={{ fontSize: 10, color: current > 0 ? cls.color : 'var(--text-muted)', overflowWrap: 'break-word' }}>
-                                  {formatCumulative(sk.statsPerPoint, current || 1)}
-                                </div>
-                              </div>
-                            </div>
-                            <div style={{
-                              fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-mono)',
-                              color: isMaxed ? 'var(--accent-success)' : cls.color,
-                              whiteSpace: 'nowrap', flexShrink: 0,
-                              display: 'flex', alignItems: 'center', gap: 4,
-                            }}>
-                              <span>{current}/{sk.maxPoints}</span>
-                              {pending > 0 && (
-                                <span style={{ color: 'var(--accent-warning)' }}>+{pending}</span>
-                              )}
-                            </div>
-                          </div>
-                          {sk.reqPoints > 0 && total === 0 && (
-                            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 4 }}>
-                              🔒 нужно {sk.reqPoints} очков в ветке
-                            </div>
-                          )}
+                      <div key={tier}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                          <span style={{ height: 1, flex: 1, background: `${cls.color}22` }} />
+                          <span style={{ fontSize: 9, letterSpacing: 1, color: cls.color, fontWeight: 700 }}>{tier === 0 ? 'БАЗА' : tier === 20 ? '★ КЛЮЧ' : `ТИР ${tier}`}</span>
+                          <span style={{ height: 1, flex: 1, background: `${cls.color}22` }} />
                         </div>
-                      );
-                    })}
-                  </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {tierSkills.map(sk => {
+                            const current = skills[sk.id] || 0;
+                            const pending = pendingSkills[sk.id] || 0;
+                            const total = current + pending;
+                            const isMaxed = total >= sk.maxPoints;
+                            const locked = spent < sk.reqPoints && total === 0;
+                            const isCapstone = sk.id.includes('capstone');
+                            return (
+                              <div
+                                key={sk.id}
+                                onClick={() => { if (!locked && !isMaxed && skillPoints > 0) allocateSkill(sk.id); }}
+                                onContextMenu={e => { e.preventDefault(); if (pending > 0) deallocateSkill(sk.id); }}
+                                style={{
+                                  padding: isCapstone ? '10px 12px' : '8px 10px',
+                                  background: isCapstone
+                                    ? (current > 0 ? 'linear-gradient(135deg, #fbbf2422, #92400e22)' : pending > 0 ? 'rgba(251,191,36,0.08)' : 'rgba(251,191,36,0.04)')
+                                    : current > 0 ? `${cls.color}15` : pending > 0 ? `${cls.color}10` : 'rgba(255,255,255,0.02)',
+                                  border: `1px solid ${isCapstone ? (current>0 ? '#fbbf24' : '#fbbf2466') : pending > 0 ? cls.color + '88' : current > 0 ? cls.color + '44' : locked ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)'}`,
+                                  borderRadius: 'var(--radius-sm)',
+                                  cursor: locked || isMaxed || skillPoints <= 0 ? 'default' : 'pointer',
+                                  opacity: locked ? 0.4 : 1,
+                                  boxShadow: isCapstone && current>0 ? '0 0 12px rgba(251,191,36,0.25)' : 'none',
+                                  transition: 'all 100ms',
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                                    <span style={{ fontSize: isCapstone ? 18 : 16, flexShrink: 0 }}>{sk.icon}</span>
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <div style={{ fontSize: isCapstone ? 12 : 12, fontWeight: isCapstone ? 700 : 500, color: isCapstone && current>0 ? '#fbbf24' : undefined }}>{sk.name} {isCapstone && '★'}</div>
+                                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{sk.desc}</div>
+                                      <div style={{ fontSize: 10, color: current > 0 ? (isCapstone ? '#fbbf24' : cls.color) : 'var(--text-muted)' }}>{formatCumulative(sk.statsPerPoint, current || 1)}</div>
+                                      {isCapstone && <div style={{ fontSize: 9, color: '#fbbf24', marginTop: 2 }}>✨ Бесплатная способность на арене</div>}
+                                    </div>
+                                  </div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-mono)', color: isMaxed ? 'var(--accent-success)' : isCapstone ? '#fbbf24' : cls.color, whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <span>{current}/{sk.maxPoints}</span>
+                                    {pending > 0 && <span style={{ color: 'var(--accent-warning)' }}>+{pending}</span>}
+                                  </div>
+                                </div>
+                                {sk.reqPoints > 0 && total === 0 && (
+                                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 4 }}>🔒 нужно {sk.reqPoints} очков в ветке</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 </div>
               );
             })}
