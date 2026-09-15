@@ -148,8 +148,6 @@ interface PlayerStore {
   skillPoints: number;
   skills: Record<string, number>;
   pendingSkills: Record<string, number>;
-  zeroTreeDeltas: { stat: string; delta: number }[];
-  zeroTreeAbilities: any[];
   travel: TravelState; combat: CombatState;
   logs: LogEntry[]; logIdCounter: number;
   powerBreakdown: PowerBreakdown;
@@ -198,10 +196,6 @@ interface PlayerStore {
   loadSkills: () => Promise<void>;
   skillBonuses: () => PlayerStats;
   skillUtility: () => SkillUtilityEffects;
-  applyZeroTreeDelta: (deltas: { stat: string; delta: number }[]) => void;
-  addZeroTreeAbility: (ability: any) => void;
-  removeZeroTreeAbility: (ability: any) => void;
-  zeroTreeSerialize: string | null;
 
   useConsumable: (item: Item) => void;
   addEffect: (effect: ActiveEffect) => void;
@@ -368,9 +362,6 @@ export const usePlayerStore = create<PlayerStore>()(
       skillPoints: 3,
       skills: {} as Record<string, number>,
       pendingSkills: {} as Record<string, number>,
-      zeroTreeDeltas: [] as { stat: string; delta: number }[],
-      zeroTreeAbilities: [] as any[],
-      zeroTreeSerialize: null as string | null,
       logs: [{ id: 0, message: 'Система инициализирована. Добро пожаловать в Пустошь.', type: 'system', ts: Date.now() }],
       logIdCounter: 1,
       accessoryAbilities: [],
@@ -458,12 +449,6 @@ export const usePlayerStore = create<PlayerStore>()(
         const equipBonus = sumItemStats(items);
         const effectBonus = sumEffectStats(s.activeEffects);
         const skillBonus = s.skillBonuses();
-        // ZeroTree procedural bonuses
-        const zeroTreeBonus: PlayerStats = { ...EMPTY_STATS };
-        for (const d of (s.zeroTreeDeltas || [])) {
-          const k = d.stat as keyof PlayerStats;
-          if (k in zeroTreeBonus) (zeroTreeBonus as any)[k] += d.delta;
-        }
 
         // Set bonuses
         const setCounts: Record<string, number> = {};
@@ -494,26 +479,26 @@ export const usePlayerStore = create<PlayerStore>()(
         }
 
         const lvl = s.level;
-        const dps = BASE_STATS.damage + lvl + equipBonus.damage + effectBonus.damage + skillBonus.damage + setBonus.damage + (zeroTreeBonus.damage || 0);
+        const dps = BASE_STATS.damage + lvl + equipBonus.damage + effectBonus.damage + skillBonus.damage + setBonus.damage;
         const newStats: PlayerStats = {
-          maxHp: Math.round(BASE_STATS.maxHp + lvl * 20 + equipBonus.maxHp + effectBonus.maxHp + skillBonus.maxHp + setBonus.maxHp + (zeroTreeBonus.maxHp || 0)),
+          maxHp: Math.round(BASE_STATS.maxHp + lvl * 20 + equipBonus.maxHp + effectBonus.maxHp + skillBonus.maxHp + setBonus.maxHp),
           currentHp: 0,
-          maxStamina: Math.round(BASE_STATS.maxStamina + lvl * 5 + equipBonus.maxStamina + effectBonus.maxStamina + skillBonus.maxStamina + setBonus.maxStamina + (zeroTreeBonus.maxStamina || 0)),
+          maxStamina: Math.round(BASE_STATS.maxStamina + lvl * 5 + equipBonus.maxStamina + effectBonus.maxStamina + skillBonus.maxStamina + setBonus.maxStamina),
           stamina: 0,
           damage: Math.max(1, dps),
-          crit: Math.max(0, BASE_STATS.crit + equipBonus.crit + effectBonus.crit + skillBonus.crit + setBonus.crit + (zeroTreeBonus.crit || 0)),
-          armor: Math.max(0, BASE_STATS.armor + equipBonus.armor + effectBonus.armor + skillBonus.armor + setBonus.armor + (zeroTreeBonus.armor || 0)),
-          regen: Math.max(0, BASE_STATS.regen + equipBonus.regen + effectBonus.regen + skillBonus.regen + setBonus.regen + (zeroTreeBonus.regen || 0)),
-          evasion: Math.min(0.9, Math.max(0, BASE_STATS.evasion + equipBonus.evasion + effectBonus.evasion + skillBonus.evasion + setBonus.evasion + (zeroTreeBonus.evasion || 0))),
-          block: Math.min(5.0, Math.max(0, BASE_STATS.block + equipBonus.block + effectBonus.block + skillBonus.block + setBonus.block + (zeroTreeBonus.block || 0))),
-          punching: Math.max(0, BASE_STATS.punching + equipBonus.punching + effectBonus.punching + skillBonus.punching + setBonus.punching + (zeroTreeBonus.punching || 0)),
-          accuracy: Math.min(2, Math.max(0.1, BASE_STATS.accuracy + equipBonus.accuracy + effectBonus.accuracy + skillBonus.accuracy + setBonus.accuracy + (zeroTreeBonus.accuracy || 0))),
-          vampir: Math.min(5.0, Math.max(0, BASE_STATS.vampir + equipBonus.vampir + effectBonus.vampir + skillBonus.vampir + setBonus.vampir + (zeroTreeBonus.vampir || 0))),
-          speed: Math.max(0, BASE_STATS.speed + equipBonus.speed + effectBonus.speed + skillBonus.speed + setBonus.speed + (zeroTreeBonus.speed || 0)),
-          dpsEmi: Math.max(0, BASE_STATS.dpsEmi + equipBonus.dpsEmi + effectBonus.dpsEmi + skillBonus.dpsEmi + setBonus.dpsEmi + (zeroTreeBonus.dpsEmi || 0)),
-          dpsToxis: Math.max(0, BASE_STATS.dpsToxis + equipBonus.dpsToxis + effectBonus.dpsToxis + skillBonus.dpsToxis + setBonus.dpsToxis + (zeroTreeBonus.dpsToxis || 0)),
-          dpsExtro: Math.max(0, BASE_STATS.dpsExtro + equipBonus.dpsExtro + effectBonus.dpsExtro + skillBonus.dpsExtro + setBonus.dpsExtro + (zeroTreeBonus.dpsExtro || 0)),
-          dpsFire: Math.max(0, BASE_STATS.dpsFire + equipBonus.dpsFire + effectBonus.dpsFire + skillBonus.dpsFire + setBonus.dpsFire + (zeroTreeBonus.dpsFire || 0)),
+          crit: Math.max(0, BASE_STATS.crit + equipBonus.crit + effectBonus.crit + skillBonus.crit + setBonus.crit),
+          armor: Math.max(0, BASE_STATS.armor + equipBonus.armor + effectBonus.armor + skillBonus.armor + setBonus.armor),
+          regen: Math.max(0, BASE_STATS.regen + equipBonus.regen + effectBonus.regen + skillBonus.regen + setBonus.regen),
+          evasion: Math.min(0.9, Math.max(0, BASE_STATS.evasion + equipBonus.evasion + effectBonus.evasion + skillBonus.evasion + setBonus.evasion)),
+          block: Math.min(5.0, Math.max(0, BASE_STATS.block + equipBonus.block + effectBonus.block + skillBonus.block + setBonus.block)),
+          punching: Math.max(0, BASE_STATS.punching + equipBonus.punching + effectBonus.punching + skillBonus.punching + setBonus.punching),
+          accuracy: Math.min(2, Math.max(0.1, BASE_STATS.accuracy + equipBonus.accuracy + effectBonus.accuracy + skillBonus.accuracy + setBonus.accuracy)),
+          vampir: Math.min(5.0, Math.max(0, BASE_STATS.vampir + equipBonus.vampir + effectBonus.vampir + skillBonus.vampir + setBonus.vampir)),
+          speed: Math.max(0, BASE_STATS.speed + equipBonus.speed + effectBonus.speed + skillBonus.speed + setBonus.speed),
+          dpsEmi: Math.max(0, BASE_STATS.dpsEmi + equipBonus.dpsEmi + effectBonus.dpsEmi + skillBonus.dpsEmi + setBonus.dpsEmi),
+          dpsToxis: Math.max(0, BASE_STATS.dpsToxis + equipBonus.dpsToxis + effectBonus.dpsToxis + skillBonus.dpsToxis + setBonus.dpsToxis),
+          dpsExtro: Math.max(0, BASE_STATS.dpsExtro + equipBonus.dpsExtro + effectBonus.dpsExtro + skillBonus.dpsExtro + setBonus.dpsExtro),
+          dpsFire: Math.max(0, BASE_STATS.dpsFire + equipBonus.dpsFire + effectBonus.dpsFire + skillBonus.dpsFire + setBonus.dpsFire),
           power: 0,
           incomingDamageMult: 1,
           bonusAp: 0,
@@ -627,13 +612,6 @@ export const usePlayerStore = create<PlayerStore>()(
           abilities.push(ab);
           if (abilities.length >= 12) break;
         }
-        // Free abilities from ZeroTree
-        for (const ab of (get().zeroTreeAbilities || [])) {
-          if (seen.has(ab.id)) continue;
-          seen.add(ab.id);
-          abilities.push(ab);
-          if (abilities.length >= 12) break;
-        }
         // Free capstone abilities — classic tree (12 веток)
         const capMap: Record<string, any> = {
           'sniper_capstone': { id: 'cap_sniper', name: 'Прицел снайпера', description: 'Выстрел ×7 урон, +500% крит. КД 5.', icon: '🎯', apCost: 2, cooldown: 5, powerRating: 70, effects: [{type:'damage', multiplier:7} as any, {type:'stat_boost', stat:'crit', value:5.0, duration:1} as any] },
@@ -658,21 +636,6 @@ export const usePlayerStore = create<PlayerStore>()(
           }
         }
         set({ accessoryAbilities: abilities });
-      },
-      applyZeroTreeDelta: (deltas: { stat: string; delta: number }[]) => {
-        set((s) => ({ zeroTreeDeltas: [...(s.zeroTreeDeltas || []), ...deltas] }));
-        get().recalcStats();
-      },
-      addZeroTreeAbility: (ability: any) => {
-        set((s) => {
-          if ((s.zeroTreeAbilities || []).some((a: any) => a.id === ability.id)) return {};
-          return { zeroTreeAbilities: [...(s.zeroTreeAbilities || []), ability] };
-        });
-        get().recalcAbilities();
-      },
-      removeZeroTreeAbility: (ability: any) => {
-        set((s) => ({ zeroTreeAbilities: (s.zeroTreeAbilities || []).filter((a: any) => a.id !== ability.id) }));
-        get().recalcAbilities();
       },
 
       equipItem: (slot, item) => {

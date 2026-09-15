@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { usePlayerStore } from '../stores/playerStore';
@@ -30,7 +29,6 @@ export const Skills = () => {
   const resetSkills = usePlayerStore((s) => s.resetSkills);
   const loadSkills = usePlayerStore((s) => s.loadSkills);
   const level = usePlayerStore((s) => s.level);
-  const navigate = useNavigate();
 
   useEffect(() => { loadSkills(); }, []);
 
@@ -47,10 +45,7 @@ export const Skills = () => {
     >
       <WapPanel variant="metal" padding="lg">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 600 }}>⭐ Древо навыков</div>
-            <Button size="sm" variant="ghost" onClick={() => navigate('/skills/zero')} style={{ border: '1px solid #00d4ff', color: '#00d4ff' }}>◈ ZeroTree</Button>
-          </div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>⭐ Древо навыков</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)' }}>
               Ур. {level} — 🎯 {skillPoints} очков{hasPending ? ` (${pendingTotal} в ожидании)` : ''}

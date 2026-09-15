@@ -16,7 +16,6 @@ import { Craft } from './pages/Craft';
 import { Battle } from './pages/Battle';
 import { Settings } from './pages/Settings';
 import { Skills } from './pages/Skills';
-import { SkillsZeroTree } from './pages/SkillsZeroTree';
 import { Expedition } from './pages/Expedition';
 import { AutoExploration } from './pages/AutoExploration';
 import { Adventures } from './pages/Adventures';
@@ -305,7 +304,6 @@ const AppContent = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/skills" element={<Skills />} />
-            <Route path="/skills/zero" element={<SkillsZeroTree />} />
           <Route path="/map" element={<Map />} />
             <Route path="/adventure" element={<Adventures />} />
             <Route path="/expedition" element={<Expedition />} />
