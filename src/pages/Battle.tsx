@@ -12,7 +12,7 @@ import { useCombatGridStore } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getTerrainBonus } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
-import { getEnemyImage, getCharacterImage, images } from '../assets/index';
+import { getEnemyImage, getCharacterImage, images, getSniperImage } from '../assets/index';
 
 const LogPanel = () => {
   const battleLogs = useCombatGridStore((s) => s.battleLogs);
@@ -546,13 +546,16 @@ export const Battle = () => {
                     const canAfford = ap >= ab.apCost;
                     const statusText = cd > 0 ? `КД ${cd}` : !canAfford ? `${ab.apCost}AP` : '●';
                     const statusColor = cd > 0 ? '#ff6b6b' : !canAfford ? 'rgba(255,255,255,0.3)' : '#69db7c';
-                    // Остаток расходника в рюкзаке (-1 = пассивка, бесплатно).
-                    const consLeft = ab.passive ? -1 : consumableCount(ab.id);
+                    // Остаток расходника в рюкзаке (-1 = пассивка/бесплатная, бесплатно).
+                    const isFreeAb = !!ab.passive || (ab as any).free === true;
+                    const consLeft = isFreeAb ? -1 : consumableCount(ab.id);
                     const outOfStock = consLeft === 0;
+                    const isDisplayOnly = (ab as any).displayOnly === true;
+                    const abImg = (ab as any).image ? getSniperImage((ab as any).image as string) : undefined;
                     return (
                       <div key={i}
-                        onClick={() => { playClick(); selectAbility(i); }}
-                        title={`[${i + 1}] ${ab.name} — ${ab.description}\n${ab.apCost} AP | КД: ${ab.cooldown} хода\n⭐ Сила: ${ab.powerRating}${consLeft >= 0 ? `\n📦 Расходник: осталось ${consLeft}` : ''}`}
+                        onClick={() => { playClick(); if (isDisplayOnly) { useCombatGridStore.getState().addMessage(`✨ ${ab.name} — пассивка, работает сама`); return; } selectAbility(i); }}
+                        title={`[${i + 1}] ${ab.name} — ${ab.description}\n${ab.apCost} AP | КД: ${ab.cooldown} хода\n⭐ Сила: ${ab.powerRating}${consLeft >= 0 ? `\n📦 Расходник: осталось ${consLeft}` : '\n✨ Бесплатно'}`}
                         style={{
                           width: 48, height: 53, display: 'flex', flexDirection: 'column',
                           alignItems: 'center', justifyContent: 'center', gap: 0,
@@ -560,12 +563,14 @@ export const Battle = () => {
                           border: `1px solid ${isSelected ? 'var(--accent-primary)' : outOfStock ? 'rgba(248,113,113,0.4)' : isReady ? 'rgba(217,119,6,0.4)' : 'rgba(255,255,255,0.06)'}`,
                           background: isSelected ? 'rgba(217,119,6,0.18)' : outOfStock ? 'rgba(248,113,113,0.05)' : isReady ? 'rgba(217,119,6,0.06)' : 'rgba(255,255,255,0.015)',
                           boxShadow: isSelected ? '0 0 10px rgba(217,119,6,0.4)' : 'none',
-                          cursor: turn !== 'player' || !isReady ? 'not-allowed' : 'pointer',
-                          opacity: turn !== 'player' || !isReady ? 0.35 : 1,
+                          cursor: isDisplayOnly || turn !== 'player' || !isReady ? 'not-allowed' : 'pointer',
+                          opacity: isDisplayOnly ? 0.5 : (turn !== 'player' || !isReady ? 0.35 : 1),
                           borderRadius: 6, position: 'relative',
                         }}
                       >
-                        <span style={{ fontSize: 17, lineHeight: 1 }}>{ab.icon}</span>
+                        {abImg
+                          ? <img src={abImg} alt={ab.name} draggable={false} style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 4 }} />
+                          : <span style={{ fontSize: 17, lineHeight: 1 }}>{ab.icon}</span>}
                         <div style={{ fontSize: 9, color: statusColor, fontWeight: 700, lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
                           {ab.apCost > 0 ? `${ab.apCost}AP` : 'FREE'}
                         </div>

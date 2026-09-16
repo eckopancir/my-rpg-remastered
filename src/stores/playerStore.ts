@@ -12,6 +12,7 @@ import type { ActiveEffect } from '../types/player';
 import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SKILL_CLASSES } from '../data/skills';
+import { SNIPER_ABILITIES, SNIPER_BY_ID, sniperCanAllocate, sniperBattleAbilities } from '../data/sniper';
 import { backpackSlotsFor, backpackDefByName, backpackSlots, makeBackpack, tryInsertInto, createGrid, tryInsertIntoGrid, removeItemFromGrid, findFreeSlot, placeItemAt, type BackpackGrid } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
@@ -190,6 +191,9 @@ interface PlayerStore {
   spendSkillPoint: (skillId: string) => boolean;
   allocateSkill: (skillId: string) => void;
   deallocateSkill: (skillId: string) => void;
+  allocateSniper: (skillId: string) => void;
+  deallocateSniper: (skillId: string) => void;
+  migrateSniper: () => Promise<void>;
   applySkills: () => void;
   cancelSkills: () => void;
   resetSkills: () => void;
@@ -614,7 +618,7 @@ export const usePlayerStore = create<PlayerStore>()(
         }
         // Free capstone abilities — classic tree (12 веток)
         const capMap: Record<string, any> = {
-          'sniper_capstone': { id: 'cap_sniper', name: 'Прицел снайпера', description: 'Выстрел ×7 урон, +500% крит. КД 5.', icon: '🎯', apCost: 2, cooldown: 5, powerRating: 70, effects: [{type:'damage', multiplier:7} as any, {type:'stat_boost', stat:'crit', value:5.0, duration:1} as any] },
+          // Снайпер теперь в src/data/sniper.ts (snp_*, см. ниже).
           'soldier_capstone': { id: 'cap_soldier', name: 'Стойкость героя', description: 'Щит +8% блок на 3 хода, +15% HP.', icon: '🛡️', apCost: 2, cooldown: 7, powerRating: 60, effects: [{type:'stat_boost', stat:'block', value:0.08, duration:3} as any, {type:'heal_percent', value:15} as any] },
           'demo_capstone': { id: 'cap_demo', name: 'Апокалипсис', description: 'АОЕ урон ×3, радиус 3, поджог 3 хода.', icon: '💀', apCost: 3, cooldown: 7, powerRating: 70, effects: [{type:'damage', multiplier:3, aoe:3} as any, {type:'status', id:'burn', duration:3} as any] },
           'night_capstone': { id: 'cap_night', name: 'Тень убийцы', description: 'Инвиз 3 + крит 100% на 2 хода.', icon: '🌑', apCost: 2, cooldown: 6, powerRating: 65, effects: [{type:'status', id:'invisibility', duration:3} as any, {type:'stat_boost', stat:'crit', value:1.0, duration:2} as any] },
@@ -634,6 +638,14 @@ export const usePlayerStore = create<PlayerStore>()(
             abilities.push(ab as any);
             if (abilities.length >= 12) break;
           }
+        }
+        // Снайперские боевые способности (картинки тиров — иконки на арене).
+        // Только применённые (skills), без pending — как капстоуны.
+        for (const ab of sniperBattleAbilities(get().skills, {})) {
+          if (seen.has(ab.id)) continue;
+          seen.add(ab.id);
+          abilities.push(ab as any);
+          if (abilities.length >= 12) break;
         }
         set({ accessoryAbilities: abilities });
       },
@@ -894,6 +906,57 @@ export const usePlayerStore = create<PlayerStore>()(
         set({ skillPoints: s.skillPoints + 1, pendingSkills: updated });
       },
 
+      allocateSniper: (skillId) => {
+        const s = get();
+        const check = sniperCanAllocate(skillId, s.skills, s.pendingSkills, s.skillPoints);
+        if (!check.ok) {
+          if (check.reason) get().addLog(`❌ ${check.reason}`, 'warning');
+          return;
+        }
+        const pending = s.pendingSkills[skillId] || 0;
+        set({ skillPoints: s.skillPoints - 1, pendingSkills: { ...s.pendingSkills, [skillId]: pending + 1 } });
+      },
+
+      deallocateSniper: (skillId) => {
+        const s = get();
+        const def = SNIPER_BY_ID[skillId];
+        if (!def) return;
+        const pending = s.pendingSkills[skillId] || 0;
+        if (pending <= 0) return;
+        // Нельзя снимать, если от этого ранга зависят другие (ветка Т5).
+        if ((pending + (s.skills[skillId] || 0)) <= 1) {
+          const dependents = SNIPER_ABILITIES.filter(
+            (a) => a.requiresAbility === skillId
+              && ((s.skills[a.id] || 0) + (s.pendingSkills[a.id] || 0)) > 0,
+          );
+          if (dependents.length > 0) {
+            get().addLog(`❌ Сначала сними «${dependents[0].name}»`, 'warning');
+            return;
+          }
+        }
+        const next = pending - 1;
+        const updated = { ...s.pendingSkills };
+        if (next <= 0) delete updated[skillId];
+        else updated[skillId] = next;
+        set({ skillPoints: s.skillPoints + 1, pendingSkills: updated });
+      },
+
+      // Удаление старых sniper_* очков (ветка заменена). Возврат очков — через loadSkills.
+      migrateSniper: async () => {
+        if ((globalThis as any).__snpMigrated) return;
+        (globalThis as any).__snpMigrated = true;
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+        try {
+          await fetch('/api/skills/migrate_sniper.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          });
+          await get().loadSkills();
+          get().addLog('🔄 Ветка снайпера обновлена, очки возвращены', 'info');
+        } catch { /* silent */ }
+      },
+
       applySkills: async () => {
         const s = get();
         const token = useAuthStore.getState().token;
@@ -1108,23 +1171,14 @@ export const usePlayerStore = create<PlayerStore>()(
           total.maxHp += 1000; total.armor += 15; total.block += 0.05;
         }
 
-        // Sniper (DMG ×2)
-        total.accuracy += lvl('sniper_focus') * 0.015;
-        total.crit += lvl('sniper_precision') * 0.015;
-        total.damage += lvl('sniper_long_shot') * 2;
-        total.accuracy += lvl('sniper_long_shot') * 0.015;
-        total.crit += lvl('sniper_deadly_aim') * 0.015;
-        total.damage += lvl('sniper_deadly_aim') * 4;
-        total.dpsExtro += lvl('sniper_kill_zone') * 2;
-        total.dpsFire += lvl('sniper_kill_zone') * 2;
-        total.damage += lvl('sniper_executioner') * 6;
-        total.crit += lvl('sniper_executioner') * 0.015;
-        total.punching += lvl('sniper_armor_piercing') * 0.02;
-        total.damage += lvl('sniper_armor_piercing') * 4;
-        total.accuracy += lvl('sniper_nerves_steel') * 0.02;
-        total.speed += lvl('sniper_nerves_steel') * 0.015;
-        if (lvl('sniper_capstone') > 0) {
-          total.damage += 30; total.crit += 0.10; total.accuracy += 0.10;
+        // Снайпер считается через src/data/sniper.ts (snp_*), см. ниже.
+        for (const def of SNIPER_ABILITIES) {
+          if (!def.statsPerRank) continue;
+          const r = lvl(def.id);
+          if (r <= 0) continue;
+          for (const s of def.statsPerRank) {
+            (total as any)[s.stat] = ((total as any)[s.stat] || 0) + s.value * r;
+          }
         }
 
         // Survivor (HP ×10)

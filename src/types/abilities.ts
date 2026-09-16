@@ -8,6 +8,7 @@ export type AbilityEffect =
   | { type: 'status'; id: string; duration: number }
   | { type: 'summon' }
   | { type: 'teleport' }
+  | { type: 'free_reload'; duration: number }
   | { type: 'mark_zone'; duration: number; damageMultiplier: number }
   | { type: 'reveal_map'; duration: number }
   | { type: 'sprint_boost'; duration: number; value?: number };
@@ -17,6 +18,12 @@ export interface AccessoryAbility {
   name: string;
   description: string;
   icon: string;
+  /** картинка способности (иконка на арене вместо эмодзи) */
+  image?: string;
+  /** бесплатная (не требует расходника) */
+  free?: boolean;
+  /** только отображение (пассивка, нажать нельзя) */
+  displayOnly?: boolean;
   apCost: number;
   cooldown: number;
   passive?: boolean;

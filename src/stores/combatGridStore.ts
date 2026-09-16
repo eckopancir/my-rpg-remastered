@@ -246,6 +246,15 @@ export interface CombatGridStore {
   isTeleporting: boolean;
   isPlacingMine: boolean;
   immortalityTurns: number;
+  // Снайпер: бесплатные перезарядки и обездвиживание (счётчики ходов).
+  freeReloadTurns: number;
+  playerRootedTurns: number;
+  /** защита игрока с условными бонусами снайпера (Т3) */
+  playerDefenseTarget: () => { armor: number; evasion: number; block: number; incomingDamageMult: number };
+  /** бонус крита снайпера при HP ≥ 90% (Т3) */
+  sniperCritBonus: () => number;
+  /** бонус дальности снайпера (Т6) */
+  sniperRangeBonus: () => number;
   showCookingMenu: boolean;
   setShowCookingMenu: (show: boolean) => void;
 
@@ -1516,13 +1525,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const abilityCooldowns = playerAbilities.map(() => 0);
     // Дальность — от ствола; ближний бой и кулаки: клетка вокруг.
     const startRange = gun && !gunIsMelee ? weaponRangeProfile(gun).range : 1.5;
+    // Снайпер Т6: дальность +1/ранг.
+    const snpRange = usePlayerStore.getState().skills['snp_a6_range'] || 0;
 
     set({
       isActive: true, playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, selectedAbility: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0,
+      freeReloadTurns: 0, playerRootedTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
-      range: startRange, isDefensiveMode: false,
+      range: startRange + snpRange, isDefensiveMode: false,
       turnCount: 0, lastShotTurn: 0, selectedEnemy: null,
       message: gun && !gunIsMelee && startAmmo <= 0 ? `❌ Нет патронов (${ammoGroupName(ammoTypeForWeapon(gun))})!` : '⚔️ Твой ход',
       isVictory: false, isDefeat: false, isMoving: false, isSelected: false,
@@ -1536,6 +1548,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       stealth: false,
     });
     get().addBattleLog(`⚔️ Бой начался! Противников: ${activeEnemies.filter((e) => e.faction !== 'Союзник').length}`);
+    // Снайпер Т7 «Стеклянная пушка»: входящий +50%, свой урон +25% на весь бой.
+    if ((usePlayerStore.getState().skills['snp_a7_glass'] || 0) > 0) {
+      const has = usePlayerStore.getState().activeEffects.some((e: any) => e.id === 'ability_snpb_glass_passive');
+      if (!has) {
+        usePlayerStore.getState().addEffect({
+          id: 'ability_snpb_glass_passive',
+          name: 'Стеклянная пушка',
+          duration: 999,
+          remaining: 999,
+          statBoosts: {},
+          statBoostsMult: { damage: 0.25, incomingDamageMult: 1.5 },
+        });
+        get().addBattleLog('🔮 Стеклянная пушка: входящий +50%, свой урон +25%');
+      }
+    }
     return true;
     } catch (e) {
       console.error('[initCombat]', e);
@@ -1563,6 +1590,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   movePlayer: (x, y) => {
     const state = get();
     if (state.turn !== 'player' || state.ap <= 0 || state.isMoving) return;
+    if (state.playerRootedTurns > 0) { get().addMessage('⛓️ Снайперская позиция: без движения!'); return; }
     if (!state.isSelected) return;
     const path = findPath({ x: state.playerPos.x, y: state.playerPos.y }, { x, y }, state.obstacles);
     if (path.length === 0) return;
@@ -1612,6 +1640,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   handleKeyboardMove: (dx, dy) => {
     const state = get();
     if (state.turn !== 'player' || state.ap <= 0 || state.isMoving) return;
+    if (state.playerRootedTurns > 0) { get().addMessage('⛓️ Снайперская позиция: без движения!'); return; }
     const nx = state.playerPos.x + dx;
     const ny = state.playerPos.y + dy;
     if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) return;
@@ -1675,10 +1704,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!ability) { set({ selectedAbility: null }); return; }
     if (state.abilityCooldowns[idx] > 0) { get().addMessage('❌ Способность перезаряжается'); set({ selectedAbility: null }); return; }
     if (state.ap < ability.apCost) { get().addMessage('❌ Не хватает AP'); return; }
+    if ((ability as any).displayOnly) {
+      get().addMessage(`✨ ${ability.name} — пассивка, работает сама`);
+      set({ selectedAbility: null });
+      return;
+    }
 
     // Активные способности требуют расходник из рюкзака (пассивки ammo_* — бесплатно).
-    // Капстоун бесплатные — пропуск расходника
-    const isFree = ability.id.startsWith('cap_');
+    // Капстоун/снайпер бесплатные — пропуск расходника
+    const isFree = ability.id.startsWith('cap_') || (ability as any).free === true;
     if (!ability.passive && !isFree) {
       const ps = usePlayerStore.getState();
       const stack = ps.backpackGrid.items.find((i) => i.type === 'consumable' && (i as any).abilityId === ability.id);
@@ -2126,6 +2160,22 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         get().addBattleLog(`✨ ${ability.name}: выбери клетку для телепортации`);
       }
 
+      if ((type as string) === 'free_reload') {
+        const dur = (effect as AbilityEffect & { type: 'free_reload' }).duration || 5;
+        set({ freeReloadTurns: dur });
+        get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА 0 AP!', 'BUFF');
+        get().addBattleLog(`🔁 ${ability.name}: перезарядка бесплатна ${dur} ${dur === 1 ? 'ход' : 'ходов'}`);
+      }
+
+      if (type === 'status') {
+        const se = effect as AbilityEffect & { type: 'status' };
+        if (se.id === 'rooted') {
+          set({ playerRootedTurns: se.duration });
+          get().addPopup(state.playerPos.x, state.playerPos.y, '⛓️ ПОЗИЦИЯ!', 'BUFF');
+          get().addBattleLog(`⛓️ ${ability.name}: без движения ${se.duration} ходов`);
+        }
+      }
+
       if (type === 'summon') {
         const player = usePlayerStore.getState();
         const spawnPos = { x: state.playerPos.x + 1, y: state.playerPos.y };
@@ -2351,7 +2401,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const attackerStats = {
         dps: effectiveDps,
         pure: pureDmg,
-        crit: player.stats.crit,
+        crit: player.stats.crit + get().sniperCritBonus(),
         accuracy: player.stats.accuracy,
         punching: player.stats.punching,
         vampir: player.stats.vampir,
@@ -2454,7 +2504,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const attackerStats = {
       dps: effectiveDps,
       pure: pureDmg,
-      crit: player.stats.crit,
+      crit: player.stats.crit + get().sniperCritBonus(),
       accuracy: player.stats.accuracy,
       punching: player.stats.punching,
       vampir: player.stats.vampir,
@@ -2836,17 +2886,42 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
   },
 
+  // Снайперские хелперы: условные бонусы Т3, дальность Т6.
+  playerDefenseTarget: () => {
+    const ps = usePlayerStore.getState();
+    const st = ps.stats;
+    const sk = ps.skills;
+    const hpFrac = st.maxHp > 0 ? st.currentHp / st.maxHp : 1;
+    let evasion = st.evasion || 0;
+    const lowR = sk['snp_d3_low'] || 0;
+    if (lowR > 0 && hpFrac < 0.5) evasion += 0.10 * lowR;
+    const highR = sk['snp_d3_high'] || 0;
+    if (highR > 0 && hpFrac >= 0.9) evasion = Math.max(0, evasion - 0.10 * highR);
+    return { armor: st.armor, evasion, block: st.block, incomingDamageMult: st.incomingDamageMult };
+  },
+
+  sniperCritBonus: () => {
+    const ps = usePlayerStore.getState();
+    const highR = ps.skills['snp_d3_high'] || 0;
+    if (highR <= 0) return 0;
+    const hpFrac = ps.stats.maxHp > 0 ? ps.stats.currentHp / ps.stats.maxHp : 1;
+    return hpFrac >= 0.9 ? 0.10 * highR : 0;
+  },
+
+  sniperRangeBonus: () => usePlayerStore.getState().skills['snp_a6_range'] || 0,
+
   reload: () => {
     const state = get();
     if (state.turn !== 'player') return;
-    if (state.ap < 1) { get().addMessage('❌ Нужно 1 AP для перезарядки'); return; }
+    const freeReload = state.freeReloadTurns > 0;
+    if (!freeReload && state.ap < 1) { get().addMessage('❌ Нужно 1 AP для перезарядки'); return; }
     if (state.ammo >= state.maxAmmo) { get().addMessage('✅ Патроны полны'); return; }
     // Дозарядка из запаса: без оружия — бесплатно (кулаки), иначе — патроны группы.
     // Магазин — у АКТИВНОГО оружия (Q — смена).
     const w2 = usePlayerStore.getState().getActiveWeapon();
     const wslot = usePlayerStore.getState().activeWeaponSlot;
     if (!w2 || !w2.ammoCapacity) {
-      set((s) => ({ ap: s.ap - 1, ammo: s.maxAmmo, message: '🔁 Перезарядился (AP -1)' }));
+      set((s) => ({ ap: freeReload ? s.ap : s.ap - 1, ammo: s.maxAmmo, message: freeReload ? '🔁 Перезарядился (0 AP)' : '🔁 Перезарядился (AP -1)' }));
       get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
       return;
     }
@@ -2875,7 +2950,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         },
       };
     });
-    set((s) => ({ ap: s.ap - 1, ammo: s.ammo + took, message: `🔁 +${took} (AP -1)` }));
+    set((s) => ({ ap: freeReload ? s.ap : s.ap - 1, ammo: s.ammo + took, message: freeReload ? `🔁 +${took} (0 AP)` : `🔁 +${took} (AP -1)` }));
     // Магазин в оружии = итог после дозарядки (не инкремент: в бою тратился state.ammo).
     const magAfter = get().ammo;
     usePlayerStore.setState((st: any) => ({
@@ -2934,7 +3009,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set({
       ammo: mag,
       maxAmmo: cap,
-      range: prof ? prof.range : 1.5,
+      range: (prof ? prof.range : 1.5) + get().sniperRangeBonus(),
       selectedEnemy: null,
       message: `🔫 ${nw?.displayName || nw?.name || 'Кулаки'}`,
     });
@@ -2976,6 +3051,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       state.spawnWave(Math.min(3, state.reserve.length));
     }
     get().tickAbilityCooldowns();
+    // Снайперские счётчики: бесплатные перезарядки и стойка.
+    set((s) => ({
+      freeReloadTurns: Math.max(0, (s.freeReloadTurns || 0) - 1),
+      playerRootedTurns: Math.max(0, (s.playerRootedTurns || 0) - 1),
+    }));
     // Tick player effects per turn instead of per real second
     usePlayerStore.getState().tickEffects();
     // Reset maxAp if sprint/rush effect expired
@@ -3118,7 +3198,7 @@ export async function executeSkill(
       get().triggerShake();
       const aimDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2.0;
       const attackerStats = { dps: aimDps, accuracy: (enemy.accuracy || 1) + 2.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false };
-      const result = calculateCombatResult(attackerStats, { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult });
+      const result = calculateCombatResult(attackerStats, get().playerDefenseTarget());
       if (result.damage > 0) {
         if (!absorbWithShield(pPos)) {
           const finalDmg = Math.round(result.damage);
@@ -3169,7 +3249,7 @@ export async function executeSkill(
             await new Promise((r) => setTimeout(r, 40));
           }
           const ramDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2;
-          const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false }, { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult });
+          const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false }, get().playerDefenseTarget());
           get().triggerShake();
           if (result.damage > 0 && !absorbWithShield(pPos)) {
             const finalDmg = Math.round(result.damage);
@@ -3368,7 +3448,7 @@ export async function executeSkill(
       for (let k = 0; k < 4; k++) {
         const result = calculateCombatResult(
           { dps: rainDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
-          { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult },
+          get().playerDefenseTarget(),
         );
         if (result.damage > 0 && !absorbWithShield(pPos)) {
           const finalDmg = Math.round(result.damage);
@@ -3426,7 +3506,7 @@ export async function executeSkill(
       const waveDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 3;
       const result = calculateCombatResult(
         { dps: waveDps, accuracy: (enemy.accuracy || 1) + 1.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
-        { armor: playerStats.armor, evasion: playerStats.evasion, block: playerStats.block, incomingDamageMult: playerStats.incomingDamageMult },
+        get().playerDefenseTarget(),
       );
       if (result.damage > 0 && !absorbWithShield(pPos)) {
         const finalDmg = Math.round(result.damage);

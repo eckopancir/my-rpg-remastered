@@ -115,20 +115,7 @@ export const SKILL_CLASSES: SkillClass[] = [
       { id: 'tank_capstone', name: 'Колосс', icon: '🗿', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+1000 HP', '+15 ARM', '+5% BLOCK'] },
     ],
   },
-  {
-    id: 'sniper', name: 'Снайпер', icon: '🎯', color: '#22c55e',
-    skills: [
-      { id: 'sniper_focus', name: 'Фокус', icon: '👁️', desc: 'Меткость', maxPoints: 10, reqPoints: 0, statsPerPoint: ['+1.5% ACC'] },
-      { id: 'sniper_precision', name: 'Точность', icon: '🎯', desc: 'Крит', maxPoints: 10, reqPoints: 0, statsPerPoint: ['+1.5% CRIT'] },
-      { id: 'sniper_long_shot', name: 'Дальний выстрел', icon: '🏹', desc: 'Урон + меткость', maxPoints: 10, reqPoints: 2, statsPerPoint: ['+2 DMG', '+1.5% ACC'] },
-      { id: 'sniper_deadly_aim', name: 'Смертельный прицел', icon: '☠️', desc: 'Крит + урон', maxPoints: 10, reqPoints: 2, statsPerPoint: ['+1.5% CRIT', '+4 DMG'] },
-      { id: 'sniper_kill_zone', name: 'Зона поражения', icon: '📡', desc: 'Экстро + огонь', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+2 ЭКСТРО', '+2 FIRE'] },
-      { id: 'sniper_executioner', name: 'Палач', icon: '🔪', desc: 'Урон + крит', maxPoints: 10, reqPoints: 5, statsPerPoint: ['+6 DMG', '+1.5% CRIT'] },
-      { id: 'sniper_armor_piercing', name: 'Бронебойность', icon: '💠', desc: 'Пробитие + урон', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% PUNCH', '+4 DMG'] },
-      { id: 'sniper_nerves_steel', name: 'Стальные нервы', icon: '🧊', desc: 'Меткость + скорость', maxPoints: 10, reqPoints: 10, statsPerPoint: ['+2% ACC', '+1.5% SPD'] },
-      { id: 'sniper_capstone', name: 'Легенд. стрелок', icon: '🏆', desc: 'Вершина мастерства', maxPoints: 1, reqPoints: 20, statsPerPoint: ['+30 DMG', '+10% CRIT', '+10% ACC'] },
-    ],
-  },
+  // Снайпер переехал в src/data/sniper.ts (атака/защита, 7+5 тиров).
   {
     id: 'survivor', name: 'Выживальщик', icon: '🏕️', color: '#eab308',
     skills: [

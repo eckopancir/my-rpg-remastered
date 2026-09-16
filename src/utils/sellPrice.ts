@@ -4,12 +4,12 @@ export const CRAFT_MAT_SELL_PRICE: Record<string, number> = {
   'Микросхема': 2, 'Хим. реагент': 2,
 };
 
-export const getSellPrice = (item: { price?: number; level?: number; quality?: string; quantity?: number; name?: string; type?: string }): number => {
+export const getSellPrice = (item: { price?: number; level?: number; quality?: string; quantity?: number; name?: string; type?: string }, rate = 0.4): number => {
   // Ресурсы крафта — фикс за штуку (иначе формула давала 8+ за единицу).
   if ((item as any).type === 'material' && item.name && CRAFT_MAT_SELL_PRICE[item.name] != null) {
     return CRAFT_MAT_SELL_PRICE[item.name] * (item.quantity || 1);
   }
-  if (item.price) return Math.floor(item.price * 0.4);
+  if (item.price) return Math.floor(item.price * rate);
   const qualityMultiplier =
     item.quality === 'Божественный' ? 12 :
     item.quality === 'Легендарный' ? 8 :

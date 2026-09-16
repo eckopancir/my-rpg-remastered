@@ -4,6 +4,7 @@ const battleImageModules = import.meta.glob<{ default: string }>('./Images/battl
 const backgroundImageModules = import.meta.glob<{ default: string }>('./Images/backgrounds/*.{jpg,png}', { eager: true });
 const mapImageModules = import.meta.glob<{ default: string }>('./Images/map/*.png', { eager: true });
 const uiImageModules = import.meta.glob<{ default: string }>('./Images/ui/*.{png,jpg}', { eager: true });
+const sniperImageModules = import.meta.glob<{ default: string }>('./Images/class/sniper/*.png', { eager: true });
 
 const extractKey = (path: string): string => path.split('/').pop()?.replace(/\.(png|jpg)$/, '').toLowerCase() || '';
 
@@ -21,6 +22,7 @@ const battleImageMap = toMap(battleImageModules);
 const backgroundImageMap = toMap(backgroundImageModules);
 const mapImageMap = toMap(mapImageModules);
 const uiImageMap = toMap(uiImageModules);
+const sniperImageMap = toMap(sniperImageModules);
 
 const RESOURCE_IMAGE_MAP: Record<string, string> = {
   'вода': 'r1', 'изолента': 'r2', 'железо': 'r3', 'дерево': 'r4',
@@ -80,6 +82,18 @@ export const getSchemeImage = (stat?: string): string | undefined => {
   const key = SCHEME_IMAGE_MAP[(stat || '').toLowerCase()] || 'scheme_crit';
   return itemImageMap.get(key);
 };
+
+/** Картинка способности снайпера по ключу тира: '1.1' | 'def 5.1'. */
+export const getSniperImage = (key: string): string | undefined =>
+  sniperImageMap.get(key.toLowerCase());
+
+/** Фон шапки класса снайпера. */
+export const sniperClassBg = (): string | undefined =>
+  uiImageMap.get('gemini_generated_image_xsa51nxsa51nxsa5');
+
+/** Общий фон окон атакующих/защитных способностей. */
+export const sniperSkillsBg = (): string | undefined =>
+  uiImageMap.get('gemini_generated_image_3jzga3jzga3jzga3');
 
 /** Кристаллы гнёзд сфер (пустой/заполненный). */
 export const crystalImages = {

@@ -11,6 +11,7 @@ import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effe
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
+import { sniperSellRate } from '../../data/sniper';
 import { SET_BONUSES } from '../../data/GameItems';
 import { usePlayerStore, gunSlotForWeapon, EQUIPMENT_SLOTS } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -122,6 +123,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     };
   }, [nested, pinMode, item]);
   const equipment = usePlayerStore((s) => s.equipment);
+  const snpTradeRank = usePlayerStore((s) => s.skills['snp_a6_trade'] || 0);
   // Прибитый двойник наверху — ховер-версию прячем, чтобы не висело два.
   const activePin = useUiStore((s) => s.tooltipPin);
   const compareSlot = item.slot === 'weapon2'
@@ -479,7 +481,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
             <span>SHIFT сравнить · T закрепить</span>
             <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: 'rgba(255,255,255,0.55)', fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 4, padding: '4px 8px', minWidth: 64 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>💾</span> {getSellPrice(item).toLocaleString()}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>💾</span> {getSellPrice(item, sniperSellRate(item, snpTradeRank) ?? 0.4).toLocaleString()}</span>
               <span style={{ fontSize: 6.4, fontWeight: 600, letterSpacing: 0.6, color: 'rgba(255,255,255,0.45)', marginTop: 2, textTransform: 'uppercase' }}>продажа</span>
             </span>
           </div>

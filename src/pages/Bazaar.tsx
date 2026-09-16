@@ -19,6 +19,7 @@ import { useInventoryStore } from '../stores/inventoryStore';
 import { useAuthStore } from '../stores/authStore';
 import { getItemImage } from '../assets/index';
 import { getSellPrice } from '../utils/sellPrice';
+import { sniperSellRate } from '../data/sniper';
 import type { Item } from '../types/items';
 
 const SELL_SLOT_COUNT = 12;
@@ -338,6 +339,8 @@ export const Bazaar = () => {
   const inventoryItems = useInventoryStore((s) => s.items);
   const token = useAuthStore((s) => s.token);
   const getUtil = () => usePlayerStore.getState().skillUtility();
+  const snpTrade = usePlayerStore((s) => s.skills['snp_a6_trade'] || 0);
+  const sellRateFor = (item: Item) => sniperSellRate(item, snpTrade) ?? 0.4;
   const applyBuyDiscount = (price: number) => Math.floor(price * (1 - getUtil().buyDiscount));
   const applySellBonus = (price: number) => Math.floor(price * (1 + getUtil().sellBonus));
   const [tab, setTab] = useState<'buy' | 'sell'>('buy');
@@ -571,7 +574,7 @@ export const Bazaar = () => {
     return sellSlots.reduce((sum, item, idx) => {
       if (!item) return sum;
       const qty = sellQty[idx] || 1;
-      const basePrice = getSellPrice(item);
+      const basePrice = getSellPrice(item, sellRateFor(item));
       const perUnit = item.quantity && item.quantity > 1
         ? Math.floor(basePrice / (item.quantity || 1))
         : basePrice;
@@ -848,8 +851,8 @@ export const Bazaar = () => {
                       }}>
                         {(() => {
                           const perUnit = item.quantity && item.quantity > 1
-                            ? Math.floor(getSellPrice(item) / (item.quantity || 1))
-                            : getSellPrice(item);
+                            ? Math.floor(getSellPrice(item, sellRateFor(item)) / (item.quantity || 1))
+                            : getSellPrice(item, sellRateFor(item));
                           const qty = sellQty[idx] || 1;
                           const bonus = getUtil().sellBonus;
                           return `${Math.floor(perUnit * qty * (1 + bonus))}💾`;

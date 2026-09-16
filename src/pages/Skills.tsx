@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { usePlayerStore } from '../stores/playerStore';
 import { SKILL_CLASSES } from '../data/skills';
+import { SNIPER_META, SNIPER_ABILITIES, sniperMaxRanks } from '../data/sniper';
+import { SniperTree } from '../components/widgets/SniperTree';
 
 const formatCumulative = (stats: string[], level: number): string => {
   return stats.map((s) => {
@@ -38,9 +40,13 @@ export const Skills = () => {
   const cancelSkills = usePlayerStore((s) => s.cancelSkills);
   const resetSkills = usePlayerStore((s) => s.resetSkills);
   const level = usePlayerStore((s) => s.level);
+  const migrateSniper = usePlayerStore((s) => s.migrateSniper);
 
   const [selectedClass, setSelectedClass] = useState(SKILL_CLASSES[0].id);
+  const isSniper = selectedClass === SNIPER_META.id;
   const cls = useMemo(() => SKILL_CLASSES.find(c => c.id === selectedClass) || SKILL_CLASSES[0], [selectedClass]);
+
+  useEffect(() => { migrateSniper(); }, [migrateSniper]);
 
   const pendingTotal = Object.values(pendingSkills).reduce((a, b) => a + b, 0);
   const hasPending = pendingTotal > 0;
@@ -50,7 +56,10 @@ export const Skills = () => {
   const passiveSkills = useMemo(() => cls.skills.filter(s => !activeSkills.includes(s)), [cls, activeSkills]);
 
   const getPointsSpentInTree = (list: typeof cls.skills) => list.reduce((sum, s) => sum + (skills[s.id] || 0) + (pendingSkills[s.id] || 0), 0);
-  const pointsInTree = getPointsSpentInTree(cls.skills);
+  const pointsInTree = isSniper
+    ? SNIPER_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0)
+    : getPointsSpentInTree(cls.skills);
+  const pointsMax = isSniper ? sniperMaxRanks() : cls.skills.length;
 
   const isLearned = (id: string) => (skills[id] || 0) > 0 || (pendingSkills[id] || 0) > 0;
 
@@ -60,7 +69,7 @@ export const Skills = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: 18, fontWeight: 600 }}>⭐ Древо навыков</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ур. {level} — <b style={{ color: '#4ade80' }}>{skillPoints} очков</b> {hasPending ? `(${pendingTotal} в ожидании)` : ''} · В ветке {pointsInTree}/{cls.skills.length}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ур. {level} — <b style={{ color: '#4ade80' }}>{skillPoints} очков</b> {hasPending ? `(${pendingTotal} в ожидании)` : ''} · В ветке {pointsInTree}/{pointsMax}</span>
             {hasPending && (<><Button size="sm" variant="primary" onClick={applySkills}>✅ ПРИНЯТЬ</Button><Button size="sm" variant="ghost" onClick={cancelSkills}>❌ ОТМЕНА</Button></>)}
             <Button size="sm" variant="ghost" onClick={resetSkills} title={`Сброс за ${level * 100} 💾`}>🔄 Сброс · {level * 100}💾</Button>
           </div>
@@ -68,6 +77,30 @@ export const Skills = () => {
 
         {/* Top class bar — like stolen-realm */}
         <div style={{ display: 'flex', gap: 6, marginTop: 14, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'thin' }}>
+          {(() => {
+            const snpSpent = SNIPER_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+            const isActive = selectedClass === SNIPER_META.id;
+            return (
+              <button
+                key={SNIPER_META.id}
+                onClick={() => setSelectedClass(SNIPER_META.id)}
+                style={{
+                  flex: '0 0 auto',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  padding: '8px 12px', minWidth: 84,
+                  background: isActive ? `${SNIPER_META.color}18` : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${isActive ? SNIPER_META.color : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: 8, cursor: 'pointer',
+                  boxShadow: isActive ? `0 0 12px ${SNIPER_META.color}44` : 'none',
+                  transition: 'all 120ms',
+                }}
+              >
+                <span style={{ fontSize: 22 }}>{SNIPER_META.icon}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? SNIPER_META.color : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{SNIPER_META.name}</span>
+                <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{snpSpent}/{sniperMaxRanks()}</span>
+              </button>
+            );
+          })()}
           {SKILL_CLASSES.map(c => {
             const spent = c.skills.reduce((s, sk) => s + (skills[sk.id] || 0) + (pendingSkills[sk.id] || 0), 0);
             const isActive = c.id === selectedClass;
@@ -95,7 +128,8 @@ export const Skills = () => {
         </div>
       </WapPanel>
 
-      {/* Tree — Active | Passive like stolen-realm */}
+      {/* Tree — Active | Passive like stolen-realm (снайпер — новая модель) */}
+      {isSniper ? <SniperTree /> : (
       <div style={{ display: 'flex', gap: 12, minHeight: 520 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(25,25,25,0.75)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ padding: '8px 12px', fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#f59e0b', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'right' }}>Активные</div>
@@ -181,8 +215,13 @@ export const Skills = () => {
           </div>
         </div>
       </div>
+      )}
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+        {(() => {
+          const snpSpent = SNIPER_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+          return <div key={SNIPER_META.id} style={{ padding: '4px 8px', background: selectedClass===SNIPER_META.id ? `${SNIPER_META.color}18` : 'rgba(255,255,255,0.02)', border: `1px solid ${selectedClass===SNIPER_META.id ? SNIPER_META.color+'66' : 'rgba(255,255,255,0.06)'}`, borderRadius: 6, fontSize: 10, display: 'flex', gap: 4, alignItems: 'center' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: SNIPER_META.color }} />{SNIPER_META.name} <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{snpSpent}/{sniperMaxRanks()}</span></div>;
+        })()}
         {SKILL_CLASSES.map(c => {
           const spent = c.skills.reduce((s, sk) => s + (skills[sk.id] || 0) + (pendingSkills[sk.id] || 0), 0);
           return <div key={c.id} style={{ padding: '4px 8px', background: c.id===selectedClass ? `${c.color}18` : 'rgba(255,255,255,0.02)', border: `1px solid ${c.id===selectedClass ? c.color+'66' : 'rgba(255,255,255,0.06)'}`, borderRadius: 6, fontSize: 10, display: 'flex', gap: 4, alignItems: 'center' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />{c.name} <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{spent}/{c.skills.length}</span></div>;
