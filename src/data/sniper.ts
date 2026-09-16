@@ -156,16 +156,42 @@ export const sniperSpentInTier = (
     (sum, a) => sum + (skills[a.id] || 0) + (pending[a.id] || 0), 0,
   );
 
+/** очков в диапазоне тиров */
+export const sniperSpentInTiers = (
+  column: SniperColumn, fromTier: number, toTier: number,
+  skills: SniperSkills, pending: SniperSkills,
+): number => {
+  let sum = 0;
+  for (let t = fromTier; t <= toTier; t++) sum += sniperSpentInTier(column, t, skills, pending);
+  return sum;
+};
+
+export interface SniperTierGate { fromTier: number; toTier: number; need: number; }
+
+/** Суммарные гейты верхних тиров (вместо «очков в предыдущем тире»). */
+export const SNIPER_TIER_GATES: Record<string, SniperTierGate> = {
+  'attack:6': { fromTier: 1, toTier: 5, need: 25 },
+  'attack:7': { fromTier: 1, toTier: 6, need: 25 },
+  'defense:4': { fromTier: 1, toTier: 3, need: 15 },
+  'defense:5': { fromTier: 1, toTier: 4, need: 20 },
+};
+
 /** проверка гейта тира: открыт ли тир */
 export const sniperTierOpen = (
   column: SniperColumn, tier: number,
   skills: SniperSkills, pending: SniperSkills,
-): { open: boolean; need: number; have: number } => {
-  if (tier <= 1) return { open: true, need: 0, have: 0 };
+): { open: boolean; need: number; have: number; label: string } => {
+  if (tier <= 1) return { open: true, need: 0, have: 0, label: '' };
+  const cg = SNIPER_TIER_GATES[`${column}:${tier}`];
+  if (cg) {
+    const have = sniperSpentInTiers(column, cg.fromTier, cg.toTier, skills, pending);
+    const label = cg.fromTier === cg.toTier ? `в тире ${cg.toTier}` : `за тиры ${cg.fromTier}-${cg.toTier}`;
+    return { open: have >= cg.need, need: cg.need, have, label };
+  }
   const def = SNIPER_ABILITIES.find((a) => a.column === column && a.tier === tier);
   const need = def ? def.gate : 0;
   const have = sniperSpentInTier(column, tier - 1, skills, pending);
-  return { open: have >= need, need, have };
+  return { open: have >= need, need, have, label: `в тире ${tier - 1}` };
 };
 
 /** можно ли качать: гейт + эксклюзив + ветка */
@@ -178,7 +204,7 @@ export const sniperCanAllocate = (
   const cur = (skills[id] || 0) + (pending[id] || 0);
   if (cur >= def.maxRanks) return { ok: false, reason: 'Максимум' };
   const gate = sniperTierOpen(def.column, def.tier, skills, pending);
-  if (!gate.open && cur === 0) return { ok: false, reason: `Нужно ${gate.need} очков в тире ${def.tier - 1}` };
+  if (!gate.open && cur === 0) return { ok: false, reason: `Нужно ${gate.need} ${gate.label}` };
   if (def.exclusiveWith) {
     for (const rival of def.exclusiveWith) {
       if ((skills[rival] || 0) + (pending[rival] || 0) > 0) {

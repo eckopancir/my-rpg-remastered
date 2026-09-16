@@ -6,6 +6,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { SKILL_CLASSES } from '../data/skills';
 import { SNIPER_META, SNIPER_ABILITIES, sniperMaxRanks } from '../data/sniper';
 import { SniperTree } from '../components/widgets/SniperTree';
+import { sniperClassBg } from '../assets/index';
 
 const formatCumulative = (stats: string[], level: number): string => {
   return stats.map((s) => {
@@ -66,20 +67,13 @@ export const Skills = () => {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <WapPanel variant="metal" padding="lg">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>⭐ Древо навыков</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ур. {level} — <b style={{ color: '#4ade80' }}>{skillPoints} очков</b> {hasPending ? `(${pendingTotal} в ожидании)` : ''} · В ветке {pointsInTree}/{pointsMax}</span>
-            {hasPending && (<><Button size="sm" variant="primary" onClick={applySkills}>✅ ПРИНЯТЬ</Button><Button size="sm" variant="ghost" onClick={cancelSkills}>❌ ОТМЕНА</Button></>)}
-            <Button size="sm" variant="ghost" onClick={resetSkills} title={`Сброс за ${level * 100} 💾`}>🔄 Сброс · {level * 100}💾</Button>
-          </div>
-        </div>
-
-        {/* Top class bar — like stolen-realm */}
-        <div style={{ display: 'flex', gap: 6, marginTop: 14, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'thin' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {/* Классы слева */}
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, flex: 1, minWidth: 0, scrollbarWidth: 'thin' }}>
           {(() => {
             const snpSpent = SNIPER_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
             const isActive = selectedClass === SNIPER_META.id;
+            const snpImg = sniperClassBg();
             return (
               <button
                 key={SNIPER_META.id}
@@ -95,7 +89,9 @@ export const Skills = () => {
                   transition: 'all 120ms',
                 }}
               >
-                <span style={{ fontSize: 22 }}>{SNIPER_META.icon}</span>
+                {snpImg
+                  ? <img src={snpImg} alt={SNIPER_META.name} draggable={false} style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6 }} />
+                  : <span style={{ fontSize: 22 }}>{SNIPER_META.icon}</span>}
                 <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? SNIPER_META.color : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{SNIPER_META.name}</span>
                 <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{snpSpent}/{sniperMaxRanks()}</span>
               </button>
@@ -125,6 +121,16 @@ export const Skills = () => {
               </button>
             );
           })}
+          </div>
+          {/* Инфо справа: уровень, очки, ветка, сброс */}
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', minWidth: 190 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Ур. {level} — <b style={{ color: '#4ade80' }}>{skillPoints} очков</b> {hasPending ? `(${pendingTotal} в ожидании)` : ''}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>В ветке {pointsInTree}/{pointsMax}</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {hasPending && (<><Button size="sm" variant="primary" onClick={applySkills}>✅ ПРИНЯТЬ</Button><Button size="sm" variant="ghost" onClick={cancelSkills}>❌ ОТМЕНА</Button></>)}
+              <Button size="sm" variant="ghost" onClick={resetSkills} title={`Сброс за ${level * 100} 💾`}>🔄 Сброс · {level * 100}💾</Button>
+            </div>
+          </div>
         </div>
       </WapPanel>
 
