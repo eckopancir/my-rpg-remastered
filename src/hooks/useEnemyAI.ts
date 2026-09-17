@@ -143,6 +143,15 @@ export const useEnemyAI = () => {
         playerInvisTurns: nextPlayerInvisTurns,
         immortalityTurns: nextImmortalityTurns,
       });
+      if (losingPlayerInvis) {
+        const cur = useCombatGridStore.getState();
+        const petL = cur.enemies.find((e: any) => e.isPet && e.isInvisible);
+        if (petL) {
+          useCombatGridStore.setState({
+            enemies: cur.enemies.map((e: any) => e.isPet ? { ...e, isInvisible: false, invisTurns: 0 } : e),
+          } as any);
+        }
+      }
 
       let updatedEnemies = s.enemies.map((e: any) => {
         const nextInvisTurns = e.isInvisible ? Math.max(0, e.invisTurns - 1) : 0;
@@ -224,11 +233,30 @@ export const useEnemyAI = () => {
       for (let i = 0; i < updatedEnemies.length; i++) {
         const curStore = useCombatGridStore.getState();
         const enemy = updatedEnemies[i];
+        if (isBossEnemy(enemy.name, (enemy as any).factionKey)) {
+          console.log(`[BOSS LOOP] ${enemy.name} i=${i} hp ${enemy.currentHp}/${enemy.maxHp} pos ${enemy.pos.x},${enemy.pos.y} aggro ${enemy.aggro} sleeping ${enemy.sleeping} stunned ${enemy.stunned} role ${enemy.aiRole} runAp ${enemy.runAp} range ${enemy.rangeDistance}`);
+        }
         if (enemy.currentHp <= 0) continue;
+
+        // Питомец: без ИИ — ждёт команд; с ИИ (pet_ai) — авто-бой своим ходом.
+        // try/catch: сбой ИИ питомца не должен ронять ходы остальных.
+        if ((enemy as any).isPet) {
+          try {
+            if ((usePlayerStore.getState().skills['pet_ai'] || 0) > 0
+              && !enemy.dead && !enemy.sleeping && (enemy.currentHp || 0) > 0) {
+              await useCombatGridStore.getState().petAiTurn();
+              updatedEnemies = useCombatGridStore.getState().enemies.map((e: any) => ({ ...e }));
+              await new Promise((r) => setTimeout(r, 300));
+            }
+          } catch (e) {
+            console.error('[PetAI]', e);
+          }
+          continue;
+        }
 
         // Skip stunned enemies
         if (enemy.stunned) {
-          useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, '⚡ ОГЛУШЕН!', 'SPECIAL');
+          useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, '😵 ОГЛУШЁН!', 'SPECIAL');
           continue;
         }
 
@@ -250,7 +278,10 @@ export const useEnemyAI = () => {
             const stw = useCombatGridStore.getState();
             saySync(enemy.id, pickPhrase(WAKE_BARK));
             if (stw.stealth) {
-              useCombatGridStore.setState({ enemies: [...updatedEnemies], stealth: false });
+              useCombatGridStore.setState({
+                enemies: [...updatedEnemies].map((e: any) => e.isPet ? { ...e, isInvisible: false, invisTurns: 0 } : e),
+                stealth: false,
+              });
               useCombatGridStore.getState().addMessage('👁️ Тебя заметили! Скрытность сорвана');
             } else {
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
@@ -277,14 +308,26 @@ export const useEnemyAI = () => {
         // Скрытного замечают: обычные — в 3 клетках, часовые — в 6 (с «❗») ---
         if (!enemy.aggro && enemy.aiRole) {
           const stealthOn = useCombatGridStore.getState().stealth;
-          // Босс видит дальше всех: 24 без скрытности, 12 в скрытности.
+          // Босс видит дальше всех: 20 без скрытности (любых врагов, не только игрока), 12 в скрытности.
           const eIsBoss = isBossEnemy(enemy.name, (enemy as any).factionKey);
           const detectR = eIsBoss
-            ? (stealthOn ? 12 : 24)
+            ? (stealthOn ? 12 : 20)
             : stealthOn
               ? (enemy.aiRole === 'sentry' ? 10 : 3)
               : (enemy.aiRole === 'sentry' ? 15 : 24);
-          const spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= detectR;
+          let spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= detectR;
+          // Босс замечает любых врагов своей фракции в радиусе 20 (союзники игрока, другие монстры)
+          if (!spotted && eIsBoss) {
+            const anyHostile = updatedEnemies.some((o: any) =>
+              o.id !== enemy.id && !o.dead && (o.currentHp || 0) > 0 && o.faction !== enemy.faction &&
+              getDist(enemy.pos, o.pos) <= 20 && checkVisibility(enemy.pos, 0, o.pos, curStore.obstacles, { range: 20, fov: 360 }));
+            if (anyHostile) spotted = true;
+          }
+          if (eIsBoss) {
+            const dPlayer = getDist(enemy.pos, curStore.playerPos);
+            const visPlayer = checkVisibility(enemy.pos, 0, curStore.playerPos, curStore.obstacles, { range: 20, fov: 360 });
+            console.log(`[BOSS DETECT] ${enemy.name} pos ${enemy.pos.x},${enemy.pos.y} dist ${dPlayer.toFixed(1)} vis ${visPlayer} stealh ${stealthOn} spotted ${spotted} aggro ${enemy.aggro} role ${enemy.aiRole} sleeping ${enemy.sleeping}`);
+          }
           const matesFight = !spotted && updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
             && o.aggro && getDist(o.pos, enemy.pos) <= 15);
@@ -307,7 +350,10 @@ export const useEnemyAI = () => {
               // Заметили скрытного: часовой — особым диалогом «заметил»,
               // скрытность сорвана.
               saySync(enemy.id, enemy.aiRole === 'sentry' ? pickPhrase(SENTRY_NOTICED) : pickPhrase(SPOT_BARK));
-              useCombatGridStore.setState({ enemies: [...updatedEnemies], stealth: false });
+              useCombatGridStore.setState({
+                enemies: [...updatedEnemies].map((e: any) => e.isPet ? { ...e, isInvisible: false, invisTurns: 0 } : e),
+                stealth: false,
+              });
               useCombatGridStore.getState().addMessage('👁️ Тебя заметили! Скрытность сорвана');
             } else {
               if (isMilitary(enemy)) saySync(enemy.id, pickPhrase(spotted ? SPOT_BARK : WAKE_BARK));
@@ -321,6 +367,8 @@ export const useEnemyAI = () => {
         if (!enemy.aggro && enemy.aiRole) {
           // Шаг патруля: в общем направлении, при стене — новое. chatter — болтовня на ходу.
           const doPatrolStep = (withChatter: boolean) => {
+            const isBossPatrol = isBossEnemy(enemy.name, (enemy as any).factionKey);
+            if (isBossPatrol) console.log(`[BOSS PATROL] ${enemy.name} pos ${enemy.pos.x},${enemy.pos.y} dir ${enemy.patrolDir?.dx},${enemy.patrolDir?.dy} runAp ${enemy.runAp} aggro ${enemy.aggro}`);
             const pDirs = [
               { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
               { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
@@ -337,8 +385,16 @@ export const useEnemyAI = () => {
             };
             let step = tryStep(dir);
             if (!step) {
-              dir = pDirs[Math.floor(Math.random() * pDirs.length)];
-              step = tryStep(dir);
+              // Босс — пробуем все 8 направлений, обычный — 1 случайное
+              if (isBossPatrol) {
+                for (const pd of pDirs) {
+                  const s = tryStep(pd);
+                  if (s) { dir = pd; step = s; break; }
+                }
+              } else {
+                dir = pDirs[Math.floor(Math.random() * pDirs.length)];
+                step = tryStep(dir);
+              }
             }
             if (step) {
               enemy.pos = { ...step };
@@ -346,7 +402,9 @@ export const useEnemyAI = () => {
               enemy.rotation = getAngle({ x: step.x - dir.dx, y: step.y - dir.dy }, step);
               updatedEnemies[i] = { ...enemy };
               useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+              if (isBossPatrol) console.log(`[BOSS PATROL MOVE] → ${step.x},${step.y}`);
             } else {
+              if (isBossPatrol) console.log(`[BOSS PATROL BLOCKED] at ${enemy.pos.x},${enemy.pos.y} dir ${dir.dx},${dir.dy} obstacles ${JSON.stringify(curStore.obstacles.slice(0,2))}`);
               enemy.patrolDir = pDirs[Math.floor(Math.random() * pDirs.length)];
               updatedEnemies[i] = { ...enemy };
             }
@@ -599,7 +657,7 @@ export const useEnemyAI = () => {
           } else {
             // Check for nearby ally (decoy/minion) to attack instead of player
             const nearbyAlly = updatedEnemies.find(
-              (e: any) => e.faction === 'Союзник' && !e.dead && e.currentHp > 0 && getDist(enemy.pos, e.pos) <= (enemy.rangeDistance || 7),
+              (e: any) => e.faction === 'Союзник' && !e.dead && e.currentHp > 0 && !e.sleeping && !(e.isPet && e.isInvisible) && getDist(enemy.pos, e.pos) <= (enemy.rangeDistance || 7),
             );
             if (nearbyAlly) {
               targetPos = { ...nearbyAlly.pos };
@@ -751,8 +809,16 @@ export const useEnemyAI = () => {
                 useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, result.text, result.type);
                 setTimeout(() => { targetAlly.isHit = false; }, 300);
                 if (targetAlly.currentHp <= 0) {
-                  targetAlly.dead = true;
-                  useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, '💥 Приманка уничтожена!', 'SPECIAL');
+                  // Питомец засыпает вместо смерти.
+                  if ((targetAlly as any).isPet) {
+                    targetAlly.sleeping = true;
+                    targetAlly.isHit = false;
+                    useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, '😴 Спит до конца боя!', 'SPECIAL');
+                    try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
+                  } else {
+                    targetAlly.dead = true;
+                    useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, '💥 Приманка уничтожена!', 'SPECIAL');
+                  }
                 }
               } else if (isAlly) {
                 // Бьёт СОЮЗНИК: урон — врагу на точке, а не игроку!
@@ -870,8 +936,15 @@ export const useEnemyAI = () => {
                   useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, result2.text, result2.type);
                   setTimeout(() => { extraTargetAlly.isHit = false; }, 300);
                   if (extraTargetAlly.currentHp <= 0) {
-                    extraTargetAlly.dead = true;
-                    useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, '💥 Приманка уничтожена!', 'SPECIAL');
+                    if ((extraTargetAlly as any).isPet) {
+                      extraTargetAlly.sleeping = true;
+                      extraTargetAlly.isHit = false;
+                      useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, '😴 Спит до конца боя!', 'SPECIAL');
+                      try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
+                    } else {
+                      extraTargetAlly.dead = true;
+                      useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, '💥 Приманка уничтожена!', 'SPECIAL');
+                    }
                   }
                 } else if (isAlly) {
                   // Бонус-выстрел союзника: урон — врагу на точке.
@@ -987,12 +1060,19 @@ export const useEnemyAI = () => {
                 const eDist = Math.abs(enemy.pos.x - mine.pos.x) + Math.abs(enemy.pos.y - mine.pos.y);
                 if (eDist <= 1) {
                   const dmg = Math.round(mine.damage * (1 - eDist * 0.15));
-                  updatedEnemies[ej] = { ...enemy, currentHp: Math.max(0, enemy.currentHp - dmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: useCombatGridStore.getState().turnCount };
+                  updatedEnemies[ej] = { ...enemy, currentHp: Math.max(0, enemy.currentHp - dmg), isHit: true, sleeping: (enemy as any).isPet ? !!enemy.sleeping : false, aggro: true, knowsPlayer: true, alertTurn: useCombatGridStore.getState().turnCount };
                   useCombatGridStore.getState().addPopup(enemy.pos.x, enemy.pos.y, `💥 -${dmg}`, 'DMG');
                   if (updatedEnemies[ej].currentHp <= 0) {
-                    updatedEnemies[ej].dead = true;
-                    updatedEnemies[ej].isHit = false;
-                    useCombatGridStore.getState().addBattleLog(`💀 ${enemy.name} уничтожен миной!`);
+                    if ((enemy as any).isPet) {
+                      updatedEnemies[ej].dead = false;
+                      updatedEnemies[ej].isHit = false;
+                      useCombatGridStore.getState().addBattleLog(`😴 ${enemy.name} засыпает до конца боя!`);
+                      try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
+                    } else {
+                      updatedEnemies[ej].dead = true;
+                      updatedEnemies[ej].isHit = false;
+                      useCombatGridStore.getState().addBattleLog(`💀 ${enemy.name} уничтожен миной!`);
+                    }
                   }
                 }
               }
@@ -1034,14 +1114,15 @@ export const useEnemyAI = () => {
         return;
       }
 
-      // Start player turn
+      // Start player turn — рефил AP питомца для ручных команд.
       const finalState = useCombatGridStore.getState();
       useCombatGridStore.setState({
         turn: 'player',
         ap: finalState.maxAp || BASE_AP,
         turnCount: finalState.turnCount + 1,
         message: `⚔️ Твой ход (раунд ${finalState.turnCount + 1})`,
-      });
+        enemies: finalState.enemies.map((e: any) => e.isPet ? { ...e, petAp: 5 } : e),
+      } as any);
       } catch (e) {
         console.error('[EnemyAI]', e);
         // Одна битая итерация ИИ не должна вешать бой на «Ходе врага» навсегда.

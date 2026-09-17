@@ -13,6 +13,7 @@ import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getTerrainBonus } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { getEnemyImage, getCharacterImage, images, getSniperImage } from '../assets/index';
+import { SkillBar } from '../components/widgets/SkillBar';
 
 const LogPanel = () => {
   const battleLogs = useCombatGridStore((s) => s.battleLogs);
@@ -162,7 +163,12 @@ export const Battle = () => {
 
   const handleEnemyAttack = useCallback(() => {
     if (selectedAbility !== null) {
-      useAbility(selectedEnemy as number | string | undefined);
+      const src = useCombatGridStore.getState().selectedAbilitySource;
+      if (src === 'pet') {
+        useCombatGridStore.getState().usePetAbility(selectedAbility, selectedEnemy as number | string | undefined);
+      } else {
+        useAbility(selectedEnemy as number | string | undefined);
+      }
     } else if (selectedEnemy !== null) {
       attackEnemy(selectedEnemy as number | string);
     }
@@ -555,6 +561,16 @@ export const Battle = () => {
                     return (
                       <div key={i}
                         onClick={() => { playClick(); if (isDisplayOnly) { useCombatGridStore.getState().addMessage(`✨ ${ab.name} — пассивка, работает сама`); return; } selectAbility(i); }}
+                        onDoubleClick={() => {
+                          if (isDisplayOnly) return;
+                          const st = useCombatGridStore.getState();
+                          if (st.turn !== 'player') return;
+                          if (st.selectedAbility !== i || st.selectedAbilitySource !== 'player') st.selectAbility(i);
+                          playClick();
+                          useCombatGridStore.getState().useAbility(
+                            useCombatGridStore.getState().selectedEnemy ?? undefined,
+                          );
+                        }}
                         title={`[${i + 1}] ${ab.name} — ${ab.description}\n${ab.apCost} AP | КД: ${ab.cooldown} хода\n⭐ Сила: ${ab.powerRating}${consLeft >= 0 ? `\n📦 Расходник: осталось ${consLeft}` : '\n✨ Бесплатно'}`}
                         style={{
                           width: 48, height: 53, display: 'flex', flexDirection: 'column',
@@ -756,8 +772,9 @@ export const Battle = () => {
                 <span>🟡 МОЩНОСТЬ</span>
                 <span style={{ fontFamily: 'var(--font-mono)' }}>{ePow.toLocaleString()}</span>
               </div>
-              {((hoverTarget as any).debuffs?.burn || (hoverTarget as any).debuffs?.tox || (hoverTarget as any).debuffs?.extro || (hoverTarget as any).debuffs?.emi) && (
+              {((hoverTarget as any).stunned || (hoverTarget as any).debuffs?.burn || (hoverTarget as any).debuffs?.tox || (hoverTarget as any).debuffs?.extro || (hoverTarget as any).debuffs?.emi) && (
                 <div style={{ padding: '0 12px 8px', fontSize: 12, color: '#fca5a5' }}>
+                  {(hoverTarget as any).stunned && <div>😵 Стан: пропуск {(hoverTarget as any).stunTurns || 1} хода</div>}
                   {(hoverTarget as any).debuffs?.burn && <div>🔥 Горение: −3% HP каждый ход</div>}
                   {(hoverTarget as any).debuffs?.tox && <div>☠️ Токсин: −3% брони каждый ход (сейч. {Math.round(hoverTarget.armor)})</div>}
                   {(hoverTarget as any).debuffs?.extro && <div>💫 Экстро: −25% атаки</div>}
@@ -990,6 +1007,8 @@ export const Battle = () => {
           </div>
         </div>
       )}
+      {/* WOW-панель навыков */}
+      {isActive && !isVictory && !isDefeat && <SkillBar />}
     </motion.div>
   );
 };

@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
 import { useUiStore } from '../stores/uiStore';
 
-const audioModules = import.meta.glob<{ default: string }>('../assets/audio/**/*.mp3', { eager: true });
+const audioModules = import.meta.glob<{ default: string }>('../assets/audio/**/*.{mp3,ogg}', { eager: true });
 
 const audioMap = new Map<string, string>();
 for (const [path, mod] of Object.entries(audioModules)) {
-  const name = path.split('/').pop()?.replace(/\.mp3$/, '') || '';
+  const name = path.split('/').pop()?.replace(/\.(mp3|ogg)$/, '') || '';
   audioMap.set(name, mod.default);
 }
 
@@ -41,6 +41,35 @@ export const stopCombatSound = (name: string) => {
   const src = audioMap.get(name);
   if (!src) return;
   const audio = audioCache.get(src);
+  if (audio) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+};
+
+const loopCache = new Map<string, HTMLAudioElement>();
+
+/** Зацикленный звук (костёр и т.п.): играет пока не вызовут stopLoopSound. */
+export const playLoopSound = (name: string, volume = 0.4) => {
+  const ui = useUiStore.getState();
+  if (!ui.soundEnabled) return;
+  const src = audioMap.get(name);
+  if (!src) return;
+  let audio = loopCache.get(src);
+  if (!audio) {
+    audio = new Audio(src);
+    audio.loop = true;
+    loopCache.set(src, audio);
+  }
+  audio.volume = Math.max(0, Math.min(1, volume * (ui.arenaVolume ?? 1)));
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+};
+
+export const stopLoopSound = (name: string) => {
+  const src = audioMap.get(name);
+  if (!src) return;
+  const audio = loopCache.get(src);
   if (audio) {
     audio.pause();
     audio.currentTime = 0;

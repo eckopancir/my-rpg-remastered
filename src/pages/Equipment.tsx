@@ -6,6 +6,9 @@ import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
 import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, equipmentDelta, type EquipmentSlot } from '../stores/playerStore';
 import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, worseQuality, type AmmoGroup } from '../data/ammo';
+import { removeItemFromGrid } from '../data/backpacks';
+import { PET_META, petMood, petSatietyAt, petBaseStats, petBranchBonuses, type PetKind } from '../data/pets';
+import { PetStatsTooltip, fmtPetStat, type PetStatRow } from '../components/widgets/PetStatsTooltip';
 import { syncNow } from '../utils/serverSync';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useUiStore } from '../stores/uiStore';
@@ -13,6 +16,144 @@ import { getItemImage, images } from '../assets/index';
 import { useSound } from '../hooks/useSound';
 import { calcItemPower } from '../utils/itemPower';
 import type { Item } from '../types/items';
+
+// Слот питомца: выбор активного зверя (в бою смена запрещена).
+// Заблокирован, пока не выбран класс Лесничий.
+const PetSlotRow = () => {
+  const activePetId = usePlayerStore((s) => s.activePetId);
+  const setActivePet = usePlayerStore((s) => s.setActivePet);
+  const chosenClasses = usePlayerStore((s) => s.chosenClasses);
+  const isFighting = usePlayerStore((s) => s.combat.isFighting);
+  const petSatiety = usePlayerStore((s) => s.petSatiety);
+  const loadPetState = usePlayerStore((s) => s.loadPetState);
+  const feedPet = usePlayerStore((s) => s.feedPet);
+  const draggedItemId = useUiStore((s) => s.draggedItemId);
+  const { playClick } = useSound();
+  const [petTip, setPetTip] = useState<{ kind: PetKind; x: number; y: number } | null>(null);
+  const playerSkills = usePlayerStore((s) => s.skills);
+  const playerLevel = usePlayerStore((s) => s.level);
+  const playerDamage = usePlayerStore((s) => s.stats.damage);
+  const playerMaxHp = usePlayerStore((s) => s.stats.maxHp);
+  const unlocked = chosenClasses.includes('lesnichiy');
+  const kinds = Object.keys(PET_META) as PetKind[];
+  useEffect(() => { loadPetState(); }, [loadPetState]);
+  // Живой тик сытости: полоска ползёт сама, без перезахода (распад считается от метки).
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNowTick(Date.now()), 5000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const satNow = petSatiety ? petSatietyAt(petSatiety.value, petSatiety.updatedAt, nowTick) : 100;
+  const mood = petMood(satNow);
+  const moodColor = mood === 'green' ? '#4ade80' : mood === 'yellow' ? '#fbbf24' : '#f87171';
+  const moodEmoji = mood === 'green' ? '🟢' : mood === 'yellow' ? '🟡' : '🔴';
+  const moodLabel = mood === 'green' ? 'сыт' : mood === 'yellow' ? 'проголодался (−30% HP)' : 'голоден (−90% HP)';
+
+  const isFoodDragged = (() => {
+    if (!draggedItemId) return false;
+    const isFood = (it: any) => !!it && it.type === 'consumable' && String(it.abilityId || '').startsWith('food_');
+    if (isFood(usePlayerStore.getState().backpackGrid.items.find((i) => i.id === draggedItemId))) return true;
+    return isFood(useInventoryStore.getState().items.find((i: any) => i.id === draggedItemId));
+  })();
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 232 }}>
+      {/* Настроение */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 12 }}>{moodEmoji}</span>
+        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+          <div style={{ width: `${Math.round(satNow)}%`, height: '100%', background: moodColor, transition: 'width 300ms' }} />
+        </div>
+        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: moodColor }}>{Math.round(satNow)}%</span>
+      </div>
+      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>
+        {moodEmoji} {moodLabel}. 100%→0% за 12 часов.
+      </div>
+      <div style={{ display: 'flex', gap: 12, opacity: unlocked ? 1 : 0.45 }}>
+      {kinds.map((k) => {
+        const meta = PET_META[k];
+        const active = activePetId === k;
+        return (
+          <div
+            key={k}
+            onClick={() => {
+              playClick();
+              if (!unlocked) {
+                usePlayerStore.getState().addLog('🔒 Питомцы доступны с классом «Лесничий»', 'warning');
+                return;
+              }
+              if (isFighting) {
+                usePlayerStore.getState().addLog('❌ Питомца нельзя менять в бою', 'warning');
+                return;
+              }
+              setActivePet(active ? null : k);
+            }}
+            onMouseEnter={(e) => setPetTip({ kind: k, x: e.clientX, y: e.clientY })}
+            onMouseMove={(e) => setPetTip({ kind: k, x: e.clientX, y: e.clientY })}
+            onMouseLeave={() => setPetTip((t) => (t && t.kind === k ? null : t))}
+            onDragOver={(e) => { if (isFoodDragged) e.preventDefault(); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const id = useUiStore.getState().draggedItemId;
+              if (id) feedPet(id);
+            }}
+            title={unlocked ? (active ? `${meta.name} — активен (клик — убрать). Перетащи сюда еду.` : `Выбрать: ${meta.name}. Перетащи сюда еду.`) : 'Нужен класс «Лесничий»'}
+            style={{
+              width: 64, height: 64, borderRadius: 8, cursor: 'pointer', position: 'relative',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: active ? `${meta.color}22` : 'rgba(255,255,255,0.02)',
+              border: `2px solid ${active ? meta.color : isFoodDragged ? '#4ade80' : 'rgba(255,255,255,0.10)'}`,
+              boxShadow: active ? `0 0 12px ${meta.color}66` : 'none',
+              transition: 'all 120ms', opacity: active || unlocked ? 1 : 0.75,
+            }}
+          >
+            {!unlocked && (
+              <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: 'rgba(0,0,0,0.45)', borderRadius: 6 }}>🔒</span>
+            )}
+            <span style={{ fontSize: 26, lineHeight: 1 }}>{meta.icon}</span>
+            <span style={{ fontSize: 8, fontWeight: 700, color: active ? meta.color : 'var(--text-muted)' }}>{meta.name}</span>
+          </div>
+        );
+      })}
+      </div>
+      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, textAlign: 'center' }}>
+        🍖 Еду из рюкзака — на зверя.<br />
+        1 кусок = +20% (лишнее не съест).
+      </div>
+      {petTip && (() => {
+        const meta = PET_META[petTip.kind];
+        const lvlMult = 1 + 0.2 * (Math.max(1, playerLevel) - 1);
+        const bonus = petBranchBonuses(petTip.kind, playerSkills);
+        const nums = petBaseStats(petTip.kind, lvlMult, playerDamage || 5, playerMaxHp || 100, bonus);
+        const b = (k: keyof typeof bonus): number => (bonus as any)[k] || 0;
+        const rows: PetStatRow[] = [
+          { label: 'HP', value: fmtPetStat('maxHp', nums.maxHp) },
+          { label: 'Урон', value: fmtPetStat('damage', nums.damage), bonus: b('damage') > 0 ? `+${b('damage')}` : undefined },
+          { label: 'Броня', value: fmtPetStat('armor', nums.armor), bonus: b('armor') > 0 ? `+${b('armor')}` : undefined },
+          { label: 'Уклонение', value: fmtPetStat('evasion', nums.evasion) },
+          { label: 'Блок', value: fmtPetStat('block', nums.block) },
+          { label: 'Крит', value: fmtPetStat('crit', nums.crit) },
+          { label: 'Меткость', value: fmtPetStat('accuracy', nums.accuracy) },
+          { label: 'Скорость', value: fmtPetStat('speed', nums.speed) },
+          { label: 'Вампиризм', value: fmtPetStat('vampir', nums.vampir) },
+          { label: 'Реген', value: fmtPetStat('regen', nums.regen) },
+        ];
+        return (
+          <PetStatsTooltip
+            name={meta.name}
+            icon={meta.icon}
+            color={meta.color}
+            rows={rows}
+            moodLine={{ text: `${moodEmoji} ${moodLabel}`, color: moodColor }}
+            x={petTip.x}
+            y={petTip.y}
+          />
+        );
+      })()}
+    </div>
+  );
+};
 
 const QUALITY_STARS: Record<string, number> = {
   'Обычный': 1, 'Редкий': 2, 'Раритетный': 3, 'Эпический': 4,
@@ -308,11 +449,13 @@ export const Equipment = () => {
     } else {
       usePlayerStore.setState((st: any) => {
         const grid = st.backpackGrid;
+        const found = grid.items.find((i: any) => i.id === ammoItemId);
+        if (!found) return st;
+        // Пустой слот чистим вместе с клетками (removeItemFromGrid), иначе ячейка виснет занятой.
+        if (left <= 0) return { backpackGrid: removeItemFromGrid(grid, ammoItemId) };
         const items = grid.items.map((i: any) =>
-          i.id === ammoItemId
-            ? left > 0 ? { ...i, quantity: left, displayName: leftName(left) } : null
-            : i,
-        ).filter(Boolean);
+          i.id === ammoItemId ? { ...i, quantity: left, displayName: leftName(left) } : i,
+        );
         return { backpackGrid: { ...grid, items } };
       });
     }
@@ -720,6 +863,18 @@ export const Equipment = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {ELEM_STATS.map((k) => renderStatRow(k, ((stats as any)[k] ?? 0).toFixed(1)))}
               </div>
+            </div>
+            {/* Питомец — после характеристик, справа */}
+            <div style={{
+              background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+              borderRadius: 8, padding: '8px 10px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <span style={{ width: 14, height: 1, background: 'rgba(251,191,36,0.4)' }} />
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#fbbf24' }}>◆ ПИТОМЕЦ</span>
+                <span style={{ flex: 1, height: 1, background: 'rgba(251,191,36,0.14)' }} />
+              </div>
+              <PetSlotRow />
             </div>
           </div>
         </div>

@@ -14,6 +14,7 @@ import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
 import { ALL_ABILITIES } from '../data/accessoryAbilities';
+import { petBaseStats, petBranchBonuses, petCellsPerAp, petSatietyAt, petMood, petHpMult, PET_META, type PetKind, type PetBattleAbility } from '../data/pets';
 
 const GRID = 32;
 const BASE_AP = 5;
@@ -94,7 +95,13 @@ export interface GridEnemy {
   // Тихая смерть (скрытное убийство): без крика и звуков смерти.
   silentDeath?: boolean;
   // Стихийные дебафы игрока (горение/токсин/экстро/ЭМИ): живут 10 раундов.
-  debuffs?: { burn?: boolean; tox?: boolean; extro?: boolean; emi?: boolean; turns?: number };
+  // roar: рёв медведя (−50% меткости, restore ×2 в тике).
+  debuffs?: { burn?: boolean; tox?: boolean; extro?: boolean; emi?: boolean; roar?: boolean; turns?: number };
+  // Питомец игрока (фракция Союзник): управляется командами, спит вместо смерти.
+  isPet?: boolean;
+  petKind?: string;
+  petAp?: number;
+  petBuffs?: { stat: string; value: number; remaining: number }[];
   // Позывной (досье), отступление к медику/костру, сдача в плен.
   callsign?: string;
   retreating?: boolean;
@@ -236,11 +243,30 @@ export interface CombatGridStore {
   // Скрытность: моделька полупрозрачна, замечают только в упор. Слетает при выстреле/обнаружении.
   stealth: boolean;
   toggleStealth: () => void;
+  // Снайперский телепорт: разрешить скрытность (F) прямо в бою (одноразово).
+  teleportStealthReady: boolean;
   isCombatActive: () => boolean;
 
   playerAbilities: (AccessoryAbility | null)[];
   abilityCooldowns: number[];
+  skillBarAbilities: (AccessoryAbility | null)[];
+  skillBarCooldowns: number[];
+  // Питомец: способности, КД, режим команды и цель.
+  petAbilities: PetBattleAbility[];
+  petCooldowns: number[];
+  petCommandMode: boolean;
+  petTargetId: number | string | null;
+  petAiActive: boolean;
+  selectPetAbility: (index: number) => void;
+  usePetAbility: (index: number, enemyId?: number | string) => void;
+  /** Ход ИИ питомца (авто-бой при активной способности pet_ai). */
+  petAiTurn: () => void;
+  petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number }) => boolean;
+  setPetCommandMode: (v: boolean) => void;
+  commandPetMove: (x: number, y: number) => void;
+  commandPetAttack: (enemyId: number | string) => void;
   selectedAbility: number | null;
+  selectedAbilitySource: 'player' | 'skillBar' | 'pet' | null;
   playerInvisible: boolean;
   playerInvisTurns: number;
   isTeleporting: boolean;
@@ -273,6 +299,7 @@ export interface CombatGridStore {
   // Смена оружия в бою (Q): пишет магазин текущего, заряжает следующее.
   cycleWeapon: () => void;
   selectAbility: (index: number) => void;
+  selectSkillBarAbility: (index: number) => void;
   useAbility: (enemyId?: number | string) => void;
   tickAbilityCooldowns: () => void;
   endTurn: () => void;
@@ -473,6 +500,45 @@ export function findPathForEnemy(
   }
   return [];
 }
+
+/** Живой и бодрствующий питомец. */
+export const isPetAwake = (e: any): boolean =>
+  !!e && !!e.isPet && !e.dead && !e.sleeping && (e.currentHp || 0) > 0;
+
+/** Эффективные статы питомца с учётом баффов. */
+export const petEffStats = (pet: any): any => {
+  const buffs: any[] = pet.petBuffs || [];
+  const sum = (stat: string) => buffs.filter((b) => b.stat === stat).reduce((a, b) => a + b.value, 0);
+  const dmgMult = 1 + buffs.filter((b) => b.stat === 'damageMult').reduce((a, b) => a + b.value, 0);
+  return {
+    damage: Math.max(1, Math.round((pet.damage || 0) * dmgMult)),
+    armor: (pet.armor || 0) + sum('armor'),
+    evasion: Math.min(0.9, Math.max(0, (pet.evasion || 0) + sum('evasion'))),
+    block: Math.max(0, (pet.block || 0) + sum('block')),
+    crit: Math.max(0, (pet.crit || 0) + sum('crit')),
+    accuracy: Math.min(2, (pet.accuracy || 1) + sum('accuracy')),
+    punching: Math.max(0, (pet.punching || 0) + sum('punching')),
+    vampir: Math.max(0, (pet.vampir || 0) + sum('vampir')),
+  };
+};
+
+/** Шаг питомца к точке (до maxCells, не заходя на живых): возвращает новую позицию и клетки. */
+export const petWalk = (
+  pet: any, tx: number, ty: number, maxCells: number,
+  obstacles: GridObstacle[], units: any[],
+): { x: number; y: number; cells: number } => {
+  const path = findPathForEnemy(pet.pos, { x: tx, y: ty }, obstacles, units, pet.id);
+  if (!path || path.length <= 1) return { x: pet.pos.x, y: pet.pos.y, cells: 0 };
+  // На занятую клетку цели (враг) не заходим: обрезаем последнюю точку.
+  const targetBusy = units.some((u: any) => u.id !== pet.id && !u.dead && (u.currentHp || 0) > 0 && u.pos.x === tx && u.pos.y === ty);
+  const steps = targetBusy ? path.slice(1, -1) : path.slice(1);
+  let cx = pet.pos.x, cy = pet.pos.y, cells = 0;
+  for (const p of steps) {
+    if (cells >= maxCells) break;
+    cx = p.x; cy = p.y; cells++;
+  }
+  return { x: cx, y: cy, cells };
+};
 
 function generateObstacles(
   playerPos: { x: number; y: number },
@@ -777,6 +843,18 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (s.stealth) {
       set({ stealth: false });
       get().addMessage('👁️ Скрытность снята');
+      const pe = get().enemies.find((e: any) => e.isPet && !e.dead);
+      if (pe) {
+        set((s2: any) => ({
+          enemies: s2.enemies.map((e: any) => e.id === pe.id ? { ...e, isInvisible: false, invisTurns: 0 } : e),
+        }));
+      }
+      return;
+    }
+    // После снайперского телепорта — скрыться можно даже в бою (флаг одноразовый).
+    if (s.teleportStealthReady) {
+      set({ stealth: true, teleportStealthReady: false });
+      get().addMessage('🥷 Скрытность после телепорта!');
       return;
     }
     const fighting = s.enemies.some((e) => !e.dead && e.currentHp > 0 && e.aggro);
@@ -792,6 +870,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     set({ stealth: true });
     get().addMessage('🕵️ Скрытность: обычные замечают в 3, часовые — в 10 клетках');
+    // Питомец уходит в скрытность вместе с хозяином (враги плохо замечают).
+    {
+      const on = get().stealth;
+      const pe = get().enemies.find((e: any) => e.isPet && !e.dead);
+      if (pe) {
+        set((s2: any) => ({
+          enemies: s2.enemies.map((e: any) => e.id === pe.id ? { ...e, isInvisible: on, invisTurns: on ? 999 : 0 } : e),
+        }));
+      }
+    }
   },
 
   isCombatActive: () => {
@@ -1008,10 +1096,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
   playerAbilities: [],
   abilityCooldowns: [],
+  skillBarAbilities: [],
+  skillBarCooldowns: [],
+  petAbilities: [],
+  petCooldowns: [],
+  petCommandMode: false,
+  petTargetId: null,
+  petAiActive: false,
   selectedAbility: null,
+  selectedAbilitySource: null,
   playerInvisible: false,
   playerInvisTurns: 0,
   isTeleporting: false,
+  teleportStealthReady: false,
   isPlacingMine: false,
   immortalityTurns: 0,
   showCookingMenu: false,
@@ -1073,9 +1170,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const n = e as GridEnemy;
       if (n.dead || !n.debuffs) return e;
       let next: GridEnemy = { ...n };
-      // Decrement turns
+      // Decrement turns (флаг changed обязателен — иначе сет скипается и тики стоят).
       if ((next.debuffs?.turns ?? 0) > 0) {
         next = { ...next, debuffs: { ...next.debuffs, turns: (next.debuffs!.turns || 1) - 1 } };
+        changed = true;
       }
       // Burn: 3% maxHP per tick
       if (next.debuffs?.burn && (next.currentHp || 0) > 0) {
@@ -1119,6 +1217,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }
         if (hadEmi) {
           next = { ...next, block: (next.block || 0) / 0.5 };
+        }
+        // Рёв медведя: вернуть меткость.
+        if ((next.debuffs as any).roar) {
+          next = { ...next, accuracy: Math.min(2, (next.accuracy || 1) * 2) };
         }
         next = { ...next, debuffs: undefined };
         get().addPopup(next.pos.x, next.pos.y, '✅ ДЕБАФ СНЯТ', 'DEBUFF');
@@ -1277,7 +1379,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         evasion: Math.min(1, base.evasion * totalMult),
         block: base.block * totalMult,
         punching: base.punching * totalMult,
-        vampir: base.vampir * totalMult,
+        // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
+        vampir: base.vampir,
         crit: base.crit * totalMult,
         regen: (base.regen || 0) * totalMult,
         pos: { x: spawnX, y: spawnY },
@@ -1421,6 +1524,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (const e of activeEnemies) {
       if (!isBossEnemy(e.name, (e as any).factionKey)) continue;
       const d = bossDirs[Math.floor(Math.random() * bossDirs.length)];
+      // Босса всегда ставим на свободный патрульный якорь (иначе зажат у костра/толпой и стоит)
+      const anchor = { x: 10 + Math.floor(Math.random() * 12), y: 8 + Math.floor(Math.random() * 12) };
+      const free = findFreeCellNear(anchor.x, anchor.y, taken);
+      if (free.x !== e.pos.x || free.y !== e.pos.y) {
+        taken.delete(`${e.pos.x},${e.pos.y}`);
+        e.pos = free;
+        taken.add(`${free.x},${free.y}`);
+        console.log(`[BOSS RELOCATE] ${e.name} → патруль ${free.x},${free.y} was ${e.aiRole}`);
+      }
       e.aiRole = 'patrol';
       e.sleeping = false;
       e.sleepTurns = undefined;
@@ -1430,6 +1542,26 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       e.patrolDir = { ...d };
       e.rotation = Math.atan2(d.dy, d.dx) * (180 / Math.PI);
       e.skillUse = ['madness', 'rage', LEGENDARY_BOSS_SKILLS[Math.floor(Math.random() * LEGENDARY_BOSS_SKILLS.length)]];
+      console.log(`[BOSS SPAWN] ${e.name} patrol ${e.pos.x},${e.pos.y} dir ${d.dx},${d.dy} runAp ${e.runAp} range ${e.rangeDistance} aiRole ${e.aiRole}`);
+    }
+    // Если босс в подкреплении — меняем с последним патрулём, чтобы был сразу на карте
+    for (let bi = 0; bi < pendingReinforce.length; bi++) {
+      const be = pendingReinforce[bi];
+      if (!isBossEnemy(be.name, (be as any).factionKey)) continue;
+      const swapIdx = activeEnemies.findIndex((ae) => !isBossEnemy(ae.name, (ae as any).factionKey) && ae.aiRole !== 'camp');
+      if (swapIdx >= 0) {
+        console.log(`[BOSS SWAP] босс из резерва → актив ${be.name}`);
+        const tmp = activeEnemies[swapIdx];
+        activeEnemies[swapIdx] = be;
+        pendingReinforce[bi] = tmp;
+        // Повторно настроим как патруль
+        const d2 = bossDirs[Math.floor(Math.random() * bossDirs.length)];
+        activeEnemies[swapIdx].aiRole = 'patrol';
+        activeEnemies[swapIdx].sleeping = false;
+        activeEnemies[swapIdx].aggro = false;
+        activeEnemies[swapIdx].patrolDir = { ...d2 };
+      }
+      break;
     }
 
     // --- Мусорщики-союзники (карточка помощи): рядом с героем, статы обычных
@@ -1469,7 +1601,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           evasion: Math.min(1, aBase.evasion * aTotalMult),
           block: aBase.block * aTotalMult,
           punching: aBase.punching * aTotalMult,
-          vampir: aBase.vampir * aTotalMult,
+          // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
+          vampir: aBase.vampir,
           crit: aBase.crit * aTotalMult,
           regen: (aBase.regen || 0) * aTotalMult,
           pos: spot,
@@ -1523,15 +1656,68 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     const playerAbilities = [...usePlayerStore.getState().accessoryAbilities].filter((a) => a && !a.passive);
     const abilityCooldowns = playerAbilities.map(() => 0);
+    const skillBarAbilities = [...usePlayerStore.getState().skillAbilities].filter((a) => a && !a.passive);
+    const skillBarCooldowns = skillBarAbilities.map(() => 0);
     // Дальность — от ствола; ближний бой и кулаки: клетка вокруг.
     const startRange = gun && !gunIsMelee ? weaponRangeProfile(gun).range : 1.5;
     // Снайпер Т6: дальность +1/ранг.
     const snpRange = usePlayerStore.getState().skills['snp_a6_range'] || 0;
 
+    // Питомец: спавн рядом с игроком, если выбран зверь.
+    const petAbilities = [...(usePlayerStore.getState().petAbilities || [])];
+    const petCooldowns = petAbilities.map(() => 0);
+    {
+      const ps = usePlayerStore.getState();
+      const petKind = ps.activePetId as PetKind | null;
+      if (petKind && PET_META[petKind]) {
+        const lvlMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
+        const bonus = petBranchBonuses(petKind, ps.skills);
+        const nums = petBaseStats(petKind, lvlMult, ps.stats.damage || 5, ps.stats.maxHp || 100, bonus, ps.stats.armor || 0);
+        // Сытость: голодный −90% HP, проголодался −30% (null = данных нет, считаем сытым).
+        const satRaw = ps.petSatiety;
+        const satNow = satRaw ? petSatietyAt(satRaw.value, satRaw.updatedAt, Date.now()) : 100;
+        const satMult = petHpMult(satNow);
+        const satMood = petMood(satNow);
+        nums.maxHp = Math.max(1, Math.round(nums.maxHp * satMult));
+        const offs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }, { x: 1, y: 1 }, { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }];
+        let spot = { x: playerPos.x + 1, y: playerPos.y };
+        for (const o of offs) {
+          const cx = playerPos.x + o.x, cy = playerPos.y + o.y;
+          const blockedCell = obstacles.some((ob: any) => ob.x === cx && ob.y === cy && (ob.blocks || ob.isHigh));
+          const occupied = activeEnemies.some((e: any) => !e.dead && e.pos.x === cx && e.pos.y === cy);
+          if (!blockedCell && !occupied) { spot = { x: cx, y: cy }; break; }
+        }
+        const meta = PET_META[petKind];
+        activeEnemies.push({
+          id: `pet-${Date.now()}`,
+          name: meta.name,
+          faction: 'Союзник' as const,
+          dps: nums.damage, damage: nums.damage,
+          maxHp: nums.maxHp, currentHp: nums.maxHp,
+          armor: nums.armor, evasion: nums.evasion, block: nums.block,
+          crit: nums.crit, accuracy: nums.accuracy, punching: 0,
+          vampir: nums.vampir, regen: nums.regen, speed: nums.speed,
+          pos: spot, rotation: 270,
+          rangeDistance: 1.5, shotPrice: 1, runAp: 2,
+          skillUse: [], cooldowns: {}, isInvisible: false, invisTurns: 0,
+          aggro: false, knowsPlayer: false, sleeping: false, dead: false, isHit: false,
+          loot: [], looted: true, isMinion: false,
+          isPet: true, petKind, petAp: 5, petBuffs: [],
+        } as any);
+        get().addBattleLog(`🐾 ${meta.name} вступает в бой!`);
+        if (satMood !== 'green') {
+          get().addBattleLog(`🐾 ${meta.name} ${satMood === 'yellow' ? 'проголодался (−30% HP)' : 'голоден (−90% HP)'} — покорми в Экипировке`);
+        }
+      }
+    }
+
+    // Панель способностей — всегда сверху над полем боя.
+    try { useUiStore.getState().setSkillBarPos(null); } catch { /* noop */ }
+
     set({
       isActive: true, playerPos, enemies: activeEnemies, obstacles,
-      playerAbilities, abilityCooldowns, selectedAbility: null,
-      playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0,
+      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, selectedAbility: null, selectedAbilitySource: null,
+      playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
       range: startRange + snpRange, isDefensiveMode: false,
@@ -1563,6 +1749,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         get().addBattleLog('🔮 Стеклянная пушка: входящий +50%, свой урон +25%');
       }
     }
+    // Аура стаи — если питомец заспавнился.
+    try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
     return true;
     } catch (e) {
       console.error('[initCombat]', e);
@@ -1692,7 +1880,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!ability) return;
     if (s.abilityCooldowns[index] > 0) return;
     if (s.ap < ability.apCost) { get().addMessage('❌ Не хватает AP'); return; }
-    set({ selectedAbility: s.selectedAbility === index ? null : index });
+    set({ selectedAbility: s.selectedAbility === index && s.selectedAbilitySource === 'player' ? null : index, selectedAbilitySource: 'player' });
+  },
+
+  selectSkillBarAbility: (index) => {
+    const s = get();
+    if (s.turn !== 'player') return;
+    const ability = s.skillBarAbilities[index];
+    if (!ability) return;
+    if (s.skillBarCooldowns[index] > 0) return;
+    if (s.ap < ability.apCost) { get().addMessage('❌ Не хватает AP'); return; }
+    set({ selectedAbility: s.selectedAbility === index && s.selectedAbilitySource === 'skillBar' ? null : index, selectedAbilitySource: 'skillBar' });
   },
 
   useAbility: (enemyId) => {
@@ -1700,13 +1898,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (state.turn !== 'player' || state.isMoving) return;
     const idx = state.selectedAbility;
     if (idx === null || idx === undefined) { get().addMessage('❌ Выбери способность'); return; }
-    const ability = state.playerAbilities[idx];
-    if (!ability) { set({ selectedAbility: null }); return; }
-    if (state.abilityCooldowns[idx] > 0) { get().addMessage('❌ Способность перезаряжается'); set({ selectedAbility: null }); return; }
+    const source = state.selectedAbilitySource;
+    const ability = source === 'skillBar' ? state.skillBarAbilities[idx] : state.playerAbilities[idx];
+    if (!ability) { set({ selectedAbility: null, selectedAbilitySource: null }); return; }
+    const cooldowns = source === 'skillBar' ? state.skillBarCooldowns : state.abilityCooldowns;
+    if (cooldowns[idx] > 0) { get().addMessage('❌ Способность перезаряжается'); set({ selectedAbility: null, selectedAbilitySource: null }); return; }
     if (state.ap < ability.apCost) { get().addMessage('❌ Не хватает AP'); return; }
     if ((ability as any).displayOnly) {
       get().addMessage(`✨ ${ability.name} — пассивка, работает сама`);
-      set({ selectedAbility: null });
+      set({ selectedAbility: null, selectedAbilitySource: null });
       return;
     }
 
@@ -1719,12 +1919,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (!stack) {
         const need = CONSUMABLE_MAP[ability.id]?.name || ability.name;
         get().addMessage(`❌ Нужен расходник: ${need}`);
-        set({ selectedAbility: null });
+        set({ selectedAbility: null, selectedAbilitySource: null });
         return;
       }
       if (!ps.consumeFromPack(stack.id)) {
         get().addMessage(`❌ Нужен расходник: ${stack.displayName || stack.name}`);
-        set({ selectedAbility: null });
+        set({ selectedAbility: null, selectedAbilitySource: null });
         return;
       }
       get().addBattleLog(`🧪 Использован расходник: ${stack.displayName || stack.name}`);
@@ -1735,7 +1935,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Barrage: fire 20 random shots, no target needed
     if (ability.id === 'barrage') {
       const alive = state.enemies.filter((e) => !e.dead && e.currentHp > 0);
-      if (alive.length === 0) { set({ selectedAbility: null }); return; }
+      if (alive.length === 0) { set({ selectedAbility: null, selectedAbilitySource: null }); return; }
       playCombatSound('m134', 0.3);
       get().addBattleLog(`🌊 ${ability.name}: 20 выстрелов по случайным целям!`);
       const baseDmg = usePlayerStore.getState().stats.damage || 5;
@@ -1760,9 +1960,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           else set({ enemies: [...s.enemies] });
         }, i * 200);
       }
-      const newCooldowns = [...state.abilityCooldowns];
+      const newCooldowns = source === 'skillBar' ? [...state.skillBarCooldowns] : [...state.abilityCooldowns];
       newCooldowns[idx] = ability.cooldown;
-      set({ abilityCooldowns: newCooldowns, ap: state.ap - ability.apCost, selectedAbility: null, selectedEnemy: null, message: `🌊 ${ability.name} (AP: ${state.ap - ability.apCost})` });
+      const cooldownKey = source === 'skillBar' ? 'skillBarCooldowns' : 'abilityCooldowns';
+      set({ [cooldownKey]: newCooldowns, ap: state.ap - ability.apCost, selectedAbility: null, selectedAbilitySource: null, selectedEnemy: null, message: `🌊 ${ability.name} (AP: ${state.ap - ability.apCost})` } as any);
       return;
     }
 
@@ -1773,7 +1974,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // По своим способностями не бьём: мусорщики — друзья.
     if (targetEnemy && targetEnemy.faction === 'Союзник') {
       get().addMessage('🤝 Свои! В мусорщиков не стреляем.');
-      set({ selectedAbility: null });
+      set({ selectedAbility: null, selectedAbilitySource: null });
       return;
     }
 
@@ -1781,7 +1982,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const needsTarget = ability.effects.some((ef) => ef.type === 'damage' || ef.type === 'mark_zone') || ability.requiresTarget;
     if (needsTarget && !targetEnemy) {
       get().addMessage('❌ Выбери цель для этой способности');
-      set({ selectedAbility: null });
+      set({ selectedAbility: null, selectedAbilitySource: null });
       return;
     }
 
@@ -1790,7 +1991,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const dist = getDist(state.playerPos, targetEnemy.pos);
       if (dist > ability.range) {
         get().addMessage(`❌ ${ability.name}: цель вне радиуса (${ability.range})`);
-        set({ selectedAbility: null });
+        set({ selectedAbility: null, selectedAbilitySource: null });
         return;
       }
     }
@@ -1799,7 +2000,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (needsTarget && targetEnemy) {
       if (!checkVisibility(state.playerPos, state.playerRotation, targetEnemy.pos, state.obstacles, { fov: 360 })) {
         get().addMessage(`❌ ${ability.name}: цель за препятствием`);
-        set({ selectedAbility: null });
+        set({ selectedAbility: null, selectedAbilitySource: null });
         return;
       }
     }
@@ -1808,17 +2009,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (ability.id === 'mine') {
       set({ isPlacingMine: true, message: '💣 Выбери клетку для мины' });
       get().addBattleLog('💣 Мина: выбери клетку для установки');
-      const newCooldowns = [...state.abilityCooldowns];
+      const newCooldowns = source === 'skillBar' ? [...state.skillBarCooldowns] : [...state.abilityCooldowns];
       newCooldowns[idx] = ability.cooldown;
       const newAp = get().ap - ability.apCost;
+      const cooldownKey = source === 'skillBar' ? 'skillBarCooldowns' : 'abilityCooldowns';
       set({
-        abilityCooldowns: newCooldowns,
+        [cooldownKey]: newCooldowns,
         ap: newAp,
         selectedAbility: null,
+        selectedAbilitySource: null,
         selectedEnemy: null,
         message: `💣 ${ability.name} (AP: ${newAp})`,
         enemies: [...state.enemies],
-      });
+      } as any);
       return;
     }
 
@@ -1953,8 +2156,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                   e.currentHp = Math.max(0, e.currentHp - finalDmg);
                   get().addPopup(e.pos.x, e.pos.y, `-${finalDmg}`, 'DMG');
                   if (e.currentHp <= 0) {
-                    e.dead = true; e.isHit = false;
-                    get().addBattleLog(`💀 ${e.name} уничтожен!`);
+                    // Питомец засыпает вместо смерти.
+                    if ((e as any).isPet) {
+                      e.sleeping = true; e.isHit = false;
+                      get().addBattleLog(`😴 ${(e as any).name || 'Питомец'} засыпает до конца боя!`);
+                      try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
+                    } else {
+                      e.dead = true; e.isHit = false;
+                      get().addBattleLog(`💀 ${e.name} уничтожен!`);
+                    }
                   }
                 }
                 return e;
@@ -1989,11 +2199,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             }
           } else {
             // Single target
-            if (ability.id === 'aimshot') {
+            if (ability.id === 'aimshot' || ability.id === 'snpb_deadeye') {
+              // Аимшот (расходник) / Прицельный: прямой урон мимо брони (множитель уже в dmg).
               playCombatSound('Silvertarget', 0.4);
             set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'aim', kind: 'single', count: 1, power: 1.6 } });
               setTimeout(() => set({ shotLine: null }), 600);
               const finalDmg = Math.round(Math.max(1, dmg));
+              targetEnemy.currentHp = Math.max(0, targetEnemy.currentHp - finalDmg);
+              targetEnemy.isHit = true;
+              get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, `-${finalDmg} 🎯`, 'DMG');
+            } else if (ability.id === 'snpb_aimshot') {
+              // Аимшот снайпера: ×5, но броня работает (понерфлен).
+              playCombatSound('Silvertarget', 0.4);
+              set({ shotLine: { from: state.playerPos, to: targetEnemy.pos, type: 'aim', kind: 'single', count: 1, power: 1.6 } });
+              setTimeout(() => set({ shotLine: null }), 600);
+              const finalDmg = Math.round(Math.max(1, dmg * (1 - targetEnemy.armor * 0.01)));
               targetEnemy.currentHp = Math.max(0, targetEnemy.currentHp - finalDmg);
               targetEnemy.isHit = true;
               get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, `-${finalDmg} 🎯`, 'DMG');
@@ -2073,6 +2293,27 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         get().addBattleLog(`✨ ${ability.name}: ${boost.stat} +${boost.value} на ${boost.duration} хода`);
       }
 
+      if (type === 'stat_set') {
+        const setFx = effect as AbilityEffect & { type: 'stat_set' };
+        const player = usePlayerStore.getState();
+        const existing = player.activeEffects.find((e) => e.id === `ability_${ability.id}`);
+        if (existing) {
+          existing.remaining = Math.max(existing.remaining, setFx.duration);
+          (existing as any).statSets = { [setFx.stat]: setFx.value };
+        } else {
+          usePlayerStore.getState().addEffect({
+            id: `ability_${ability.id}`,
+            name: ability.name,
+            duration: setFx.duration,
+            remaining: setFx.duration,
+            statBoosts: {},
+            statSets: { [setFx.stat]: setFx.value },
+          } as any);
+        }
+        get().addPopup(state.playerPos.x, state.playerPos.y, `✨ ${setFx.stat}=${setFx.value}`, 'BUFF');
+        get().addBattleLog(`✨ ${ability.name}: ${setFx.stat} ровно ${setFx.value} на ${setFx.duration} хода`);
+      }
+
       if (type === 'stat_boost_mult') {
         const boost = effect as AbilityEffect & { type: 'stat_boost_mult' };
         if (ability.id === 'barrier') playCombatSound('Buckler', 0.4);
@@ -2147,17 +2388,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           get().addBattleLog(`👻 ${ability.name}: невидимость на ${statusEffect.duration} хода`);
         }
         if (statusEffect.id === 'stun' && targetEnemy) {
-          playCombatSound('Echo_Sabre', 0.4);
+          playCombatSound('SkullBasher', 0.5);
           targetEnemy.stunned = true;
           targetEnemy.stunTurns = statusEffect.duration;
-          get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, '⚡ СТАН!', 'SPECIAL');
-          get().addBattleLog(`⚡ ${ability.name}: цель оглушена на ${statusEffect.duration} ход`);
+          get().addPopup(targetEnemy.pos.x, targetEnemy.pos.y, '😵 СТАН!', 'SPECIAL');
+          get().addBattleLog(`😵 ${ability.name}: цель оглушена на ${statusEffect.duration} ход`);
         }
       }
 
       if (type === 'teleport') {
         set({ isTeleporting: true, message: '✨ Выбери клетку для телепортации' });
         get().addBattleLog(`✨ ${ability.name}: выбери клетку для телепортации`);
+        if ((effect as AbilityEffect & { type: 'teleport' }).stealthReady) {
+          set({ teleportStealthReady: true });
+          get().addBattleLog('🥷 После телепорта можно скрыться (F) даже в бою');
+        }
       }
 
       if ((type as string) === 'free_reload') {
@@ -2262,17 +2507,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     // Apply costs and cooldown
-    const newCooldowns = [...state.abilityCooldowns];
+    const newCooldowns = source === 'skillBar' ? [...state.skillBarCooldowns] : [...state.abilityCooldowns];
     newCooldowns[idx] = ability.cooldown;
     const newAp = get().ap - ability.apCost;
+    const cooldownKey = source === 'skillBar' ? 'skillBarCooldowns' : 'abilityCooldowns';
     set({
-      abilityCooldowns: newCooldowns,
+      [cooldownKey]: newCooldowns,
       ap: newAp,
       selectedAbility: null,
+      selectedAbilitySource: null,
       selectedEnemy: null,
       message: `✨ ${ability.name} (AP: ${newAp})`,
       enemies: [...state.enemies],
-    });
+    } as any);
 
     // Skip turn if required
     if (ability.skipTurn) {
@@ -2287,6 +2534,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   tickAbilityCooldowns: () => {
     set((s) => ({
       abilityCooldowns: s.abilityCooldowns.map((c) => Math.max(0, c - 1)),
+      petCooldowns: (s.petCooldowns || []).map((c) => Math.max(0, c - 1)),
     }));
   },
 
@@ -2327,6 +2575,432 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     get().addPopup(x, y, '💣 МИНА', 'SPECIAL');
     get().addBattleLog(`💣 Мина установлена на (${x}, ${y})`);
+  },
+
+  // ---------- Питомец: команды и способности (ходит в ход игрока) ----------
+  setPetCommandMode: (v) => {
+    const s = get();
+    if (v && s.turn !== 'player') return;
+    const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
+    if (v && (!pet || pet.sleeping || (pet.currentHp || 0) <= 0)) {
+      get().addMessage('🐾 Питомец недоступен (спит)');
+      return;
+    }
+    set({ petCommandMode: v });
+    if (v) get().addMessage('🐾 Команда: кликни врага — атакует, клетку — шаг. Повторный клик по питомцу — отмена.');
+  },
+
+  commandPetMove: (x, y) => {
+    const s = get();
+    if (s.turn !== 'player' || s.isMoving) return;
+    const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
+    if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) return;
+    if (x < 0 || y < 0 || x >= GRID || y >= GRID) return;
+    if (s.obstacles.some((o: any) => o.x === x && o.y === y && (o.blocks || o.isHigh))) {
+      get().addMessage('❌ Клетка непроходима');
+      return;
+    }
+    if (s.enemies.some((e: any) => e.id !== pet.id && !e.dead && (e.currentHp || 0) > 0 && e.pos.x === x && e.pos.y === y)) {
+      get().addMessage('❌ Клетка занята');
+      return;
+    }
+    const perAp = petCellsPerAp(pet.speed || 0);
+    const maxCells = (pet.petAp || 0) * perAp;
+    if (maxCells <= 0) { get().addMessage('❌ У питомца нет AP'); return; }
+    const step = petWalk(pet, x, y, maxCells, s.obstacles, s.enemies);
+    if (step.cells <= 0) return;
+    const spent = Math.max(1, Math.ceil(step.cells / perAp));
+    set((st: any) => ({
+      enemies: st.enemies.map((e: any) => e.id === pet.id
+        ? { ...e, pos: { x: step.x, y: step.y }, rotation: getAngle(e.pos, { x: step.x, y: step.y }), petAp: Math.max(0, (e.petAp || 0) - spent) }
+        : e),
+    }));
+    get().addBattleLog(`🐾 ${pet.name}: шаг (${step.cells} кл.)`);
+  },
+
+  commandPetAttack: async (enemyId) => {
+    const s = get();
+    if (s.turn !== 'player' || s.isMoving) return;
+    const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
+    if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) {
+      get().addMessage('🐾 Питомец недоступен (спит)');
+      return;
+    }
+    const target = s.enemies.find((e: any) => e.id === enemyId);
+    if (!target || target.dead || (target.currentHp || 0) <= 0 || target.faction === 'Союзник') return;
+    if ((pet.petAp || 0) <= 0) { get().addMessage('❌ У питомца нет AP'); return; }
+    set({ petTargetId: enemyId, isMoving: true });
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    // Пошаговая ходьба как у врагов/игрока — звук run за каждый шаг
+    let me = get().enemies.find((e: any) => e.id === pet.id);
+    const perAp = petCellsPerAp(me.speed || 0);
+    const range = me.rangeDistance || 1.5;
+    while (getDist(me.pos, target.pos) > range && (me.petAp || 0) > 0) {
+      const cur = get();
+      me = cur.enemies.find((e: any) => e.id === pet.id);
+      const tgt = cur.enemies.find((e: any) => e.id === enemyId);
+      if (!tgt || tgt.dead) break;
+      const step = petWalk(me, tgt.pos.x, tgt.pos.y, perAp, cur.obstacles, cur.enemies);
+      if (step.cells === 0) break;
+      set((s2: any) => ({
+        enemies: s2.enemies.map((e: any) => e.id === me.id
+          ? { ...e, pos: { x: step.x, y: step.y }, rotation: getAngle(e.pos, { x: step.x, y: step.y }), petAp: Math.max(0, (e.petAp || 0) - 1) }
+          : e),
+      }));
+      await sleep(160);
+      me = get().enemies.find((e: any) => e.id === pet.id);
+    }
+    // Бить поочередно с паузой и звуком каждый удар
+    for (;;) {
+      const cur = get();
+      const tgt = cur.enemies.find((e: any) => e.id === enemyId);
+      const atk = cur.enemies.find((e: any) => e.id === pet.id);
+      if (!tgt || tgt.dead || (tgt.currentHp || 0) <= 0) break;
+      if ((atk.petAp || 0) < 1) break;
+      if (getDist(atk.pos, tgt.pos) > (atk.rangeDistance || 1.5)) break;
+      if (!checkVisibility(atk.pos, 0, tgt.pos, cur.obstacles, { range: 15, fov: 360 })) {
+        get().addMessage('❌ Питомец не видит цель');
+        break;
+      }
+      if (!get().petStrikeAt(enemyId, 1)) break;
+      set((s2: any) => ({
+        enemies: s2.enemies.map((e: any) => e.id === me.id ? { ...e, petAp: Math.max(0, (e.petAp || 0) - 1) } : e),
+      }));
+      await sleep(380);
+    }
+    set({ isMoving: false });
+    get().addBattleLog(`🐾 ${me.name} атакует: ${target.name}`);
+  },
+
+  /** Удар питомца (AP списывает вызывающий). Возвращает успех. Поворот к цели как у игрока/врагов. */
+  petStrikeAt: (targetId, mult = 1, opts) => {
+    const s = get();
+    const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
+    if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) return false;
+    const target = s.enemies.find((e: any) => e.id === targetId);
+    if (!target || target.dead || (target.currentHp || 0) <= 0 || target.faction === 'Союзник') return false;
+    if (getDist(pet.pos, target.pos) > (pet.rangeDistance || 1.5)) return false;
+    // Поворот питомца к цели — физика как у нас/врагов
+    const rot = getAngle(pet.pos, target.pos);
+    set((st: any) => ({
+      enemies: st.enemies.map((e: any) => e.id === pet.id ? { ...e, rotation: rot } : e),
+    }));
+    const eff = petEffStats(pet);
+    const atkStat = {
+      dps: eff.damage, pure: 0, crit: eff.crit, accuracy: eff.accuracy,
+      punching: eff.punching, vampir: 0, isPlayer: false,
+    };
+    const tgtStat = { armor: target.armor || 0, evasion: target.evasion || 0, block: target.block || 0 };
+    const res = calculateCombatResult(atkStat as any, tgtStat as any);
+    const dmg = Math.round(Math.max(0, res.damage * mult));
+    // Обычная атака питомца — звук Corruption (как у молота)
+    playCombatSound('Corruption', 0.35);
+    set((st: any) => ({
+      enemies: st.enemies.map((e: any) => {
+        if (e.id !== targetId) return e;
+        const hp = Math.max(0, (e.currentHp || 0) - dmg);
+        return { ...e, currentHp: hp, isHit: true, dead: hp <= 0, aggro: true, knowsPlayer: true, alertTurn: get().turnCount };
+      }),
+    }));
+    get().addPopup(target.pos.x, target.pos.y, `-${dmg} 🐾`, 'DMG');
+    get().addBattleLog(`🐾 ${pet.name}: −${dmg} по ${target.name}`);
+    if (opts?.stun) {
+      set((st: any) => ({
+        enemies: st.enemies.map((e: any) => e.id === targetId ? { ...e, stunned: true, stunTurns: opts.stun } : e),
+      }));
+      get().addBattleLog(`😵 ${target.name} оглушён!`);
+    }
+    if (opts?.healPct && dmg > 0) {
+      const heal = Math.round(dmg * opts.healPct);
+      set((st: any) => ({
+        enemies: st.enemies.map((e: any) => e.id === pet.id
+          ? { ...e, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) }
+          : e),
+      }));
+      get().addPopup(pet.pos.x, pet.pos.y, `+${heal} 🩸`, 'VAMP');
+    }
+    if (opts?.knockback) {
+      const dx = target.pos.x - pet.pos.x;
+      const dy = target.pos.y - pet.pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = target.pos.x + Math.round((dx / dist) * opts.knockback);
+      const ny = target.pos.y + Math.round((dy / dist) * opts.knockback);
+      const st2 = get();
+      const blocked = nx < 0 || ny < 0 || nx >= GRID || ny >= GRID
+        || st2.obstacles.some((o: any) => o.x === nx && o.y === ny && (o.blocks || o.isHigh))
+        || st2.enemies.some((e: any) => e.id !== targetId && !e.dead && (e.currentHp || 0) > 0 && e.pos.x === nx && e.pos.y === ny);
+      if (!blocked) {
+        set((st3: any) => ({
+          enemies: st3.enemies.map((e: any) => e.id === targetId ? { ...e, pos: { x: nx, y: ny } } : e),
+        }));
+        get().addPopup(nx, ny, '💥 ОТБРОС!', 'SPECIAL');
+      }
+    }
+    // Вампиризм питомца с урона.
+    const vamp = Math.round(dmg * (eff.vampir || 0));
+    if (vamp > 0) {
+      set((st: any) => ({
+        enemies: st.enemies.map((e: any) => e.id === pet.id
+          ? { ...e, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + vamp) }
+          : e),
+      }));
+      get().addPopup(pet.pos.x, pet.pos.y, `+${vamp} 🩸`, 'VAMP');
+    }
+    const deadNow = (get().enemies.find((e: any) => e.id === targetId)?.currentHp || 0) <= 0;
+    if (deadNow) get().addBattleLog(`💀 ${target.name} повержен питомцем!`);
+    return true;
+  },
+
+  selectPetAbility: (index) => {
+    const s = get();
+    if (s.turn !== 'player') return;
+    const ab = s.petAbilities[index];
+    if (!ab) return;
+    const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
+    if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) {
+      get().addMessage('🐾 Питомец недоступен (спит)');
+      return;
+    }
+    if ((s.petCooldowns[index] || 0) > 0) return;
+    if ((pet.petAp || 0) < ab.petApCost) { get().addMessage('❌ У питомца нет AP'); return; }
+    set({ selectedAbility: s.selectedAbility === index && s.selectedAbilitySource === 'pet' ? null : index, selectedAbilitySource: 'pet' });
+  },
+
+  usePetAbility: (index, enemyId) => {
+    const state = get();
+    if (state.turn !== 'player' || state.isMoving) return;
+    const ab = state.petAbilities[index];
+    if (!ab) return;
+    const pet = state.enemies.find((e: any) => e.isPet && !e.dead);
+    if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) {
+      get().addMessage('🐾 Питомец недоступен (спит)');
+      set({ selectedAbility: null, selectedAbilitySource: null });
+      return;
+    }
+    if ((state.petCooldowns[index] || 0) > 0) {
+      get().addMessage('❌ Способность перезаряжается');
+      set({ selectedAbility: null, selectedAbilitySource: null });
+      return;
+    }
+    // pb_t6_restore — тратит AP игрока, а не питомца (лечит игрока)
+    const isPlayerCost = ab.id === 'petb_pb_t6_restore';
+    if (!isPlayerCost && (pet.petAp || 0) < ab.petApCost) {
+      get().addMessage('❌ У питомца нет AP');
+      return;
+    }
+    if (isPlayerCost && (get().ap || 0) < 2) {
+      get().addMessage('❌ Нужно 2 AP игрока');
+      return;
+    }
+    const spend = (cd: number) => {
+      const cds = [...get().petCooldowns];
+      cds[index] = cd;
+      if (isPlayerCost) {
+        set((s2: any) => ({
+          petCooldowns: cds,
+          ap: Math.max(0, (s2.ap || 0) - 2),
+          selectedAbility: null, selectedAbilitySource: null, selectedEnemy: null,
+        }));
+      } else {
+        const pap = (get().enemies.find((e: any) => e.id === pet.id)?.petAp || 0) - ab.petApCost;
+        set((s2: any) => ({
+          petCooldowns: cds,
+          enemies: s2.enemies.map((e: any) => e.id === pet.id ? { ...e, petAp: Math.max(0, pap) } : e),
+          selectedAbility: null, selectedAbilitySource: null, selectedEnemy: null,
+        }));
+      }
+    };
+    if (ab.exec === 'ai') {
+      const now = !get().petAiActive;
+      set({ petAiActive: now, petTargetId: null });
+      if (now) {
+        get().addMessage('🤖 ИИ включён — питомец сам ищет цель');
+        get().petAiTurn();
+      } else {
+        get().addMessage('🤖 ИИ выключен — питомец идёт за вами');
+      }
+      set({ selectedAbility: null, selectedAbilitySource: null });
+      return;
+    }
+    if (ab.exec === 'command') {
+      const now = !get().petCommandMode;
+      set({ petCommandMode: now });
+      get().addMessage(now ? '🎯 Команда: кликни врага — питомец побежит атаковать' : '🎯 Команда снята');
+      set({ selectedAbility: null, selectedAbilitySource: null });
+      return;
+    }
+    if (ab.exec === 'hot') {
+      // Лечит только медведя 25%/ход×3 — звук nom-nom, 2 AP игрока, только для bear
+      if ((pet as any).petKind !== 'bear') {
+        get().addMessage('❌ Только медведь');
+        set({ selectedAbility: null, selectedAbilitySource: null });
+        return;
+      }
+      playCombatSound('nom-nom-nom_gPJiWn4', 0.55);
+      const pBuffs = [...(pet.petBuffs || []), { stat: 'hotHeal', value: ab.value || 0.25, remaining: ab.duration || 3 }];
+      set((s2: any) => ({
+        enemies: s2.enemies.map((e: any) => e.id === pet.id ? { ...e, petBuffs: pBuffs } : e),
+      }));
+      get().addPopup(pet.pos.x, pet.pos.y, `💚 ${ab.name}!`, 'HEAL');
+      get().addBattleLog(`🐾 ${pet.name}: ${ab.name} — +25% HP/ход 3 хода (2 AP игрока)`);
+      spend(ab.cooldown);
+      return;
+    }
+    if (ab.exec === 'buffself') {
+      const kept = (pet.petBuffs || []).filter((b: any) => b.stat !== ab.stat);
+      const buffs = [...kept, { stat: ab.stat, value: ab.value, remaining: ab.duration || 3 }];
+      set((s2: any) => ({
+        enemies: s2.enemies.map((e: any) => e.id === pet.id ? { ...e, petBuffs: buffs } : e),
+      }));
+      get().addPopup(pet.pos.x, pet.pos.y, `✨ ${ab.name}!`, 'BUFF');
+      get().addBattleLog(`🐾 ${pet.name}: ${ab.name} (${ab.duration || 3} хода)`);
+      spend(ab.cooldown);
+      return;
+    }
+    if (ab.exec === 'buffparty') {
+      const stats = ab.partyStats || { [ab.stat || 'crit']: ab.value || 0 };
+      const effId = `ability_petparty_${ab.id}`;
+      const hasIt = usePlayerStore.getState().activeEffects.some((e) => e.id === effId);
+      if (!hasIt) {
+        usePlayerStore.getState().addEffect({
+          id: effId,
+          name: ab.name,
+          duration: ab.duration || 2,
+          remaining: ab.duration || 2,
+          statBoosts: stats,
+        } as any);
+      }
+      const buffs = [...(pet.petBuffs || [])];
+      for (const [k, v] of Object.entries(stats)) {
+        const ix = buffs.findIndex((b) => b.stat === k);
+        const nb = { stat: k, value: v as number, remaining: ab.duration || 2 };
+        if (ix >= 0) buffs[ix] = nb;
+        else buffs.push(nb);
+      }
+      set((s2: any) => ({
+        enemies: s2.enemies.map((e: any) => e.id === pet.id ? { ...e, petBuffs: buffs } : e),
+      }));
+      get().addBattleLog(`🐺 ${ab.name}: стая усилена!`);
+      spend(ab.cooldown);
+      return;
+    }
+    if (ab.exec === 'debuffAura') {
+      const aoe = ab.aoe || 10;
+      let hit = 0;
+      set((s2: any) => ({
+        enemies: s2.enemies.map((e: any) => {
+          if (e.dead || (e.currentHp || 0) <= 0 || e.faction === 'Союзник') return e;
+          if (getDist(pet.pos, e.pos) > aoe) return e;
+          hit++;
+          return {
+            ...e,
+            accuracy: Math.max(0.05, (e.accuracy || 1) * (ab.value ?? 0.5)),
+            debuffs: { ...(e.debuffs || {}), roar: true, turns: ab.duration || 3 },
+          };
+        }),
+      }));
+      get().addPopup(pet.pos.x, pet.pos.y, `📢 ${ab.name}!`, 'SPECIAL');
+      get().addBattleLog(`🐻 ${ab.name}: ${hit} врагов оглушены рёвом (−меткость)`);
+      spend(ab.cooldown);
+      return;
+    }
+    // strike (точечные атаки, рывок, таран, клыки)
+    const tid = enemyId ?? state.petTargetId;
+    const target = tid != null ? state.enemies.find((e: any) => e.id === tid) : null;
+    if (!target || target.dead || (target.currentHp || 0) <= 0 || target.faction === 'Союзник') {
+      get().addMessage('❌ Выбери цель: сначала команда атаки');
+      return;
+    }
+    set({ petTargetId: target.id });
+    // Рывок: добежать вплотную в пределах 20 клеток.
+    const cur = get();
+    const me = cur.enemies.find((e: any) => e.id === pet.id);
+    if (getDist(me.pos, target.pos) > 2) {
+      const maxCells = ab.id.endsWith('dash') ? 20 : (me.petAp || 0) * petCellsPerAp(me.speed || 0);
+      const step = petWalk(me, target.pos.x, target.pos.y, maxCells, cur.obstacles, cur.enemies);
+      if (step.cells > 0 && !ab.id.endsWith('dash')) {
+        const perAp = petCellsPerAp(me.speed || 0);
+        const spent = Math.max(1, Math.ceil(step.cells / perAp));
+        set((s2: any) => ({
+          enemies: s2.enemies.map((e: any) => e.id === me.id
+            ? { ...e, pos: { x: step.x, y: step.y }, rotation: getAngle(e.pos, { x: step.x, y: step.y }), petAp: Math.max(0, (e.petAp || 0) - spent) }
+            : e),
+        }));
+      } else if (step.cells > 0) {
+        set((s2: any) => ({
+          enemies: s2.enemies.map((e: any) => e.id === me.id
+            ? { ...e, pos: { x: step.x, y: step.y }, rotation: getAngle(e.pos, { x: step.x, y: step.y }) }
+            : e),
+        }));
+      }
+    }
+    const atk = get().enemies.find((e: any) => e.id === pet.id);
+    if (getDist(atk.pos, target.pos) > 2) {
+      get().addMessage('❌ Питомец не достаёт до цели');
+      return;
+    }
+    if (!checkVisibility(atk.pos, 0, target.pos, get().obstacles, { range: 15, fov: 360 })) {
+      get().addMessage('❌ Питомец не видит цель');
+      return;
+    }
+    if (!get().petStrikeAt(target.id, ab.mult || 1, { stun: ab.stun, healPct: ab.healPct, knockback: ab.knockback })) return;
+    spend(ab.cooldown);
+  },
+
+  /** Ход ИИ питомца: бежит к ближайшему видимому врагу и бьёт, добив — переключается. Пошагово со звуками. */
+  petAiTurn: async () => {
+    const s = get();
+    const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
+    if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) return;
+    if (!s.petAiActive || !((usePlayerStore.getState().skills['pet_ai'] || 0) > 0)) return;
+    let pap = pet.petAp || 0;
+    if (pap <= 0) return;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const syncAp = () => set((s2: any) => ({
+      enemies: s2.enemies.map((e: any) => e.id === pet.id ? { ...e, petAp: pap } : e),
+    }));
+    const foesAround = (): any[] => get().enemies
+      .filter((e: any) => e.id !== pet.id && !e.dead && (e.currentHp || 0) > 0 && e.faction !== 'Союзник' && !e.isInvisible)
+      .sort((a: any, b: any) => getDist(pet.pos, a.pos) - getDist(pet.pos, b.pos));
+    let guard = 0;
+    while (pap >= 1 && guard++ < 8) {
+      const cur = get();
+      const me = cur.enemies.find((e: any) => e.id === pet.id);
+      if (!me || me.dead || me.sleeping || (me.currentHp || 0) <= 0) break;
+      // Ближайший ВИДИМЫЙ враг.
+      const seen = foesAround().find((f: any) =>
+        checkVisibility(me.pos, 0, f.pos, cur.obstacles, { range: 25, fov: 360 }));
+      if (!seen) break;
+      // Подойти вплотную пошагово — звук run за каждый шаг
+      if (getDist(me.pos, seen.pos) > (me.rangeDistance || 1.5)) {
+        const perAp = petCellsPerAp(me.speed || 0);
+        let moved = false;
+        while (pap >= 1 && getDist(me.pos, seen.pos) > (me.rangeDistance || 1.5)) {
+          const cur2 = get();
+          const curMe = cur2.enemies.find((e: any) => e.id === pet.id);
+          const step = petWalk(curMe, seen.pos.x, seen.pos.y, perAp, cur2.obstacles, cur2.enemies);
+          if (step.cells === 0) break;
+          pap = Math.max(0, pap - 1);
+          set((s2: any) => ({
+            enemies: s2.enemies.map((e: any) => e.id === curMe.id
+              ? { ...e, pos: { x: step.x, y: step.y }, rotation: getAngle(e.pos, { x: step.x, y: step.y }), petAp: pap }
+              : e),
+          }));
+          await sleep(160);
+          moved = true;
+          // обновим me для следующей итерации
+          Object.assign(me, get().enemies.find((e: any) => e.id === pet.id));
+        }
+        if (moved) get().addBattleLog(`🐾 ${me.name} бежит к ${seen.name}`);
+        continue;
+      }
+      // Бить поочередно со звуком и паузой
+      if (!get().petStrikeAt(seen.id, 1)) break;
+      pap = Math.max(0, pap - 1);
+      await sleep(380);
+      syncAp();
+    }
+    syncAp();
   },
 
   checkAutoTriggers: () => {
@@ -2398,15 +3072,18 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const faction = enemy.faction;
       const pureDmg = calcPureDamage(player.stats, faction);
       if (player.stats.stamina < 0.1 * player.stats.maxStamina) effectiveDps *= 0.5;
+      // Скрытность снайпера: первый выстрел из скрытности +100% крит.
+      const hasSnpStealth = (usePlayerStore.getState().skills['snp_x_stealth'] || 0) > 0;
       const attackerStats = {
         dps: effectiveDps,
         pure: pureDmg,
-        crit: player.stats.crit + get().sniperCritBonus(),
+        crit: player.stats.crit + get().sniperCritBonus() + (state.stealth && hasSnpStealth ? 1.0 : 0),
         accuracy: player.stats.accuracy,
         punching: player.stats.punching,
         vampir: player.stats.vampir,
         isPlayer: true,
-        forceCritMult: state.stealth ? 5 : 0,
+        // Старая механика ×5 из скрытности — теперь только снайпер (+100% крит выше).
+        forceCritMult: 0,
       };
       const hitIds = new Set<string | number>();
       const strikeOne = (t: GridEnemy) => {
@@ -2421,13 +3098,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         set((s) => ({
           ap: s.ap,
           ammo: s.ammo,
-          enemies: s.enemies.map((e) =>
-            e.id === t.id ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } : e
-          ),
+          enemies: s.enemies.map((e) => {
+            if ((e as any).isPet) return { ...e, isInvisible: false, invisTurns: 0 };
+            if (e.id === t.id) return { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } as any;
+            return e;
+          }),
           message: `🗡️ ${result.text}`,
           selectedEnemy: null,
           stealth: false,
-        }));
+        } as any));
         get().addPopup(t.pos.x, t.pos.y, result.text, result.type);
         const vampHeal = Math.round(actualDmg * (player.stats.vampir || 0));
         if (vampHeal > 0) {
@@ -2501,16 +3180,18 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const ammoMult = bulletDamageMult((gunNow as any)?.loadedAmmoQuality);
     if (ammoMult > 1) effectiveDps *= ammoMult;
 
+    // Скрытность снайпера: первый выстрел из скрытности +100% крит.
+    const hasSnpStealth = (usePlayerStore.getState().skills['snp_x_stealth'] || 0) > 0;
     const attackerStats = {
       dps: effectiveDps,
       pure: pureDmg,
-      crit: player.stats.crit + get().sniperCritBonus(),
+      crit: player.stats.crit + get().sniperCritBonus() + (state.stealth && hasSnpStealth ? 1.0 : 0),
       accuracy: player.stats.accuracy,
       punching: player.stats.punching,
       vampir: player.stats.vampir,
       isPlayer: true,
-      // Первый выстрел из скрытности — всегда критический x5.
-      forceCritMult: state.stealth ? 5 : 0,
+      // Старая механика ×5 из скрытности — теперь только снайпер (+100% крит выше).
+      forceCritMult: 0,
     };
     const targetStats = applyTerrainToTarget(
       {
@@ -2529,14 +3210,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set((s) => ({
       ap: Math.max(0, s.ap - shotCost),
       ammo: Math.max(0, s.ammo - 1),
-      enemies: s.enemies.map((e) =>
-        e.id === enemyId ? { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } : e
-      ),
+      enemies: s.enemies.map((e) => {
+        if ((e as any).isPet) return { ...e, isInvisible: false, invisTurns: 0 };
+        if (e.id === enemyId) return { ...e, currentHp: Math.max(0, e.currentHp - actualDmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true, alertTurn: get().turnCount } as any;
+        return e;
+      }),
       message: ammoMult > 1 ? `💥 ${result.text} (+${Math.round((ammoMult - 1) * 100)}% патроны)` : `💥 ${result.text}`,
       selectedEnemy: null,
-      // Выстрел срывает скрытность.
+      // Выстрел срывает скрытность (и у питомца).
       stealth: false,
-    }));
+    } as any));
 
     get().addPopup(enemy.pos.x, enemy.pos.y, result.text, result.type);
 
@@ -3025,11 +3708,23 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const allDead = state.enemies.every((e) => e.dead || e.faction === 'Союзник');
     const noReserve = state.reserve.length === 0;
     if (allDead && noReserve) {
+      // Врагов нет — тик сюда не доходит (ранний return), поэтому стойку
+      // снимаем явно, иначе рут висит вечно и блочит движение.
+      const hadRoot = (state.playerRootedTurns || 0) > 0;
       set({
         ap: BASE_AP,
         message: '🕊️ Поле зачищено. Свободное перемещение.',
         turnCount: state.turnCount + 1,
+        playerRootedTurns: 0,
+        freeReloadTurns: 0,
       });
+      if (hadRoot) {
+        usePlayerStore.setState((st: any) => ({
+          activeEffects: (st.activeEffects || []).filter((e: any) => e.id !== 'ability_snpb_nest'),
+        }));
+        usePlayerStore.getState().recalcStats();
+        get().addMessage('⛓️ Снайперская позиция снята — врагов не осталось');
+      }
       return;
     }
     // Защита от зависания: остался 1-2 противника, 50 ходов ни одного выстрела
@@ -3056,6 +3751,84 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       freeReloadTurns: Math.max(0, (s.freeReloadTurns || 0) - 1),
       playerRootedTurns: Math.max(0, (s.playerRootedTurns || 0) - 1),
     }));
+      // Питомец: реген, тик баффов, перк «Ярость Урсока» (+0.2 брони/ход), подводка, рефил AP.
+    {
+      const cs = get();
+      const pet = cs.enemies.find((e: any) => e.isPet && !e.dead);
+      if (pet && !pet.sleeping && (pet.currentHp || 0) > 0) {
+        const ps = usePlayerStore.getState();
+        const bonus = petBranchBonuses((pet.petKind as PetKind) || 'bear', ps.skills);
+        const regenFrac = 0.02 + (bonus.regen || 0);
+        // Ярость Урсока: +0.2 брони каждый ход, стакается.
+        const ursokPerTurn = bonus.armorPerTurn || 0;
+        const ursokBonus = ursokPerTurn > 0 ? { stat: 'armor', value: ursokPerTurn, remaining: 999 } : null;
+        const hotFrac = (pet.petBuffs || []).filter((b: any) => b.stat === 'hotHeal').reduce((s: number, b: any) => s + (b.value || 0), 0);
+        let buffs = (pet.petBuffs || []).map((b: any) => ({ ...b, remaining: b.remaining - 1 })).filter((b: any) => b.remaining > 0);
+        if (ursokBonus) buffs = [...buffs, ursokBonus];
+        const heal = Math.round((pet.maxHp || 0) * regenFrac) + Math.round((pet.maxHp || 0) * hotFrac);
+        let npos = pet.pos;
+        // Без ИИ — ходит за хозяином; с ИИ — к врагу (follow выкл).
+        const hasTarget = !!cs.petTargetId && cs.enemies.some((e: any) => e.id === cs.petTargetId && !e.dead && (e.currentHp||0)>0);
+        if (!cs.petAiActive && !hasTarget && !cs.petCommandMode && getDist(pet.pos, cs.playerPos) > 4) {
+          const step = petWalk({ ...pet, petBuffs: buffs }, cs.playerPos.x, cs.playerPos.y, 2, cs.obstacles, cs.enemies);
+          if (step.cells > 0) npos = { x: step.x, y: step.y };
+        }
+        set((s2: any) => ({
+          enemies: s2.enemies.map((e: any) => e.id === pet.id
+            ? { ...e, pos: npos, petBuffs: buffs, petAp: 5, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) }
+            : e),
+        }));
+        if (heal > 0) {
+          get().addBattleLog(`🐾 ${pet.name}: +${heal} HP (реген${hotFrac > 0 ? ' + восстановление' : ''})`);
+          get().addPopup(npos.x, npos.y, `+${heal} 💗`, 'HEAL');
+        }
+        // Игрок: HOT от Неистового восстановления (healOverTime) тикает каждый ход боя
+        {
+          const pst = usePlayerStore.getState();
+          const hot = (pst.activeEffects || []).filter((e: any) => e.statBoostsMult?.healOverTime).reduce((s: number, e: any) => s + (e.statBoostsMult.healOverTime || 0), 0);
+          if (hot > 0) {
+            const cur = pst.stats.currentHp;
+            const max = pst.stats.maxHp;
+            const add = Math.round(max * hot);
+            if (cur < max && add > 0) {
+              usePlayerStore.setState((st: any) => ({ stats: { ...st.stats, currentHp: Math.min(max, cur + add) } }));
+              get().addPopup(get().playerPos.x, get().playerPos.y, `+${add} 💚`, 'HEAL');
+              get().addBattleLog(`💚 Восстановление: +${add} HP игроку`);
+            }
+          }
+        }
+        // Авто-способности медведя (пассивные, по КД): Тяжёлая лапа (6) и Дикий рёв (8) — Тяжёлая лапа = механика Удара молотом
+        const turn = get().turnCount;
+        if (pet.petKind === 'bear') {
+          const hasPaw = (ps.skills['pb_t3_paw'] || 0) > 0;
+          const hasRoar = (ps.skills['pb_t3_roar'] || 0) > 0;
+          if (hasPaw && turn > 0 && turn % 6 === 0) {
+            const tgt = get().enemies.find((e: any) => !e.dead && e.faction !== 'Союзник' && getDist(pet.pos, e.pos) <= 2);
+            if (tgt) {
+              playCombatSound('SkullBasher', 0.5);
+              get().petStrikeAt(tgt.id, 2, { stun: 1 });
+              get().addPopup(tgt.pos.x, tgt.pos.y, '😵 СТАН!', 'SPECIAL');
+              get().addBattleLog(`🐾 ${pet.name}: Тяжёлая лапа — Удар молотом! ${tgt.name} оглушён 1 ход`);
+            }
+          }
+          if (hasRoar && turn > 0 && turn % 8 === 0) {
+            let hit = 0;
+            set((s2: any) => ({
+              enemies: s2.enemies.map((e: any) => {
+                if (e.dead || e.faction === 'Союзник' || getDist(pet.pos, e.pos) > 10) return e;
+                hit++;
+                return { ...e, accuracy: Math.max(0.05, (e.accuracy || 1) * 0.8), debuffs: { ...(e.debuffs||{}), roar: true, turns: 1 } };
+              }),
+            }));
+            if (hit > 0) {
+              playCombatSound('ChallengingRoar', 0.55);
+              get().addPopup(pet.pos.x, pet.pos.y, '📢 РЁВ!', 'SPECIAL');
+              get().addBattleLog(`🐻 Дикий рёв: ${hit} врагов −20% меткости!`);
+            }
+          }
+        }
+      }
+    }
     // Tick player effects per turn instead of per real second
     usePlayerStore.getState().tickEffects();
     // Reset maxAp if sprint/rush effect expired
@@ -3081,8 +3854,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         currentHp: Math.round(st.stats.currentHp),
         stamina: Math.round(st.stats.stamina),
       },
-      activeEffects: (st.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_')),
+      activeEffects: (st.activeEffects || []).filter((e: any) => !e.id.startsWith('ability_') && e.id !== 'pet_aura'),
     }));
+    // Ауры питомца вне боя не действуют.
     // Остаток магазина — записать в оружие (магазин живёт в оружии, не в рюкзаке).
     // Даже на поражении: рюкзак вайпнут, а оружие остаётся при герое.
     const cs = get();
@@ -3134,8 +3908,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
       corpseSearch: null, alarmRaised: false, noSleep: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
-      playerAbilities: [], abilityCooldowns: [], selectedAbility: null,
-      playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, isPlacingMine: false, immortalityTurns: 0, showCookingMenu: false, cardRarityName: null,
+      playerAbilities: [], abilityCooldowns: [], skillBarAbilities: [], skillBarCooldowns: [], petAbilities: [], petCooldowns: [], petCommandMode: false, petTargetId: null, selectedAbility: null, selectedAbilitySource: null,
+      playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, teleportStealthReady: false, isPlacingMine: false, immortalityTurns: 0, showCookingMenu: false, cardRarityName: null,
       ammo: MAX_AMMO, maxAmmo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
     });
   },

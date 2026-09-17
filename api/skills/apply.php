@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/sniper_validate.php';
+require_once __DIR__ . '/pet_validate.php';
 
 $user = requireAuth();
 $input = json_decode(file_get_contents('php://input'), true);
@@ -18,9 +20,11 @@ try {
     $stmt->execute([$user['id']]);
     $existing = [];
     $totalSpent = 0;
+    // Бесплатные базовые снайпера в потраченные не считаются.
+    $freeTakeIds = ['snp_x_aim' => 1, 'snp_a7_deadeye' => 1, 'snp_x_stealth' => 1, 'pet_regen' => 1, 'pet_ai' => 1];
     foreach ($stmt->fetchAll() as $row) {
         $existing[$row['skill_id']] = (int)$row['points'];
-        $totalSpent += (int)$row['points'];
+        if (!isset($freeTakeIds[$row['skill_id']])) $totalSpent += (int)$row['points'];
     }
 
     // Read level for total earned
@@ -45,6 +49,9 @@ try {
     $newSkills = $existing;
     $pendingTotal = 0;
 
+    // Бесплатные базовые снайпера очки не тратят (зеркало freeTake).
+    $freeTake = ['snp_x_aim' => 1, 'snp_a7_deadeye' => 1, 'snp_x_stealth' => 1, 'pet_regen' => 1, 'pet_ai' => 1];
+
     // First pass: apply pending to get new skills map
     foreach ($pendingSkills as $skillId => $points) {
         $points = (int)$points;
@@ -53,7 +60,7 @@ try {
             jsonResponse(['error' => 'Negative points for ' . $skillId], 400);
         }
         $newSkills[$skillId] = ($newSkills[$skillId] ?? 0) + $points;
-        $pendingTotal += $points;
+        if (!isset($freeTake[$skillId])) $pendingTotal += $points;
     }
 
     // Check total doesn't exceed earnings
@@ -61,6 +68,22 @@ try {
     if ($newTotalSpent > $totalEarned) {
         $pdo->rollBack();
         jsonResponse(['error' => 'Not enough skill points'], 400);
+    }
+
+    // Антиабуз снайпера (зеркало src/data/sniper.ts): гейты тиров,
+    // эксклюзивы, ветки requiresAbility, лимиты рангов. Иначе прямой
+    // POST мог бы выдать Т7 без prerequisites.
+    $snpErr = validateSniper($newSkills);
+    if ($snpErr !== null) {
+        $pdo->rollBack();
+        jsonResponse(['error' => $snpErr], 400);
+    }
+
+    // Антиабуз питомцев (зеркало src/data/pets.ts).
+    $petErr = validatePets($newSkills);
+    if ($petErr !== null) {
+        $pdo->rollBack();
+        jsonResponse(['error' => $petErr], 400);
     }
 
     // UPSERT new skills

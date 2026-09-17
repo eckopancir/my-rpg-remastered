@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import {
   SNIPER_META, SNIPER_TIERS,
-  sniperOfTier, sniperCanAllocate, sniperTierOpen,
+  sniperOfTier, sniperCanAllocate, sniperTierOpen, sniperRankText,
   type SniperAbilityDef, type SniperColumn,
 } from '../../data/sniper';
 import { getSniperImage, sniperSkillsBg } from '../../assets/index';
@@ -16,12 +16,15 @@ const frameFor = (rank: number, locked: boolean): string => {
   return '2px solid rgba(255,255,255,0.28)';
 };
 
-const SniperCell = ({
-  def, onHover, onLeave,
+export const SniperCell = ({
+  def, onHover, onLeave, compact, bare,
 }: {
   def: SniperAbilityDef;
   onHover: (def: SniperAbilityDef, x: number, y: number) => void;
   onLeave: () => void;
+  compact?: boolean;
+  /** только картинка, без надписей */
+  bare?: boolean;
 }) => {
   const skills = usePlayerStore((s) => s.skills);
   const pendingSkills = usePlayerStore((s) => s.pendingSkills);
@@ -35,10 +38,15 @@ const SniperCell = ({
   const maxed = tot >= def.maxRanks;
   const check = sniperCanAllocate(def.id, skills, pendingSkills, skillPoints);
   const locked = tot === 0 && !check.ok;
-  const img = getSniperImage(def.img);
+  const img = def.img ? getSniperImage(def.img) : undefined;
+  const frame = compact ? 48 : 67;
 
+  // Только бонус за ранг + счётчик одним кеглем, без суммарного текста (сумма — в тултипе).
+  const perRank = def.statsPerRank
+    ? sniperRankText(def, 1).replace(/^\+/, '')
+    : def.name;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 64 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: compact ? 110 : 150 }}>
       <div
         onMouseEnter={(e) => onHover(def, e.clientX, e.clientY)}
         onMouseMove={(e) => onHover(def, e.clientX, e.clientY)}
@@ -47,7 +55,7 @@ const SniperCell = ({
         onContextMenu={(e) => { e.preventDefault(); deallocateSniper(def.id); }}
         title={def.name}
         style={{
-          width: 48, height: 48, borderRadius: 6, overflow: 'hidden',
+          width: frame, height: frame, borderRadius: 8, overflow: 'hidden',
           border: frameFor(tot, locked),
           background: '#0e0e11',
           boxShadow: tot > 0 ? `0 0 8px ${COL}55` : '0 2px 6px rgba(0,0,0,0.5)',
@@ -55,21 +63,26 @@ const SniperCell = ({
           opacity: locked ? 0.45 : 1,
           transition: 'all 120ms',
           position: 'relative', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
         {img
           ? <img src={img} alt={def.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ fontSize: 16 }}>🎯</span>}
+          : <span style={{ fontSize: compact ? 22 : 20 }}>{def.icon || '🎯'}</span>}
         {locked && (
-          <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, background: 'rgba(0,0,0,0.45)' }}>🔒</span>
+          <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, background: 'rgba(0,0,0,0.45)' }}>🔒</span>
         )}
       </div>
-      <div style={{ fontSize: 8, fontWeight: 700, color: tot > 0 ? COL : 'rgba(255,255,255,0.75)', textAlign: 'center', lineHeight: 1.2 }}>
-        {def.name}
-      </div>
-      <div style={{ fontSize: 8, fontFamily: 'var(--font-mono)', color: maxed ? '#4ade80' : COL }}>
-        {cur}/{def.maxRanks}{pen > 0 ? <span style={{ color: '#fbbf24' }}>+{pen}</span> : ''}
-      </div>
+      {!bare && (
+        <>
+          <div style={{ fontSize: compact ? 10 : 11, fontWeight: 700, color: tot > 0 ? COL : 'rgba(255,255,255,0.75)', textAlign: 'center', lineHeight: 1.2 }}>
+            {perRank}
+          </div>
+          <div style={{ fontSize: compact ? 10 : 11, fontFamily: 'var(--font-mono)', color: maxed ? '#4ade80' : 'rgba(255,255,255,0.9)', textAlign: 'center', lineHeight: 1.25 }}>
+            {cur}/{def.maxRanks}{pen > 0 ? <span style={{ color: '#fbbf24' }}>+{pen}</span> : ''}
+          </div>
+        </>
+      )}
     </div>
   );
 };

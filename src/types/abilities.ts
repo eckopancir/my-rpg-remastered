@@ -3,11 +3,12 @@ export type AbilityEffect =
   | { type: 'heal_flat'; value: number }
   | { type: 'damage'; multiplier: number; aoe?: number }
   | { type: 'stat_boost'; stat: string; value: number; duration: number }
+  | { type: 'stat_set'; stat: string; value: number; duration: number }
   | { type: 'stat_boost_mult'; stat: string; value: number; duration: number }
   | { type: 'heal_over_time'; value: number; duration: number }
   | { type: 'status'; id: string; duration: number }
   | { type: 'summon' }
-  | { type: 'teleport' }
+  | { type: 'teleport'; stealthReady?: boolean }
   | { type: 'free_reload'; duration: number }
   | { type: 'mark_zone'; duration: number; damageMultiplier: number }
   | { type: 'reveal_map'; duration: number }

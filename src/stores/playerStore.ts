@@ -11,12 +11,14 @@ import type { Item } from '../types/items';
 import type { ActiveEffect } from '../types/player';
 import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
-import { SKILL_CLASSES } from '../data/skills';
-import { SNIPER_ABILITIES, SNIPER_BY_ID, sniperCanAllocate, sniperBattleAbilities } from '../data/sniper';
+import { SNIPER_ABILITIES, SNIPER_BY_ID, SNIPER_META, sniperCanAllocate, sniperBattleAbilities, sniperFindInvalid } from '../data/sniper';
+import { PET_ABILITIES, PET_BY_ID, PET_META, PET_FREE_DEFS, petCanAllocate, petBattleAbilities, petFindInvalid, petBranchAuras, type PetKind, type PetBattleAbility } from '../data/pets';
 import { backpackSlotsFor, backpackDefByName, backpackSlots, makeBackpack, tryInsertInto, createGrid, tryInsertIntoGrid, removeItemFromGrid, findFreeSlot, placeItemAt, type BackpackGrid } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
 import { modLevelMult, demoteModStats, effectiveItemStats, healWronglyDemoted } from '../utils/itemStats';
+import { useUiStore, type SkillBuild } from './uiStore';
+import { playCombatSound } from '../hooks/useSound';
 
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'pants', 'weapon1', 'weapon2',
@@ -35,6 +37,15 @@ export const getEquipSlot = (item: Item): EquipmentSlot | null => {
     if (item.slot === 'weapon2') return gunSlotForWeapon(item);
     return item.slot as EquipmentSlot;
   }
+  return null;
+};
+
+/**
+ * Класс способности: sniper | lesnichiy | null (классические ветки удалены из игры).
+ */
+export const classForSkill = (skillId: string): string | null => {
+  if (skillId.startsWith('snp_')) return SNIPER_META.id;
+  if (skillId.startsWith('pb_') || skillId.startsWith('pw_') || skillId.startsWith('po_') || skillId.startsWith('pet_')) return 'lesnichiy';
   return null;
 };
 
@@ -170,6 +181,23 @@ interface PlayerStore {
   recalcStats: () => void;
   recalcAbilities: () => void;
   accessoryAbilities: (AccessoryAbility | null)[];
+  skillAbilities: (AccessoryAbility | null)[];
+  // Классы: максимум 2 одновременно, выбор стоит 3 очка (качать можно только выбранные).
+  chosenClasses: string[];
+  pickClass: (classId: string, className: string) => void;
+  abandonClass: (classId: string) => void;
+  requireClassFor: (skillId: string) => boolean;
+  // Питомцы: активный зверь + его боевые способности для панели.
+  activePetId: PetKind | null;
+  petAbilities: PetBattleAbility[];
+  // Сытость питомца (сервер — источник правды; null = данных нет, считаем сытым).
+  petSatiety: { value: number; updatedAt: number } | null;
+  loadPetState: () => Promise<void>;
+  feedPet: (itemId: string) => Promise<void>;
+  setActivePet: (kind: PetKind | null) => void;
+  allocatePet: (skillId: string) => void;
+  deallocatePet: (skillId: string) => void;
+  syncPetAura: () => void;
 
   equipItem: (slot: EquipmentSlot, item: Item) => boolean;
   unequipItem: (slot: EquipmentSlot) => Item | null;
@@ -197,6 +225,9 @@ interface PlayerStore {
   applySkills: () => void;
   cancelSkills: () => void;
   resetSkills: () => void;
+  saveSkillBuild: () => string | null;
+  deleteSkillBuild: (id: string) => void;
+  loadSkillBuild: (id: string) => Promise<void>;
   loadSkills: () => Promise<void>;
   skillBonuses: () => PlayerStats;
   skillUtility: () => SkillUtilityEffects;
@@ -369,6 +400,11 @@ export const usePlayerStore = create<PlayerStore>()(
       logs: [{ id: 0, message: 'Система инициализирована. Добро пожаловать в Пустошь.', type: 'system', ts: Date.now() }],
       logIdCounter: 1,
       accessoryAbilities: [],
+      skillAbilities: [],
+      activePetId: null,
+      petAbilities: [],
+      petSatiety: null,
+      chosenClasses: [],
       powerBreakdown: { offensiveScore: 0, defensiveScore: 0, abilityItems: [], itemPowers: [] },
       explorationDeathTimestamp: 0,
       activeWeaponSlot: 'weapon2' as EquipmentSlot,
@@ -524,6 +560,14 @@ export const usePlayerStore = create<PlayerStore>()(
           }
         }
 
+        // Жёсткая установка статов эффектами (Ваншот: крит ровно 500%, даже с 700%).
+        for (const e of s.activeEffects) {
+          if (!e.statSets) continue;
+          for (const [k, v] of Object.entries(e.statSets)) {
+            if (v !== undefined && k in newStats) (newStats as any)[k] = v;
+          }
+        }
+
         // Power rating
         const { offensiveScore, defensiveScore } = computePowerFromStats(newStats);
         let powerFromAbilities = 0;
@@ -602,52 +646,49 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       recalcAbilities: () => {
-        // Способности героя — из расходников в рюкзаке + бесплатные из ZeroTree/капстоунов (уникальные, лимит 12).
-        const seen = new Set<string>();
-        const abilities: (AccessoryAbility | null)[] = [];
+        // Расходники — только для HUD.
+        const seenConsumable = new Set<string>();
+        const consumableAbs: (AccessoryAbility | null)[] = [];
         for (const it of get().backpackGrid.items) {
           if (it.type !== 'consumable' || !(it as any).abilityId) continue;
           const aid = (it as any).abilityId as string;
           if (aid.startsWith('food_')) continue;
-          if (seen.has(aid)) continue;
+          if (seenConsumable.has(aid)) continue;
           const ab = ABILITY_MAP[aid];
           if (!ab || (ab as any).passive) continue;
-          seen.add(aid);
-          abilities.push(ab);
-          if (abilities.length >= 12) break;
+          seenConsumable.add(aid);
+          consumableAbs.push(ab);
+          if (consumableAbs.length >= 12) break;
         }
-        // Free capstone abilities — classic tree (12 веток)
-        const capMap: Record<string, any> = {
-          // Снайпер теперь в src/data/sniper.ts (snp_*, см. ниже).
-          'soldier_capstone': { id: 'cap_soldier', name: 'Стойкость героя', description: 'Щит +8% блок на 3 хода, +15% HP.', icon: '🛡️', apCost: 2, cooldown: 7, powerRating: 60, effects: [{type:'stat_boost', stat:'block', value:0.08, duration:3} as any, {type:'heal_percent', value:15} as any] },
-          'demo_capstone': { id: 'cap_demo', name: 'Апокалипсис', description: 'АОЕ урон ×3, радиус 3, поджог 3 хода.', icon: '💀', apCost: 3, cooldown: 7, powerRating: 70, effects: [{type:'damage', multiplier:3, aoe:3} as any, {type:'status', id:'burn', duration:3} as any] },
-          'night_capstone': { id: 'cap_night', name: 'Тень убийцы', description: 'Инвиз 3 + крит 100% на 2 хода.', icon: '🌑', apCost: 2, cooldown: 6, powerRating: 65, effects: [{type:'status', id:'invisibility', duration:3} as any, {type:'stat_boost', stat:'crit', value:1.0, duration:2} as any] },
-          'arcanist_capstone': { id: 'cap_arcanist', name: 'Абсолютный барьер', description: 'Щит 50% урона 3 хода + реген.', icon: '✨', apCost: 2, cooldown: 7, powerRating: 60, effects: [{type:'status', id:'shield', duration:3} as any, {type:'heal_over_time', value:0.08, duration:3} as any] },
-          'occult_capstone': { id: 'cap_occult', name: 'Владыка тьмы', description: '+10 всех стихий 3 хода + 10% вамп.', icon: '🌑', apCost: 2, cooldown: 8, powerRating: 65, effects: [{type:'stat_boost', stat:'dpsFire', value:10, duration:3} as any, {type:'stat_boost', stat:'vampir', value:0.10, duration:3} as any] },
-          'berserker_capstone': { id: 'cap_berserk', name: 'Бог войны', description: 'Урон +80% 3 хода, +10% вамп, -15% HP.', icon: '⚔️', apCost: 1, cooldown: 5, powerRating: 65, effects: [{type:'stat_boost_mult', stat:'damage', value:0.8, duration:3} as any] },
-          'tank_capstone': { id: 'cap_tank', name: 'Колосс', description: 'Броня ×2 + блок 35% на 4 хода.', icon: '🗿', apCost: 2, cooldown: 8, powerRating: 60, effects: [{type:'stat_boost', stat:'armor', value:22, duration:4} as any, {type:'stat_boost', stat:'block', value:0.35, duration:4} as any] },
-          'survivor_capstone': { id: 'cap_survivor', name: 'Второе дыхание', description: '25% HP + 10% уклон 3 хода.', icon: '🌿', apCost: 2, cooldown: 7, powerRating: 60, effects: [{type:'heal_percent', value:25} as any, {type:'stat_boost', stat:'evasion', value:0.10, duration:3} as any] },
-          'merchant_capstone': { id: 'cap_merchant', name: 'Золотой запас', description: '+2 AP +15% урон 2 хода.', icon: '💰', apCost: 1, cooldown: 6, powerRating: 55, effects: [{type:'stat_boost', stat:'bonusAp', value:2, duration:1} as any] },
-          'trader_capstone': { id: 'cap_trader', name: 'Снабжение', description: 'Призыв расходника (реген) бесплатно.', icon: '🛒', apCost: 1, cooldown: 8, powerRating: 50, effects: [{type:'heal_percent', value:15} as any] },
-          'stalker_capstone': { id: 'cap_stalker', name: 'Выслеживание', description: 'Телепорт + инвиз 2.', icon: '🗺️', apCost: 2, cooldown: 6, powerRating: 60, effects: [{type:'teleport'} as any, {type:'status', id:'invisibility', duration:2} as any] },
-        };
-        for (const [capId, ab] of Object.entries(capMap)) {
-          if ((get().skills[capId] || 0) > 0) {
-            if (seen.has(ab.id)) continue;
-            seen.add(ab.id);
-            abilities.push(ab as any);
-            if (abilities.length >= 12) break;
+        // Скилловые способности — снайпер (для WOW-панели). Классика удалена.
+        const seenSkill = new Set<string>();
+        const skillAbs: (AccessoryAbility | null)[] = [];
+        for (const ab of sniperBattleAbilities(get().skills, {})) {
+          if (seenSkill.has(ab.id)) continue;
+          seenSkill.add(ab.id);
+          skillAbs.push(ab as any);
+        }
+        set({ accessoryAbilities: consumableAbs, skillAbilities: skillAbs });
+        // Питомцы: боевые активки активной ветки (для панели 24).
+        let pa: any[] = get().activePetId ? petBattleAbilities(get().skills, get().activePetId) as any[] : [];
+        if (get().activePetId) {
+          if (!pa.some((a: any) => a.id === 'petb_pet_ai')) {
+            pa.push({ id: 'petb_pet_ai', defId: 'pet_ai', name: 'ИИ: автобой', icon: '🤖', petApCost: 0, cooldown: 0, needsTarget: false, range: 2, exec: 'ai' } as any);
+          }
+          if (!pa.some((a: any) => a.id === 'petb_pet_command')) {
+            pa.push({ id: 'petb_pet_command', defId: 'pet_command', name: 'Команда: атака', icon: '🎯', petApCost: 0, cooldown: 0, needsTarget: true, range: 20, exec: 'command' } as any);
+          }
+          // Пассивки-автопроки медведя — показываем в 24 слотах как инфо с КД, перетаскиваемые
+          if (get().activePetId === 'bear') {
+            if ((get().skills['pb_t3_paw'] || 0) > 0 && !pa.some((a: any) => a.id === 'petp_pb_t3_paw')) {
+              pa.push({ id: 'petp_pb_t3_paw', defId: 'pb_t3_paw', name: 'Тяжёлая лапа', icon: '🐾', petApCost: 0, cooldown: 6, needsTarget: false, range: 2, exec: 'passive' } as any);
+            }
+            if ((get().skills['pb_t3_roar'] || 0) > 0 && !pa.some((a: any) => a.id === 'petp_pb_t3_roar')) {
+              pa.push({ id: 'petp_pb_t3_roar', defId: 'pb_t3_roar', name: 'Дикий рёв', icon: '📢', petApCost: 0, cooldown: 8, needsTarget: false, range: 10, exec: 'passive' } as any);
+            }
           }
         }
-        // Снайперские боевые способности (картинки тиров — иконки на арене).
-        // Только применённые (skills), без pending — как капстоуны.
-        for (const ab of sniperBattleAbilities(get().skills, {})) {
-          if (seen.has(ab.id)) continue;
-          seen.add(ab.id);
-          abilities.push(ab as any);
-          if (abilities.length >= 12) break;
-        }
-        set({ accessoryAbilities: abilities });
+        set({ petAbilities: pa as any });
       },
 
       equipItem: (slot, item) => {
@@ -880,35 +921,200 @@ export const usePlayerStore = create<PlayerStore>()(
         return true;
       },
 
-      allocateSkill: (skillId) => {
-        const s = get();
-        if (s.skillPoints <= 0) return;
-        const pending = s.pendingSkills[skillId] || 0;
-        const current = s.skills[skillId] || 0;
-        const skillDef = SKILL_CLASSES.flatMap((c) => c.skills).find((sk) => sk.id === skillId);
-        if (!skillDef) return;
-        if (current + pending >= skillDef.maxPoints) return;
-        const classDef = SKILL_CLASSES.find((c) => c.skills.some((sk) => sk.id === skillId));
-        if (!classDef) return;
-        const classTotal = classDef.skills.reduce((sum, sk) => sum + (s.skills[sk.id] || 0) + (s.pendingSkills[sk.id] || 0), 0);
-        if (classTotal < skillDef.reqPoints && current + pending === 0) return;
-        set({ skillPoints: s.skillPoints - 1, pendingSkills: { ...s.pendingSkills, [skillId]: pending + 1 } });
+      allocateSkill: (_skillId) => {
+        // Классические ветки удалены из игры.
+        get().addLog('❌ Этот класс удалён из игры', 'warning');
       },
 
-      deallocateSkill: (skillId) => {
-        const s = get();
-        const pending = s.pendingSkills[skillId] || 0;
-        if (pending <= 0) return;
-        const next = pending - 1;
-        const updated = { ...s.pendingSkills };
-        if (next <= 0) delete updated[skillId];
-        else updated[skillId] = next;
-        set({ skillPoints: s.skillPoints + 1, pendingSkills: updated });
+      deallocateSkill: (_skillId) => {
+        // Классические ветки удалены из игры.
       },
 
-      allocateSniper: (skillId) => {
+      allocateSniper: async (skillId) => {
         const s = get();
-        const check = sniperCanAllocate(skillId, s.skills, s.pendingSkills, s.skillPoints);
+        const def = SNIPER_BY_ID[skillId];
+        if (!def) return;
+        if (!get().requireClassFor(skillId)) return;
+        // Базовые бесплатны и применяются СРАЗУ (без ПРИНЯТЬ): клик — активна.
+        if (def.freeTake) {
+          for (const rival of def.exclusiveWith || []) {
+            const rPending = s.pendingSkills[rival] || 0;
+            const rApplied = s.skills[rival] || 0;
+            if (rPending <= 0 && rApplied <= 0) continue;
+            if (rPending > 0) {
+              const updated = { ...get().pendingSkills };
+              delete updated[rival];
+              set({ pendingSkills: updated });
+            } else {
+              // Снятие применённой базы — через сервер (очков не возвращает, было бесплатно).
+              const cur = { ...get().skills };
+              delete cur[rival];
+              set({ skills: cur });
+              try {
+                const token = useAuthStore.getState().token;
+                if (!token) throw new Error('no token');
+                const res = await fetch('/api/skills/remove.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ skillIds: [rival] }),
+                });
+                if (!res.ok) throw new Error('remove failed');
+              } catch {
+                set({ skills: { ...get().skills, [rival]: rApplied } });
+                get().addLog('❌ Не удалось переключить способность', 'warning');
+                return;
+              }
+            }
+          }
+          const st = get();
+          const check = sniperCanAllocate(skillId, st.skills, st.pendingSkills, st.skillPoints);
+          if (!check.ok) {
+            if (check.reason) get().addLog(`❌ ${check.reason}`, 'warning');
+            return;
+          }
+          // Сразу в применённые + скрытность первой снайперской (тоже сразу).
+          const toApply: Record<string, number> = { [skillId]: 1 };
+          const cur = get();
+          if (skillId !== 'snp_x_stealth' && !(cur.skills['snp_x_stealth'] > 0) && !(cur.pendingSkills['snp_x_stealth'] > 0)) {
+            toApply['snp_x_stealth'] = 1;
+          }
+          set({ skills: { ...cur.skills, ...toApply } });
+          get().recalcStats();
+          try {
+            const token = useAuthStore.getState().token;
+            if (!token) throw new Error('no token');
+            const res = await fetch('/api/skills/apply.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ pendingSkills: toApply }),
+            });
+            if (!res.ok) throw new Error('apply failed');
+            const json = await res.json();
+            set({ skills: json.skills, skillPoints: json.skillPoints });
+            get().addLog(`✨ «${def.name}» активна`, 'info');
+          } catch {
+            const rollback = { ...get().skills };
+            for (const id of Object.keys(toApply)) delete rollback[id];
+            set({ skills: rollback });
+            get().addLog('❌ Не удалось взять способность (нет связи?)', 'warning');
+          }
+          return;
+        }
+        const st = get();
+        const check = sniperCanAllocate(skillId, st.skills, st.pendingSkills, st.skillPoints);
+        if (!check.ok) {
+          if (check.reason) get().addLog(`❌ ${check.reason}`, 'warning');
+          return;
+        }
+        const pending = st.pendingSkills[skillId] || 0;
+        set({ skillPoints: st.skillPoints - 1, pendingSkills: { ...st.pendingSkills, [skillId]: pending + 1 } });
+        // Первая снайперская — скрытность сразу (бесплатно, без ПРИНЯТЬ).
+        const cur2 = get();
+        if (!(cur2.skills['snp_x_stealth'] > 0) && !(cur2.pendingSkills['snp_x_stealth'] > 0)) {
+          set({ skills: { ...cur2.skills, snp_x_stealth: 1 } });
+          try {
+            const token2 = useAuthStore.getState().token;
+            if (token2) {
+              await fetch('/api/skills/apply.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token2}` },
+                body: JSON.stringify({ pendingSkills: { snp_x_stealth: 1 } }),
+              });
+            }
+          } catch { /* silent — доберём в applySkills */ }
+        }
+      },
+
+      deallocateSniper: async (skillId) => {
+        const s = get();
+        const def = SNIPER_BY_ID[skillId];
+        if (!def) return;
+        const pending = s.pendingSkills[skillId] || 0;
+        if (pending > 0) {
+          const next = pending - 1;
+          const updated = { ...s.pendingSkills };
+          if (next <= 0) delete updated[skillId];
+          else updated[skillId] = next;
+          // Антиабуз: проверяем, что после снятия всё осталось валидно.
+          const dropped = sniperFindInvalid(s.skills, updated);
+          const hitsApplied = dropped.filter((id) => (s.skills[id] || 0) > 0);
+          if (hitsApplied.length > 0) {
+            // Применённые способности сломались бы — запрещаем снятие.
+            const names = hitsApplied.map((id) => `«${SNIPER_BY_ID[id]?.name || id}»`).join(', ');
+            get().addLog(`❌ Нельзя снять: сломается ${names} (сначала сброс ветки)`, 'warning');
+            return;
+          }
+          let refund = def.freeTake ? 0 : 1;
+          if (dropped.length > 0) {
+            for (const id of dropped) {
+              if (!SNIPER_BY_ID[id]?.freeTake) refund += updated[id] || 0;
+              delete updated[id];
+            }
+            const names = dropped.map((id) => `«${SNIPER_BY_ID[id]?.name || id}»`).join(', ');
+            get().addLog(`🧹 Закрыто без гейта и снято: ${names}`, 'warning');
+          }
+          set({ skillPoints: s.skillPoints + refund, pendingSkills: updated });
+          return;
+        }
+        // Снятие применённой базовой способности (была бесплатна — без возврата).
+        const applied = s.skills[skillId] || 0;
+        if (applied > 0 && def.freeTake) {
+          const cur = { ...get().skills };
+          delete cur[skillId];
+          set({ skills: cur });
+          try {
+            const token = useAuthStore.getState().token;
+            if (!token) throw new Error('no token');
+            const res = await fetch('/api/skills/remove.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ skillIds: [skillId] }),
+            });
+            if (!res.ok) throw new Error('remove failed');
+            get().addLog(`🔄 «${def.name}» снята`, 'info');
+          } catch {
+            set({ skills: { ...get().skills, [skillId]: applied } });
+            get().addLog('❌ Не удалось снять способность', 'warning');
+          }
+        }
+      },
+
+      // Питомцы: ветки тратят общие очки; freeTake (реген) — сразу применённые.
+      allocatePet: async (skillId) => {
+        const s = get();
+        const def = PET_BY_ID[skillId];
+        if (!def) return;
+        if (!get().requireClassFor(skillId)) return;
+        if (def.freeTake) {
+          const st = get();
+          const check = petCanAllocate(skillId, st.skills, st.pendingSkills, st.skillPoints);
+          if (!check.ok) {
+            if (check.reason) get().addLog(`❌ ${check.reason}`, 'warning');
+            return;
+          }
+          set({ skills: { ...st.skills, [skillId]: 1 } });
+          get().recalcStats();
+          try {
+            const token = useAuthStore.getState().token;
+            if (!token) throw new Error('no token');
+            const res = await fetch('/api/skills/apply.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ pendingSkills: { [skillId]: 1 } }),
+            });
+            if (!res.ok) throw new Error('apply failed');
+            const json = await res.json();
+            set({ skills: json.skills, skillPoints: json.skillPoints });
+            get().addLog(`✨ «${def.name}» активна`, 'info');
+          } catch {
+            const rollback = { ...get().skills };
+            delete rollback[skillId];
+            set({ skills: rollback });
+            get().addLog('❌ Не удалось взять способность (нет связи?)', 'warning');
+          }
+          return;
+        }
+        const check = petCanAllocate(skillId, s.skills, s.pendingSkills, s.skillPoints);
         if (!check.ok) {
           if (check.reason) get().addLog(`❌ ${check.reason}`, 'warning');
           return;
@@ -917,28 +1123,168 @@ export const usePlayerStore = create<PlayerStore>()(
         set({ skillPoints: s.skillPoints - 1, pendingSkills: { ...s.pendingSkills, [skillId]: pending + 1 } });
       },
 
-      deallocateSniper: (skillId) => {
+      deallocatePet: async (skillId) => {
         const s = get();
-        const def = SNIPER_BY_ID[skillId];
+        const def = PET_BY_ID[skillId];
         if (!def) return;
         const pending = s.pendingSkills[skillId] || 0;
-        if (pending <= 0) return;
-        // Нельзя снимать, если от этого ранга зависят другие (ветка Т5).
-        if ((pending + (s.skills[skillId] || 0)) <= 1) {
-          const dependents = SNIPER_ABILITIES.filter(
-            (a) => a.requiresAbility === skillId
-              && ((s.skills[a.id] || 0) + (s.pendingSkills[a.id] || 0)) > 0,
-          );
-          if (dependents.length > 0) {
-            get().addLog(`❌ Сначала сними «${dependents[0].name}»`, 'warning');
+        if (pending > 0) {
+          const next = pending - 1;
+          const updated = { ...s.pendingSkills };
+          if (next <= 0) delete updated[skillId];
+          else updated[skillId] = next;
+          const dropped = petFindInvalid(s.skills, updated);
+          const hitsApplied = dropped.filter((id) => (s.skills[id] || 0) > 0);
+          if (hitsApplied.length > 0) {
+            const names = hitsApplied.map((id) => `«${PET_BY_ID[id]?.name || id}»`).join(', ');
+            get().addLog(`❌ Нельзя снять: сломается ${names} (сначала сброс ветки)`, 'warning');
             return;
           }
+          let refund = def.freeTake ? 0 : 1;
+          if (dropped.length > 0) {
+            for (const id of dropped) {
+              if (!PET_BY_ID[id]?.freeTake) refund += updated[id] || 0;
+              delete updated[id];
+            }
+            const names = dropped.map((id) => `«${PET_BY_ID[id]?.name || id}»`).join(', ');
+            get().addLog(`🧹 Закрыто без гейта и снято: ${names}`, 'warning');
+          }
+          set({ skillPoints: s.skillPoints + refund, pendingSkills: updated });
+          return;
         }
-        const next = pending - 1;
-        const updated = { ...s.pendingSkills };
-        if (next <= 0) delete updated[skillId];
-        else updated[skillId] = next;
-        set({ skillPoints: s.skillPoints + 1, pendingSkills: updated });
+        const applied = s.skills[skillId] || 0;
+        if (applied > 0 && def.freeTake) {
+          const cur = { ...get().skills };
+          delete cur[skillId];
+          set({ skills: cur });
+          try {
+            const token = useAuthStore.getState().token;
+            if (!token) throw new Error('no token');
+            const res = await fetch('/api/skills/remove.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ skillIds: [skillId] }),
+            });
+            if (!res.ok) throw new Error('remove failed');
+            get().addLog(`🔄 «${def.name}» снята`, 'info');
+          } catch {
+            set({ skills: { ...get().skills, [skillId]: applied } });
+            get().addLog('❌ Не удалось снять способность', 'warning');
+          }
+        }
+      },
+
+      setActivePet: (kind) => {
+        set({ activePetId: kind });
+        get().recalcAbilities();
+        get().syncPetAura();
+      },
+
+      loadPetState: async () => {
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+        try {
+          const res = await fetch('/api/pets/state.php', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) return;
+          const json = await res.json();
+          if (typeof json.value === 'number') {
+          set({ petSatiety: { value: json.value, updatedAt: Date.now() } });
+          }
+        } catch { /* silent */ }
+      },
+
+      feedPet: async (itemId) => {
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+        try {
+          const res = await fetch('/api/pets/feed.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ itemId }),
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            get().addLog(`❌ ${json.error || 'Не удалось покормить'}`, 'warning');
+            return;
+          }
+          set({ petSatiety: { value: json.value, updatedAt: Date.now() } });
+          // Убрать съеденное локально (рюкзак или инвентарь) + синк.
+          const take = json.consumed ?? 0;
+          if (take > 0) {
+            const s = get();
+            const gridIt = s.backpackGrid.items.find((i) => i.id === itemId);
+            if (gridIt) {
+              const left = (gridIt.quantity ?? 1) - take;
+              let grid = s.backpackGrid;
+              if (left > 0) {
+                const items = grid.items.map((i) => (i.id === itemId ? { ...i, quantity: left } : i));
+                const cells = grid.cells.map((row) => [...row]);
+                grid = { ...grid, items, cells };
+              } else {
+                grid = removeItemFromGrid(grid, itemId);
+              }
+              set({ backpackGrid: grid });
+            } else {
+              const inv = useInventoryStore.getState();
+              if (inv.items.some((i: any) => i.id === itemId)) {
+                for (let k = 0; k < take; k++) {
+                  const cur = useInventoryStore.getState().items.find((i: any) => i.id === itemId);
+                  if (!cur) break;
+                  if ((cur.quantity ?? 1) <= 1) useInventoryStore.getState().removeItem(itemId);
+                  else useInventoryStore.getState().decrementItem(itemId);
+                }
+              }
+            }
+            syncNow();
+          }
+          playCombatSound('nom-nom-nom_gPJiWn4', 0.5);
+          get().addLog(`🍖 Питомец поел (−${json.consumed} шт.), сытость ${Math.round(json.value)}%`, 'info');
+        } catch {
+          get().addLog('❌ Ошибка сети при кормлении', 'warning');
+        }
+      },
+
+      // Аура стаи: пока зверь активен и не спит — hidden-эффект у игрока.
+      syncPetAura: () => {
+        const s = get();
+        const combat = useCombatGridStore.getState();
+        const pet = combat.enemies.find((e: any) => e.isPet && !e.dead && !e.sleeping && (e.currentHp || 0) > 0);
+        const cur = s.activeEffects.find((e) => e.id === 'pet_aura');
+        if (!s.activePetId || !pet) {
+          if (cur) {
+            set({ activeEffects: s.activeEffects.filter((e) => e.id !== 'pet_aura') });
+            get().recalcStats();
+          }
+          return;
+        }
+        const boosts: Record<string, number> = {};
+        const mults: Record<string, number> = {};
+        for (const a of petBranchAuras(s.activePetId, s.skills)) {
+          // Стена стаи — % к броне, Улучшенная стена — % к здоровью союзников.
+          if ((a.stat === 'armor' || a.stat === 'maxHp') && a.value < 1) {
+            mults[a.stat] = (mults[a.stat] || 0) + a.value;
+          } else {
+            boosts[a.stat] = (boosts[a.stat] || 0) + a.value;
+          }
+        }
+        if (Object.keys(boosts).length === 0 && Object.keys(mults).length === 0) {
+          if (cur) {
+            set({ activeEffects: s.activeEffects.filter((e) => e.id !== 'pet_aura') });
+            get().recalcStats();
+          }
+          return;
+        }
+        const effect = {
+          id: 'pet_aura', name: 'Аура стаи', duration: 999, remaining: 999,
+          statBoosts: boosts, statBoostsMult: mults,
+        } as any;
+        const next = cur
+          ? s.activeEffects.map((e) => (e.id === 'pet_aura' ? { ...effect, remaining: e.remaining } : e))
+          : [...s.activeEffects, effect];
+        set({ activeEffects: next });
+        get().recalcStats();
       },
 
       // Удаление старых sniper_* очков (ветка заменена). Возврат очков — через loadSkills.
@@ -961,11 +1307,17 @@ export const usePlayerStore = create<PlayerStore>()(
         const s = get();
         const token = useAuthStore.getState().token;
         if (!token) return;
+        // Скрытность: выдаётся сразу при выборе снайпера (в том же запросе).
+        const pending = { ...s.pendingSkills };
+        const hasSnp = SNIPER_ABILITIES.some((a) => (pending[a.id] || 0) > 0 || (s.skills[a.id] || 0) > 0);
+        if (hasSnp && !(pending['snp_x_stealth'] > 0) && !(s.skills['snp_x_stealth'] > 0)) {
+          pending['snp_x_stealth'] = 1;
+        }
         try {
           const res = await fetch('/api/skills/apply.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ pendingSkills: s.pendingSkills }),
+            body: JSON.stringify({ pendingSkills: pending }),
           });
           if (!res.ok) {
             const err = await res.json();
@@ -988,6 +1340,106 @@ export const usePlayerStore = create<PlayerStore>()(
         get().addLog('🔄 Изменения отменены.', 'info');
       },
 
+      // Классы: выбор (макс. 2, 3 очка) и отказ. Подтверждение — модалкой в UI.
+      pickClass: (classId, className) => {
+        const s = get();
+        if (s.chosenClasses.includes(classId)) return;
+        if (s.chosenClasses.length >= 2) {
+          get().addLog('❌ Максимум 2 класса одновременно', 'warning');
+          return;
+        }
+        if (s.skillPoints < 3) {
+          get().addLog('❌ Выбор класса стоит 3 очка', 'warning');
+          return;
+        }
+        set({ chosenClasses: [...get().chosenClasses, classId], skillPoints: get().skillPoints - 3 });
+        get().addLog(`🎓 Класс «${className}» принят! Качай его ветку.`, 'info');
+      },
+
+      abandonClass: (classId) => {
+        const s = get();
+        if (!s.chosenClasses.includes(classId)) return;
+        set({ chosenClasses: get().chosenClasses.filter((c) => c !== classId) });
+        get().addLog('🚪 Класс убран из выбранных', 'info');
+      },
+
+      requireClassFor: (skillId) => {
+        const cid = classForSkill(skillId);
+        if (!cid) return true;
+        if (get().chosenClasses.includes(cid)) return true;
+        get().addLog('🔒 Сначала выбери класс (максимум 2, выбор — 3 очка)', 'warning');
+        return false;
+      },
+
+      // Билды навыков: снимок текущей расстановки (макс. 5), загрузка через сброс.
+      saveSkillBuild: () => {
+        const s = get();
+        const merged: Record<string, number> = { ...s.skills };
+        for (const [id, pts] of Object.entries(s.pendingSkills)) merged[id] = (merged[id] || 0) + pts;
+        const skills: Record<string, number> = {};
+        for (const [id, pts] of Object.entries(merged)) if (pts > 0) skills[id] = pts;
+        const total = Object.values(skills).reduce((a, b) => a + b, 0);
+        if (total <= 0) {
+          get().addLog('❌ Нечего сохранять — очки не расставлены', 'warning');
+          return null;
+        }
+        const builds = useUiStore.getState().skillBuilds;
+        if (builds.length >= 5) {
+          get().addLog('❌ Максимум 5 билдов — удали старый', 'warning');
+          return null;
+        }
+        let classId = SNIPER_META.id;
+        let best = SNIPER_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0), 0);
+        for (const pk of ['bear', 'wolf', 'boar'] as const) {
+          const spent = PET_ABILITIES.filter((a) => a.branch === pk).reduce((sum, a) => sum + (skills[a.id] || 0), 0);
+          if (spent > best) { best = spent; classId = `pet_${pk}`; }
+        }
+        const className = classId === SNIPER_META.id
+          ? SNIPER_META.name
+          : (PET_META as any)[classId.replace('pet_', '')]?.name || classId;
+        const build: SkillBuild = {
+          id: `build_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: `${className} ${total}`,
+          classId, total, createdAt: Date.now(), skills,
+        };
+        useUiStore.getState().setSkillBuilds([...builds, build]);
+        get().addLog(`💾 Билд «${build.name}» сохранён`, 'info');
+        return build.id;
+      },
+
+      deleteSkillBuild: (id) => {
+        useUiStore.getState().setSkillBuilds(
+          useUiStore.getState().skillBuilds.filter((b) => b.id !== id),
+        );
+        get().addLog('🗑️ Билд удалён', 'info');
+      },
+
+      loadSkillBuild: async (id) => {
+        const build = useUiStore.getState().skillBuilds.find((b) => b.id === id);
+        if (!build) return;
+        const s = get();
+        const hasApplied = Object.keys(s.skills).length > 0;
+        const hasPending = Object.keys(s.pendingSkills).length > 0;
+        if (hasApplied || hasPending) {
+          const cost = hasApplied ? ` Применённые очки сбросятся за ${s.level * 100} 💾.` : '';
+          if (!window.confirm(`Загрузить билд «${build.name}»? Текущая расстановка будет заменена.${cost}`)) return;
+        }
+        if (hasApplied) {
+          await get().resetSkills();
+        } else if (hasPending) {
+          get().cancelSkills();
+        }
+        const earned = 3 + (get().level - 1) * 3;
+        // Бесплатные базовые в лимит очков не входят.
+        const freeIds = new Set([
+          ...SNIPER_ABILITIES.filter((a) => a.freeTake).map((a) => a.id),
+          ...PET_ABILITIES.filter((a) => a.freeTake).map((a) => a.id),
+          ...PET_FREE_DEFS.filter((a) => a.freeTake).map((a) => a.id),
+        ]);
+        const paidTotal = Object.entries(build.skills).reduce((sum, [id, pts]) => sum + (freeIds.has(id) ? 0 : pts), 0);
+        set({ pendingSkills: { ...build.skills }, skillPoints: Math.max(0, earned - paidTotal) });
+        get().addLog(`📥 Билд «${build.name}» подгружен — нажми ПРИНЯТЬ`, 'info');
+      },
+
       loadSkills: async () => {
         const token = useAuthStore.getState().token;
         if (!token) return;
@@ -998,7 +1450,74 @@ export const usePlayerStore = create<PlayerStore>()(
           if (!res.ok) return;
           const json = await res.json();
           set({ skills: json.skills, skillPoints: json.skillPoints, pendingSkills: {} });
+          // Классика удалена из игры: чистим старые id, очки возвращаем.
+          const CLASSIC_PREFIXES = ['soldier_', 'demo_', 'night_', 'arcanist_', 'occult_', 'berserker_', 'tank_', 'survivor_', 'merchant_', 'trader_', 'stalker_', 'cap_'];
+          const stc = get();
+          const classicIds = Object.keys(stc.skills).filter((id) => CLASSIC_PREFIXES.some((p) => id.startsWith(p)));
+          if (classicIds.length > 0) {
+            const refund = classicIds.reduce((sum, id) => sum + (stc.skills[id] || 0), 0);
+            const next = { ...stc.skills };
+            classicIds.forEach((id) => delete next[id]);
+            set({ skills: next, skillPoints: stc.skillPoints + refund });
+            try {
+              await fetch('/api/skills/remove.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ skillIds: classicIds }),
+              });
+            } catch { /* silent */ }
+            get().addLog(`🧹 Удалённые классы сняты (${classicIds.length}, +${refund} очк.)`, 'warning');
+          }
+          // Антиабуз: чистим применённые способности без гейта (старые сейвы).
+          const st = get();
+          const bad = sniperFindInvalid(st.skills, {});
+          if (bad.length > 0) {
+            const refund = bad.reduce((sum, id) => sum + (st.skills[id] || 0), 0);
+            const next = { ...st.skills };
+            bad.forEach((id) => delete next[id]);
+            set({ skills: next, skillPoints: st.skillPoints + refund });
+            get().recalcStats();
+            try {
+              await fetch('/api/skills/remove.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ skillIds: bad }),
+              });
+            } catch { /* silent */ }
+            get().addLog(`🧹 Сняты недействительные способности снайпера (${bad.length}, +${refund} очк.)`, 'warning');
+          }
+          // Скрытность: автовыдача тем, у кого уже есть снайперские навыки (старые сейвы).
+          const st2 = get();
+          const hasSnpSkills = SNIPER_ABILITIES.some((a) => (st2.skills[a.id] || 0) > 0);
+          if (hasSnpSkills && !(st2.skills['snp_x_stealth'] > 0)) {
+            try {
+              const ares = await fetch('/api/skills/apply.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ pendingSkills: { snp_x_stealth: 1 } }),
+              });
+              if (ares.ok) {
+                const ajson = await ares.json();
+                set({ skills: ajson.skills, skillPoints: ajson.skillPoints });
+                get().addLog('🥷 Скрытность получена (база снайпера)', 'info');
+              }
+            } catch { /* silent */ }
+          }
           get().recalcStats();
+          // Миграция классов: у кого уже вкачано, но классы не выбраны — топ-2 бесплатно.
+          const st3 = get();
+          if (st3.chosenClasses.length === 0) {
+            const spent = new Map<string, number>();
+            for (const [id, pts] of Object.entries(st3.skills)) {
+              const cid = classForSkill(id);
+              if (cid && (pts as number) > 0) spent.set(cid, (spent.get(cid) || 0) + (pts as number));
+            }
+            const top = [...spent.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([cid]) => cid);
+            if (top.length > 0) {
+              set({ chosenClasses: top });
+              get().addLog(`🎓 Твои классы: ${top.join(', ')} (выбраны автоматически)`, 'info');
+            }
+          }
         } catch { /* silent */ }
       },
 
@@ -1033,143 +1552,7 @@ export const usePlayerStore = create<PlayerStore>()(
         const total: PlayerStats = { ...EMPTY_STATS };
         const lvl = (id: string) => skills[id] || 0;
 
-        // Soldier (DMG ×2, HP ×10)
-        total.maxHp += lvl('soldier_toughened') * 100;
-        total.damage += lvl('soldier_heavy_hand') * 2;
-        total.crit += lvl('soldier_fighting_spirit') * 0.015;
-        total.armor += lvl('soldier_iron_skin') * 2;
-        total.speed += lvl('soldier_rage') * 0.015;
-        total.crit += lvl('soldier_rage') * 0.015;
-        total.damage += lvl('soldier_retaliation') * 4;
-        total.block += lvl('soldier_unstoppable') * 0.015;
-        total.maxHp += lvl('soldier_unstoppable') * 100;
-        total.armor += lvl('soldier_juggernaut') * 3;
-        total.evasion += lvl('soldier_juggernaut') * 0.015;
-        if (lvl('soldier_capstone') > 0) {
-          total.maxHp += 500; total.block += 0.05; total.speed += 0.03;
-        }
-
-        // Demolitionist (DMG ×2)
-        total.damage += lvl('demo_explosives') * 2;
-        total.dpsFire += lvl('demo_explosives') * 1;
-        total.speed += lvl('demo_swift_hand') * 0.01;
-        total.dpsFire += lvl('demo_burning') * 3;
-        total.crit += lvl('demo_shrapnel') * 0.015;
-        total.dpsFire += lvl('demo_fugas') * 3;
-        total.punching += lvl('demo_fugas') * 0.015;
-        total.damage += lvl('demo_molotov') * 4;
-        total.accuracy += lvl('demo_molotov') * 0.01;
-        total.dpsFire += lvl('demo_thermo') * 5;
-        total.crit += lvl('demo_thermo') * 0.015;
-        total.speed += lvl('demo_fireworks') * 0.015;
-        total.damage += lvl('demo_fireworks') * 4;
-        if (lvl('demo_capstone') > 0) {
-          total.dpsFire += 20; total.crit += 0.05; total.damage += 10;
-        }
-
-        // Nightblade (DMG ×2)
-        total.speed += lvl('night_shadow_step') * 0.015;
-        total.crit += lvl('night_sharp_blades') * 0.015;
-        total.damage += lvl('night_sharp_blades') * 2;
-        total.evasion += lvl('night_dodge') * 0.015;
-        total.accuracy += lvl('night_precise') * 0.015;
-        total.vampir += lvl('night_poison') * 0.015;
-        total.damage += lvl('night_poison') * 4;
-        total.crit += lvl('night_bleeding') * 0.02;
-        total.speed += lvl('night_bleeding') * 0.015;
-        total.evasion += lvl('night_dark_mist') * 0.025;
-        total.accuracy += lvl('night_dark_mist') * 0.015;
-        total.speed += lvl('night_death_dance') * 0.02;
-        total.crit += lvl('night_death_dance') * 0.02;
-        if (lvl('night_capstone') > 0) {
-          total.crit += 0.1; total.evasion += 0.08; total.damage += 20;
-        }
-
-        // Arcanist (HP ×10)
-        total.armor += lvl('arcanist_shield') * 2;
-        total.accuracy += lvl('arcanist_focus') * 0.015;
-        total.regen += lvl('arcanist_regen') * 1;
-        total.block += lvl('arcanist_barrier') * 0.015;
-        total.maxHp += lvl('arcanist_life_force') * 100;
-        total.regen += lvl('arcanist_life_force') * 0.5;
-        total.evasion += lvl('arcanist_distortion') * 0.015;
-        total.block += lvl('arcanist_distortion') * 0.015;
-        total.armor += lvl('arcanist_aura') * 3;
-        total.regen += lvl('arcanist_aura') * 1;
-        total.maxHp += lvl('arcanist_restoration') * 150;
-        total.regen += lvl('arcanist_restoration') * 2;
-        if (lvl('arcanist_capstone') > 0) {
-          total.maxHp += 500; total.regen += 10; total.block += 0.05;
-        }
-
-        // Occultist
-        total.dpsEmi += lvl('occult_dark_energy') * 1;
-        total.dpsToxis += lvl('occult_dark_energy') * 1;
-        total.vampir += lvl('occult_blood_thirst') * 0.015;
-        total.dpsExtro += lvl('occult_curse') * 2;
-        total.vampir += lvl('occult_curse') * 0.01;
-        total.crit += lvl('occult_ritual') * 0.015;
-        total.damage += lvl('occult_ritual') * 2;
-        total.dpsEmi += lvl('occult_corruption') * 2;
-        total.dpsToxis += lvl('occult_corruption') * 2;
-        total.dpsExtro += lvl('occult_corruption') * 2;
-        total.dpsFire += lvl('occult_corruption') * 2;
-        total.vampir += lvl('occult_corruption') * 0.015;
-        total.regen += lvl('occult_necromancy') * 1;
-        total.vampir += lvl('occult_necromancy') * 0.015;
-        total.dpsEmi += lvl('occult_sacrifice') * 3;
-        total.dpsToxis += lvl('occult_sacrifice') * 3;
-        total.dpsExtro += lvl('occult_sacrifice') * 3;
-        total.dpsFire += lvl('occult_sacrifice') * 3;
-        total.crit += lvl('occult_sacrifice') * 0.02;
-        total.dpsEmi += lvl('occult_demonic') * 2;
-        total.dpsToxis += lvl('occult_demonic') * 2;
-        total.dpsExtro += lvl('occult_demonic') * 2;
-        total.dpsFire += lvl('occult_demonic') * 2;
-        total.vampir += lvl('occult_demonic') * 0.02;
-        if (lvl('occult_capstone') > 0) {
-          total.dpsEmi += 10; total.dpsToxis += 10; total.dpsExtro += 10; total.dpsFire += 10;
-          total.vampir += 0.08; total.crit += 0.05;
-        }
-
-        // Berserker (DMG ×2)
-        total.damage += lvl('berserker_frenzy') * 2;
-        total.speed += lvl('berserker_frenzy') * 0.01;
-        total.vampir += lvl('berserker_bloodlust') * 0.015;
-        total.damage += lvl('berserker_warcry') * 4;
-        total.punching += lvl('berserker_warcry') * 0.015;
-        total.crit += lvl('berserker_brutal') * 0.015;
-        total.damage += lvl('berserker_brutal') * 2;
-        total.speed += lvl('berserker_adrenaline') * 0.015;
-        total.evasion += lvl('berserker_adrenaline') * 0.015;
-        total.damage += lvl('berserker_berserk') * 4;
-        total.crit += lvl('berserker_berserk') * 0.015;
-        total.armor += lvl('berserker_unleashed') * 3;
-        total.damage += lvl('berserker_unleashed') * 4;
-        total.speed += lvl('berserker_eternal_rage') * 0.02;
-        total.vampir += lvl('berserker_eternal_rage') * 0.02;
-        if (lvl('berserker_capstone') > 0) {
-          total.damage += 40; total.crit += 0.10; total.vampir += 0.05;
-        }
-
-        // Tank (DMG ×2, HP ×10)
-        total.armor += lvl('tank_hardened') * 2;
-        total.maxHp += lvl('tank_vitality') * 150;
-        total.block += lvl('tank_shield_bash') * 0.015;
-        total.damage += lvl('tank_shield_bash') * 2;
-        total.armor += lvl('tank_iron_will') * 2;
-        total.regen += lvl('tank_iron_will') * 0.5;
-        total.maxHp += lvl('tank_fortress') * 150;
-        total.armor += lvl('tank_fortress') * 2;
-        total.block += lvl('tank_reflect') * 0.015;
-        total.damage += lvl('tank_reflect') * 2;
-        total.maxHp += lvl('tank_immortal') * 200;
-        total.regen += lvl('tank_immortal') * 1;
-        total.armor += lvl('tank_paladin') * 3;
-        total.vampir += lvl('tank_paladin') * 0.015;
-        if (lvl('tank_capstone') > 0) {
-          total.maxHp += 1000; total.armor += 15; total.block += 0.05;
-        }
+        // Классические ветки удалены из игры: остались снайпер (ниже) и питомцы.
 
         // Снайпер считается через src/data/sniper.ts (snp_*), см. ниже.
         for (const def of SNIPER_ABILITIES) {
@@ -1181,40 +1564,7 @@ export const usePlayerStore = create<PlayerStore>()(
           }
         }
 
-        // Survivor (HP ×10)
-        total.maxHp += lvl('survivor_toughness') * 100;
-        total.evasion += lvl('survivor_dodge') * 0.015;
-        total.regen += lvl('survivor_field_medic') * 1;
-        total.armor += lvl('survivor_scavenger') * 2;
-        total.evasion += lvl('survivor_scavenger') * 0.015;
-        total.block += lvl('survivor_makeshift') * 0.015;
-        total.regen += lvl('survivor_makeshift') * 0.5;
-        total.evasion += lvl('survivor_camouflage') * 0.02;
-        total.accuracy += lvl('survivor_camouflage') * 0.015;
-        total.speed += lvl('survivor_windrunner') * 0.02;
-        total.evasion += lvl('survivor_windrunner') * 0.02;
-        total.regen += lvl('survivor_revitalize') * 2;
-        total.maxHp += lvl('survivor_revitalize') * 150;
-        if (lvl('survivor_capstone') > 0) {
-          total.maxHp += 500; total.evasion += 0.10; total.regen += 10;
-        }
-
-        // Old merchant (DMG ×2, HP ×10)
-        total.accuracy += lvl('merchant_diplomacy') * 0.015;
-        total.damage += lvl('merchant_coin_throw') * 2;
-        total.crit += lvl('merchant_insider') * 0.015;
-        total.vampir += lvl('merchant_black_market') * 0.015;
-        total.armor += lvl('merchant_protection') * 2;
-        total.maxHp += lvl('merchant_protection') * 100;
-        total.speed += lvl('merchant_money_talk') * 0.015;
-        total.accuracy += lvl('merchant_money_talk') * 0.015;
-        total.armor += lvl('merchant_armored_transport') * 3;
-        total.block += lvl('merchant_armored_transport') * 0.015;
-        total.evasion += lvl('merchant_lucky') * 0.02;
-        total.crit += lvl('merchant_lucky') * 0.02;
-        if (lvl('merchant_capstone') > 0) {
-          total.maxHp += 500; total.crit += 0.10; total.damage += 10; total.accuracy += 0.10;
-        }
+        // Классические ветки удалены из игры.
 
         return total;
       },
@@ -1288,6 +1638,7 @@ export const usePlayerStore = create<PlayerStore>()(
           const heal = Math.round(s.stats.maxHp * pct / 100);
           const newHp = Math.min(s.stats.maxHp, s.stats.currentHp + heal);
           set({ stats: { ...s.stats, currentHp: newHp } });
+          playCombatSound('nom-nom-nom_gPJiWn4', 0.5);
           get().addLog(`🍖 ${item.displayName || item.name}: +${pct}% HP (+${heal})`, 'heal');
           const qty = (item.quantity ?? 1) as number;
           if (qty > 1) {
@@ -1527,7 +1878,7 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'remastered_player',
-      version: 14,
+      version: 16,
       migrate: (persisted: any, version: number) => {
         if (version < 11 && persisted) {
           // Моды переехали на рантайм-скейл: гасим старый запечённый скейл один раз.
@@ -1596,6 +1947,14 @@ export const usePlayerStore = create<PlayerStore>()(
           persisted.backpackGrid = grid;
           delete persisted.backpackContents;
         }
+        // v15: активный питомец (по умолчанию нет).
+        if (version < 15 && persisted) {
+          if (persisted.activePetId === undefined) persisted.activePetId = null;
+        }
+        // v16: выбранные классы (по умолчанию нет).
+        if (version < 16 && persisted) {
+          if (persisted.chosenClasses === undefined) persisted.chosenClasses = [];
+        }
         return persisted;
       },
       partialize: (state) => ({
@@ -1605,6 +1964,8 @@ export const usePlayerStore = create<PlayerStore>()(
         backpackGrid: state.backpackGrid,
         activeEffects: state.activeEffects,
         skillPoints: state.skillPoints,
+        activePetId: state.activePetId,
+        chosenClasses: state.chosenClasses,
         activeWeaponSlot: state.activeWeaponSlot,
         reforgeWeapon: state.reforgeWeapon,
         reforgeBlueprint: state.reforgeBlueprint,

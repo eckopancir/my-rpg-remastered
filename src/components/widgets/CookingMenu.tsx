@@ -1,12 +1,16 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
-import { RECIPES, FOOD_MAP, type RecipeDef } from '../../data/food';
+import { RECIPES, FOOD_MAP, maxPortionsFor, consumeOneSet, type RecipeDef } from '../../data/food';
 import { makeConsumable } from '../../data/consumables';
-import { removeItemFromGrid } from '../../data/backpacks';
+import { removeItemFromGrid, tryInsertIntoGrid } from '../../data/backpacks';
+import { playLoopSound, stopLoopSound } from '../../hooks/useSound';
+import { syncNow } from '../../utils/serverSync';
 
 const COOK_SLOTS = 4;
+const SEC_PER_PORTION = 3;
+const COOK_SOUND = 'c977168fcb66822';
 
 export const CookingMenu = () => {
   const showCookingMenu = useCombatGridStore((s) => s.showCookingMenu);
@@ -15,6 +19,9 @@ export const CookingMenu = () => {
 
   const [slots, setSlots] = useState<(string | null)[]>(Array(COOK_SLOTS).fill(null));
   const [cooked, setCooked] = useState<{ name: string; icon: string } | null>(null);
+  // Мультиготовка: { recipeId, total, done, leftSec }.
+  const [cooking, setCooking] = useState<{ recipeId: string; total: number; done: number; leftSec: number } | null>(null);
+  const [portions, setPortions] = useState(1);
 
   const rawItems = useMemo(() => {
     return backpackItems.filter((i) => {
@@ -45,6 +52,16 @@ export const CookingMenu = () => {
 
   const matchedRecipe = findRecipe();
 
+  /** Сколько полных наборов ингредиентов есть в рюкзаке. */
+  const maxPortions = useMemo(() => {
+    if (!matchedRecipe) return 0;
+    return maxPortionsFor(matchedRecipe, backpackItems);
+  }, [matchedRecipe, backpackItems]);
+
+  useEffect(() => {
+    setPortions((p) => Math.min(Math.max(1, p), Math.max(1, maxPortions)));
+  }, [maxPortions]);
+
   const handleSlotClick = (slotIndex: number) => {
     if (slots[slotIndex]) {
       setSlots((prev) => { const n = [...prev]; n[slotIndex] = null; return n; });
@@ -59,32 +76,54 @@ export const CookingMenu = () => {
   };
 
   const handleCook = () => {
-    if (!matchedRecipe) return;
-    const pStore = usePlayerStore.getState();
-    let grid = pStore.backpackGrid;
-    // Remove ingredients from backpack grid
-    for (const ing of matchedRecipe.ingredients) {
-      let remaining = ing.qty;
-      for (const item of [...grid.items]) {
-        if (remaining <= 0) break;
-        if ((item as any).abilityId === ing.foodId) {
-          const qty = (item.quantity ?? 1) as number;
-          const remove = Math.min(qty, remaining);
-          if (remove >= qty) {
-            grid = removeItemFromGrid(grid, item.id);
-          }
-          remaining -= remove;
-        }
-      }
-    }
-    // Add cooked item
-    const cookedItem = makeConsumable(matchedRecipe.result.id, 1);
-    usePlayerStore.setState({ backpackGrid: grid });
-    pStore.putInBackpack(cookedItem);
-    setSlots(Array(COOK_SLOTS).fill(null));
-    setCooked({ name: matchedRecipe.name, icon: matchedRecipe.icon });
-    setTimeout(() => setCooked(null), 2000);
+    if (!matchedRecipe || cooking) return;
+    const n = Math.min(Math.max(1, portions), Math.max(1, maxPortions));
+    if (n <= 0) return;
+    setCooking({ recipeId: matchedRecipe.id, total: n, done: 0, leftSec: n * SEC_PER_PORTION });
+    playLoopSound(COOK_SOUND, 0.5);
   };
+
+  const cancelCooking = useCallback(() => {
+    stopLoopSound(COOK_SOUND);
+    setCooking(null);
+  }, []);
+
+  // Тиканье готовки: каждые 3с списываем 1 набор и выдаём 1 блюдо.
+  useEffect(() => {
+    if (!cooking) return;
+    const iv = window.setInterval(() => {
+      setCooking((prev) => {
+        if (!prev) return prev;
+        const left = prev.leftSec - 1;
+        const shouldFinishPortion = (prev.total * SEC_PER_PORTION - left) % SEC_PER_PORTION === 0 || left <= 0;
+        if (shouldFinishPortion) {
+          const recipe = RECIPES.find((r) => r.id === prev.recipeId);
+          if (recipe) {
+            const pStore = usePlayerStore.getState();
+            const grid = consumeOneSet(pStore.backpackGrid, recipe, removeItemFromGrid);
+            const res = tryInsertIntoGrid(grid, makeConsumable(recipe.result.id, 1));
+            usePlayerStore.setState({ backpackGrid: res.grid });
+            if (!res.moved) {
+              usePlayerStore.getState().addLog('❌ Рюкзак полон — блюдо потеряно!', 'warning');
+            }
+            syncNow();
+            setCooked({ name: recipe.name, icon: recipe.icon });
+            setTimeout(() => setCooked(null), 2000);
+          }
+        }
+        if (left <= 0) {
+          stopLoopSound(COOK_SOUND);
+          setSlots(Array(COOK_SLOTS).fill(null));
+          return null;
+        }
+        return { ...prev, done: prev.done + (shouldFinishPortion ? 1 : 0), leftSec: left };
+      });
+    }, 1000);
+    return () => {
+      window.clearInterval(iv);
+      stopLoopSound(COOK_SOUND);
+    };
+  }, [cooking !== null]);
 
   if (!showCookingMenu) return null;
 
@@ -126,12 +165,53 @@ export const CookingMenu = () => {
           <div style={{ textAlign: 'center', marginBottom: 12, color: '#666' }}>Добавь ингредиенты</div>
         )}
 
-        {/* Cook button */}
+        {/* Cook button + portions */}
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <button disabled={!matchedRecipe} onClick={handleCook} style={{
-            padding: '8px 24px', background: matchedRecipe ? '#e67e22' : '#333', color: '#fff', border: 'none', borderRadius: 8,
-            cursor: matchedRecipe ? 'pointer' : 'default', fontSize: 14, fontWeight: 700,
-          }}>Приготовить</button>
+          {!cooking ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+                <button
+                  disabled={!matchedRecipe || portions <= 1}
+                  onClick={() => setPortions((p) => Math.max(1, p - 1))}
+                  style={{ width: 30, height: 30, background: '#333', color: '#fff', border: 'none', borderRadius: 6, cursor: matchedRecipe && portions > 1 ? 'pointer' : 'default', opacity: matchedRecipe && portions > 1 ? 1 : 0.4, fontSize: 16, fontWeight: 700 }}
+                >
+                  −
+                </button>
+                <span style={{ fontSize: 14, fontWeight: 700, minWidth: 90 }}>
+                  ×{matchedRecipe ? Math.min(portions, Math.max(1, maxPortions)) : portions} порц.
+                </span>
+                <button
+                  disabled={!matchedRecipe || portions >= Math.max(1, maxPortions)}
+                  onClick={() => setPortions((p) => Math.min(Math.max(1, maxPortions), p + 1))}
+                  style={{ width: 30, height: 30, background: '#333', color: '#fff', border: 'none', borderRadius: 6, cursor: matchedRecipe && portions < Math.max(1, maxPortions) ? 'pointer' : 'default', opacity: matchedRecipe && portions < Math.max(1, maxPortions) ? 1 : 0.4, fontSize: 16, fontWeight: 700 }}
+                >
+                  +
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
+                {matchedRecipe ? `Хватит на ${maxPortions} порц. · ${SEC_PER_PORTION}с за порцию` : 'Выбери рецепт'}
+              </div>
+              <button disabled={!matchedRecipe || maxPortions <= 0} onClick={handleCook} style={{
+                padding: '8px 24px', background: matchedRecipe && maxPortions > 0 ? '#e67e22' : '#333', color: '#fff', border: 'none', borderRadius: 8,
+                cursor: matchedRecipe && maxPortions > 0 ? 'pointer' : 'default', fontSize: 14, fontWeight: 700,
+              }}>Приготовить{matchedRecipe ? ` ×${Math.min(portions, Math.max(1, maxPortions))}` : ''}</button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#e67e22', marginBottom: 8 }}>
+                🔥 Готовится {cooking.done + 1}/{cooking.total}… {cooking.leftSec}с
+              </div>
+              <div style={{ height: 10, background: '#333', borderRadius: 5, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{
+                  height: '100%', width: `${Math.round(((cooking.total * SEC_PER_PORTION - cooking.leftSec) / (cooking.total * SEC_PER_PORTION)) * 100)}%`,
+                  background: 'linear-gradient(90deg, #e67e22, #f1c40f)', transition: 'width 1s linear',
+                }} />
+              </div>
+              <button onClick={cancelCooking} style={{
+                padding: '6px 18px', background: '#555', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12,
+              }}>Отмена (готовое останется)</button>
+            </>
+          )}
         </div>
 
         {/* Cooked feedback */}

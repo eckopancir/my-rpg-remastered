@@ -11,9 +11,11 @@ $skillRows = $stmt->fetchAll();
 
 $skills = [];
 $totalSpent = 0;
+// Бесплатные базовые снайпера в потраченные не считаются (зеркало freeTake).
+$freeTakeIds = ['snp_x_aim' => 1, 'snp_a7_deadeye' => 1, 'snp_x_stealth' => 1, 'pet_regen' => 1, 'pet_ai' => 1];
 foreach ($skillRows as $row) {
     $skills[$row['skill_id']] = (int)$row['points'];
-    $totalSpent += (int)$row['points'];
+    if (!isset($freeTakeIds[$row['skill_id']])) $totalSpent += (int)$row['points'];
 }
 
 // Read level from save_data to calculate available skill points

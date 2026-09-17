@@ -34,6 +34,8 @@ export interface ActiveEffect {
   remaining: number;
   statBoosts: Partial<PlayerStats>;
   statBoostsMult?: Partial<Record<string, number>>;
+  /** жёсткая установка стата (перебивает сумму): { crit: 5.0 } */
+  statSets?: Partial<PlayerStats>;
 }
 
 export interface PlayerState {

@@ -3,10 +3,10 @@ const characterImageModules = import.meta.glob<{ default: string }>('./Images/ch
 const battleImageModules = import.meta.glob<{ default: string }>('./Images/battle/*.png', { eager: true });
 const backgroundImageModules = import.meta.glob<{ default: string }>('./Images/backgrounds/*.{jpg,png}', { eager: true });
 const mapImageModules = import.meta.glob<{ default: string }>('./Images/map/*.png', { eager: true });
-const uiImageModules = import.meta.glob<{ default: string }>('./Images/ui/*.{png,jpg}', { eager: true });
+const uiImageModules = import.meta.glob<{ default: string }>('./Images/ui/*.{png,jpg,jfif}', { eager: true });
 const sniperImageModules = import.meta.glob<{ default: string }>('./Images/class/sniper/*.png', { eager: true });
 
-const extractKey = (path: string): string => path.split('/').pop()?.replace(/\.(png|jpg)$/, '').toLowerCase() || '';
+const extractKey = (path: string): string => path.split('/').pop()?.replace(/\.(png|jpg|jfif)$/, '').toLowerCase() || '';
 
 const toMap = (mods: Record<string, { default: string }>): Map<string, string> => {
   const map = new Map<string, string>();
@@ -94,6 +94,14 @@ export const sniperClassBg = (): string | undefined =>
 /** Общий фон окон атакующих/защитных способностей. */
 export const sniperSkillsBg = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_3jzga3jzga3jzga3');
+
+/** Фон шапки класса лесничего. */
+export const beastClassBg = (): string | undefined =>
+  uiImageMap.get('gemini_generated_image_zigqvdzigqvdzigq');
+
+/** Общий фон окна способностей лесничего (тиры перков). */
+export const beastSkillsBg = (): string | undefined =>
+  uiImageMap.get('gemini_generated_image_6q9ft56q9ft56q9f');
 
 /** Кристаллы гнёзд сфер (пустой/заполненный). */
 export const crystalImages = {

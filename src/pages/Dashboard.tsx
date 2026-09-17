@@ -13,6 +13,7 @@ import { WapFrame } from '../components/ui/WapFrame';
 import { WapHeader } from '../components/ui/WapHeader';
 import { WapHudBar } from '../components/ui/WapHudBar';
 import { Button } from '../components/ui/Button';
+import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { generateItem, getItemQuality, rollModExtraStat, QUALITY_MOD_MULT, QUALITY_TIERS } from '../engine/items';
 import { createChest } from '../data/chests';
@@ -51,30 +52,38 @@ const WeaponStrip = () => {
   const activeWeaponSlot = usePlayerStore((s) => s.activeWeaponSlot);
   const setActiveWeaponSlot = usePlayerStore((s) => s.setActiveWeaponSlot);
   const { playClick } = useSound();
+  const [tooltipItem, setTooltipItem] = useState<any>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const guns = GUN_SLOTS.map((gs) => ({ slot: gs, item: equipment[gs] })).filter((g) => g.item);
   if (guns.length === 0) return null;
   return (
-    <div style={{ display: 'flex', gap: 4, margin: '0 0 6px 0', alignItems: 'center' }}>
-      {guns.map(({ slot, item }) => {
-        const active = activeWeaponSlot === slot;
-        const url = getItemImage(item!.name, item!.displayName);
-        return (
-          <div
-            key={slot}
-            onClick={() => { playClick(); setActiveWeaponSlot(slot); }}
-            title={`${item!.displayName || item!.name} — клик: урон с этого оружия`}
-            style={{
-              width: 26, height: 26, borderRadius: 5, cursor: 'pointer',
-              border: active ? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.12)',
-              boxShadow: active ? '0 0 8px rgba(34,197,94,0.6)' : 'none',
-              background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            {url ? <img src={url} alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} draggable={false} /> : null}
-          </div>
-        );
-      })}
-    </div>
+    <>
+      <div style={{ display: 'flex', gap: 6, margin: '0 0 8px 0', alignItems: 'center', flexWrap: 'wrap' }}>
+        {guns.map(({ slot, item }) => {
+          const active = activeWeaponSlot === slot;
+          const url = getItemImage(item!.name, item!.displayName);
+          return (
+            <div
+              key={slot}
+              onClick={() => { playClick(); setActiveWeaponSlot(slot); }}
+              onMouseEnter={(e) => { setTooltipItem(item); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+              onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+              onMouseLeave={() => setTooltipItem(null)}
+              style={{
+                width: 38, height: 38, borderRadius: 7, cursor: 'pointer',
+                border: active ? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.14)',
+                boxShadow: active ? '0 0 10px rgba(34,197,94,0.65)' : '0 1px 4px rgba(0,0,0,0.4)',
+                background: active ? 'rgba(34,197,94,0.12)' : 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 120ms',
+              }}
+            >
+              {url ? <img src={url} alt="" style={{ width: 32, height: 32, objectFit: 'contain', filter: active ? 'drop-shadow(0 0 4px rgba(34,197,94,0.8))' : 'none' }} draggable={false} /> : <span style={{ fontSize: 16 }}>🔫</span>}
+            </div>
+          );
+        })}
+      </div>
+      {tooltipItem && <ItemTooltip item={tooltipItem} x={tooltipPos.x} y={tooltipPos.y} />}
+    </>
   );
 };
 
@@ -171,15 +180,16 @@ const StatCapsule = ({ s, onHover }: { s: StatInfo; onHover: (s: StatInfo | null
     onMouseEnter={() => onHover(s)}
     onMouseLeave={() => onHover(null)}
     style={{
-      fontSize: 11, fontFamily: 'var(--wa-font-hud)', padding: '2px 8px',
-      background: 'rgba(0,0,0,0.3)', borderRadius: 3,
-      border: '1px solid rgba(200,200,200,0.06)',
-      color: 'var(--text-secondary)', whiteSpace: 'nowrap', cursor: 'default',
-      display: 'inline-flex', alignItems: 'center', gap: 4,
+      fontSize: 12, fontFamily: 'var(--wa-font-hud)', padding: '4px 10px',
+      background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.35))', borderRadius: 6,
+      border: '1px solid rgba(255,255,255,0.08)',
+      color: 'var(--text-secondary)', whiteSpace: 'nowrap', cursor: 'help',
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'all 120ms',
     }}
   >
-    {s.label}
-    <strong style={{ color: 'var(--wa-accent-amber)' }}>{s.value}</strong>
+    <span style={{ opacity: 0.7, fontSize: 10, letterSpacing: 0.5 }}>{s.label}</span>
+    <strong style={{ color: 'var(--wa-accent-amber)', fontSize: 12 }}>{s.value}</strong>
   </span>
 );
 
@@ -255,23 +265,23 @@ export const Dashboard = () => {
   const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
 
   const statCapsules: StatInfo[] = [
-    { label: 'DMG', value: stats.damage.toFixed(1), desc: 'Базовый урон (DPS). Определяет силу всех атак.' },
-    { label: 'ARM', value: stats.armor.toFixed(1), desc: 'Броня. Каждая единица поглощает 1 ед. входящего урона.' },
-    { label: 'CRIT', value: `${(stats.crit * 100).toFixed(1)}%`, desc: 'Шанс критического удара.', breakpoints: ['1-100% → ×2', '101-200% → ×3', '201-300% → ×4', '301-400% → ×5'] },
-    { label: 'ACC', value: `${(stats.accuracy * 100).toFixed(0)}%`, desc: 'Меткость. Определяет шанс попадания.' },
-    { label: 'EVA', value: `${(stats.evasion * 100).toFixed(1)}%`, desc: 'Уклонение. Шанс избежать атаки.' },
-    { label: 'BLK', value: `${(stats.block * 10).toFixed(1)}%`, desc: 'Блок. Шанс заблокировать атаку полностью.', breakpoints: ['100 блока → 10%', '300 → 30%', '500 → 50% (кап)'] },
-    { label: 'REG', value: stats.regen.toFixed(1), desc: 'Регенерация HP/мин.' },
-    { label: 'VAMP', value: `${(stats.vampir * 100).toFixed(1)}%`, desc: 'Вампиризм. % урона → HP.' },
-    { label: 'PCH', value: `${(stats.punching * 100).toFixed(1)}%`, desc: 'Пробитие. Игнорирует % брони врага.' },
-    { label: 'SPD', value: `${(stats.speed * 100).toFixed(1)}%`, desc: 'Скорость. Каждый выстрел имеет 0.5% × скорость шанс на бесплатный повтор (100% → 50%, 200% → гарант).' },
+    { label: 'DMG', value: stats.damage.toFixed(1), desc: 'Базовый урон. Формула: DPS × кол-во атак × шанс попадания. Влияет на весь исходящий урон.', breakpoints: ['+1 DMG ≈ +3 силы', 'Крит ×2-5 умножает DMG'] },
+    { label: 'ARM', value: stats.armor.toFixed(1), desc: 'Броня. Вычитается из входящего урона после пробития. 10 ARM = −10 урона.', breakpoints: ['ARM × пробитие 50-70%', 'Не снижает чистый урон'] },
+    { label: 'CRIT', value: `${(stats.crit * 100).toFixed(1)}%`, desc: 'Крит. Шанс × множитель. 100% = гарант ×2, 250% = 100% ×3 + 50% ×4.', breakpoints: ['0-100% → ×2', '100-200% → ×3', '200-300% → ×4', '300%+ → ×5'] },
+    { label: 'ACC', value: `${(stats.accuracy * 100).toFixed(0)}%`, desc: 'Меткость. 100% = всегда попал (кроме уворота). >100% режет уворот врага.', breakpoints: ['100% база', '150% → уворот ×0.5', '200% → игнор уворота'] },
+    { label: 'EVA', value: `${(stats.evasion * 100).toFixed(1)}%`, desc: 'Уклонение. Шанс избежать атаки полностью. Режется меткостью >100%.', breakpoints: ['EVA 25% → каждая 4-я атака мимо', 'Кап 90%'] },
+    { label: 'BLK', value: `${(stats.block * 10).toFixed(1)}%`, desc: 'Блок. Шанс ×0.1 от значения блока. При срабатывании — 100% поглощение.', breakpoints: ['1.0 блока → 10%', '3.0 → 30%', '5.0 → 50% (кап)'] },
+    { label: 'REG', value: stats.regen.toFixed(1), desc: 'Регенерация. HP в секунду вне боя + вампиризм в бою. Стакается с эффектами.' },
+    { label: 'VAMP', value: `${(stats.vampir * 100).toFixed(1)}%`, desc: 'Вампиризм. % от нанесённого урона → HP. Кап 50% (игрок) / 2% (враги).' },
+    { label: 'PCH', value: `${(stats.punching * 100).toFixed(1)}%`, desc: 'Пробитие. 0-100% → 0-50% игнора брони, 100-300% → 50-70%, кап 70%.' },
+    { label: 'SPD', value: `${(stats.speed * 100).toFixed(1)}%`, desc: 'Скорость. Доп. атаки: 0.5%×SPD за выстрел. 100% → 50% шанс, 200% → гарант +50%.' },
   ];
 
   const elemDps = [
-    { label: 'ЭМИ', value: stats.dpsEmi, color: '#818cf8', desc: 'ЭМИ урон. Против Роботов.' },
-    { label: 'ТОКС', value: stats.dpsToxis, color: '#22c55e', desc: 'Токсичный урон. Против Мутантов.' },
-    { label: 'ЭКСТРО', value: stats.dpsExtro, color: '#f97316', desc: 'Усиленный урон. Против Бандитов.' },
-    { label: 'ОГОНЬ', value: stats.dpsFire, color: '#ef4444', desc: 'Разрывной урон. Против Бандитов.' },
+    { label: 'ЭМИ', value: stats.dpsEmi, color: '#818cf8', desc: 'ЭМИ урон. +25% к DPS vs Роботы. Стакается с пробитием.' },
+    { label: 'ТОКС', value: stats.dpsToxis, color: '#22c55e', desc: 'Токсичный урон. +25% vs Мутанты. Игнор брони 50%.' },
+    { label: 'ЭКСТРО', value: stats.dpsExtro, color: '#f97316', desc: 'Экстро урон. +50% vs Бандиты. Чистый урон.' },
+    { label: 'ОГОНЬ', value: stats.dpsFire, color: '#ef4444', desc: 'Огонь. +50% vs Бандиты. Поджигает (3% HP/тик).' },
   ];
 
   const handleStatHover = (s: StatInfo | null) => {
@@ -360,21 +370,22 @@ export const Dashboard = () => {
             ))}
           </div>
         {activeEffects.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
             {activeEffects.map((e) => {
-              const boostDesc = e.statBoosts ? Object.entries(e.statBoosts).map(([k, v]) => `${k}: ${v > 0 ? '+' : ''}${v}`).join(', ') : '';
+              const boostDesc = e.statBoosts ? Object.entries(e.statBoosts).map(([k, v]) => `${k}: ${v > 0 ? '+' : ''}${v}`).join(', ') : e.statBoostsMult ? Object.entries(e.statBoostsMult).map(([k, v]) => `${k}: ×${v}`).join(', ') : '';
               return (
               <span key={e.id}
-                onMouseEnter={(ev) => { setHoveredStat({ label: e.name, value: `${e.remaining}с`, desc: boostDesc || 'нет бонусов' }); setTooltipPos({ x: ev.clientX, y: ev.clientY }); }}
+                onMouseEnter={(ev) => { setHoveredStat({ label: e.name, value: `${e.remaining}с`, desc: boostDesc || 'активный эффект' }); setTooltipPos({ x: ev.clientX, y: ev.clientY }); }}
                 onMouseMove={(ev) => setTooltipPos({ x: ev.clientX, y: ev.clientY })}
                 onMouseLeave={() => setHoveredStat(null)}
                 style={{
-                  fontSize: 10, padding: '1px 6px', borderRadius: 3,
-                  background: 'rgba(74,222,128,0.08)', color: '#4ade80',
-                  border: '1px solid rgba(74,222,128,0.15)',
+                  fontSize: 12, padding: '4px 10px', borderRadius: 6,
+                  background: 'linear-gradient(180deg, rgba(74,222,128,0.14), rgba(34,197,94,0.06))', color: '#4ade80',
+                  border: '1px solid rgba(74,222,128,0.28)',
                   fontFamily: 'var(--wa-font-hud)', whiteSpace: 'nowrap', cursor: 'help',
+                  boxShadow: '0 1px 4px rgba(34,197,94,0.2)', display: 'inline-flex', alignItems: 'center', gap: 4,
                 }}>
-                {e.name} ✦{e.remaining}
+                <span style={{ fontSize: 10, opacity: 0.8 }}>✦</span> {e.name} <span style={{ opacity: 0.9, fontWeight: 700 }}>{e.remaining}с</span>
               </span>
             );})}
           </div>

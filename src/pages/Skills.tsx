@@ -1,238 +1,405 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { usePlayerStore } from '../stores/playerStore';
-import { SKILL_CLASSES } from '../data/skills';
-import { SNIPER_META, SNIPER_ABILITIES, sniperMaxRanks } from '../data/sniper';
-import { SniperTree } from '../components/widgets/SniperTree';
-import { sniperClassBg } from '../assets/index';
+import { useUiStore } from '../stores/uiStore';
+import { SNIPER_META, SNIPER_ABILITIES, sniperMaxRanks, sniperOfTier, sniperCanAllocate, type SniperAbilityDef } from '../data/sniper';
+import { PET_META, PET_ABILITIES, PET_FREE_DEFS, petMaxRanks, petCanAllocate, type PetAbilityDef } from '../data/pets';
+import { SniperTree, SniperCell } from '../components/widgets/SniperTree';
+import { BeastTree, PetCell, PetTooltip } from '../components/widgets/BeastTree';
+import { AbilityTooltip } from '../components/widgets/AbilityTooltip';
+import { sniperClassBg, beastClassBg } from '../assets/index';
 
-const formatCumulative = (stats: string[], level: number): string => {
-  return stats.map((s) => {
-    const m = s.match(/^([+-]\d+(?:\.\d+)?)(.*)$/);
-    if (!m) return s;
-    const num = parseFloat(m[1]) * level;
-    return `${num > 0 ? '+' : ''}${num}${m[2]}`;
-  }).join(' • ');
-};
-
-const getTier = (index: number, total: number): number => {
-  // 140 per class -> 5 tiers as in stolen-realm
-  if (total <= 14) {
-    // original 14: map reqPoints to tier
-    if (index < 3) return 1;
-    if (index < 6) return 2;
-    if (index < 9) return 3;
-    if (index < 12) return 4;
-    return 5;
-  }
-  // 140: 28 per tier
-  return Math.floor(index / 28) + 1;
-};
+/** Бейджи класса на тайле: ✅+✕ у выбранного, 🔒 у невыбранного. */
+const ClassBadges = ({ chosen, onAbandon }: { chosen: boolean; onAbandon: () => void }) => (
+  <>
+    {chosen ? (
+      <>
+        <span style={{ position: 'absolute', top: 4, left: 6, fontSize: 13, textShadow: '0 1px 3px #000', zIndex: 1 }}>✅</span>
+        <span
+          onClick={(e) => { e.stopPropagation(); onAbandon(); }}
+          title="Убрать класс (вкачанное останется, 3 очка не вернутся)"
+          style={{ position: 'absolute', top: 2, right: 5, fontSize: 13, cursor: 'pointer', opacity: 0.75, zIndex: 1, textShadow: '0 1px 3px #000' }}
+        >
+          ✕
+        </span>
+      </>
+    ) : (
+      <span style={{ position: 'absolute', top: 4, left: 6, fontSize: 13, opacity: 0.85, zIndex: 1 }} title="Выбор класса стоит 3 очка">🔒</span>
+    )}
+  </>
+);
 
 export const Skills = () => {
   const skills = usePlayerStore((s) => s.skills);
   const pendingSkills = usePlayerStore((s) => s.pendingSkills);
   const skillPoints = usePlayerStore((s) => s.skillPoints);
-  const allocateSkill = usePlayerStore((s) => s.allocateSkill);
-  const deallocateSkill = usePlayerStore((s) => s.deallocateSkill);
   const applySkills = usePlayerStore((s) => s.applySkills);
   const cancelSkills = usePlayerStore((s) => s.cancelSkills);
   const resetSkills = usePlayerStore((s) => s.resetSkills);
   const level = usePlayerStore((s) => s.level);
   const migrateSniper = usePlayerStore((s) => s.migrateSniper);
 
-  const [selectedClass, setSelectedClass] = useState(SKILL_CLASSES[0].id);
+  const [selectedClass, setSel] = useState(SNIPER_META.id);
+  const chosenClasses = usePlayerStore((s) => s.chosenClasses);
+  const pickClass = usePlayerStore((s) => s.pickClass);
+  const abandonClass = usePlayerStore((s) => s.abandonClass);
+  // Ручной выбор запоминаем; пока его нет — показываем доминантную (прокачанную) ветку.
+  const userPicked = useRef(false);
+  const setSelectedClass = (id: string) => { userPicked.current = true; setSel(id); };
+  useEffect(() => {
+    if (userPicked.current) return;
+    let bestId = SNIPER_META.id;
+    let best = 0;
+    const snpSpent = SNIPER_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+    if (snpSpent > best) { best = snpSpent; bestId = SNIPER_META.id; }
+    const petSpent = PET_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+    if (petSpent > best) { bestId = 'lesnichiy'; }
+    setSel(bestId);
+  }, [skills, pendingSkills]);
+  const [baseTip, setBaseTip] = useState<{ def: SniperAbilityDef; x: number; y: number } | null>(null);
+  const [petTip, setPetTip] = useState<{ def: PetAbilityDef; x: number; y: number } | null>(null);
+  const basePair = sniperOfTier('attack', 0);
+  // Клик по тайлу: добрать класс (с вопросом, макс. 2, 3 очка) + показать ветку.
+  const [confirmDlg, setConfirmDlg] = useState<null | { kind: 'pick' | 'abandon'; id: string; name: string; color: string }>(null);
+  const classMetaOf = (id: string): { name: string; color: string } => {
+    if (id === SNIPER_META.id) return { name: SNIPER_META.name, color: SNIPER_META.color };
+    if (id === 'lesnichiy') return { name: 'Лесничий', color: '#a16207' };
+    return { name: id, color: '#888' };
+  };
+  const clickTile = (id: string, name: string) => {
+    if (!chosenClasses.includes(id)) {
+      const meta = classMetaOf(id);
+      setConfirmDlg({ kind: 'pick', id, name, color: meta.color });
+    }
+    setSelectedClass(id);
+  };
+  const askAbandon = (id: string) => {
+    const meta = classMetaOf(id);
+    setConfirmDlg({ kind: 'abandon', id, name: meta.name, color: meta.color });
+  };
+  const confirmOk = () => {
+    if (!confirmDlg) return;
+    if (confirmDlg.kind === 'pick') pickClass(confirmDlg.id, confirmDlg.name);
+    else abandonClass(confirmDlg.id);
+    setConfirmDlg(null);
+  };
   const isSniper = selectedClass === SNIPER_META.id;
-  const cls = useMemo(() => SKILL_CLASSES.find(c => c.id === selectedClass) || SKILL_CLASSES[0], [selectedClass]);
 
   useEffect(() => { migrateSniper(); }, [migrateSniper]);
 
   const pendingTotal = Object.values(pendingSkills).reduce((a, b) => a + b, 0);
   const hasPending = pendingTotal > 0;
 
-  // Split into Active/Passive like stolen-realm: capstone + travel with icon • as passive, others as active/passive mix
-  const activeSkills = useMemo(() => cls.skills.filter(s => s.id.includes('capstone') || s.icon === '💥' || s.icon === '🎯' || s.icon === '🗡️'), [cls]);
-  const passiveSkills = useMemo(() => cls.skills.filter(s => !activeSkills.includes(s)), [cls, activeSkills]);
-
-  const getPointsSpentInTree = (list: typeof cls.skills) => list.reduce((sum, s) => sum + (skills[s.id] || 0) + (pendingSkills[s.id] || 0), 0);
-  const pointsInTree = isSniper
-    ? SNIPER_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0)
-    : getPointsSpentInTree(cls.skills);
-  const pointsMax = isSniper ? sniperMaxRanks() : cls.skills.length;
-
-  const isLearned = (id: string) => (skills[id] || 0) > 0 || (pendingSkills[id] || 0) > 0;
+  const pointsInTree = selectedClass === 'lesnichiy'
+    ? PET_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0)
+    : SNIPER_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+  const pointsMax = selectedClass === 'lesnichiy' ? petMaxRanks() : sniperMaxRanks();
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <WapPanel variant="metal" padding="lg">
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {/* Классы слева */}
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, flex: 1, minWidth: 0, scrollbarWidth: 'thin' }}>
+      <div style={{ display: 'flex', gap: 30, alignItems: 'flex-start' }}>
+        {/* Меню классов слева — квадратные тайлы */}
+        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'stretch' }}>
           {(() => {
             const snpSpent = SNIPER_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
             const isActive = selectedClass === SNIPER_META.id;
-            const snpImg = sniperClassBg();
+  const snpImg = sniperClassBg();
+  const beastImg = beastClassBg();
             return (
               <button
                 key={SNIPER_META.id}
-                onClick={() => setSelectedClass(SNIPER_META.id)}
+                onClick={() => clickTile(SNIPER_META.id, SNIPER_META.name)}
                 style={{
-                  flex: '0 0 auto',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                  padding: '8px 12px', minWidth: 84,
-                  background: isActive ? `${SNIPER_META.color}18` : 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${isActive ? SNIPER_META.color : 'rgba(255,255,255,0.08)'}`,
-                  borderRadius: 8, cursor: 'pointer',
-                  boxShadow: isActive ? `0 0 12px ${SNIPER_META.color}44` : 'none',
-                  transition: 'all 120ms',
+                  width: 152, height: 152, padding: 0, position: 'relative', overflow: 'hidden',
+                  backgroundColor: '#0b0d10',
+                  border: `2px solid ${isActive ? SNIPER_META.color : 'rgba(255,255,255,0.10)'}`,
+                  borderRadius: 10, cursor: 'pointer',
+                  boxShadow: isActive ? `0 0 14px ${SNIPER_META.color}55` : 'none',
+                  transition: 'all 120ms', flexShrink: 0,
                 }}
               >
-                {snpImg
-                  ? <img src={snpImg} alt={SNIPER_META.name} draggable={false} style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6 }} />
-                  : <span style={{ fontSize: 22 }}>{SNIPER_META.icon}</span>}
-                <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? SNIPER_META.color : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{SNIPER_META.name}</span>
-                <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{snpSpent}/{sniperMaxRanks()}</span>
+                <ClassBadges chosen={chosenClasses.includes(SNIPER_META.id)} onAbandon={() => askAbandon(SNIPER_META.id)} />
+                {snpImg && (
+                  <img src={snpImg} alt={SNIPER_META.name} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
+                )}
+                <span style={{
+                  position: 'absolute', left: 0, right: 0, bottom: 0,
+                  padding: '6px 4px', fontSize: 13, fontWeight: 700, color: '#fff',
+                  background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.9)', fontFamily: 'var(--font-mono)',
+                }}>
+                  {SNIPER_META.name} {snpSpent}/{sniperMaxRanks()}
+                  {!chosenClasses.includes(SNIPER_META.id) && (
+                    <span style={{ display: 'block', fontSize: 9, color: '#fbbf24' }}>🔒 выбор — 3 очк.</span>
+                  )}
+                </span>
               </button>
             );
           })()}
-          {SKILL_CLASSES.map(c => {
-            const spent = c.skills.reduce((s, sk) => s + (skills[sk.id] || 0) + (pendingSkills[sk.id] || 0), 0);
-            const isActive = c.id === selectedClass;
+          {/* База класса вне тиров — только картинки, вплотную справа от снайпера */}
+          {basePair.length > 0 && (
+            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', justifyContent: 'center' }}>
+              {basePair.map((def) => (
+                <SniperCell
+                  key={def.id}
+                  def={def}
+                  compact
+                  bare
+                  onHover={(d, x, y) => setBaseTip({ def: d, x, y })}
+                  onLeave={() => setBaseTip(null)}
+                />
+              ))}
+            </div>
+          )}
+          </div>
+          {(() => {
+            const petSpent = PET_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+            const isActive = selectedClass === 'lesnichiy';
+            const chosen = chosenClasses.includes('lesnichiy');
+            const beastImg = beastClassBg();
             return (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'stretch' }}>
               <button
-                key={c.id}
-                onClick={() => setSelectedClass(c.id)}
+                key="lesnichiy"
+                onClick={() => clickTile('lesnichiy', 'Лесничий')}
                 style={{
-                  flex: '0 0 auto',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                  padding: '8px 12px', minWidth: 84,
-                  background: isActive ? `${c.color}18` : 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${isActive ? c.color : 'rgba(255,255,255,0.08)'}`,
-                  borderRadius: 8, cursor: 'pointer',
-                  boxShadow: isActive ? `0 0 12px ${c.color}44` : 'none',
-                  transition: 'all 120ms',
+                  width: 152, height: 152, padding: 0, position: 'relative', overflow: 'hidden',
+                  backgroundColor: '#0b0d10',
+                  border: `2px solid ${isActive ? '#a16207' : 'rgba(255,255,255,0.10)'}`,
+                  borderRadius: 10, cursor: 'pointer',
+                  boxShadow: isActive ? '0 0 14px rgba(161,98,7,0.33)' : 'none',
+                  transition: 'all 120ms', flexShrink: 0,
                 }}
               >
-                <span style={{ fontSize: 22 }}>{c.icon}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? c.color : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{c.name}</span>
-                <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{spent}/{c.skills.length}</span>
+                <ClassBadges chosen={chosen} onAbandon={() => askAbandon('lesnichiy')} />
+                {beastImg && (
+                  <img src={beastImg} alt="Лесничий" draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
+                )}
+                <span style={{
+                  position: 'absolute', left: 0, right: 0, bottom: 0,
+                  padding: '6px 4px', fontSize: 13, fontWeight: 700, color: '#fff',
+                  background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.9)', fontFamily: 'var(--font-mono)',
+                }}>
+                  Лесничий {petSpent}/{petMaxRanks()}
+                  {!chosen && (
+                    <span style={{ display: 'block', fontSize: 9, color: '#fbbf24' }}>🔒 выбор — 3 очк.</span>
+                  )}
+                </span>
               </button>
+              {/* Бесплатные базы лесничего — справа от картинки класса */}
+              <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', justifyContent: 'center' }}>
+                {PET_FREE_DEFS.map((def) => (
+                  <PetCell
+                    key={def.id}
+                    def={def}
+                    compact
+                    bare
+                    onHover={(d, x, y) => setPetTip({ def: d, x, y })}
+                    onLeave={() => setPetTip(null)}
+                  />
+                ))}
+              </div>
+            </div>
             );
-          })}
+          })()}
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Tree — Active | Passive like stolen-realm (снайпер — новая модель) */}
+      {selectedClass === 'lesnichiy' ? <BeastTree /> : <SniperTree />}
+      </div>
+      {/* Инфо справа — вертикально */}
+      <div style={{ width: 150, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, position: 'sticky', top: 12 }}>
+        <div style={{ padding: '8px 10px 10px', background: 'linear-gradient(180deg, #262b33, #16181d)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 10, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: 'rgba(255,255,255,0.45)', marginBottom: 2 }}>УРОВЕНЬ</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{level}</div>
+        </div>
+        <div style={{ padding: '8px 10px 10px', background: 'linear-gradient(180deg, #232b22, #141a13)', border: '1px solid rgba(74,222,128,0.35)', borderRadius: 10, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: 'rgba(74,222,128,0.6)', marginBottom: 2 }}>ОЧКИ</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#4ade80', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{skillPoints}{hasPending ? <span style={{ fontSize: 12, color: '#fbbf24' }}> ({pendingTotal}⏳)</span> : ''}</div>
+        </div>
+        <div style={{ padding: '8px 10px 10px', background: 'linear-gradient(180deg, #262b33, #16181d)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 10, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: 'rgba(255,255,255,0.45)', marginBottom: 2 }}>В ВЕТКЕ</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{pointsInTree}/{pointsMax}</div>
+        </div>
+        <div style={{ padding: '8px 10px 10px', background: 'linear-gradient(180deg, #2b2320, #171310)', border: '1px solid rgba(251,191,36,0.30)', borderRadius: 10, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: 'rgba(251,191,36,0.6)', marginBottom: 2 }}>КЛАССЫ</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#fbbf24', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{chosenClasses.length}/2</div>
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 4, lineHeight: 1.4 }}>
+            Выбор класса — 3 очк.<br />Клик по ✕ — убрать
           </div>
-          {/* Инфо справа: уровень, очки, ветка, сброс */}
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', minWidth: 190 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Ур. {level} — <b style={{ color: '#4ade80' }}>{skillPoints} очков</b> {hasPending ? `(${pendingTotal} в ожидании)` : ''}</span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>В ветке {pointsInTree}/{pointsMax}</span>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {hasPending && (<><Button size="sm" variant="primary" onClick={applySkills}>✅ ПРИНЯТЬ</Button><Button size="sm" variant="ghost" onClick={cancelSkills}>❌ ОТМЕНА</Button></>)}
-              <Button size="sm" variant="ghost" onClick={resetSkills} title={`Сброс за ${level * 100} 💾`}>🔄 Сброс · {level * 100}💾</Button>
+        </div>
+        {hasPending && (
+          <>
+            <Button size="sm" variant="primary" onClick={applySkills}>✅ ПРИНЯТЬ</Button>
+            <Button size="sm" variant="ghost" onClick={cancelSkills}>❌ ОТМЕНА</Button>
+          </>
+        )}
+        <Button size="sm" variant="ghost" onClick={resetSkills} title={`Сброс за ${level * 100} 💾`}>🔄 Сброс · {level * 100}💾</Button>
+      </div>
+      </div>
+      {/* Сохранённые билды */}
+      <BuildsSection />
+      {/* Подтверждение класса — игровая модалка вместо confirm() */}
+      {confirmDlg && (
+        <div
+          onClick={() => setConfirmDlg(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 2000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 380, maxWidth: '92vw',
+              background: 'linear-gradient(180deg, #23272e, #14161a)',
+              border: '1px solid rgba(217,119,6,0.5)', borderRadius: 12,
+              boxShadow: '0 16px 48px rgba(0,0,0,0.8), 0 0 24px rgba(217,119,6,0.12)',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{
+              padding: '10px 16px', background: 'rgba(217,119,6,0.15)',
+              borderBottom: '1px solid rgba(217,119,6,0.35)',
+              fontSize: 12, fontWeight: 800, letterSpacing: 1.5, color: '#fbbf24', textAlign: 'center',
+            }}>
+              {confirmDlg.kind === 'pick' ? '🎓 НОВЫЙ КЛАСС' : '🚪 УБРАТЬ КЛАСС'}
+            </div>
+            <div style={{ padding: 16, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: confirmDlg.color, textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
+                «{confirmDlg.name}»
+              </div>
+              {confirmDlg.kind === 'pick' ? (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7 }}>
+                  Стоимость — <b style={{ color: '#4ade80' }}>3 очка</b> (есть <b style={{ fontFamily: 'var(--font-mono)' }}>{skillPoints}</b>)<br />
+                  Одновременно — максимум <b>2 класса</b> (занято <b style={{ fontFamily: 'var(--font-mono)' }}>{chosenClasses.length}</b>)<br />
+                  Качать можно только выбранные классы
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7 }}>
+                  Вкачанное останется, но качать дальше будет нельзя.<br />
+                  3 очка <b>не возвращаются</b>.
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                {(() => {
+                  const canPick = confirmDlg.kind === 'abandon' || (chosenClasses.length < 2 && skillPoints >= 3);
+                  return (
+                    <>
+                      <Button
+                        size="sm" variant="primary" onClick={confirmOk} style={{ flex: 1 }}
+                        {...(!canPick ? { disabled: true } : {})}
+                      >
+                        {confirmDlg.kind === 'pick' ? '✅ ПРИНЯТЬ' : 'УБРАТЬ'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmDlg(null)} style={{ flex: 1 }}>ОТМЕНА</Button>
+                    </>
+                  );
+                })()}
+              </div>
+              {confirmDlg.kind === 'pick' && !(chosenClasses.length < 2 && skillPoints >= 3) && (
+                <div style={{ fontSize: 11, color: '#f87171' }}>
+                  {chosenClasses.length >= 2 ? 'Сначала убери один класс (✕ на тайле)' : 'Не хватает очков'}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </WapPanel>
-
-      {/* Tree — Active | Passive like stolen-realm (снайпер — новая модель) */}
-      {isSniper ? <SniperTree /> : (
-      <div style={{ display: 'flex', gap: 12, minHeight: 520 }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(25,25,25,0.75)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ padding: '8px 12px', fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#f59e0b', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'right' }}>Активные</div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 560 }}>
-            {[1,2,3,4,5].map(tier => {
-              const tierSkills = cls.skills.filter((_, idx) => getTier(idx, cls.skills.length) === tier).filter(s => activeSkills.includes(s));
-              if (tierSkills.length === 0) return null;
-              return (
-                <div key={tier}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} /> ТИР {tier} <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} /></div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 6 }}>
-                    {tierSkills.map(sk => {
-                      const cur = skills[sk.id] || 0, pen = pendingSkills[sk.id] || 0, tot = cur + pen, isMaxed = tot >= sk.maxPoints, locked = false;
-                      const isTravel = sk.icon === '•';
-                      return (
-                        <div key={sk.id} onClick={() => { if (!isMaxed && skillPoints > 0) allocateSkill(sk.id); }} onContextMenu={e => { e.preventDefault(); if (pen > 0) deallocateSkill(sk.id); }} style={{
-                          padding: '8px 8px', background: cur>0 ? `${cls.color}18` : pen>0 ? `${cls.color}10` : 'rgba(255,255,255,0.02)',
-                          border: `1px solid ${pen>0 ? cls.color+'88' : cur>0 ? cls.color+'44' : 'rgba(255,255,255,0.06)'}`,
-                          borderRadius: 6, cursor: isMaxed ? 'default' : 'pointer', opacity: isMaxed && cur===0 ? 0.5 : 1,
-                          minHeight: 64,
-                        }}>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                            <span style={{ fontSize: 14, width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isTravel ? 'rgba(255,255,255,0.06)' : `${cls.color}22`, borderRadius: 4, flexShrink: 0 }}>{sk.icon}</span>
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sk.name}</div>
-                              <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1.2 }}>{sk.desc}</div>
-                              <div style={{ fontSize: 9, color: cur>0 ? cls.color : 'var(--text-muted)', marginTop: 2 }}>{formatCumulative(sk.statsPerPoint, 1)}</div>
-                            </div>
-                            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: isMaxed ? '#22c55e' : cls.color }}>{cur}/{sk.maxPoints}{pen>0 ? `+${pen}` : ''}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={{ width: 8, background: 'rgba(255,255,255,0.04)', borderRadius: 4, flexShrink: 0 }} />
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(25,25,25,0.75)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ padding: '8px 12px', fontSize: 11, fontWeight: 700, letterSpacing: 1, color: '#a78bfa', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Пассивные</div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 560 }}>
-            {[1,2,3,4,5].map(tier => {
-              const tierSkills = cls.skills.filter((_, idx) => getTier(idx, cls.skills.length) === tier).filter(s => passiveSkills.includes(s));
-              if (tierSkills.length === 0) return null;
-              return (
-                <div key={tier}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} /> ТИР {tier} <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} /></div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 6 }}>
-                    {tierSkills.map(sk => {
-                      const cur = skills[sk.id] || 0, pen = pendingSkills[sk.id] || 0, tot = cur + pen, isMaxed = tot >= sk.maxPoints;
-                      const isTravel = sk.icon === '•';
-                      const isCapstone = sk.id.includes('capstone');
-                      return (
-                        <div key={sk.id} onClick={() => { if (!isMaxed && skillPoints > 0) allocateSkill(sk.id); }} onContextMenu={e => { e.preventDefault(); if (pen > 0) deallocateSkill(sk.id); }} style={{
-                          padding: isCapstone ? '10px 8px' : '8px 8px',
-                          background: isCapstone ? (cur>0 ? 'linear-gradient(135deg, #fbbf2422, #92400e22)' : 'rgba(251,191,36,0.04)') : cur>0 ? `${cls.color}18` : pen>0 ? `${cls.color}10` : 'rgba(255,255,255,0.02)',
-                          border: `1px solid ${isCapstone ? (cur>0 ? '#fbbf24' : '#fbbf2466') : pen>0 ? cls.color+'88' : cur>0 ? cls.color+'44' : 'rgba(255,255,255,0.06)'}`,
-                          borderRadius: 6, cursor: isMaxed ? 'default' : 'pointer',
-                          boxShadow: isCapstone && cur>0 ? '0 0 10px rgba(251,191,36,0.2)' : 'none',
-                          minHeight: 64,
-                        }}>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                            <span style={{ fontSize: isCapstone ? 16 : 14, width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isTravel ? 'rgba(255,255,255,0.06)' : `${cls.color}22`, borderRadius: 4, flexShrink: 0 }}>{sk.icon}</span>
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ fontSize: 11, fontWeight: isCapstone ? 700 : 600, lineHeight: 1.1, color: isCapstone && cur>0 ? '#fbbf24' : undefined, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sk.name} {isCapstone ? '★' : ''}</div>
-                              <div style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1.2 }}>{sk.desc}</div>
-                              <div style={{ fontSize: 9, color: cur>0 ? (isCapstone ? '#fbbf24' : cls.color) : 'var(--text-muted)', marginTop: 2 }}>{formatCumulative(sk.statsPerPoint, 1)}</div>
-                              {isCapstone && <div style={{ fontSize: 8, color: '#fbbf24', marginTop: 2 }}>✨ Бесплатно на арене</div>}
-                            </div>
-                            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: isMaxed ? '#22c55e' : isCapstone ? '#fbbf24' : cls.color }}>{cur}/{sk.maxPoints}{pen>0 ? `+${pen}` : ''}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
       )}
-
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-        {(() => {
-          const snpSpent = SNIPER_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
-          return <div key={SNIPER_META.id} style={{ padding: '4px 8px', background: selectedClass===SNIPER_META.id ? `${SNIPER_META.color}18` : 'rgba(255,255,255,0.02)', border: `1px solid ${selectedClass===SNIPER_META.id ? SNIPER_META.color+'66' : 'rgba(255,255,255,0.06)'}`, borderRadius: 6, fontSize: 10, display: 'flex', gap: 4, alignItems: 'center' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: SNIPER_META.color }} />{SNIPER_META.name} <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{snpSpent}/{sniperMaxRanks()}</span></div>;
-        })()}
-        {SKILL_CLASSES.map(c => {
-          const spent = c.skills.reduce((s, sk) => s + (skills[sk.id] || 0) + (pendingSkills[sk.id] || 0), 0);
-          return <div key={c.id} style={{ padding: '4px 8px', background: c.id===selectedClass ? `${c.color}18` : 'rgba(255,255,255,0.02)', border: `1px solid ${c.id===selectedClass ? c.color+'66' : 'rgba(255,255,255,0.06)'}`, borderRadius: 6, fontSize: 10, display: 'flex', gap: 4, alignItems: 'center' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />{c.name} <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{spent}/{c.skills.length}</span></div>;
-        })}
-      </div>
+      {baseTip && (
+        <AbilityTooltip
+          def={baseTip.def}
+          rank={(skills[baseTip.def.id] || 0) + (pendingSkills[baseTip.def.id] || 0)}
+          x={baseTip.x} y={baseTip.y}
+          apCost={baseTip.def.apCost}
+          statusLine={(() => {
+            const cur = (skills[baseTip.def.id] || 0) + (pendingSkills[baseTip.def.id] || 0);
+            if (cur >= baseTip.def.maxRanks) return { text: '● Выбрано (вторая серая)', color: '#4ade80' };
+            const chk = sniperCanAllocate(baseTip.def.id, skills, pendingSkills, skillPoints);
+            if (!chk.ok) return { text: `🔒 ${chk.reason}`, color: '#f87171' };
+            return { text: 'ЛКМ — выбрать (бесплатно) · ПКМ — снять', color: '#4ade80' };
+          })()}
+        />
+      )}
+      {petTip && (
+        <PetTooltip
+          def={petTip.def}
+          rank={(skills[petTip.def.id] || 0) + (pendingSkills[petTip.def.id] || 0)}
+          x={petTip.x} y={petTip.y}
+          statusLine={(() => {
+            const cur = (skills[petTip.def.id] || 0) + (pendingSkills[petTip.def.id] || 0);
+            if (cur >= petTip.def.maxRanks) return { text: '● Взято', color: '#4ade80' };
+            const chk = petCanAllocate(petTip.def.id, skills, pendingSkills, skillPoints);
+            if (!chk.ok) return { text: `🔒 ${chk.reason}`, color: '#f87171' };
+            return { text: 'ЛКМ — взять (бесплатно)', color: '#4ade80' };
+          })()}
+        />
+      )}
     </motion.div>
+  );
+};
+
+const BuildsSection = () => {
+  const skillBuilds = useUiStore((s) => s.skillBuilds);
+  const saveSkillBuild = usePlayerStore((s) => s.saveSkillBuild);
+  const deleteSkillBuild = usePlayerStore((s) => s.deleteSkillBuild);
+  const loadSkillBuild = usePlayerStore((s) => s.loadSkillBuild);
+  const snpImg = sniperClassBg();
+
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.5, color: 'rgba(255,255,255,0.7)' }}>
+          💾 БИЛДЫ ({skillBuilds.length}/5)
+        </span>
+        <span style={{ flex: 1 }} />
+        <Button size="sm" variant="primary" onClick={() => saveSkillBuild()}>💾 Сохранить текущий</Button>
+      </div>
+      {skillBuilds.length === 0 ? (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          Расставь очки и сохрани раскладку — потом вернёшь её в один клик (сначала спросим про сброс).
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {skillBuilds.map((b) => {
+            const isSnp = b.classId === SNIPER_META.id;
+            const petKind = b.classId.startsWith('pet_') ? b.classId.slice(4) : null;
+            const petMeta = petKind ? (PET_META as any)[petKind] : null;
+            const color = isSnp ? SNIPER_META.color : (petMeta?.color || '#888');
+            const icon = isSnp ? null : (petMeta?.icon || '❓');
+            return (
+              <div key={b.id} style={{ width: 150, background: 'rgba(0,0,0,0.35)', border: `1px solid ${color}55`, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                <div style={{ height: 84, position: 'relative', background: '#0b0d10', overflow: 'hidden' }}>
+                  {isSnp && snpImg ? (
+                    <img src={snpImg} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : petMeta && beastImg ? (
+                    <img src={beastImg} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${color}18` }}>
+                      <span style={{ fontSize: 44 }}>{icon}</span>
+                    </div>
+                  )}
+                  <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '10px 6px 4px', fontSize: 11, fontWeight: 800, color: '#fff', background: 'linear-gradient(transparent, rgba(0,0,0,0.9))', textShadow: '0 1px 3px #000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {b.name}
+                  </span>
+                </div>
+                <div style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {b.total} очк. · {new Date(b.createdAt).toLocaleDateString()}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <Button size="sm" variant="primary" onClick={() => loadSkillBuild(b.id)} style={{ flex: 1 }}>📥 Взять</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { if (window.confirm(`Удалить билд «${b.name}»?`)) deleteSkillBuild(b.id); }}>✕</Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 };

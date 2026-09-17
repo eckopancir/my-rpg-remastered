@@ -1,5 +1,5 @@
 import type { AccessoryAbility } from '../types/abilities';
-import { ammoTypeForWeapon } from './ammo';
+import { ammoTypeForWeapon, weaponRangeProfile } from './ammo';
 
 export type SniperColumn = 'attack' | 'defense';
 export type SniperKind = 'stat' | 'active' | 'conditional' | 'passive' | 'ulta';
@@ -30,6 +30,10 @@ export interface SniperAbilityDef {
   /** базовый AP (активные); для def T4 считается динамически через apCostFor */
   apCost: number;
   cooldown: number;
+  /** базовая способность класса: вкачивание бесплатно, без очков */
+  freeTake?: boolean;
+  /** иконка-эмодзи для ячеек без картинки */
+  icon?: string;
   /** статовые пассивки: прибавка за ранг */
   statsPerRank?: SniperStatPerRank[];
   /** короткое описание механики для тултипа */
@@ -73,18 +77,33 @@ export const SNIPER_ABILITIES: SniperAbilityDef[] = [
   { id: 'snp_a6_trade', column: 'attack', tier: 6, img: '6.3', name: 'Оружейный барон', kind: 'passive', maxRanks: 2, gate: 4, apCost: 0, cooldown: 0, mechanic: 'Продажа снайперского оружия: 80% цены (1 ранг), 100% (2 ранг) вместо 40%.' },
 
   {
-    id: 'snp_a7_deadeye', column: 'attack', tier: 7, img: '7.1', name: 'Прицельный выстрел', kind: 'ulta',
+    id: 'snp_a7_deadeye', column: 'attack', tier: 0, img: 'прицельный выстрел', name: 'Прицельный выстрел', kind: 'active',
+    maxRanks: 1, gate: 0, exclusiveWith: ['snp_x_aim'], freeTake: true, apCost: 2, cooldown: 50,
+    mechanic: '×3 урона, полностью мимо брони. КД 50. Только одна база: Аимшот / Прицельный.',
+  },
+  {
+    id: 'snp_x_aim', column: 'attack', tier: 0, img: 'аимшот', name: 'Аимшот', kind: 'active',
+    maxRanks: 1, gate: 0, exclusiveWith: ['snp_a7_deadeye'], freeTake: true, apCost: 2, cooldown: 50,
+    mechanic: '×5 урона с 20 клеток. Броня работает. КД 50. Только одна база: Аимшот / Прицельный.',
+  },
+  {
+    id: 'snp_x_stealth', column: 'attack', tier: 0, img: 'невидимость', name: 'Скрытность', kind: 'passive',
+    maxRanks: 1, gate: 0, freeTake: true, apCost: 0, cooldown: 0,
+    mechanic: 'Первый выстрел из скрытности: +100% крит. Выдаётся сразу при выборе снайпера.',
+  },
+  {
+    id: 'snp_a7_crit', column: 'attack', tier: 7, img: '7.1', name: 'Ваншот', kind: 'ulta',
     maxRanks: 1, gate: 5, exclusiveWith: ['snp_a7_rapid', 'snp_a7_glass'], apCost: 2, cooldown: 50,
-    mechanic: '500% крит на 2 хода. КД 50.',
+    mechanic: 'Крит ровно 500% на 1 ход (даже с 700% станет 500%). КД 50. Только одна ульта Т7.',
   },
   {
     id: 'snp_a7_rapid', column: 'attack', tier: 7, img: '7.2', name: 'Скорострел', kind: 'ulta',
-    maxRanks: 1, gate: 5, exclusiveWith: ['snp_a7_deadeye', 'snp_a7_glass'], apCost: 2, cooldown: 50,
-    mechanic: 'Перезарядка стоит 0 AP в течение 5 ходов. КД 50.',
+    maxRanks: 1, gate: 5, exclusiveWith: ['snp_a7_glass', 'snp_a7_crit'], apCost: 2, cooldown: 50,
+    mechanic: 'Перезарядка стоит 0 AP в течение 5 ходов. КД 50. Только одна ульта Т7.',
   },
   {
     id: 'snp_a7_glass', column: 'attack', tier: 7, img: '7.3', name: 'Стеклянная пушка', kind: 'ulta',
-    maxRanks: 1, gate: 5, exclusiveWith: ['snp_a7_deadeye', 'snp_a7_rapid'], apCost: 0, cooldown: 0,
+    maxRanks: 1, gate: 5, exclusiveWith: ['snp_a7_rapid', 'snp_a7_crit'], apCost: 0, cooldown: 0,
     mechanic: 'Пассивка: входящий урон +50%, ваш урон +25%. Нажать нельзя.',
   },
 
@@ -108,23 +127,28 @@ export const SNIPER_ABILITIES: SniperAbilityDef[] = [
   {
     id: 'snp_d4_nest', column: 'defense', tier: 4, img: 'def 4.1', name: 'Снайперская позиция', kind: 'active',
     maxRanks: 5, gate: 4, apCost: 2, cooldown: 50,
-    mechanic: 'Нельзя двигаться 5 ходов, +10% блока. КД 50.',
+    mechanic: 'Нельзя двигаться 5 ходов, +2% шанса блока за ранг (5 ранг = 10% шанс). КД 50.',
   },
   {
     id: 'snp_d4_camo', column: 'defense', tier: 4, img: 'def 4.2', name: 'Маскировка', kind: 'active',
     maxRanks: 5, gate: 4, apCost: 2, cooldown: 50,
-    mechanic: '100% уклонения на 3 хода. КД 50.',
+    mechanic: '+20% уклонения за ранг на 2 хода. КД 50.',
   },
 
   {
-    id: 'snp_d5_blood', column: 'defense', tier: 5, img: 'def 5.1', name: 'Блудскикер', kind: 'ulta',
-    maxRanks: 1, gate: 5, apCost: 2, cooldown: 50,
-    mechanic: '+100% вампиризм на 1 ход. КД 50.',
+    id: 'snp_d5_blood', column: 'defense', tier: 5, img: 'def 5.1', name: 'Бладсикер', kind: 'ulta',
+    maxRanks: 1, gate: 5, exclusiveWith: ['snp_d5_med'], apCost: 2, cooldown: 50,
+    mechanic: '+100% вампиризм на 1 ход. КД 50. Только одна ульта Т5.',
   },
   {
     id: 'snp_d5_med', column: 'defense', tier: 5, img: 'def 5.2', name: 'Аптечка снайпера', kind: 'ulta',
-    maxRanks: 1, gate: 5, apCost: 0, cooldown: 50,
-    mechanic: '+40% HP мгновенно. КД 50.',
+    maxRanks: 1, gate: 5, exclusiveWith: ['snp_d5_blood'], apCost: 0, cooldown: 50,
+    mechanic: '+40% HP мгновенно. КД 50. Только одна ульта Т5.',
+  },
+  {
+    id: 'snp_d6_tele', column: 'defense', tier: 6, img: 'def 6.1', name: 'Телепорт', kind: 'active',
+    maxRanks: 1, gate: 5, apCost: 2, cooldown: 50,
+    mechanic: 'Телепорт на видимую клетку. После него можно скрыться (F) даже в бою. КД 50. Нужны очки в защите 1–5.',
   },
 ];
 
@@ -134,7 +158,7 @@ export const SNIPER_BY_ID: Record<string, SniperAbilityDef> = Object.fromEntries
 
 export const SNIPER_TIERS: Record<SniperColumn, number[]> = {
   attack: [1, 2, 3, 4, 5, 6, 7],
-  defense: [1, 2, 3, 4, 5],
+  defense: [1, 2, 3, 4, 5, 6],
 };
 
 export const sniperOfTier = (column: SniperColumn, tier: number): SniperAbilityDef[] =>
@@ -174,6 +198,7 @@ export const SNIPER_TIER_GATES: Record<string, SniperTierGate> = {
   'attack:7': { fromTier: 1, toTier: 6, need: 25 },
   'defense:4': { fromTier: 1, toTier: 3, need: 15 },
   'defense:5': { fromTier: 1, toTier: 4, need: 20 },
+  'defense:6': { fromTier: 1, toTier: 5, need: 25 },
 };
 
 /** проверка гейта тира: открыт ли тир */
@@ -200,12 +225,14 @@ export const sniperCanAllocate = (
 ): { ok: boolean; reason: string } => {
   const def = SNIPER_BY_ID[id];
   if (!def) return { ok: false, reason: 'Нет такой способности' };
-  if (skillPoints <= 0) return { ok: false, reason: 'Нет очков' };
+  // Базовые способности бесплатны: очки не нужны, гейт всегда открыт (тир 0).
+  if (!def.freeTake && skillPoints <= 0) return { ok: false, reason: 'Нет очков' };
   const cur = (skills[id] || 0) + (pending[id] || 0);
   if (cur >= def.maxRanks) return { ok: false, reason: 'Максимум' };
   const gate = sniperTierOpen(def.column, def.tier, skills, pending);
   if (!gate.open && cur === 0) return { ok: false, reason: `Нужно ${gate.need} ${gate.label}` };
-  if (def.exclusiveWith) {
+  // Эксклюзив базовых не блокирует: взятие переключает (вторая активируется, первая гаснет).
+  if (def.exclusiveWith && !def.freeTake) {
     for (const rival of def.exclusiveWith) {
       if ((skills[rival] || 0) + (pending[rival] || 0) > 0) {
         const rdef = SNIPER_BY_ID[rival];
@@ -239,15 +266,19 @@ export const sniperRankText = (def: SniperAbilityDef, rank: number): string => {
   if (def.id === 'snp_a6_range') return `Дальность +${rank} (всегда)`;
   if (def.id === 'snp_a6_cheap') return `Способности дешевле на ${rank}AP (мин. 0)`;
   if (def.id === 'snp_a6_trade') return rank >= 2 ? 'Продажа снайперского оружия за 100% цены' : 'Продажа снайперского оружия за 80% цены';
-  if (def.id === 'snp_a7_deadeye') return '500% крит на 2 хода';
+  if (def.id === 'snp_a7_deadeye') return '×3 урона, полностью мимо брони';
+  if (def.id === 'snp_a7_crit') return 'Крит ровно 500% на 1 ход';
+  if (def.id === 'snp_x_aim') return '×5 урона с 20 клеток';
+  if (def.id === 'snp_x_stealth') return '+100% крит первого выстрела из скрытности';
   if (def.id === 'snp_a7_rapid') return 'Перезарядка 0 AP в течение 5 ходов';
   if (def.id === 'snp_a7_glass') return 'Входящий урон +50%, ваш урон +25% (пассивка)';
   if (def.id === 'snp_d3_low') return `HP < 50%: +${rank * 10}% уклонения`;
   if (def.id === 'snp_d3_high') return `HP ≥ 90%: +${rank * 10}% крит, −${rank * 10}% уклонения`;
-  if (def.id === 'snp_d4_nest') return 'Стойка 5 ходов: без движения, +10% блока';
-  if (def.id === 'snp_d4_camo') return '100% уклонения на 3 хода';
+  if (def.id === 'snp_d4_nest') return `Стойка 5 ходов: без движения, +${rank * 2}% шанса блока`;
+  if (def.id === 'snp_d4_camo') return `+${rank * 20}% уклонения на 2 хода`;
   if (def.id === 'snp_d5_blood') return '+100% вампиризм на 1 ход';
   if (def.id === 'snp_d5_med') return '+40% HP мгновенно';
+  if (def.id === 'snp_d6_tele') return 'Телепорт на видимую клетку + скрытность (F) даже в бою';
   return def.mechanic || '';
 };
 
@@ -282,29 +313,84 @@ export function buildSniperBattleAbility(
     case 'snp_a4_ammo':
       return { ...base, id: 'snpb_ammo', apCost: ap(2), cooldown: 50, powerRating: 65, effects: [{ type: 'stat_boost', stat: 'punching', value: 1.0, duration: rank + 1 }] };
     case 'snp_a7_deadeye':
-      return { ...base, id: 'snpb_deadeye', apCost: ap(2), cooldown: 50, powerRating: 75, effects: [{ type: 'stat_boost', stat: 'crit', value: 5.0, duration: 2 }] };
+      return { ...base, id: 'snpb_deadeye', apCost: ap(2), cooldown: 50, powerRating: 75, range: 14, requiresTarget: true, effects: [{ type: 'damage', multiplier: 3 }] };
+    case 'snp_a7_crit':
+      return { ...base, id: 'snpb_crit', apCost: ap(2), cooldown: 50, powerRating: 75, effects: [{ type: 'stat_set', stat: 'crit', value: 5.0, duration: 1 }] };
+    case 'snp_x_aim':
+      return { ...base, id: 'snpb_aimshot', apCost: ap(2), cooldown: 50, powerRating: 80, range: 20, requiresTarget: true, effects: [{ type: 'damage', multiplier: 5 }] };
     case 'snp_a7_rapid':
       return { ...base, id: 'snpb_rapid', apCost: ap(2), cooldown: 50, powerRating: 65, effects: [{ type: 'free_reload', duration: 5 } as any] };
     case 'snp_a7_glass':
       return { ...base, id: 'snpb_glass', apCost: 0, cooldown: 0, powerRating: 50, effects: [], displayOnly: true };
     case 'snp_d4_nest':
-      return { ...base, id: 'snpb_nest', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'status', id: 'rooted', duration: 5 } as any, { type: 'stat_boost', stat: 'block', value: 0.10, duration: 5 }] };
+      return { ...base, id: 'snpb_nest', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'status', id: 'rooted', duration: 5 } as any, { type: 'stat_boost', stat: 'block', value: 0.2 * rank, duration: 5 }] };
     case 'snp_d4_camo':
-      return { ...base, id: 'snpb_camo', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'stat_boost', stat: 'evasion', value: 1.0, duration: 3 }] };
+      return { ...base, id: 'snpb_camo', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'stat_boost', stat: 'evasion', value: 0.20 * rank, duration: 2 }] };
     case 'snp_d5_blood':
       return { ...base, id: 'snpb_blood', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'stat_boost', stat: 'vampir', value: 1.0, duration: 1 }] };
     case 'snp_d5_med':
       return { ...base, id: 'snpb_med', apCost: ap(0), cooldown: 50, powerRating: 55, effects: [{ type: 'heal_percent', value: 40 }] };
+    case 'snp_d6_tele':
+      return { ...base, id: 'snpb_teleport', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'teleport', stealthReady: true }] };
     default:
       return { ...base, id: `snpb_${def.id}`, apCost: ap(def.apCost), cooldown: def.cooldown, powerRating: 50, effects: [] };
   }
 }
 
+/** Снайперское оружие: патроны «sniper» + ствол + дальность 12–14.
+ * Дальность отсекает «Дробовик/Пулемёт-Снайпер» (у них 5/8) и шлемы/моды/патроны. */
+export function isSniperWeapon(item: { name?: string; ammoGroup?: string; ammoType?: string; ammoCapacity?: number; type?: string; slot?: string }): boolean {
+  if ((item as any).type === 'bullet') return false;
+  if (ammoTypeForWeapon(item) !== 'sniper') return false;
+  const isGun = (item as any).ammoCapacity != null
+    || (item as any).type === 'weapon'
+    || String((item as any).slot || '').startsWith('weapon');
+  if (!isGun) return false;
+  const range = weaponRangeProfile(item).range;
+  return range >= 12 && range <= 14;
+}
+
 /** Ставка продажи снайперского оружия (Т6): 0.8 / 1.0 вместо 0.4. Иначе null. */
-export function sniperSellRate(item: { name?: string }, tradeRank: number): number | null {
+export function sniperSellRate(item: { name?: string; ammoGroup?: string; ammoType?: string; ammoCapacity?: number; type?: string; slot?: string }, tradeRank: number): number | null {
   if (tradeRank <= 0) return null;
-  if (ammoTypeForWeapon(item) !== 'sniper') return null;
+  const group = item.ammoGroup || item.ammoType || null;
+  if (group !== null && group !== undefined && group !== 'sniper') return null;
+  if (!isSniperWeapon(item)) return null;
   return tradeRank >= 2 ? 1.0 : 0.8;
+}
+
+/**
+ * Антиабуз: находит способности, которые стали недействительны
+ * (сломан гейт тира или ветка требует снятую способность).
+ * Возвращает id для каскадного снятия. Итеративно до fixpoint,
+ * очки невалидных не учитываются в гейтах остальных.
+ */
+export function sniperFindInvalid(skills: SniperSkills, pending: SniperSkills): string[] {
+  const sk: SniperSkills = { ...skills };
+  const pe: SniperSkills = { ...pending };
+  const invalid: string[] = [];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const def of SNIPER_ABILITIES) {
+      if (invalid.includes(def.id)) continue;
+      const tot = (sk[def.id] || 0) + (pe[def.id] || 0);
+      if (tot <= 0) continue;
+      const gate = sniperTierOpen(def.column, def.tier, sk, pe);
+      let ok = gate.open;
+      if (ok && def.requiresAbility) {
+        const r = (sk[def.requiresAbility] || 0) + (pe[def.requiresAbility] || 0);
+        ok = r > 0 && !invalid.includes(def.requiresAbility);
+      }
+      if (!ok) {
+        invalid.push(def.id);
+        delete sk[def.id];
+        delete pe[def.id];
+        changed = true;
+      }
+    }
+  }
+  return invalid;
 }
 
 /** Активные боевые способности снайпера по текущим скиллам (для арены). */
@@ -315,9 +401,9 @@ export function sniperBattleAbilities(
   const discount = Math.min(2, (skills['snp_a6_cheap'] || 0) + (pending['snp_a6_cheap'] || 0));
   const activeIds = [
     'snp_a4_eagle', 'snp_a4_ammo',
-    'snp_a7_deadeye', 'snp_a7_rapid', 'snp_a7_glass',
+    'snp_a7_deadeye', 'snp_x_aim', 'snp_a7_rapid', 'snp_a7_crit', 'snp_a7_glass',
     'snp_d4_nest', 'snp_d4_camo',
-    'snp_d5_blood', 'snp_d5_med',
+    'snp_d5_blood', 'snp_d5_med', 'snp_d6_tele',
   ];
   for (const id of activeIds) {
     const rank = (skills[id] || 0) + (pending[id] || 0);

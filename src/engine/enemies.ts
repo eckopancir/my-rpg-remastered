@@ -52,7 +52,7 @@ export const ENEMY_BASE_STATS: Record<string, EnemyBaseDefinition> = {
   },
   'Военные (melee)': {
     health: 220, damage: 12, dps: 12, speed: 0.03, crit: 0.02, armor: 3, evasion: 0.02,
-    regen: 0, block: 0.02, punching: 0, accuracy: 0.85, vampir: 0.5,
+    regen: 0, block: 0.02, punching: 0, accuracy: 0.85, vampir: 0.02,
     expRewardMultiplier: 1.5, rangeDistance: 1, runAp: 4, shotPrice: 2,
     skillUse: ['ram'], bigModel: '110%', faction: 'Военные',
     soundAttack: 'melee', nowModel: 'melee', dead: 'dead', avatar: 'melee', level: 2,
@@ -86,8 +86,8 @@ export const ENEMY_BASE_STATS: Record<string, EnemyBaseDefinition> = {
     soundAttack: 'healer', nowModel: 'medic', dead: 'dead', avatar: 'medic', level: 2,
   },
   'Военные (boss)': {
-    health: 430, damage: 15, dps: 15, speed: 0.02, crit: 0.08, armor: 4, evasion: 0.03,
-    regen: 2, block: 0.03, punching: 0.02, accuracy: 0.8, vampir: 0.05,
+    health: 1032, damage: 15, dps: 15, speed: 0.02, crit: 0.08, armor: 4, evasion: 0.03,
+    regen: 2, block: 0.03, punching: 0.02, accuracy: 0.8, vampir: 0.02,
     expRewardMultiplier: 5, rangeDistance: 8, runAp: 5, shotPrice: 1,
     skillUse: ['madness', 'rage'], bigModel: '130%', faction: 'Военные',
     soundAttack: 'm134', nowModel: 'military3', dead: 'dead', avatar: 'military3', level: 5,
@@ -124,7 +124,8 @@ export const generateEnemy = (
     scaledEvasion: Math.min(1, base.evasion * totalMult),
     scaledBlock: base.block * totalMult,
     scaledPunching: base.punching * totalMult,
-    scaledVampir: base.vampir * totalMult,
+    // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
+    scaledVampir: base.vampir,
     scaledAccuracy: Math.min(2, base.accuracy + accuracyAdd),
   };
 };

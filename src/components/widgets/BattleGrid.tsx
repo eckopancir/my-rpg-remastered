@@ -9,6 +9,7 @@ import { useEnemyAI } from '../../hooks/useEnemyAI';
 import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { weaponRangeProfile } from '../../data/ammo';
+import { PET_META, type PetKind } from '../../data/pets';
 import { ShotVolley } from './ShotVolley';
 import pricelImg from '../../assets/images/ui/pricel-cursor.png';
 import type { GridEnemy } from '../../stores/combatGridStore';
@@ -46,6 +47,7 @@ export const BattleGrid = () => {
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const isActive = useCombatGridStore((s) => s.isActive);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
+  const petCommandMode = useCombatGridStore((s) => s.petCommandMode);
   const turn = useCombatGridStore((s) => s.turn);
   const turnCount = useCombatGridStore((s) => s.turnCount);
   const isMoving = useCombatGridStore((s) => s.isMoving);
@@ -332,6 +334,19 @@ export const BattleGrid = () => {
     }
     const enemy = enemies.find((e) => !e.dead && e.currentHp > 0 && e.pos.x === x && e.pos.y === y);
     if (enemy) {
+      // Питомец: клик по своему зверю — вкл/выкл режим команды.
+      if ((enemy as any).isPet) {
+        const cs0 = useCombatGridStore.getState();
+        cs0.setPetCommandMode(!cs0.petCommandMode);
+        return;
+      }
+      // Режим команды: клик по врагу — питомец бежит атаковать, по своим — игнор.
+      const cs0 = useCombatGridStore.getState();
+      if (cs0.petCommandMode) {
+        if (enemy.faction === 'Союзник') return;
+        cs0.commandPetAttack(enemy.id);
+        return;
+      }
       // По своим не стреляем: мусорщики — друзья.
       // После победы клик по живому мусорщику — благодарность.
       if (enemy.faction === 'Союзник') {
@@ -383,6 +398,11 @@ export const BattleGrid = () => {
           isSpinning: false, loot: combinedLoot, looted: false,
         } as GridEnemy);
       }
+      return;
+    }
+    // Режим команды питомца: клик по пустой клетке — шаг зверя.
+    if (useCombatGridStore.getState().petCommandMode) {
+      useCombatGridStore.getState().commandPetMove(x, y);
       return;
     }
     if (isSelected) movePlayer(x, y);
@@ -562,6 +582,7 @@ export const BattleGrid = () => {
                         display: 'flex', gap: 2, fontSize: 12, zIndex: 6, pointerEvents: 'none',
                         textShadow: '0 0 5px black',
                       }}>
+                        {(enemy as any).stunned && <span title={`Стан: пропуск хода ${ (enemy as any).stunTurns || 1}`}>😵</span>}
                         {(enemy as any).debuffs?.burn && <span title="Горение: −3% HP каждый ход">🔥</span>}
                         {(enemy as any).debuffs?.tox && <span title="Токсин: −3% брони каждый ход">☠️</span>}
                         {(enemy as any).debuffs?.extro && <span title="Экстро: −25% атаки">💫</span>}
@@ -613,8 +634,20 @@ export const BattleGrid = () => {
                         // Патруль вне боя — полупрозрачный (еле видно); в бою — 100%.
                         // Босс всегда 100%: он не прячется.
                         opacity: ((enemy.aiRole === 'patrol' || enemy.aiRole === 'reinforce') && !enemy.aggro && !isBossEnemy(enemy.name, (enemy as any).factionKey)) ? 0.5 : 1,
+                        outline: (enemy as any).isPet && petCommandMode ? '2px solid #fbbf24' : 'none',
+                        outlineOffset: 1,
+                        borderRadius: 6,
                       }}
                     />
+                    {(enemy as any).isPet && (
+                      <span style={{
+                        position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)',
+                        fontSize: 17, lineHeight: 1, zIndex: 8, pointerEvents: 'none',
+                        filter: petCommandMode ? 'drop-shadow(0 0 5px #fbbf24)' : 'none',
+                      }}>
+                        {PET_META[((enemy as any).petKind as PetKind) || 'bear']?.icon || '🐾'}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -891,6 +924,7 @@ export const BattleGrid = () => {
             onClose={closeLoot}
           />
         )}
+
       </div>
     </div>
   );

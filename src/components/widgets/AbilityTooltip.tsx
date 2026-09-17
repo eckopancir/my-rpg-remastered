@@ -12,10 +12,12 @@ interface AbilityTooltipProps {
   statusLine?: { text: string; color: string };
   /** фактическая цена AP (со скидкой 6.2) */
   apCost?: number;
+  /** подпись внизу (по умолчанию — про дерево навыков) */
+  footerText?: string;
 }
 
 /** Тултип способности в стиле ItemTooltip: картинка тира, имя, ранги, эффект. */
-export const AbilityTooltip = ({ def, rank, x, y, statusLine, apCost }: AbilityTooltipProps) => {
+export const AbilityTooltip = ({ def, rank, x, y, statusLine, apCost, footerText }: AbilityTooltipProps) => {
   const TOOLTIP_W = 360;
   const flipLeft = x + 16 + TOOLTIP_W > window.innerWidth;
   const tooltipX = flipLeft ? Math.max(8, x - TOOLTIP_W - 16) : x + 16;
@@ -96,7 +98,7 @@ export const AbilityTooltip = ({ def, rank, x, y, statusLine, apCost }: AbilityT
         )}
         <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '10px 0 8px' }} />
         <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
-          Клик — вкачать · ПКМ — снять ожидание
+          {footerText ?? 'Клик — вкачать · ПКМ — снять ожидание'}
         </div>
       </div>
     </div>

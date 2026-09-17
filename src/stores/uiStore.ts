@@ -25,6 +25,16 @@ export interface Toast {
   type: 'success' | 'error' | 'info' | 'warning';
 }
 
+/** Сохранённый билд навыков: classId — ветка с макс. очками (картинка карточки). */
+export interface SkillBuild {
+  id: string;
+  name: string;
+  classId: string;
+  total: number;
+  createdAt: number;
+  skills: Record<string, number>;
+}
+
 let toastId = 0;
 
 interface UiStore {
@@ -79,6 +89,22 @@ interface UiStore {
   setEquipmentPinPos: (pos: { x: number; y: number }) => void;
   backpackLocked: boolean;
   setBackpackLocked: (locked: boolean) => void;
+  // WOW-панель способностей (12×2 = 24 слота): слот → abilityId скилловых способностей.
+  skillBarLayout: (string | null)[];
+  setSkillBarSlot: (slot: number, abilityId: string | null) => void;
+  swapSkillBarSlots: (a: number, b: number) => void;
+  ensureSkillBarSlots: (abilityIds: string[]) => void;
+  skillBarPos: { x: number; y: number } | null;
+  setSkillBarPos: (pos: { x: number; y: number } | null) => void;
+  // Замок WOW-панели: пока закрыта, способности нельзя таскать между слотами.
+  skillBarLocked: boolean;
+  setSkillBarLocked: (locked: boolean) => void;
+  // Режим панели: true — длинная в 1 ряд на 24 слота (компакт по высоте).
+  skillBarSingleRow: boolean;
+  setSkillBarSingleRow: (v: boolean) => void;
+  // Сохранённые билды навыков (макс. 5).
+  skillBuilds: SkillBuild[];
+  setSkillBuilds: (builds: SkillBuild[]) => void;
   // Прибитый тултип (T во время показа): висит сверху экрана, не персистим.
   tooltipPin: Item | null;
   setTooltipPin: (item: Item | null) => void;
@@ -184,6 +210,41 @@ export const useUiStore = create<UiStore>()(
         backpackLocked: typeof locked === 'function' ? !!locked(s.backpackLocked) : !!locked,
       })),
 
+      // WOW-панель: 12×2 = 24 слота для скилловых способностей.
+      skillBarLayout: Array(24).fill(null),
+      skillBarPos: null,
+      setSkillBarSlot: (slot, abilityId) => set((s) => {
+        const next = [...s.skillBarLayout];
+        next[slot] = abilityId;
+        return { skillBarLayout: next };
+      }),
+      swapSkillBarSlots: (a, b) => set((s) => {
+        const next = [...s.skillBarLayout];
+        const tmp = next[a];
+        next[a] = next[b];
+        next[b] = tmp;
+        return { skillBarLayout: next };
+      }),
+      ensureSkillBarSlots: (abilityIds) => set((s) => {
+        const next = [...s.skillBarLayout];
+        const used = new Set(next.filter(Boolean));
+        for (const id of abilityIds) {
+          if (used.has(id)) continue;
+          const empty = next.indexOf(null);
+          if (empty === -1) break;
+          next[empty] = id;
+          used.add(id);
+        }
+        return { skillBarLayout: next };
+      }),
+      setSkillBarPos: (pos) => set({ skillBarPos: pos }),
+      skillBarLocked: true,
+      setSkillBarLocked: (locked) => set({ skillBarLocked: locked }),
+      skillBarSingleRow: true,
+      setSkillBarSingleRow: (v) => set({ skillBarSingleRow: v }),
+      skillBuilds: [],
+      setSkillBuilds: (builds) => set({ skillBuilds: builds.slice(0, 5) }),
+
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
       setMusicEnabled: (enabled) => set({ musicEnabled: enabled }),
       setMusicVolume: (volume) => set({ musicVolume: Math.max(0, Math.min(1, volume)) }),
@@ -277,7 +338,7 @@ export const useUiStore = create<UiStore>()(
     }),
     {
       name: 'remastered_ui',
-      version: 8,
+      version: 13,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 4) {
@@ -305,8 +366,24 @@ export const useUiStore = create<UiStore>()(
           if (state.forceDay === undefined) state.forceDay = false;
         }
         if (version < 8) {
-          // Автоперезарядка по умолчанию выключена (путала с 2 AP за выстрел).
           state.autoReload = false;
+        }
+        if (version < 9) {
+          if (state.skillBarLayout === undefined) state.skillBarLayout = Array(24).fill(null);
+          if (state.skillBarPos === undefined) state.skillBarPos = null;
+        }
+        if (version < 10) {
+          if (state.skillBarLocked === undefined) state.skillBarLocked = true;
+        }
+        if (version < 11) {
+          if (state.skillBuilds === undefined) state.skillBuilds = [];
+        }
+        if (version < 12) {
+          if (state.skillBarSingleRow === undefined) state.skillBarSingleRow = false;
+        }
+        if (version < 13) {
+          // Стандарт — длинная панель 24×1.
+          state.skillBarSingleRow = true;
         }
         return state as UiStore;
       },
@@ -329,6 +406,11 @@ export const useUiStore = create<UiStore>()(
         inventoryPinPos: state.inventoryPinPos,
         equipmentPinned: state.equipmentPinned,
         equipmentPinPos: state.equipmentPinPos,
+        skillBarLayout: state.skillBarLayout,
+        skillBarPos: state.skillBarPos,
+        skillBarLocked: state.skillBarLocked,
+        skillBarSingleRow: state.skillBarSingleRow,
+        skillBuilds: state.skillBuilds,
       }),
     },
   ),

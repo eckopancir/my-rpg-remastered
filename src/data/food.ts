@@ -84,6 +84,48 @@ export const RECIPES: RecipeDef[] = [
   },
 ];
 
+/** Сколько полных наборов рецепта есть в списке предметов (по quantity). */
+export const maxPortionsFor = (
+  recipe: RecipeDef,
+  items: { abilityId?: string; quantity?: number }[],
+): number => {
+  const have: Record<string, number> = {};
+  for (const it of items) {
+    const aid = (it as any).abilityId as string;
+    if (!aid) continue;
+    have[aid] = (have[aid] || 0) + (((it as any).quantity ?? 1) as number);
+  }
+  let max = Infinity;
+  for (const ing of recipe.ingredients) {
+    max = Math.min(max, Math.floor((have[ing.foodId] || 0) / ing.qty));
+  }
+  return max === Infinity ? 0 : Math.max(0, max);
+};
+
+/** Списать 1 набор ингредиентов из сетки рюкзака (стаки декрементит). */
+export const consumeOneSet = (grid: any, recipe: RecipeDef, removeFromGrid: (g: any, id: string) => any): any => {
+  let g = grid;
+  for (const ing of recipe.ingredients) {
+    let remaining = ing.qty;
+    for (const item of [...g.items]) {
+      if (remaining <= 0) break;
+      if ((item as any).abilityId === ing.foodId) {
+        const qty = (item.quantity ?? 1) as number;
+        const remove = Math.min(qty, remaining);
+        if (remove >= qty) {
+          g = removeFromGrid(g, item.id);
+        } else {
+          const items = g.items.map((i: any) => (i.id === item.id ? { ...i, quantity: qty - remove } : i));
+          const cells = g.cells.map((row: any) => [...row]);
+          g = { ...g, items, cells };
+        }
+        remaining -= remove;
+      }
+    }
+  }
+  return g;
+};
+
 /** Check if player has ingredients for a recipe in backpack */
 export const hasIngredients = (backpackItems: any[], recipe: RecipeDef): boolean => {
   for (const ing of recipe.ingredients) {

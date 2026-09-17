@@ -109,10 +109,16 @@ try {
             $rowName = $invRow['name'] ?? '';
             $rowType = $itemData['type'] ?? '';
 
+            // Оружейный барон: ставка 0.8/1.0 для снайперского оружия (читаем из скиллов).
+            $tradeStmt = $pdo->prepare("SELECT points FROM player_skills WHERE user_id = ? AND skill_id = 'snp_a6_trade'");
+            $tradeStmt->execute([$user['id']]);
+            $tradeRow = $tradeStmt->fetch();
+            $snpRate = sniperSellRateFor($rowName, $itemData, $tradeRow ? (int)$tradeRow['points'] : 0);
+
             if ($rowType === 'material' && isset($matSell[$rowName])) {
                 $pricePerUnit = $matSell[$rowName];
             } elseif ($itemPrice > 0) {
-                $pricePerUnit = (int)floor($itemPrice * 0.4);
+                $pricePerUnit = (int)floor($itemPrice * $snpRate);
             } else {
                 $qMul = 1;
                 if ($itemQuality === 'Божественный') $qMul = 12;
@@ -121,7 +127,8 @@ try {
                 elseif ($itemQuality === 'Эпический') $qMul = 4;
                 elseif ($itemQuality === 'Раритетный') $qMul = 2.5;
                 elseif ($itemQuality === 'Редкий') $qMul = 1.5;
-                $pricePerUnit = (int)floor(($itemLevel * 3 + 5) * $qMul);
+                // Формула — цена при ставке 0.4, масштабируем под ставку барона.
+                $pricePerUnit = (int)floor(($itemLevel * 3 + 5) * $qMul * ($snpRate / 0.4));
             }
 
             $totalChipsGained += $pricePerUnit * $sellQty;
