@@ -258,13 +258,13 @@ export interface CombatGridStore {
   petCommandMode: boolean;
   petTargetId: number | string | null;
   petAiActive: boolean;
-  /** Искра удара питомца: позиция + ключ для перерисовки (гаснет таймером). */
-  petHitFx: { x: number; y: number; id: number } | null;
+  /** Искра удара питомца: позиция + ключ для перерисовки (гаснет таймером). img proc — искра автопроков Т3. */
+  petHitFx: { x: number; y: number; id: number; img?: 'proc' } | null;
   selectPetAbility: (index: number) => void;
   usePetAbility: (index: number, enemyId?: number | string) => void;
   /** Ход ИИ питомца (авто-бой при активной способности pet_ai). */
   petAiTurn: () => void;
-  petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number }) => boolean;
+  petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number; procFx?: boolean }) => boolean;
   setPetCommandMode: (v: boolean) => void;
   commandPetMove: (x: number, y: number) => void;
   commandPetAttack: (enemyId: number | string) => void;
@@ -2713,10 +2713,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     get().addPopup(target.pos.x, target.pos.y, `-${dmg} 🐾`, 'DMG');
     get().addBattleLog(`🐾 ${pet.name}: −${dmg} по ${target.name}`);
-    // Искра удара питомца на цели (гаснет сама).
+    // Искра удара питомца на цели (гаснет сама). Автопроки Т3 — своя искра.
     {
       const fxId = Date.now() + Math.random();
-      set({ petHitFx: { x: target.pos.x, y: target.pos.y, id: fxId } });
+      set({ petHitFx: { x: target.pos.x, y: target.pos.y, id: fxId, ...(opts?.procFx ? { img: 'proc' as const } : {}) } });
       setTimeout(() => {
         if (get().petHitFx?.id === fxId) set({ petHitFx: null });
       }, 380);
@@ -3860,7 +3860,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             const tgt = get().enemies.find((e: any) => !e.dead && e.faction !== 'Союзник' && getDist(pet.pos, e.pos) <= 2);
             if (tgt) {
               playCombatSound('SkullBasher', 0.5);
-              get().petStrikeAt(tgt.id, 2, { stun: 1 });
+              get().petStrikeAt(tgt.id, 2, { stun: 1, procFx: true });
               get().addPopup(tgt.pos.x, tgt.pos.y, '😵 СТАН!', 'SPECIAL');
               get().addBattleLog(`🐾 ${pet.name}: Тяжёлая лапа — Удар молотом! ${tgt.name} оглушён 1 ход`);
             }

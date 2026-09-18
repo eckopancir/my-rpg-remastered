@@ -6,7 +6,7 @@ import { useSound } from '../../hooks/useSound';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
-import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage } from '../../assets/index';
+import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, petProcImage } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { weaponRangeProfile } from '../../data/ammo';
 import { PET_META, type PetKind } from '../../data/pets';
@@ -43,7 +43,7 @@ const ENEMY_COLORS: Record<string, string> = {
 const PetHitSpark = () => {
   const petHitFx = useCombatGridStore((s) => s.petHitFx);
   if (!petHitFx) return null;
-  const src = petStrikeImage();
+  const src = petHitFx.img === 'proc' ? petProcImage() : petStrikeImage();
   if (!src) return null;
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 41 }}>

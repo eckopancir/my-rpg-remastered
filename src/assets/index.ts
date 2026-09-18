@@ -109,6 +109,10 @@ export const beastClassBg = (): string | undefined =>
 export const petStrikeImage = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_hr70wnhr70wnhr70-photoroom');
 
+/** Искра срабатывания Т3-пассивок питомца (автопроки). */
+export const petProcImage = (): string | undefined =>
+  uiImageMap.get('gemini_generated_image_iricbliricbliric-photoroom');
+
 /** Общий фон окна способностей лесничего (тиры перков). */
 export const beastSkillsBg = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_6q9ft56q9ft56q9f');
