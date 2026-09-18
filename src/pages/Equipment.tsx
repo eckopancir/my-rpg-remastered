@@ -112,13 +112,13 @@ const PetSlotRow = () => {
               transition: 'all 120ms', opacity: active || unlocked ? 1 : 0.75,
             }}
           >
+            {(() => { const av = petAvatarImage(k); return av
+              ? <img src={av} alt={meta.name} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }} />
+              : <span style={{ fontSize: 26, lineHeight: 1 }}>{meta.icon}</span>; })()}
             {!unlocked && (
               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: 'rgba(0,0,0,0.45)', borderRadius: 6 }}>🔒</span>
             )}
-            {(() => { const av = petAvatarImage(k); return av
-              ? <img src={av} alt={meta.name} draggable={false} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
-              : <span style={{ fontSize: 26, lineHeight: 1 }}>{meta.icon}</span>; })()}
-            <span style={{ fontSize: 8, fontWeight: 700, color: active ? meta.color : 'var(--text-muted)' }}>{meta.name}</span>
+            <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, fontSize: 8, fontWeight: 700, textAlign: 'center', padding: '6px 0 1px', color: active ? meta.color : '#fff', background: 'linear-gradient(transparent, rgba(0,0,0,0.75))', borderRadius: '0 0 6px 6px', textShadow: '0 1px 2px #000' }}>{meta.name}</span>
           </div>
         );
       })}
