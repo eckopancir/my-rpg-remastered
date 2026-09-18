@@ -653,7 +653,7 @@ export const BattleGrid = () => {
                         return getEnemyImage(enemy.faction, enemy.name);
                       })()}
                       alt={enemy.name}
-                      className={`${styles.humanSprite}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
+                      className={`${styles.humanSprite}${(enemy as any).isPet ? ` ${styles.petSprite}` : ''}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
                       draggable={false}
                       style={{
                         // База обычных спрайтов смотрит вниз; модели зверей:
