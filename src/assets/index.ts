@@ -121,6 +121,12 @@ export const petModelImage = (kind: string): string | undefined => {
   return key ? petsImageMap.get(key) : undefined;
 };
 
+/** Аватар зверя для модалки Экипировки (jfif). */
+export const petAvatarImage = (kind: string): string | undefined => {
+  const key = kind === 'bear' ? 'медведь' : kind === 'wolf' ? 'волк' : kind === 'boar' ? 'кабан' : '';
+  return key ? uiImageMap.get(key) : undefined;
+};
+
 /** Общий фон окна способностей лесничего (тиры перков). */
 export const beastSkillsBg = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_6q9ft56q9ft56q9f');

@@ -3821,11 +3821,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         let buffs = (pet.petBuffs || []).map((b: any) => ({ ...b, remaining: b.remaining - 1 })).filter((b: any) => b.remaining > 0);
         const heal = Math.round((pet.maxHp || 0) * regenFrac) + Math.round((pet.maxHp || 0) * hotFrac);
         let npos = pet.pos;
+        let nrot = pet.rotation;
         // Без ИИ — ходит за хозяином; с ИИ — к врагу (follow выкл).
         const hasTarget = !!cs.petTargetId && cs.enemies.some((e: any) => e.id === cs.petTargetId && !e.dead && (e.currentHp||0)>0);
         if (!cs.petAiActive && !hasTarget && !cs.petCommandMode && getDist(pet.pos, cs.playerPos) > 4) {
           const step = petWalk({ ...pet, petBuffs: buffs }, cs.playerPos.x, cs.playerPos.y, 2, cs.obstacles, cs.enemies);
-          if (step.cells > 0) npos = { x: step.x, y: step.y };
+          if (step.cells > 0) {
+            npos = { x: step.x, y: step.y };
+            // Мордой по ходу движения, иначе ходит жопой.
+            nrot = getAngle(pet.pos, npos);
+          }
         }
         const armorGain = ursokPerTurn;
         // Вой стакается только вне скрытности: в стелсе волк сидит тихо.
@@ -3834,7 +3839,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const newCrit = (pet.crit || 0) + critGain;
         set((s2: any) => ({
           enemies: s2.enemies.map((e: any) => e.id === pet.id
-            ? { ...e, pos: npos, petBuffs: buffs, petAp: 5, armor: newArmor, crit: newCrit, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) }
+            ? { ...e, pos: npos, rotation: nrot, petBuffs: buffs, petAp: 5, armor: newArmor, crit: newCrit, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) }
             : e),
         }));
         if (armorGain > 0) {
