@@ -687,6 +687,15 @@ export const usePlayerStore = create<PlayerStore>()(
               pa.push({ id: 'petp_pb_t3_roar', defId: 'pb_t3_roar', name: 'Дикий рёв', icon: '📢', petApCost: 0, cooldown: 8, needsTarget: false, range: 10, exec: 'passive' } as any);
             }
           }
+          // Пассивки-автопроки волка — так же в 24 слотах.
+          if (get().activePetId === 'wolf') {
+            if ((get().skills['pw_t3_rend'] || 0) > 0 && !pa.some((a: any) => a.id === 'petp_pw_t3_rend')) {
+              pa.push({ id: 'petp_pw_t3_rend', defId: 'pw_t3_rend', name: 'Рваная рана', icon: '🦷', petApCost: 0, cooldown: 6, needsTarget: false, range: 2, exec: 'passive' } as any);
+            }
+            if ((get().skills['pw_t3_shade'] || 0) > 0 && !pa.some((a: any) => a.id === 'petp_pw_t3_shade')) {
+              pa.push({ id: 'petp_pw_t3_shade', defId: 'pw_t3_shade', name: 'Полоснуть', icon: '🌑', petApCost: 0, cooldown: 8, needsTarget: false, range: 2, exec: 'passive' } as any);
+            }
+          }
         }
         set({ petAbilities: pa as any });
       },
@@ -1262,8 +1271,9 @@ export const usePlayerStore = create<PlayerStore>()(
         const boosts: Record<string, number> = {};
         const mults: Record<string, number> = {};
         for (const a of petBranchAuras(s.activePetId, s.skills)) {
-          // Стена стаи — % к броне, Улучшенная стена — % к здоровью союзников.
-          if ((a.stat === 'armor' || a.stat === 'maxHp') && a.value < 1) {
+          // Стена стаи — % к броне, Улучшенная стена — % к здоровью,
+          // Кровь стаи — % к урону союзников.
+          if ((a.stat === 'armor' || a.stat === 'maxHp' || a.stat === 'damage') && a.value < 1) {
             mults[a.stat] = (mults[a.stat] || 0) + a.value;
           } else {
             boosts[a.stat] = (boosts[a.stat] || 0) + a.value;

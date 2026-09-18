@@ -1672,7 +1672,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (petKind && PET_META[petKind]) {
         const lvlMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
         const bonus = petBranchBonuses(petKind, ps.skills);
-        const nums = petBaseStats(petKind, lvlMult, ps.stats.damage || 5, ps.stats.maxHp || 100, bonus, ps.stats.armor || 0);
+        const nums = petBaseStats(petKind, lvlMult, ps.stats.damage || 5, ps.stats.maxHp || 100, bonus, ps.stats.armor || 0, ps.stats.speed || 0);
         // Сытость: голодный −90% HP, проголодался −30% (null = данных нет, считаем сытым).
         const satRaw = ps.petSatiety;
         const satNow = satRaw ? petSatietyAt(satRaw.value, satRaw.updatedAt, Date.now()) : 100;
@@ -2782,8 +2782,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       set({ selectedAbility: null, selectedAbilitySource: null });
       return;
     }
-    // pb_t6_restore — тратит AP игрока, а не питомца (лечит игрока)
-    const isPlayerCost = ab.id === 'petb_pb_t6_restore';
+    // Активки за AP игрока (а не питомца): восстановление медведя, инстинкты и клятва волка.
+    const isPlayerCost = ab.id === 'petb_pb_t6_restore' || ab.id === 'petb_pw_t6_reap' || ab.id === 'petb_pw_t6_oath';
     if (!isPlayerCost && (pet.petAp || 0) < ab.petApCost) {
       get().addMessage('❌ У питомца нет AP');
       return;
@@ -2846,7 +2846,29 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       spend(ab.cooldown);
       return;
     }
+    if (ab.exec === 'sacrifice') {
+      // Клятва стаи: хозяин −50% HP, волк +80% HP. 2 AP игрока, только для wolf.
+      if ((pet as any).petKind !== 'wolf') {
+        get().addMessage('❌ Только волк');
+        set({ selectedAbility: null, selectedAbilitySource: null });
+        return;
+      }
+      playCombatSound('Mask_of_Madness', 0.55);
+      const ps = usePlayerStore.getState();
+      const sac = Math.round((ps.stats.currentHp || 0) / 2);
+      const heal = Math.round((pet.maxHp || 0) * (ab.value || 0.8));
+      usePlayerStore.setState((st: any) => ({ stats: { ...st.stats, currentHp: Math.max(1, (st.stats.currentHp || 0) - sac) } }));
+      set((s2: any) => ({
+        enemies: s2.enemies.map((e: any) => e.id === pet.id ? { ...e, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) } : e),
+      }));
+      get().addPopup(get().playerPos.x, get().playerPos.y, `-${sac} 🩸`, 'DMG');
+      get().addPopup(pet.pos.x, pet.pos.y, `+${heal} 🩸`, 'HEAL');
+      get().addBattleLog(`🐺 ${pet.name}: ${ab.name} — хозяин −${sac} HP, волк +${heal} HP (2 AP игрока)`);
+      spend(ab.cooldown);
+      return;
+    }
     if (ab.exec === 'buffself') {
+      playCombatSound('Corruption', 0.5);
       const kept = (pet.petBuffs || []).filter((b: any) => b.stat !== ab.stat);
       const buffs = [...kept, { stat: ab.stat, value: ab.value, remaining: ab.duration || 3 }];
       set((s2: any) => ({
@@ -3759,12 +3781,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const ps = usePlayerStore.getState();
         const bonus = petBranchBonuses((pet.petKind as PetKind) || 'bear', ps.skills);
         const regenFrac = 0.02 + (bonus.regen || 0);
-        // Ярость Урсока: +0.2 брони каждый ход, стакается.
+        // Ярость Урсока: +0.2 брони каждый ход, стакается — напрямую к броне.
+        // Вой волка: +0.2% крита за ранг каждый ход, стакается — напрямую к криту.
         const ursokPerTurn = bonus.armorPerTurn || 0;
-        const ursokBonus = ursokPerTurn > 0 ? { stat: 'armor', value: ursokPerTurn, remaining: 999 } : null;
+        const howlPerTurn = bonus.critPerTurn || 0;
         const hotFrac = (pet.petBuffs || []).filter((b: any) => b.stat === 'hotHeal').reduce((s: number, b: any) => s + (b.value || 0), 0);
         let buffs = (pet.petBuffs || []).map((b: any) => ({ ...b, remaining: b.remaining - 1 })).filter((b: any) => b.remaining > 0);
-        if (ursokBonus) buffs = [...buffs, ursokBonus];
         const heal = Math.round((pet.maxHp || 0) * regenFrac) + Math.round((pet.maxHp || 0) * hotFrac);
         let npos = pet.pos;
         // Без ИИ — ходит за хозяином; с ИИ — к врагу (follow выкл).
@@ -3773,11 +3795,23 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const step = petWalk({ ...pet, petBuffs: buffs }, cs.playerPos.x, cs.playerPos.y, 2, cs.obstacles, cs.enemies);
           if (step.cells > 0) npos = { x: step.x, y: step.y };
         }
+        const armorGain = ursokPerTurn;
+        const critGain = howlPerTurn;
+        const newArmor = (pet.armor || 0) + armorGain;
+        const newCrit = (pet.crit || 0) + critGain;
         set((s2: any) => ({
           enemies: s2.enemies.map((e: any) => e.id === pet.id
-            ? { ...e, pos: npos, petBuffs: buffs, petAp: 5, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) }
+            ? { ...e, pos: npos, petBuffs: buffs, petAp: 5, armor: newArmor, crit: newCrit, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) }
             : e),
         }));
+        if (armorGain > 0) {
+          get().addPopup(npos.x, npos.y, `+${armorGain.toFixed(1)} 🛡️`, 'BUFF');
+          get().addBattleLog(`🐻 Ярость Урсока: +${armorGain.toFixed(1)} брони (всего ${newArmor.toFixed(1)})`);
+        }
+        if (critGain > 0) {
+          get().addPopup(npos.x, npos.y, `+${(critGain * 100).toFixed(1)}% 🌀`, 'BUFF');
+          get().addBattleLog(`🐺 Вой: +${(critGain * 100).toFixed(1)}% крита (всего ${Math.round(newCrit * 100)}%)`);
+        }
         if (heal > 0) {
           get().addBattleLog(`🐾 ${pet.name}: +${heal} HP (реген${hotFrac > 0 ? ' + восстановление' : ''})`);
           get().addPopup(npos.x, npos.y, `+${heal} 💗`, 'HEAL');
@@ -3825,6 +3859,30 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               get().addPopup(pet.pos.x, pet.pos.y, '📢 РЁВ!', 'SPECIAL');
               get().addBattleLog(`🐻 Дикий рёв: ${hit} врагов −20% меткости!`);
             }
+          }
+        }
+        // Авто-способности волка (пассивные, по КД): Рваная рана (6) и Полоснуть (8)
+        if (pet.petKind === 'wolf') {
+          const hasRend = (ps.skills['pw_t3_rend'] || 0) > 0;
+          const hasShade = (ps.skills['pw_t3_shade'] || 0) > 0;
+          if (hasRend && turn > 0 && turn % 6 === 0) {
+            const tgt = get().enemies.find((e: any) => !e.dead && e.faction !== 'Союзник' && getDist(pet.pos, e.pos) <= 1.5);
+            if (tgt) {
+              playCombatSound('Maim', 0.5);
+              get().petStrikeAt(tgt.id, 2, { healPct: 5 });
+              get().addPopup(tgt.pos.x, tgt.pos.y, '🩸 РВАНАЯ РАНА!', 'SPECIAL');
+              get().addBattleLog(`🐺 ${pet.name}: Рваная рана — ×2 + хил 500% по ${tgt.name}`);
+            }
+          }
+          if (hasShade && turn > 0 && turn % 8 === 0) {
+            set((s2: any) => ({
+              enemies: s2.enemies.map((e: any) => e.id === pet.id
+                ? { ...e, petBuffs: [...(e.petBuffs || []), { stat: 'crit', value: 1.0, remaining: 1 }] }
+                : e),
+            }));
+            playCombatSound('invis', 0.5);
+            get().addPopup(pet.pos.x, pet.pos.y, '🌑 +100% КРИТ!', 'BUFF');
+            get().addBattleLog(`🐺 ${pet.name}: Полоснуть — +100% крита на 1 ход`);
           }
         }
       }

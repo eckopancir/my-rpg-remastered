@@ -128,9 +128,11 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
     return result;
   }, [skillBarLayout, abilityMap, skillBarAbilities, petAbilities]);
   const isPassivePet = (id: string) => id.startsWith('petp_');
+  /** Активки питомца за 2 AP игрока (а не питомца): восстановление, инстинкты, клятва. */
+  const isPlayerCostPet = (id: string) => id === 'petb_pb_t6_restore' || id === 'petb_pw_t6_reap' || id === 'petb_pw_t6_oath';
 
   const apCostOf = (entry: any): number =>
-    isPassivePet(entry.ab.id) ? 0 : entry.source === 'pet' ? ((entry.ab as PetBattleAbility).id === 'petb_pb_t6_restore' ? 2 : (entry.ab as PetBattleAbility).petApCost) : (entry.ab as AccessoryAbility).apCost;
+    isPassivePet(entry.ab.id) ? 0 : entry.source === 'pet' ? (isPlayerCostPet((entry.ab as PetBattleAbility).id) ? 2 : (entry.ab as PetBattleAbility).petApCost) : (entry.ab as AccessoryAbility).apCost;
   const cdOf = (entry: any): number => {
     if (isPassivePet(entry.ab.id)) {
       const period = entry.ab.cooldown || 6;
@@ -140,7 +142,7 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
   };
   const readyApOf = (entry: any): boolean => {
     if (isPassivePet(entry.ab.id)) return cdOf(entry) === 0;
-    return entry.source === 'pet' ? ((entry.ab as PetBattleAbility).id === 'petb_pb_t6_restore' ? ap >= 2 : petAwake && petApLeft >= apCostOf(entry)) : ap >= apCostOf(entry);
+    return entry.source === 'pet' ? (isPlayerCostPet((entry.ab as PetBattleAbility).id) ? ap >= 2 : petAwake && petApLeft >= apCostOf(entry)) : ap >= apCostOf(entry);
   };
 
   const selectEntry = (entry: any) => {
@@ -215,7 +217,7 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
 
   const renderPetTip = (ab: PetBattleAbility, cd: number, x: number, y: number) => {
     const def = PET_BY_ID[ab.defId];
-    const isPlayerCost = ab.id === 'petb_pb_t6_restore';
+    const isPlayerCost = isPlayerCostPet(ab.id);
     const cost = isPlayerCost ? 2 : ab.petApCost;
     const statusLine = !isPlayerCost && !petAwake
       ? { text: 'Питомец спит', color: 'rgba(255,255,255,0.4)' }

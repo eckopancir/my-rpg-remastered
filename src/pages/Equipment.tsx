@@ -34,6 +34,8 @@ const PetSlotRow = () => {
   const playerLevel = usePlayerStore((s) => s.level);
   const playerDamage = usePlayerStore((s) => s.stats.damage);
   const playerMaxHp = usePlayerStore((s) => s.stats.maxHp);
+  const playerSpeed = usePlayerStore((s) => s.stats.speed);
+  const playerArmorEq = usePlayerStore((s) => s.stats.armor);
   const unlocked = chosenClasses.includes('lesnichiy');
   const kinds = Object.keys(PET_META) as PetKind[];
   useEffect(() => { loadPetState(); }, [loadPetState]);
@@ -125,7 +127,7 @@ const PetSlotRow = () => {
         const meta = PET_META[petTip.kind];
         const lvlMult = 1 + 0.2 * (Math.max(1, playerLevel) - 1);
         const bonus = petBranchBonuses(petTip.kind, playerSkills);
-        const nums = petBaseStats(petTip.kind, lvlMult, playerDamage || 5, playerMaxHp || 100, bonus);
+        const nums = petBaseStats(petTip.kind, lvlMult, playerDamage || 5, playerMaxHp || 100, bonus, playerArmorEq || 0, playerSpeed || 0);
         const b = (k: keyof typeof bonus): number => (bonus as any)[k] || 0;
         const rows: PetStatRow[] = [
           { label: 'HP', value: fmtPetStat('maxHp', nums.maxHp) },

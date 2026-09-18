@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, isBossEnemy, shotKindForEnemy, type GlobalEffect } from '../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, isBossEnemy, shotKindForEnemy, petEffStats, type GlobalEffect } from '../stores/combatGridStore';
 import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
 import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
@@ -789,9 +789,11 @@ export const useEnemyAI = () => {
               e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
             ) : undefined;
             const defender0 = preTargetHostile || preTargetAlly;
-            const tgtArmor0 = defender0 ? defender0.armor : playerStats.armor;
-            const tgtEvasion0 = defender0 ? defender0.evasion : playerStats.evasion;
-            const tgtBlock0 = defender0 ? defender0.block : playerStats.block;
+            // Питомец: защита с учётом баффов (Инстинкты, Полоснуть, Урсок).
+            const petEff0 = defender0 && (defender0 as any).isPet ? petEffStats(defender0) : null;
+            const tgtArmor0 = defender0 ? (petEff0 ? petEff0.armor : defender0.armor) : playerStats.armor;
+            const tgtEvasion0 = defender0 ? (petEff0 ? petEff0.evasion : defender0.evasion) : playerStats.evasion;
+            const tgtBlock0 = defender0 ? (petEff0 ? petEff0.block : defender0.block) : playerStats.block;
             const tgtIncoming0 = defender0 ? 1 : playerStats.incomingDamageMult;
             const result = calculateCombatResult(
               { dps: enemyDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
