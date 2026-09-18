@@ -121,6 +121,10 @@ export const petModelImage = (kind: string): string | undefined => {
   return key ? petsImageMap.get(key) : undefined;
 };
 
+/** Труп нейтрального кабана (отдельный арт). */
+export const petCorpseImage = (): string | undefined =>
+  petsImageMap.get('dead кабан');
+
 /** Аватар зверя для модалки Экипировки (jfif). */
 export const petAvatarImage = (kind: string): string | undefined => {
   const key = kind === 'bear' ? 'медведь' : kind === 'wolf' ? 'волк' : kind === 'boar' ? 'кабан' : '';

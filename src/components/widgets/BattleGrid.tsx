@@ -6,7 +6,7 @@ import { useSound } from '../../hooks/useSound';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
-import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petModelImage } from '../../assets/index';
+import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petModelImage, petCorpseImage } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { weaponRangeProfile } from '../../data/ammo';
 import { type PetKind } from '../../data/pets';
@@ -587,11 +587,10 @@ export const BattleGrid = () => {
                     onMouseLeave={() => setHoveredDeadId(null)}
                   >
                     <img
-                      src={(deadEnemy as any).isNeutral ? (petModelImage('boar') || getCharacterImage(deadEnemy.deadModel || 'dead')) : getCharacterImage(deadEnemy.deadModel || 'dead')}
+                      src={(deadEnemy as any).isNeutral ? (petCorpseImage() || getCharacterImage(deadEnemy.deadModel || 'dead')) : getCharacterImage(deadEnemy.deadModel || 'dead')}
                       alt="dead"
                       className={`${styles.deadSprite}${hoveredDeadId === deadEnemy.id ? ` ${styles.deadHovered}` : ''}`}
                       draggable={false}
-                      style={(deadEnemy as any).isNeutral ? { filter: 'grayscale(1)' } : undefined}
                     />
                   </div>
                 )}
