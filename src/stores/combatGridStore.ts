@@ -273,6 +273,8 @@ export interface CombatGridStore {
   commandPetAttack: (enemyId: number | string) => void;
   /** Шаг нейтралов (кабан): 1 клетка в случайную сторону. Зовёт 10-сек таймер. */
   wanderNeutrals: () => void;
+  /** Болтовня нейтралов: случайный живой кабан хрюкает. Зовёт 30-сек таймер. */
+  neutralChatter: () => void;
   selectedAbility: number | null;
   selectedAbilitySource: 'player' | 'skillBar' | 'pet' | null;
   playerInvisible: boolean;
@@ -2696,6 +2698,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return e;
     });
     if (moved) set({ enemies: next });
+  },
+
+  neutralChatter: () => {
+    const s = get();
+    if (!s.isActive) return;
+    const alive = s.enemies.filter((e: any) => (e as any).isNeutral && !e.dead && (e.currentHp || 0) > 0);
+    if (alive.length === 0) return;
+    const boar = alive[Math.floor(Math.random() * alive.length)];
+    const phrases = ['вуф', 'уух', 'гррр'];
+    get().say(boar.id, phrases[Math.floor(Math.random() * phrases.length)], 3000);
   },
 
   commandPetAttack: async (enemyId) => {

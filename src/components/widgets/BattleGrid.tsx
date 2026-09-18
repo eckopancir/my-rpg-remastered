@@ -162,13 +162,16 @@ export const BattleGrid = () => {
 
   useEnemyAI();
 
-  // Нейтралы (кабан): шаг раз в 10 сек вне пошаговости, пока бой активен.
+  // Нейтралы (кабан): шаг раз в 10 сек + хрюк раз в 30 сек, вне пошаговости, пока бой активен.
   useEffect(() => {
     if (!isActive) return;
     const t = setInterval(() => {
       useCombatGridStore.getState().wanderNeutrals();
     }, 10000);
-    return () => clearInterval(t);
+    const c = setInterval(() => {
+      useCombatGridStore.getState().neutralChatter();
+    }, 30000);
+    return () => { clearInterval(t); clearInterval(c); };
   }, [isActive]);
 
   // -- Sound effects --
