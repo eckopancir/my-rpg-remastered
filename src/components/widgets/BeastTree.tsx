@@ -132,11 +132,18 @@ export const PetTooltip = ({
       fontFamily: 'var(--font-sans)',
     }}>
       <div style={{ height: 3, background: meta.color, opacity: 0.95, borderRadius: '10px 10px 0 0' }} />
+      <div style={{ background: `linear-gradient(180deg, ${meta.color}26 0%, ${meta.color}14 32%, ${meta.color}07 58%, transparent 92%)`, position: 'relative' }}>
+        {(() => { const src = def.image ? getLesnikImage(def.image) : undefined; return src ? (
+          <div style={{ textAlign: 'center', padding: '4px 14px 0', position: 'relative' }}>
+            <img src={src} alt="" style={{ width: '100%', height: 150, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 8 }}><PetDefIcon def={def} size={64} /></div>
+        ); })()}
         <div style={{ padding: '8px 14px 12px', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center' }}><PetDefIcon def={def} size={64} /></div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: meta.color, lineHeight: 1.2 }}>
-          {def.name}
-        </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: meta.color, lineHeight: 1.2 }}>
+            {def.name}
+          </div>
         <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 6 }}>
           {Array.from({ length: def.maxRanks }).map((_, i) => (
             <span key={i} style={{
@@ -151,6 +158,7 @@ export const PetTooltip = ({
           <span>• {meta.name}</span>
           {def.petApCost > 0 ? <span>• {def.petApCost}AP питомца</span> : null}
           {def.cooldown > 0 ? <span>• КД {def.cooldown}</span> : null}
+        </div>
         </div>
       </div>
       <div style={{ padding: '0 14px 12px', maxWidth: 340 }}>
