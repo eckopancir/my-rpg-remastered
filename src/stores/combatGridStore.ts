@@ -2886,7 +2886,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return;
     }
     if (ab.exec === 'buffself') {
-      playCombatSound('Corruption', 0.5);
+      playCombatSound((ab as any).sound || 'Corruption', 0.5);
       const kept = (pet.petBuffs || []).filter((b: any) => b.stat !== ab.stat);
       const buffs = [...kept, { stat: ab.stat, value: ab.value, remaining: ab.duration || 3 }];
       set((s2: any) => ({
@@ -3881,23 +3881,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             }
           }
         }
-        // Авто-способности волка (пассивные, по КД): Рваная рана (4) и Полоснуть (4)
+        // Авто-способности волка (волк применяет сам, по КД): Рваная рана (4) и Полоснуть (4)
         if (pet.petKind === 'wolf') {
           const hasRend = (ps.skills['pw_t3_rend'] || 0) > 0;
           const hasShade = (ps.skills['pw_t3_shade'] || 0) > 0;
           if (hasRend && turn > 0 && turn % 4 === 0) {
-            const tgt = get().enemies.find((e: any) => !e.dead && e.faction !== 'Союзник' && getDist(pet.pos, e.pos) <= 1.5);
-            if (tgt) {
-              playCombatSound('Maim', 0.5);
-              get().petStrikeAt(tgt.id, 2, { healPct: 5 });
-              set((s2: any) => ({
-                enemies: s2.enemies.map((e: any) => e.id === pet.id
-                  ? { ...e, petBuffs: [...(e.petBuffs || []), { stat: 'vampir', value: 1.0, remaining: 1 }] }
-                  : e),
-              }));
-              get().addPopup(tgt.pos.x, tgt.pos.y, '🩸 РВАНАЯ РАНА!', 'SPECIAL');
-              get().addBattleLog(`🐺 ${pet.name}: Рваная рана — ×2 + хил 500% + 100% вампиризма на 1 ход`);
-            }
+            set((s2: any) => ({
+              enemies: s2.enemies.map((e: any) => e.id === pet.id
+                ? { ...e, petBuffs: [...(e.petBuffs || []), { stat: 'vampir', value: 1.0, remaining: 1 }] }
+                : e),
+            }));
+            playCombatSound('Maim', 0.5);
+            get().addPopup(pet.pos.x, pet.pos.y, '🩸 +100% ВАМП!', 'BUFF');
+            get().addBattleLog(`🐺 ${pet.name}: Рваная рана — +100% вампиризма на 1 ход`);
           }
           if (hasShade && turn > 0 && turn % 4 === 0) {
             set((s2: any) => ({

@@ -81,8 +81,8 @@ export const PET_ABILITIES: PetAbilityDef[] = [
   { id: 'pw_t1_eva', branch: 'wolf', tier: 1, name: '+1% уклонения', icon: '💨', image: '12', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('evasion', 0.01, '+1% уклонения')] },
   { id: 'pw_t2_dmg', branch: 'wolf', tier: 2, name: '+4 урона', icon: '⚔️', image: '21', kind: 'stat', maxRanks: 10, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('damage', 4, '+4 урона')] },
   { id: 'pw_t2_aura', branch: 'wolf', tier: 2, name: 'Кровь стаи', icon: '🌙', image: '22', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('pctDamage', 0.02, '+2% урона')], aura: { stat: 'damage', value: 0.02 } },
-  { id: 'pw_t3_rend', branch: 'wolf', tier: 3, name: 'Рваная рана', icon: '🦷', image: '31', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pw_t3_shade'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 4 хода ×2 + хил 500% от нанесённого + 100% вампиризма себе на 1 ход.' },
-  { id: 'pw_t3_shade', branch: 'wolf', tier: 3, name: 'Полоснуть', icon: '🌑', image: '32', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pw_t3_rend'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 4 хода +100% крита и +10% уклонения себе на 1 ход.' },
+  { id: 'pw_t3_rend', branch: 'wolf', tier: 3, name: 'Рваная рана', icon: '🦷', image: '31', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pw_t3_shade'], petApCost: 0, cooldown: 0, mechanic: 'Волк сам применяет каждые 4 хода: +100% вампиризма себе на 1 ход.' },
+  { id: 'pw_t3_shade', branch: 'wolf', tier: 3, name: 'Полоснуть', icon: '🌑', image: '32', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pw_t3_rend'], petApCost: 0, cooldown: 0, mechanic: 'Волк сам применяет каждые 4 хода: +100% крита и +10% уклонения себе на 1 ход.' },
   { id: 'pw_t4_gon', branch: 'wolf', tier: 4, name: 'Верность хозяину', icon: '🏃', image: '41', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('punching', 0.6, '+60% пробивания')], mechanic: 'Пассив: +60% пробивания за ранг (300% на 5 рангах).' },
   { id: 'pw_t5_howl', branch: 'wolf', tier: 5, name: 'Вой', icon: '🐺', image: '51', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('critPerTurn', 0.002, '+0.2% крита/ход')], mechanic: 'Пассив: каждый ход вне скрытности +0.2% крита за ранг (стакается, без капа). В стелсе не растёт.' },
   { id: 'pw_t6_reap', branch: 'wolf', tier: 6, name: 'Инстинкты выживания', icon: '💥', image: '61', kind: 'active', maxRanks: 1, gate: 4, exclusiveWith: ['pw_t6_oath'], petApCost: 0, cooldown: 50, mechanic: '+100% уклонения волку на 2 хода. КД 50, 2 AP игрока.' },
@@ -320,7 +320,7 @@ export function petBranchAuras(kind: PetKind, skills: PetSkills): { stat: 'armor
 
 // ---------- Боевые способности питомца (панель 24) ----------
 
-export type PetExecKind = 'strike' | 'buffself' | 'buffparty' | 'debuffAura' | 'hot' | 'sacrifice' | 'ai';
+export type PetExecKind = 'strike' | 'buffself' | 'buffparty' | 'debuffAura' | 'hot' | 'sacrifice' | 'shade' | 'ai';
 
 export interface PetBattleAbility {
   id: string;
@@ -335,6 +335,9 @@ export interface PetBattleAbility {
   mult?: number;
   stun?: number;
   healPct?: number; // доля от нанесённого в хил себе (0.5 = 50%)
+  vampBuff?: number; // бафф вампиризма себе на 1 ход после удара
+  /** звук применения (Corruption/Maim/...) */
+  sound?: string;
   knockback?: number;
   aoe?: number; // радиус для debuffAura
   stat?: string;
@@ -367,7 +370,7 @@ export function buildPetBattleAbility(def: PetAbilityDef): PetBattleAbility {
     case 'pb_t6_rage':
       return { ...base, exec: 'buffself', needsTarget: false, stat: 'damageMult', value: 0.5, duration: 3 };
     case 'pw_t6_reap':
-      return { ...base, exec: 'buffself', needsTarget: false, stat: 'evasion', value: 1.0, duration: 2 };
+      return { ...base, exec: 'buffself', needsTarget: false, stat: 'evasion', value: 1.0, duration: 2, sound: 'Corruption' };
     case 'pw_t6_oath':
       return { ...base, exec: 'sacrifice', needsTarget: false, value: 0.8, duration: 0 };
     case 'po_t3_dash':
