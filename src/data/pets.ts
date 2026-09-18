@@ -77,7 +77,7 @@ export const PET_ABILITIES: PetAbilityDef[] = [
   { id: 'pb_t7_alpha', branch: 'bear', tier: 7, name: 'Улучшенная стена стаи', icon: '👑', image: '7.1', kind: 'ulta', maxRanks: 1, gate: 5, petApCost: 0, cooldown: 0, aura: { stat: 'maxHp', value: 0.3 }, mechanic: 'Улучшает «Стену стаи»: аура +30% здоровья союзникам в радиусе 30, пока зверь жив.' },
 
   // ---------- ВОЛК (урон + вамп + уклонение; HP и брони почти нет) ----------
-  { id: 'pw_t1_own', branch: 'wolf', tier: 1, name: '+10% урона ближнего боя', icon: '🩸', image: '11', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('pctPlayerDmg', 0.1, '+10% урона ближнего боя')] },
+  { id: 'pw_t1_own', branch: 'wolf', tier: 1, name: '+10% от урона ближнего оружия хозяина', icon: '🩸', image: '11', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('pctPlayerDmg', 0.1, '+10% от ближнего оружия хозяина')], mechanic: 'Пассив: волк забирает 10% урона твоего оружия ближнего боя за ранг (100% на 10 рангах). Слот пуст — бонуса нет.' },
   { id: 'pw_t1_eva', branch: 'wolf', tier: 1, name: '+1% уклонения', icon: '💨', image: '12', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('evasion', 0.01, '+1% уклонения')] },
   { id: 'pw_t2_dmg', branch: 'wolf', tier: 2, name: '+4 урона', icon: '⚔️', image: '21', kind: 'stat', maxRanks: 10, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('damage', 4, '+4 урона')] },
   { id: 'pw_t2_aura', branch: 'wolf', tier: 2, name: 'Кровь стаи', icon: '🌙', image: '22', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('pctDamage', 0.02, '+2% урона')], aura: { stat: 'damage', value: 0.02 } },
@@ -229,7 +229,7 @@ export const petRankText = (def: PetAbilityDef, rank: number): string => {
       if (s.stat === 'pctPlayerHp') return `+${Math.round(s.value * rank * 100)}% здоровья от хозяина`;
       if (s.stat === 'pctBaseHp') return `+${Math.round(s.value * rank * 100)}% здоровья`;
       if (s.stat === 'pctDamage') return `+${Math.round(s.value * rank * 100)}% урона`;
-      if (s.stat === 'pctPlayerDmg') return `+${Math.round(s.value * rank * 100)}% урона ближнего боя`;
+      if (s.stat === 'pctPlayerDmg') return `+${Math.round(s.value * rank * 100)}% от ближнего оружия хозяина`;
       if (s.stat === 'pctPlayerSpeed') return `+${Math.round(s.value * rank * 100)}% скорости от хозяина`;
       if (s.stat === 'pctHostArmor') return `+${Math.round(s.value * rank * 100)}% брони хозяина`;
       if (s.stat === 'critPerTurn') return `+${(s.value * rank * 100).toFixed(1).replace('.', ',')}% крита/ход`;
@@ -258,7 +258,7 @@ const petStatLabel = (s: PetStatKey): string => {
     case 'pctPlayerHp': return 'здоровья от хозяина';
     case 'pctBaseHp': return 'здоровья';
     case 'pctDamage': return 'урона';
-    case 'pctPlayerDmg': return 'урона ближнего боя';
+    case 'pctPlayerDmg': return 'от ближнего оружия хозяина';
     case 'pctPlayerSpeed': return 'скорости от хозяина';
     case 'pctHostArmor': return 'брони хозяина';
     case 'armorPerTurn': return 'брони/ход';
