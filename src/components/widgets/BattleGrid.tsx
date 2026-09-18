@@ -54,7 +54,7 @@ const PetHitSpark = () => {
           alt=""
           draggable={false}
           className={styles.petHitPop}
-          style={{ width: 64, height: 64, objectFit: 'contain', transform: 'translate(-50%,-50%)' }}
+          style={{ width: 45, height: 45, objectFit: 'contain', transform: 'translate(-50%,-50%)' }}
         />
       </div>
     </div>

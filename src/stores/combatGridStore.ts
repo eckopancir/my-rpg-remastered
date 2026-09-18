@@ -1707,6 +1707,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           loot: [], looted: true, isMinion: false,
           isPet: true, petKind, petAp: 5, petBuffs: [],
         } as any);
+        console.log(`[PETSPAWN] kind=${petKind} hp=${nums.maxHp} dmg=${nums.damage} pos=${spot.x},${spot.y}`);
         get().addBattleLog(`🐾 ${meta.name} вступает в бой!`);
         if (satMood !== 'green') {
           get().addBattleLog(`🐾 ${meta.name} ${satMood === 'yellow' ? 'проголодался (−30% HP)' : 'голоден (−90% HP)'} — покорми в Экипировке`);
@@ -2823,6 +2824,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     };
     if (ab.exec === 'ai') {
       const now = !get().petAiActive;
+      console.log(`[PETAITOGGLE] now=${now} skill=${usePlayerStore.getState().skills['pet_ai'] || 0} petAp=${pet.petAp}`);
       set({ petAiActive: now, petTargetId: null });
       if (now) {
         get().addMessage('🤖 ИИ включён — питомец сам ищет цель');
@@ -2984,10 +2986,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   petAiTurn: async () => {
     const s = get();
     const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
-    if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) return;
-    if (!s.petAiActive || !((usePlayerStore.getState().skills['pet_ai'] || 0) > 0)) return;
+    if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) { console.log(`[PETAITURN] no-pet sleep=${!!pet?.sleeping} hp=${Math.round(pet?.currentHp || 0)}`); return; }
+    if (!s.petAiActive || !((usePlayerStore.getState().skills['pet_ai'] || 0) > 0)) { console.log(`[PETAITURN] off active=${s.petAiActive} skill=${usePlayerStore.getState().skills['pet_ai'] || 0}`); return; }
     let pap = pet.petAp || 0;
-    if (pap <= 0) return;
+    if (pap <= 0) { console.log(`[PETAITURN] no-ap`); return; }
+    console.log(`[PETAITURN] go pap=${pap} foes=${get().enemies.filter((e: any) => e.id !== pet.id && !e.dead && (e.currentHp || 0) > 0 && e.faction !== 'Союзник').length}`);
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const syncAp = () => set((s2: any) => ({
       enemies: s2.enemies.map((e: any) => e.id === pet.id ? { ...e, petAp: pap } : e),
