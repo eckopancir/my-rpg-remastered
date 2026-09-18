@@ -6,6 +6,7 @@ const mapImageModules = import.meta.glob<{ default: string }>('./Images/map/*.pn
 const uiImageModules = import.meta.glob<{ default: string }>('./Images/ui/*.{png,jpg,jfif}', { eager: true });
 const sniperImageModules = import.meta.glob<{ default: string }>('./Images/class/sniper/*.png', { eager: true });
 const lesnikImageModules = import.meta.glob<{ default: string }>('./Images/class/lesnik/*.png', { eager: true });
+const petsImageModules = import.meta.glob<{ default: string }>('./Images/pets/*.png', { eager: true });
 
 const extractKey = (path: string): string => path.split('/').pop()?.replace(/\.(png|jpg|jfif)$/, '').toLowerCase() || '';
 
@@ -25,6 +26,7 @@ const mapImageMap = toMap(mapImageModules);
 const uiImageMap = toMap(uiImageModules);
 const sniperImageMap = toMap(sniperImageModules);
 const lesnikImageMap = toMap(lesnikImageModules);
+const petsImageMap = toMap(petsImageModules);
 
 const RESOURCE_IMAGE_MAP: Record<string, string> = {
   'вода': 'r1', 'изолента': 'r2', 'железо': 'r3', 'дерево': 'r4',
@@ -113,10 +115,10 @@ export const petStrikeImage = (): string | undefined =>
 export const meleeStrikeImage = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_iricbliricbliric-photoroom');
 
-/** Аватар зверя для меню Экипировки (полоска сытости). */
-export const petAvatarImage = (kind: string): string | undefined => {
+/** Модель зверя для BATTLE арены (отдельная папка — без коллизий с аватарами). */
+export const petModelImage = (kind: string): string | undefined => {
   const key = kind === 'bear' ? 'медведь' : kind === 'wolf' ? 'волк' : kind === 'boar' ? 'кабан' : '';
-  return key ? uiImageMap.get(key) : undefined;
+  return key ? petsImageMap.get(key) : undefined;
 };
 
 /** Общий фон окна способностей лесничего (тиры перков). */

@@ -189,13 +189,13 @@
   object-fit: contain;
 }
 
-/* Моделька питомца — в 3 раза крупнее клетки, поверх соседних */
+/* Моделька питомца — в полтора раза крупнее клетки, поверх соседних */
 .petSprite {
-  width: 270% !important;
-  height: 270% !important;
+  width: 135% !important;
+  height: 135% !important;
   max-width: none !important;
-  margin-left: -85%;
-  margin-top: -85%;
+  margin-left: -17.5%;
+  margin-top: -17.5%;
   position: relative;
   z-index: 5;
 }

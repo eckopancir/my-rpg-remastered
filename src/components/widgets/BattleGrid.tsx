@@ -6,7 +6,7 @@ import { useSound } from '../../hooks/useSound';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
-import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petAvatarImage } from '../../assets/index';
+import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petModelImage } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { weaponRangeProfile } from '../../data/ammo';
 import { type PetKind } from '../../data/pets';
@@ -642,9 +642,9 @@ export const BattleGrid = () => {
                     <img
                       src={(() => {
                         const nm = (enemy as any).nowModel as string | undefined;
-                        // Питомец: своя моделька (медведь/волк/кабан).
+                        // Питомец: своя моделька для арены (медведь/волк/кабан).
                         if ((enemy as any).isPet) {
-                          return petAvatarImage(((enemy as any).petKind as PetKind) || 'bear') || getEnemyImage(enemy.faction, enemy.name);
+                          return petModelImage(((enemy as any).petKind as PetKind) || 'bear') || getEnemyImage(enemy.faction, enemy.name);
                         }
                         // Союзник: строго своя моделька из спавна (без фолбэков наугад).
                         if (enemy.faction === 'Союзник' && nm) {
