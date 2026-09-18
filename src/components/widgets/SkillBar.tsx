@@ -308,9 +308,20 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
             🐾
           </span>
         )}
-        <span title="Здоровье" style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#f87171', whiteSpace: 'nowrap' }}>
-          ❤ {Math.round(curHp || 0)}/{Math.round(maxHp || 0)}
+        <span title={`Здоровье: ${Math.round(curHp || 0)}/${Math.round(maxHp || 0)}`} style={{ display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10 }}>❤</span>
+          <span style={{ width: 84, height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(248,113,113,0.4)', overflow: 'hidden' }}>
+            <span style={{ display: 'block', height: '100%', width: `${Math.max(0, Math.min(100, ((curHp || 0) / Math.max(1, maxHp || 0)) * 100))}%`, background: 'linear-gradient(90deg, #dc2626, #f87171)', transition: 'width 200ms' }} />
+          </span>
         </span>
+        {hasPet && petUnit && (
+          <span title={`Питомец: ${Math.round(petUnit.currentHp || 0)}/${Math.round(petUnit.maxHp || 0)}`} style={{ display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 10 }}>🐾</span>
+            <span style={{ width: 84, height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(74,222,128,0.4)', overflow: 'hidden' }}>
+              <span style={{ display: 'block', height: '100%', width: `${Math.max(0, Math.min(100, ((petUnit.currentHp || 0) / Math.max(1, petUnit.maxHp || 0)) * 100))}%`, background: 'linear-gradient(90deg, #16a34a, #4ade80)', transition: 'width 200ms' }} />
+            </span>
+          </span>
+        )}
         <span title="Выносливость" style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#4ade80', whiteSpace: 'nowrap' }}>
           ⚡{Math.round(curStam || 0)}/{Math.round(maxStam || 0)}
         </span>
