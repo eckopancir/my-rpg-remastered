@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, isBossEnemy, shotKindForEnemy, petEffStats, type GlobalEffect } from '../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, executeSkill, absorbWithShield, isBossEnemy, shotKindForEnemy, petEffStats, isMeleeFighter, type GlobalEffect } from '../stores/combatGridStore';
 import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
 import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
@@ -811,6 +811,14 @@ export const useEnemyAI = () => {
 
             if (result.damage > 0) {
               const finalDmg = Math.round(result.damage);
+              // Милик попал — искра ближнего боя на точке (гаснет сама).
+              if (isMeleeFighter(enemy)) {
+                const fxId = Date.now() + Math.random();
+                useCombatGridStore.setState({ hitFx: { x: targetPos.x, y: targetPos.y, id: fxId, kind: 'melee' } });
+                setTimeout(() => {
+                  if (useCombatGridStore.getState().hitFx?.id === fxId) useCombatGridStore.setState({ hitFx: null });
+                }, 380);
+              }
               // Check if target is an ally (decoy/minion) in enemies array
               const targetAlly = updatedEnemies.find((e: any) =>
                 e.faction === 'Союзник' && !e.dead && e.pos.x === targetPos.x && e.pos.y === targetPos.y,

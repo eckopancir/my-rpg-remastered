@@ -6,10 +6,10 @@ import { useSound } from '../../hooks/useSound';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
-import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, petProcImage } from '../../assets/index';
+import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petAvatarImage } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { weaponRangeProfile } from '../../data/ammo';
-import { PET_META, type PetKind } from '../../data/pets';
+import { type PetKind } from '../../data/pets';
 import { ShotVolley } from './ShotVolley';
 import pricelImg from '../../assets/images/ui/pricel-cursor.png';
 import type { GridEnemy } from '../../stores/combatGridStore';
@@ -39,17 +39,17 @@ const ENEMY_COLORS: Record<string, string> = {
   Неизвестно: '#a1a1aa',
 };
 
-/** Искра удара питомца: картинка на клетке цели, гаснет сама (key = id для повторов). */
+/** Искра попадания: картинка на клетке цели, гаснет сама (key = id для повторов). */
 const PetHitSpark = () => {
-  const petHitFx = useCombatGridStore((s) => s.petHitFx);
-  if (!petHitFx) return null;
-  const src = petHitFx.img === 'proc' ? petProcImage() : petStrikeImage();
+  const hitFx = useCombatGridStore((s) => s.hitFx);
+  if (!hitFx) return null;
+  const src = hitFx.kind === 'melee' ? meleeStrikeImage() : petStrikeImage();
   if (!src) return null;
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 41 }}>
-      <div style={{ position: 'absolute', left: `${(petHitFx.x / 31) * 100}%`, top: `${(petHitFx.y / 31) * 100}%`, width: 0, height: 0 }}>
+      <div style={{ position: 'absolute', left: `${(hitFx.x / 31) * 100}%`, top: `${(hitFx.y / 31) * 100}%`, width: 0, height: 0 }}>
         <img
-          key={petHitFx.id}
+          key={hitFx.id}
           src={src}
           alt=""
           draggable={false}
@@ -642,6 +642,10 @@ export const BattleGrid = () => {
                     <img
                       src={(() => {
                         const nm = (enemy as any).nowModel as string | undefined;
+                        // Питомец: своя моделька (медведь/волк/кабан).
+                        if ((enemy as any).isPet) {
+                          return petAvatarImage(((enemy as any).petKind as PetKind) || 'bear') || getEnemyImage(enemy.faction, enemy.name);
+                        }
                         // Союзник: строго своя моделька из спавна (без фолбэков наугад).
                         if (enemy.faction === 'Союзник' && nm) {
                           return getCharacterImage(nm) || getEnemyImage(enemy.faction, enemy.name);
@@ -652,7 +656,11 @@ export const BattleGrid = () => {
                       className={`${styles.humanSprite}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
                       draggable={false}
                       style={{
-                        transform: `rotate(${enemy.rotation - 90}deg)`,
+                        // База обычных спрайтов смотрит вниз; модели зверей:
+                        // волк/кабан — вверх (+180°), медведь — влево (+270°).
+                        transform: (enemy as any).isPet
+                          ? `rotate(${enemy.rotation + (((enemy as any).petKind === 'bear') ? 180 : 90)}deg)`
+                          : `rotate(${enemy.rotation - 90}deg)`,
                         // Патруль вне боя — полупрозрачный (еле видно); в бою — 100%.
                         // Босс всегда 100%: он не прячется.
                         opacity: ((enemy.aiRole === 'patrol' || enemy.aiRole === 'reinforce') && !enemy.aggro && !isBossEnemy(enemy.name, (enemy as any).factionKey)) ? 0.5 : 1,
@@ -661,13 +669,13 @@ export const BattleGrid = () => {
                         borderRadius: 6,
                       }}
                     />
-                    {(enemy as any).isPet && (
+                    {(enemy as any).isPet && petCommandMode && (
                       <span style={{
                         position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)',
                         fontSize: 17, lineHeight: 1, zIndex: 8, pointerEvents: 'none',
-                        filter: petCommandMode ? 'drop-shadow(0 0 5px #fbbf24)' : 'none',
+                        filter: 'drop-shadow(0 0 5px #fbbf24)',
                       }}>
-                        {PET_META[((enemy as any).petKind as PetKind) || 'bear']?.icon || '🐾'}
+                        🎯
                       </span>
                     )}
                   </div>

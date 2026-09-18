@@ -258,13 +258,13 @@ export interface CombatGridStore {
   petCommandMode: boolean;
   petTargetId: number | string | null;
   petAiActive: boolean;
-  /** Искра удара питомца: позиция + ключ для перерисовки (гаснет таймером). img proc — искра автопроков Т3. */
-  petHitFx: { x: number; y: number; id: number; img?: 'proc' } | null;
+  /** Искра попадания в ближнем бою: позиция + ключ для перерисовки (гаснет таймером). kind pet — удары зверя, melee — холодное оружие и милики. */
+  hitFx: { x: number; y: number; id: number; kind: 'pet' | 'melee' } | null;
   selectPetAbility: (index: number) => void;
   usePetAbility: (index: number, enemyId?: number | string) => void;
   /** Ход ИИ питомца (авто-бой при активной способности pet_ai). */
   petAiTurn: () => void;
-  petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number; procFx?: boolean }) => boolean;
+  petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number }) => boolean;
   setPetCommandMode: (v: boolean) => void;
   commandPetMove: (x: number, y: number) => void;
   commandPetAttack: (enemyId: number | string) => void;
@@ -429,7 +429,10 @@ function findFreeCellNear(
 }
 
 /** Ближний бой по имени (Военные (melee) и т.п.). */
-const isMeleeEnemy = (name: string): boolean => /melle|melee/i.test(name || '');
+export const isMeleeEnemy = (name: string): boolean => /melle|melee/i.test(name || '');
+/** Враг бьёт в ближнем бою: мили-класс или короткая дальность. */
+export const isMeleeFighter = (e: any): boolean =>
+  isMeleeEnemy(`${e?.name || ''} ${e?.factionKey || ''}`) || (e?.rangeDistance || 7) <= 2;
 
 /** Босс по имени/ключу фракции. */
 export const isBossEnemy = (name: string, factionKey?: string): boolean =>
@@ -1106,7 +1109,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   petCommandMode: false,
   petTargetId: null,
   petAiActive: false,
-  petHitFx: null,
+  hitFx: null,
   selectedAbility: null,
   selectedAbilitySource: null,
   playerInvisible: false,
@@ -1723,7 +1726,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     set({
       isActive: true, playerPos, enemies: activeEnemies, obstacles,
-      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, petHitFx: null, selectedAbility: null, selectedAbilitySource: null,
+      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
@@ -2713,12 +2716,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     get().addPopup(target.pos.x, target.pos.y, `-${dmg} 🐾`, 'DMG');
     get().addBattleLog(`🐾 ${pet.name}: −${dmg} по ${target.name}`);
-    // Искра удара питомца на цели (гаснет сама). Автопроки Т3 — своя искра.
+    // Искра удара питомца на цели (гаснет сама).
     {
       const fxId = Date.now() + Math.random();
-      set({ petHitFx: { x: target.pos.x, y: target.pos.y, id: fxId, ...(opts?.procFx ? { img: 'proc' as const } : {}) } });
+      set({ hitFx: { x: target.pos.x, y: target.pos.y, id: fxId, kind: 'pet' } });
       setTimeout(() => {
-        if (get().petHitFx?.id === fxId) set({ petHitFx: null });
+        if (get().hitFx?.id === fxId) set({ hitFx: null });
       }, 380);
     }
     if (opts?.stun) {
@@ -3151,6 +3154,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           stealth: false,
         } as any));
         get().addPopup(t.pos.x, t.pos.y, result.text, result.type);
+        // Искра ближнего боя на цели (гаснет сама).
+        {
+          const fxId = Date.now() + Math.random();
+          set({ hitFx: { x: t.pos.x, y: t.pos.y, id: fxId, kind: 'melee' } });
+          setTimeout(() => {
+            if (get().hitFx?.id === fxId) set({ hitFx: null });
+          }, 380);
+        }
         const vampHeal = Math.round(actualDmg * (player.stats.vampir || 0));
         if (vampHeal > 0) {
           usePlayerStore.setState((st: any) => ({
@@ -3862,7 +3873,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             const tgt = get().enemies.find((e: any) => !e.dead && e.faction !== 'Союзник' && getDist(pet.pos, e.pos) <= 2);
             if (tgt) {
               playCombatSound('SkullBasher', 0.5);
-              get().petStrikeAt(tgt.id, 2, { stun: 1, procFx: true });
+              get().petStrikeAt(tgt.id, 2, { stun: 1 });
               get().addPopup(tgt.pos.x, tgt.pos.y, '😵 СТАН!', 'SPECIAL');
               get().addBattleLog(`🐾 ${pet.name}: Тяжёлая лапа — Удар молотом! ${tgt.name} оглушён 1 ход`);
             }
@@ -3989,7 +4000,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
       corpseSearch: null, alarmRaised: false, noSleep: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
-      playerAbilities: [], abilityCooldowns: [], skillBarAbilities: [], skillBarCooldowns: [], petAbilities: [], petCooldowns: [], petCommandMode: false, petTargetId: null, petHitFx: null, selectedAbility: null, selectedAbilitySource: null,
+      playerAbilities: [], abilityCooldowns: [], skillBarAbilities: [], skillBarCooldowns: [], petAbilities: [], petCooldowns: [], petCommandMode: false, petTargetId: null, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, teleportStealthReady: false, isPlacingMine: false, immortalityTurns: 0, showCookingMenu: false, cardRarityName: null,
       ammo: MAX_AMMO, maxAmmo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
     });

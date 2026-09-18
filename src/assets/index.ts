@@ -109,8 +109,8 @@ export const beastClassBg = (): string | undefined =>
 export const petStrikeImage = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_hr70wnhr70wnhr70-photoroom');
 
-/** Искра срабатывания Т3-пассивок питомца (автопроки). */
-export const petProcImage = (): string | undefined =>
+/** Искра ближнего боя: удары холодным оружием и милики. */
+export const meleeStrikeImage = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_iricbliricbliric-photoroom');
 
 /** Аватар зверя для меню Экипировки (полоска сытости). */
