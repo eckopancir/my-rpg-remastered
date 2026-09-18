@@ -660,6 +660,10 @@ export const BattleGrid = () => {
                         if ((enemy as any).isPet) {
                           return petModelImage(((enemy as any).petKind as PetKind) || 'bear') || getEnemyImage(enemy.faction, enemy.name);
                         }
+                        // Нейтральный кабан: модель кабана с арены.
+                        if ((enemy as any).isNeutral) {
+                          return petModelImage('boar') || getEnemyImage(enemy.faction, enemy.name);
+                        }
                         // Союзник: строго своя моделька из спавна (без фолбэков наугад).
                         if (enemy.faction === 'Союзник' && nm) {
                           return getCharacterImage(nm) || getEnemyImage(enemy.faction, enemy.name);
@@ -667,14 +671,17 @@ export const BattleGrid = () => {
                         return getEnemyImage(enemy.faction, enemy.name);
                       })()}
                       alt={enemy.name}
-                      className={`${styles.humanSprite}${(enemy as any).isPet ? ` ${styles.petSprite}` : ''}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
+                      className={`${styles.humanSprite}${((enemy as any).isPet || (enemy as any).isNeutral) ? ` ${styles.petSprite}` : ''}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
                       draggable={false}
                       style={{
                         // База обычных спрайтов смотрит вниз; модели зверей:
-                        // волк/кабан — вверх (+180°), медведь — влево (+270°).
+                        // волк/кабан — вверх (+90°), медведь — влево (+180°).
+                        // Нейтральный кабан смотрит вверх, как волк.
                         transform: (enemy as any).isPet
                           ? `rotate(${enemy.rotation + (((enemy as any).petKind === 'bear') ? 180 : 90)}deg)`
-                          : `rotate(${enemy.rotation - 90}deg)`,
+                          : (enemy as any).isNeutral
+                            ? `rotate(${enemy.rotation + 90}deg)`
+                            : `rotate(${enemy.rotation - 90}deg)`,
                         // Патруль вне боя — полупрозрачный (еле видно); в бою — 100%.
                         // Босс всегда 100%: он не прячется.
                         opacity: ((enemy.aiRole === 'patrol' || enemy.aiRole === 'reinforce') && !enemy.aggro && !isBossEnemy(enemy.name, (enemy as any).factionKey)) ? 0.5 : 1,
