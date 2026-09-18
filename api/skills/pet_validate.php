@@ -48,8 +48,12 @@ function petDefs() {
 /** Суммарные гейты верхних тиров: [branch, tier, fromTier, toTier, need]. */
 function petTierGates() {
     return [
+        ['bear', 4, 1, 3, 15],
+        ['bear', 5, 1, 4, 20],
         ['bear', 6, 1, 5, 25],
         ['bear', 7, 1, 6, 25],
+        ['wolf', 4, 1, 3, 15],
+        ['wolf', 5, 1, 4, 20],
         ['wolf', 6, 1, 5, 25],
         ['wolf', 7, 1, 6, 25],
         ['boar', 6, 1, 5, 25],

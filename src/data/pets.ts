@@ -136,6 +136,8 @@ export const PET_TIER_GATES: Record<string, PetTierGate> = {
   'bear:5': { fromTier: 1, toTier: 4, need: 20 },
   'bear:6': { fromTier: 1, toTier: 5, need: 25 },
   'bear:7': { fromTier: 1, toTier: 6, need: 25 },
+  'wolf:4': { fromTier: 1, toTier: 3, need: 15 },
+  'wolf:5': { fromTier: 1, toTier: 4, need: 20 },
   'wolf:6': { fromTier: 1, toTier: 5, need: 25 },
   'wolf:7': { fromTier: 1, toTier: 6, need: 25 },
   'boar:6': { fromTier: 1, toTier: 5, need: 25 },
