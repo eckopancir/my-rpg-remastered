@@ -2753,8 +2753,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         get().addPopup(nx, ny, '💥 ОТБРОС!', 'SPECIAL');
       }
     }
-    // Вампиризм питомца с урона.
-    const vamp = Math.round(dmg * (eff.vampir || 0));
+    // Вампиризм питомца с урона. Минимум 1 при любом прошедшем уроне —
+    // иначе эффект баффов (Рваная рана) не видно.
+    const vamp = dmg > 0 ? Math.max(1, Math.round(dmg * (eff.vampir || 0))) : 0;
     if (vamp > 0) {
       set((st: any) => ({
         enemies: st.enemies.map((e: any) => e.id === pet.id
@@ -2762,6 +2763,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           : e),
       }));
       get().addPopup(pet.pos.x, pet.pos.y, `+${vamp} 🩸`, 'VAMP');
+      if ((eff.vampir || 0) >= 1) get().addBattleLog(`🩸 Вампиризм ${pet.name}: +${vamp} HP`);
     }
     const deadNow = (get().enemies.find((e: any) => e.id === targetId)?.currentHp || 0) <= 0;
     if (deadNow) get().addBattleLog(`💀 ${target.name} повержен питомцем!`);
