@@ -238,7 +238,7 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
         <div style={{ height: 3, background: '#a16207', opacity: 0.95, borderRadius: '10px 10px 0 0' }} />
         <div style={{ padding: '8px 14px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            {(() => { const im = PET_BY_ID[ab.defId]?.image ? getLesnikImage(PET_BY_ID[ab.defId].image as string) : undefined; return im ? <img src={im} alt={ab.name} style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 7 }} /> : <span style={{ fontSize: 30 }}>{ab.icon}</span>; })()}
+            {(() => { const key = ab.defId === 'pet_ai' && activePetId === 'wolf' ? 'ии автобой, если выбран волк' : PET_BY_ID[ab.defId]?.image; const im = key ? getLesnikImage(key) : undefined; return im ? <img src={im} alt={ab.name} style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 7 }} /> : <span style={{ fontSize: 30 }}>{ab.icon}</span>; })()}
             <span style={{ fontSize: 15, fontWeight: 700, color: '#fbbf24' }}>{ab.name}</span>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.45)', justifyContent: 'center' }}>
@@ -358,7 +358,10 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
           const isSelected = isToggleActive || (!!entry && !isPassive && selectedAbility === (entry as any).idx && selectedAbilitySource === wantSource);
           const isOver = dragOver === i;
           const isFreeAb = !!ab && (isPet || !!(ab as any)?.passive || (ab as any)?.free === true);
-          const petDefImg = isPet && (entry.ab as any)?.defId ? PET_BY_ID[(entry.ab as any).defId]?.image : undefined;
+          const petDefId = isPet ? (entry.ab as any)?.defId : undefined;
+          const petDefImg = petDefId
+            ? (petDefId === 'pet_ai' && activePetId === 'wolf' ? 'ии автобой, если выбран волк' : PET_BY_ID[petDefId]?.image)
+            : undefined;
           const abImg = !isPet && (ab as any)?.image ? getSniperImage((ab as any).image as string)
             : petDefImg ? getLesnikImage(petDefImg) : undefined;
           const statusText = !entry ? '' : isPassive ? (cd > 0 ? `КД${cd}` : 'ГОТОВ') : cd > 0 ? `КД${cd}` : cost > 0 ? `${cost}AP` : 'FREE';

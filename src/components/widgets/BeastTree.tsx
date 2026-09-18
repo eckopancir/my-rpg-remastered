@@ -7,9 +7,11 @@ import {
 } from '../../data/pets';
 import { beastSkillsBg, getLesnikImage } from '../../assets/index';
 
-/** Картинка способности (или эмодзи, если картинки нет). */
+/** Картинка способности (или эмодзи, если картинки нет). ИИ автобоя — своя у волка. */
 export const PetDefIcon = ({ def, size }: { def: PetAbilityDef; size: number }) => {
-  const src = def.image ? getLesnikImage(def.image) : undefined;
+  const activePetId = usePlayerStore((s) => s.activePetId);
+  const key = def.id === 'pet_ai' && activePetId === 'wolf' ? 'ии автобой, если выбран волк' : def.image;
+  const src = key ? getLesnikImage(key) : undefined;
   if (src) return <img src={src} alt={def.name} draggable={false} style={{ width: size, height: size, objectFit: 'cover', borderRadius: 6 }} />;
   return <span style={{ fontSize: size, lineHeight: 1 }}>{def.icon}</span>;
 };
