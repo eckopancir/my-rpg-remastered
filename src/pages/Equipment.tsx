@@ -8,6 +8,7 @@ import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, equipment
 import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, worseQuality, type AmmoGroup } from '../data/ammo';
 import { removeItemFromGrid } from '../data/backpacks';
 import { PET_META, petMood, petSatietyAt, petBaseStats, petBranchBonuses, type PetKind } from '../data/pets';
+import { effectiveItemStats } from '../utils/itemStats';
 import { PetStatsTooltip, fmtPetStat, type PetStatRow } from '../components/widgets/PetStatsTooltip';
 import { syncNow } from '../utils/serverSync';
 import { useInventoryStore } from '../stores/inventoryStore';
@@ -127,7 +128,9 @@ const PetSlotRow = () => {
         const meta = PET_META[petTip.kind];
         const lvlMult = 1 + 0.2 * (Math.max(1, playerLevel) - 1);
         const bonus = petBranchBonuses(petTip.kind, playerSkills);
-        const nums = petBaseStats(petTip.kind, lvlMult, playerDamage || 5, playerMaxHp || 100, bonus, playerArmorEq || 0, playerSpeed || 0);
+        const meleeItem = (equipment as any)?.weapon1;
+        const meleeDmg = meleeItem ? (effectiveItemStats(meleeItem).damage || 0) : 0;
+        const nums = petBaseStats(petTip.kind, lvlMult, playerDamage || 5, playerMaxHp || 100, bonus, playerArmorEq || 0, playerSpeed || 0, meleeDmg);
         const b = (k: keyof typeof bonus): number => (bonus as any)[k] || 0;
         const rows: PetStatRow[] = [
           { label: 'HP', value: fmtPetStat('maxHp', nums.maxHp) },
@@ -140,6 +143,7 @@ const PetSlotRow = () => {
           { label: 'Скорость', value: fmtPetStat('speed', nums.speed) },
           { label: 'Вампиризм', value: fmtPetStat('vampir', nums.vampir) },
           { label: 'Реген', value: fmtPetStat('regen', nums.regen) },
+          { label: 'Пробивание', value: fmtPetStat('punching', nums.punching || 0) },
         ];
         return (
           <PetStatsTooltip

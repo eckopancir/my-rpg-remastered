@@ -12,6 +12,7 @@ import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
+import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
 import { ALL_ABILITIES } from '../data/accessoryAbilities';
 import { petBaseStats, petBranchBonuses, petCellsPerAp, petSatietyAt, petMood, petHpMult, PET_META, type PetKind, type PetBattleAbility } from '../data/pets';
@@ -1675,7 +1676,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (petKind && PET_META[petKind]) {
         const lvlMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
         const bonus = petBranchBonuses(petKind, ps.skills);
-        const nums = petBaseStats(petKind, lvlMult, ps.stats.damage || 5, ps.stats.maxHp || 100, bonus, ps.stats.armor || 0, ps.stats.speed || 0);
+        const meleeItem = (ps.equipment as any)?.weapon1;
+        const meleeDmg = meleeItem ? (effectiveItemStats(meleeItem).damage || 0) : 0;
+        const nums = petBaseStats(petKind, lvlMult, ps.stats.damage || 5, ps.stats.maxHp || 100, bonus, ps.stats.armor || 0, ps.stats.speed || 0, meleeDmg);
         // Сытость: голодный −90% HP, проголодался −30% (null = данных нет, считаем сытым).
         const satRaw = ps.petSatiety;
         const satNow = satRaw ? petSatietyAt(satRaw.value, satRaw.updatedAt, Date.now()) : 100;
@@ -1698,7 +1701,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           dps: nums.damage, damage: nums.damage,
           maxHp: nums.maxHp, currentHp: nums.maxHp,
           armor: nums.armor, evasion: nums.evasion, block: nums.block,
-          crit: nums.crit, accuracy: nums.accuracy, punching: 0,
+          crit: nums.crit, accuracy: nums.accuracy, punching: nums.punching || 0,
           vampir: nums.vampir, regen: nums.regen, speed: nums.speed,
           pos: spot, rotation: 270,
           rangeDistance: 1.5, shotPrice: 1, runAp: 2,

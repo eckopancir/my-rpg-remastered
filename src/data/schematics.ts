@@ -32,12 +32,18 @@ const QUALITY_INDEX: Record<string, number> = {
   'Смертоносный': 4, 'Легендарный': 5, 'Божественный': 6,
 };
 
-/** % бонуса сферы по стату и редкости сферы. */
+/** Защитные (не атакующие) статы сфер: броня, уклон, блок, вамп, реген, HP. */
+export const SCHEME_DEFENSIVE_STATS = new Set(['armor', 'evasion', 'block', 'vampir', 'regen', 'maxHp']);
+
+/** % бонуса сферы по стату и редкости сферы. Защитные дают в 3 раза меньше
+ *  (божественная была 50% → стала ~16.7%; броня 25% → ~8.3%). Атакующие без изменений. */
 export const schemePctFor = (stat: string, rarity?: string): number => {
   const idx = QUALITY_INDEX[rarity || 'Обычный'] ?? 0;
   const base = SCHEME_BASE_PCT[stat] ?? 20;
   const step = SCHEME_STEP_PCT[stat] ?? 5;
-  return base + step * idx;
+  const raw = base + step * idx;
+  if (!SCHEME_DEFENSIVE_STATS.has(stat)) return raw;
+  return Math.round((raw / 3) * 10) / 10;
 };
 
 /** Плоский бонус стихийной сферы: +10, +5 за ранг (Обычная +10 … Божественная +40). */

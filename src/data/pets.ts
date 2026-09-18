@@ -10,7 +10,7 @@ export type PetStatKey =
   | 'maxHp' | 'damage' | 'armor' | 'evasion' | 'block'
   | 'crit' | 'accuracy' | 'speed' | 'vampir' | 'regen' | 'pctPlayerHp'
   | 'pctBaseHp' | 'pctDamage' | 'pctHostArmor' | 'pctPlayerDmg' | 'pctPlayerSpeed'
-  | 'armorPerTurn' | 'critPerTurn';
+  | 'armorPerTurn' | 'critPerTurn' | 'punching';
 
 export interface PetStatPerRank {
   stat: PetStatKey;
@@ -77,17 +77,17 @@ export const PET_ABILITIES: PetAbilityDef[] = [
   { id: 'pb_t7_alpha', branch: 'bear', tier: 7, name: 'Улучшенная стена стаи', icon: '👑', image: '7.1', kind: 'ulta', maxRanks: 1, gate: 5, petApCost: 0, cooldown: 0, aura: { stat: 'maxHp', value: 0.3 }, mechanic: 'Улучшает «Стену стаи»: аура +30% здоровья союзникам в радиусе 30, пока зверь жив.' },
 
   // ---------- ВОЛК (урон + вамп + уклонение; HP и брони почти нет) ----------
-  { id: 'pw_t1_own', branch: 'wolf', tier: 1, name: '+10% урона от хозяина', icon: '🩸', image: '11', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('pctPlayerDmg', 0.1, '+10% урона от хозяина')] },
+  { id: 'pw_t1_own', branch: 'wolf', tier: 1, name: '+10% урона ближнего боя', icon: '🩸', image: '11', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('pctPlayerDmg', 0.1, '+10% урона ближнего боя')] },
   { id: 'pw_t1_eva', branch: 'wolf', tier: 1, name: '+1% уклонения', icon: '💨', image: '12', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('evasion', 0.01, '+1% уклонения')] },
-  { id: 'pw_t2_dmg', branch: 'wolf', tier: 2, name: '+2 урона', icon: '⚔️', image: '21', kind: 'stat', maxRanks: 10, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('damage', 2, '+2 урона')] },
+  { id: 'pw_t2_dmg', branch: 'wolf', tier: 2, name: '+4 урона', icon: '⚔️', image: '21', kind: 'stat', maxRanks: 10, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('damage', 4, '+4 урона')] },
   { id: 'pw_t2_aura', branch: 'wolf', tier: 2, name: 'Кровь стаи', icon: '🌙', image: '22', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('pctDamage', 0.02, '+2% урона')], aura: { stat: 'damage', value: 0.02 } },
   { id: 'pw_t3_rend', branch: 'wolf', tier: 3, name: 'Рваная рана', icon: '🦷', image: '31', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pw_t3_shade'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 6 ходов ×2 + хил 500% от нанесённого.' },
   { id: 'pw_t3_shade', branch: 'wolf', tier: 3, name: 'Полоснуть', icon: '🌑', image: '32', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pw_t3_rend'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 8 ходов +100% крита себе на 1 ход.' },
-  { id: 'pw_t4_gon', branch: 'wolf', tier: 4, name: 'Верность хозяину', icon: '🏃', image: '41', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('pctPlayerSpeed', 0.05, '+5% скорости от хозяина'), R('vampir', 0.05, '+5% вампиризма')], mechanic: 'Пассив: +5% скорости от хозяина и +5% вампиризма за ранг.' },
+  { id: 'pw_t4_gon', branch: 'wolf', tier: 4, name: 'Верность хозяину', icon: '🏃', image: '41', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('punching', 0.6, '+60% пробивания')], mechanic: 'Пассив: +60% пробивания за ранг (300% на 5 рангах).' },
   { id: 'pw_t5_howl', branch: 'wolf', tier: 5, name: 'Вой', icon: '🐺', image: '51', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('critPerTurn', 0.002, '+0.2% крита/ход')], mechanic: 'Пассив: каждый ход +0.2% крита за ранг (стакается, без капа).' },
   { id: 'pw_t6_reap', branch: 'wolf', tier: 6, name: 'Инстинкты выживания', icon: '💥', image: '61', kind: 'active', maxRanks: 1, gate: 4, exclusiveWith: ['pw_t6_oath'], petApCost: 0, cooldown: 50, mechanic: '+100% уклонения волку на 2 хода. КД 50, 2 AP игрока.' },
   { id: 'pw_t6_oath', branch: 'wolf', tier: 6, name: 'Клятва стаи', icon: '🩸', image: '62', kind: 'active', maxRanks: 1, gate: 4, exclusiveWith: ['pw_t6_reap'], petApCost: 0, cooldown: 50, mechanic: 'Хозяин теряет 50% HP, волк лечит 80% HP. КД 50, 2 AP игрока.' },
-  { id: 'pw_t7_leader', branch: 'wolf', tier: 7, name: 'Альфа стаи', icon: '⭐', image: '71', kind: 'ulta', maxRanks: 1, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('vampir', 0.05, '+5% вамп'), R('speed', 0.05, '+5% скорость')], aura: { stat: 'vampir', value: 0.3 }, mechanic: 'Улучшает «Кровь стаи»: аура +30% вампиризма союзникам (урон стаи +10% от рангов Т2), пока зверь жив.' },
+  { id: 'pw_t7_leader', branch: 'wolf', tier: 7, name: 'Альфа стаи', icon: '⭐', image: '71', kind: 'ulta', maxRanks: 1, gate: 5, petApCost: 0, cooldown: 0, aura: { stat: 'vampir', value: 0.3 }, mechanic: 'Улучшает «Кровь стаи»: стая даёт +10% урона и +30% вампиризма всем союзникам, пока зверь жив.' },
 
   // ---------- КАБАН (реген + урон) ----------
   { id: 'po_t1_reg', branch: 'boar', tier: 1, name: '+1% реген', icon: '🌿', kind: 'stat', maxRanks: 5, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('regen', 0.01, '+1% реген/ход')] },
@@ -229,10 +229,11 @@ export const petRankText = (def: PetAbilityDef, rank: number): string => {
       if (s.stat === 'pctPlayerHp') return `+${Math.round(s.value * rank * 100)}% здоровья от хозяина`;
       if (s.stat === 'pctBaseHp') return `+${Math.round(s.value * rank * 100)}% здоровья`;
       if (s.stat === 'pctDamage') return `+${Math.round(s.value * rank * 100)}% урона`;
-      if (s.stat === 'pctPlayerDmg') return `+${Math.round(s.value * rank * 100)}% урона от хозяина`;
+      if (s.stat === 'pctPlayerDmg') return `+${Math.round(s.value * rank * 100)}% урона ближнего боя`;
       if (s.stat === 'pctPlayerSpeed') return `+${Math.round(s.value * rank * 100)}% скорости от хозяина`;
       if (s.stat === 'pctHostArmor') return `+${Math.round(s.value * rank * 100)}% брони хозяина`;
       if (s.stat === 'critPerTurn') return `+${(s.value * rank * 100).toFixed(1).replace('.', ',')}% крита/ход`;
+      if (s.stat === 'punching') return `+${Math.round(s.value * rank * 100)}% ${petStatLabel(s.stat)}`;
       if (s.stat === 'maxHp' || s.stat === 'damage' || (s.stat === 'armor' && s.value >= 1) || s.stat === 'armorPerTurn') return `+${(s.value * rank).toString().replace('.', ',')} ${petStatLabel(s.stat)}`;
       if (s.stat === 'regen' && s.value >= 1) return `+${s.value * rank} ${petStatLabel(s.stat)}`;
       if (s.stat === 'armor' && s.value < 1) return `+${Math.round(s.value * rank * 100)}% ${petStatLabel(s.stat)}`;
@@ -257,11 +258,12 @@ const petStatLabel = (s: PetStatKey): string => {
     case 'pctPlayerHp': return 'здоровья от хозяина';
     case 'pctBaseHp': return 'здоровья';
     case 'pctDamage': return 'урона';
-    case 'pctPlayerDmg': return 'урона от хозяина';
+    case 'pctPlayerDmg': return 'урона ближнего боя';
     case 'pctPlayerSpeed': return 'скорости от хозяина';
     case 'pctHostArmor': return 'брони хозяина';
     case 'armorPerTurn': return 'брони/ход';
     case 'critPerTurn': return 'крита/ход';
+    case 'punching': return 'пробивания';
     default: return s;
   }
 };
@@ -270,6 +272,7 @@ const petStatLabel = (s: PetStatKey): string => {
 export interface PetStatBonus {
   maxHp: number; damage: number; armor: number; evasion: number; block: number;
   crit: number; accuracy: number; speed: number; vampir: number; regen: number;
+  punching: number;
   pctPlayerHp: number; pctBaseHp: number; pctDamage: number; pctHostArmor: number;
   pctPlayerDmg: number; pctPlayerSpeed: number;
   armorPerTurn: number; critPerTurn: number;
@@ -278,6 +281,7 @@ export interface PetStatBonus {
 export const EMPTY_PET_BONUS: PetStatBonus = {
   maxHp: 0, damage: 0, armor: 0, evasion: 0, block: 0,
   crit: 0, accuracy: 0, speed: 0, vampir: 0, regen: 0,
+  punching: 0,
   pctPlayerHp: 0, pctBaseHp: 0, pctDamage: 0, pctHostArmor: 0,
   pctPlayerDmg: 0, pctPlayerSpeed: 0,
   armorPerTurn: 0, critPerTurn: 0,
@@ -424,6 +428,7 @@ export const petHpMult = (v: number): number => {
 export interface PetBaseNumbers {
   maxHp: number; damage: number; armor: number; evasion: number; block: number;
   crit: number; accuracy: number; speed: number; vampir: number; regen: number;
+  punching: number;
 }
 
 /**
@@ -431,7 +436,7 @@ export interface PetBaseNumbers {
  * Доли (вамп/скорость/реген) не мультиплицируются.
  */
 export function petBaseStats(
-  kind: PetKind, levelMult: number, playerDamage: number, playerMaxHp: number, bonus: PetStatBonus, playerArmor: number = 0, playerSpeed: number = 0,
+  kind: PetKind, levelMult: number, playerDamage: number, playerMaxHp: number, bonus: PetStatBonus, playerArmor: number = 0, playerSpeed: number = 0, playerMeleeDamage: number = 0,
 ): PetBaseNumbers {
   const base = kind === 'bear'
     ? { hp: 600, dmgFrac: 0.25, armor: 4, eva: 0.05, block: 0.1, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0 }
@@ -442,7 +447,7 @@ export function petBaseStats(
   const maxHp = Math.round(
     (base.hp * levelMult + bonus.maxHp + playerMaxHp * bonus.pctPlayerHp) * (1 + bonus.pctBaseHp),
   );
-  const damage = Math.max(1, Math.round((playerDamage * base.dmgFrac + bonus.damage + playerDamage * (bonus.pctPlayerDmg || 0)) * (1 + bonus.pctDamage)));
+  const damage = Math.max(1, Math.round((playerDamage * base.dmgFrac + bonus.damage + playerMeleeDamage * (bonus.pctPlayerDmg || 0)) * (1 + bonus.pctDamage)));
   return {
     maxHp,
     damage,
@@ -454,5 +459,6 @@ export function petBaseStats(
     speed: Math.max(0, base.spd + bonus.speed + playerSpeed * (bonus.pctPlayerSpeed || 0)),
     vampir: Math.max(0, base.vamp + bonus.vampir),
     regen: Math.max(0, base.reg + bonus.regen),
+    punching: Math.max(0, bonus.punching || 0),
   };
 }
