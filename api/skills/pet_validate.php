@@ -7,7 +7,7 @@
  */
 function petDefs() {
     return [
-        'pb_t1_hp' => ['bear', 1, 5, 0, [], null],
+        'pb_t1_hp' => ['bear', 1, 10, 0, [], null],
         'pb_t1_arm' => ['bear', 1, 10, 0, [], null],
         'pb_t2_dmg' => ['bear', 2, 10, 5, [], null],
         'pb_t2_aura' => ['bear', 2, 5, 5, [], null],
@@ -19,7 +19,7 @@ function petDefs() {
         'pb_t6_restore' => ['bear', 6, 1, 4, ['pb_t6_regen'], null],
         'pb_t6_regen' => ['bear', 6, 1, 4, ['pb_t6_restore'], null],
         'pb_t7_alpha' => ['bear', 7, 1, 5, [], null],
-        'pw_t1_own' => ['wolf', 1, 5, 0, [], null],
+        'pw_t1_own' => ['wolf', 1, 10, 0, [], null],
         'pw_t1_eva' => ['wolf', 1, 10, 0, [], null],
         'pw_t2_dmg' => ['wolf', 2, 10, 5, [], null],
         'pw_t2_aura' => ['wolf', 2, 5, 5, [], null],
