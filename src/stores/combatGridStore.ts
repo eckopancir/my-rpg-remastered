@@ -3932,11 +3932,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             : e),
         }));
         if (armorGain > 0) {
-          get().addPopup(npos.x, npos.y, `+${armorGain.toFixed(1)} 🛡️`, 'BUFF');
           get().addBattleLog(`🐻 Ярость Урсока: +${armorGain.toFixed(1)} брони (всего ${newArmor.toFixed(1)})`);
         }
         if (critGain > 0) {
-          get().addPopup(npos.x, npos.y, `+${(critGain * 100).toFixed(1)}% 🌀`, 'BUFF');
           get().addBattleLog(`🐺 Вой: +${(critGain * 100).toFixed(1)}% крита (всего ${Math.round(newCrit * 100)}%)`);
         }
         if (heal > 0) {
