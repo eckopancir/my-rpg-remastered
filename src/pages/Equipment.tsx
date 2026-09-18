@@ -9,6 +9,7 @@ import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, w
 import { removeItemFromGrid } from '../data/backpacks';
 import { PET_META, petMood, petSatietyAt, petBaseStats, petBranchBonuses, type PetKind } from '../data/pets';
 import { effectiveItemStats } from '../utils/itemStats';
+import { petAvatarImage } from '../assets/index';
 import { PetStatsTooltip, fmtPetStat, type PetStatRow } from '../components/widgets/PetStatsTooltip';
 import { syncNow } from '../utils/serverSync';
 import { useInventoryStore } from '../stores/inventoryStore';
@@ -114,7 +115,9 @@ const PetSlotRow = () => {
             {!unlocked && (
               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: 'rgba(0,0,0,0.45)', borderRadius: 6 }}>🔒</span>
             )}
-            <span style={{ fontSize: 26, lineHeight: 1 }}>{meta.icon}</span>
+            {(() => { const av = petAvatarImage(k); return av
+              ? <img src={av} alt={meta.name} draggable={false} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+              : <span style={{ fontSize: 26, lineHeight: 1 }}>{meta.icon}</span>; })()}
             <span style={{ fontSize: 8, fontWeight: 700, color: active ? meta.color : 'var(--text-muted)' }}>{meta.name}</span>
           </div>
         );
@@ -128,7 +131,7 @@ const PetSlotRow = () => {
         const meta = PET_META[petTip.kind];
         const lvlMult = 1 + 0.2 * (Math.max(1, playerLevel) - 1);
         const bonus = petBranchBonuses(petTip.kind, playerSkills);
-        const meleeItem = (equipment as any)?.weapon1;
+        const meleeItem = (usePlayerStore.getState().equipment as any)?.weapon1;
         const meleeDmg = meleeItem ? (effectiveItemStats(meleeItem).damage || 0) : 0;
         const nums = petBaseStats(petTip.kind, lvlMult, playerDamage || 5, playerMaxHp || 100, bonus, playerArmorEq || 0, playerSpeed || 0, meleeDmg);
         const b = (k: keyof typeof bonus): number => (bonus as any)[k] || 0;
