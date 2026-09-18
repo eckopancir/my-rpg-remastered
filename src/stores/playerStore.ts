@@ -690,10 +690,10 @@ export const usePlayerStore = create<PlayerStore>()(
           // Пассивки-автопроки волка — так же в 24 слотах.
           if (get().activePetId === 'wolf') {
             if ((get().skills['pw_t3_rend'] || 0) > 0 && !pa.some((a: any) => a.id === 'petp_pw_t3_rend')) {
-              pa.push({ id: 'petp_pw_t3_rend', defId: 'pw_t3_rend', name: 'Рваная рана', icon: '🦷', petApCost: 0, cooldown: 6, needsTarget: false, range: 2, exec: 'passive' } as any);
+              pa.push({ id: 'petp_pw_t3_rend', defId: 'pw_t3_rend', name: 'Рваная рана', icon: '🦷', petApCost: 0, cooldown: 4, needsTarget: false, range: 2, exec: 'passive' } as any);
             }
             if ((get().skills['pw_t3_shade'] || 0) > 0 && !pa.some((a: any) => a.id === 'petp_pw_t3_shade')) {
-              pa.push({ id: 'petp_pw_t3_shade', defId: 'pw_t3_shade', name: 'Полоснуть', icon: '🌑', petApCost: 0, cooldown: 8, needsTarget: false, range: 2, exec: 'passive' } as any);
+              pa.push({ id: 'petp_pw_t3_shade', defId: 'pw_t3_shade', name: 'Полоснуть', icon: '🌑', petApCost: 0, cooldown: 4, needsTarget: false, range: 2, exec: 'passive' } as any);
             }
           }
         }

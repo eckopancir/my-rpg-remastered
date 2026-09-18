@@ -2704,6 +2704,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     playCombatSound('Corruption', 0.35);
     set((st: any) => ({
       enemies: st.enemies.map((e: any) => {
+        // Атакующий раскрывается: ударил — вышел из скрытности (как выстрел хозяина).
+        if (e.id === pet.id) return { ...e, isInvisible: false, invisTurns: 0 };
         if (e.id !== targetId) return e;
         const hp = Math.max(0, (e.currentHp || 0) - dmg);
         return { ...e, currentHp: hp, isHit: true, dead: hp <= 0, aggro: true, knowsPlayer: true, alertTurn: get().turnCount };
@@ -3813,7 +3815,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           if (step.cells > 0) npos = { x: step.x, y: step.y };
         }
         const armorGain = ursokPerTurn;
-        const critGain = howlPerTurn;
+        // Вой стакается только вне скрытности: в стелсе волк сидит тихо.
+        const critGain = cs.stealth ? 0 : howlPerTurn;
         const newArmor = (pet.armor || 0) + armorGain;
         const newCrit = (pet.crit || 0) + critGain;
         set((s2: any) => ({
@@ -3878,28 +3881,33 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             }
           }
         }
-        // Авто-способности волка (пассивные, по КД): Рваная рана (6) и Полоснуть (8)
+        // Авто-способности волка (пассивные, по КД): Рваная рана (4) и Полоснуть (4)
         if (pet.petKind === 'wolf') {
           const hasRend = (ps.skills['pw_t3_rend'] || 0) > 0;
           const hasShade = (ps.skills['pw_t3_shade'] || 0) > 0;
-          if (hasRend && turn > 0 && turn % 6 === 0) {
+          if (hasRend && turn > 0 && turn % 4 === 0) {
             const tgt = get().enemies.find((e: any) => !e.dead && e.faction !== 'Союзник' && getDist(pet.pos, e.pos) <= 1.5);
             if (tgt) {
               playCombatSound('Maim', 0.5);
               get().petStrikeAt(tgt.id, 2, { healPct: 5 });
+              set((s2: any) => ({
+                enemies: s2.enemies.map((e: any) => e.id === pet.id
+                  ? { ...e, petBuffs: [...(e.petBuffs || []), { stat: 'vampir', value: 1.0, remaining: 1 }] }
+                  : e),
+              }));
               get().addPopup(tgt.pos.x, tgt.pos.y, '🩸 РВАНАЯ РАНА!', 'SPECIAL');
-              get().addBattleLog(`🐺 ${pet.name}: Рваная рана — ×2 + хил 500% по ${tgt.name}`);
+              get().addBattleLog(`🐺 ${pet.name}: Рваная рана — ×2 + хил 500% + 100% вампиризма на 1 ход`);
             }
           }
-          if (hasShade && turn > 0 && turn % 8 === 0) {
+          if (hasShade && turn > 0 && turn % 4 === 0) {
             set((s2: any) => ({
               enemies: s2.enemies.map((e: any) => e.id === pet.id
-                ? { ...e, petBuffs: [...(e.petBuffs || []), { stat: 'crit', value: 1.0, remaining: 1 }] }
+                ? { ...e, petBuffs: [...(e.petBuffs || []), { stat: 'crit', value: 1.0, remaining: 1 }, { stat: 'evasion', value: 0.1, remaining: 1 }] }
                 : e),
             }));
             playCombatSound('invis', 0.5);
-            get().addPopup(pet.pos.x, pet.pos.y, '🌑 +100% КРИТ!', 'BUFF');
-            get().addBattleLog(`🐺 ${pet.name}: Полоснуть — +100% крита на 1 ход`);
+            get().addPopup(pet.pos.x, pet.pos.y, '🌑 +100% КРИТ +10% УКЛОН!', 'BUFF');
+            get().addBattleLog(`🐺 ${pet.name}: Полоснуть — +100% крита и +10% уклонения на 1 ход`);
           }
         }
       }
