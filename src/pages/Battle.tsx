@@ -433,7 +433,6 @@ export const Battle = () => {
               <div
                 onClick={() => { playClick(); cycleWeapon(); }}
                 style={{
-                  gridColumn: '1 / span 2',
                   padding: '4px 6px', borderRadius: 5,
                   border: '1px solid rgba(255,255,255,0.12)',
                   background: 'rgba(255,255,255,0.03)',
@@ -446,7 +445,7 @@ export const Battle = () => {
                 }}
                 title={`Смена оружия (магазин текущего сохраняется): ${activeWeaponName}`}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔫 {activeWeaponName}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔫 Сменить оружие</span>
                 <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>Q</span>
               </div>
 
@@ -528,21 +527,6 @@ export const Battle = () => {
                 <span style={{ fontSize: 9, opacity: 0.7, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>SPACE</span>
               </div>
 
-              <div
-                onClick={resetStuckCombat}
-                title="Если бой завис — сбросить его и выйти"
-                style={{
-                  padding: '6px 9px', border: '1px solid rgba(255,80,80,0.25)',
-                  background: 'rgba(255,50,50,0.04)',
-                  color: 'rgba(255,120,120,0.6)',
-                  cursor: 'pointer',
-                  fontSize: 11, textTransform: 'uppercase',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                }}
-              >
-                <span>🧹 Сбросить бой</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>—</span>
-              </div>
             </div>
 
             {/* Ability panel */}
