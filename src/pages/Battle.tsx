@@ -385,8 +385,8 @@ export const Battle = () => {
               </div>
             )}
 
-            {/* Action buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {/* Action buttons — компактная сетка */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
               <div
                 onClick={() => {
                   if (nearCampfire) {
@@ -394,72 +394,79 @@ export const Battle = () => {
                     useCombatGridStore.getState().setShowCookingMenu(true);
                   }
                 }}
+                title="Костёр (E)"
                 style={{
-                  padding: '9px', borderRadius: 6,
+                  padding: '4px 6px', borderRadius: 5,
                   border: `1px solid ${nearCampfire ? 'rgba(74,222,128,0.6)' : 'rgba(255,255,255,0.08)'}`,
                   background: nearCampfire ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.03)',
                   color: nearCampfire ? '#4ade80' : 'var(--text-muted)',
                   cursor: nearCampfire ? 'pointer' : 'not-allowed',
-                  fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 11, fontWeight: 600,
                   opacity: turn !== 'player' ? 0.4 : 1,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
+                  minWidth: 0,
                 }}
               >
-                <span>🔥 Костёр</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>E {nearCampfire ? '●' : '○'}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔥 Костёр</span>
+                <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>E{nearCampfire ? '●' : ''}</span>
               </div>
 
               <div
                 onClick={() => { playClick(); playSound('reloading'); reload(); }}
+                title="Перезарядка · 1 AP (R)"
                 style={{
-                  padding: '9px', borderRadius: 6,
+                  padding: '4px 6px', borderRadius: 5,
                   border: '1px solid rgba(255,255,255,0.12)',
                   background: 'rgba(255,255,255,0.03)',
                   color: turn !== 'player' || ap < 1 ? 'rgba(255,255,255,0.2)' : 'var(--text-secondary)',
                   cursor: turn !== 'player' || ap < 1 ? 'not-allowed' : 'pointer',
-                  fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 11, fontWeight: 600,
                   opacity: turn !== 'player' || ap < 1 ? 0.4 : 1,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
+                  minWidth: 0,
                 }}
               >
-                <span>🔁 Перезарядка · 1 AP</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>R</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔁 Перезаряд.</span>
+                <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>R</span>
               </div>
 
               <div
                 onClick={() => { playClick(); cycleWeapon(); }}
                 style={{
-                  padding: '9px', borderRadius: 6,
+                  gridColumn: '1 / span 2',
+                  padding: '4px 6px', borderRadius: 5,
                   border: '1px solid rgba(255,255,255,0.12)',
                   background: 'rgba(255,255,255,0.03)',
                   color: turn !== 'player' ? 'rgba(255,255,255,0.2)' : 'var(--text-secondary)',
                   cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
-                  fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 11, fontWeight: 600,
                   opacity: turn !== 'player' ? 0.4 : 1,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
+                  minWidth: 0,
                 }}
-                title="Смена оружия (магазин текущего сохраняется)"
+                title={`Смена оружия (магазин текущего сохраняется): ${activeWeaponName}`}
               >
-                <span>🔫 {activeWeaponName}</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>Q</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔫 {activeWeaponName}</span>
+                <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>Q</span>
               </div>
 
               <div
                 onClick={() => { playClick(); toggleStealth(); }}
                 style={{
-                  padding: '9px', borderRadius: 6,
+                  padding: '4px 6px', borderRadius: 5,
                   border: `1px solid ${stealth ? 'var(--accent-primary)' : 'rgba(255,255,255,0.12)'}`,
                   background: stealth ? 'rgba(217,119,6,0.15)' : 'rgba(255,255,255,0.03)',
                   color: stealth ? 'var(--accent-primary)' : 'var(--text-secondary)',
                   cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
-                  fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 11, fontWeight: 600,
                   opacity: turn !== 'player' ? 0.4 : 1,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
+                  minWidth: 0,
                 }}
                 title="Скрытность: обычные замечают в 3, часовые — в 10 клетках. Слетает при выстреле. Только вне боя."
               >
-                <span>🕵️ Скрытность {stealth ? '(АКТИВНО)' : ''}</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>F</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🕵️ Скрытн.{stealth ? '●' : ''}</span>
+                <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>F</span>
               </div>
 
               {/* Скрытное убийство — видно только в скрытности */}
@@ -467,56 +474,58 @@ export const Battle = () => {
                 <div
                   onClick={() => { playClick(); stealthKill(); }}
                   style={{
-                    padding: '9px', borderRadius: 6,
+                    padding: '4px 6px', borderRadius: 5,
                     border: '1px solid rgba(248,113,113,0.4)',
                     background: 'rgba(248,113,113,0.08)',
                     color: turn !== 'player' ? 'rgba(255,255,255,0.2)' : '#f87171',
                     cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
-                    fontSize: 13, fontWeight: 600, textAlign: 'center', textTransform: 'uppercase',
+                    fontSize: 11, fontWeight: 600,
                     opacity: turn !== 'player' ? 0.4 : 1,
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
+                    minWidth: 0,
                   }}
                   title="Тихо убивает спящего врага рядом (2 AP). Стелс не слетает."
                 >
-                  <span>🔪 Скрытное убийство · 2 AP</span>
-                  <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>C</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔪 Убийство · 2AP</span>
+                  <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>C</span>
                 </div>
               )}
 
               <div
                 onClick={() => { playClick(); handleEnemyAttack(); }}
                 style={{
-                  padding: '9px', borderRadius: 6,
+                  gridColumn: '1 / span 2',
+                  padding: '5px 6px', borderRadius: 5,
                   border: '1px solid rgba(248,113,113,0.4)',
                   background: selectedAbility !== null ? 'rgba(251,191,36,0.12)' : 'rgba(248,113,113,0.08)',
                   color: turn !== 'player' || (selectedAbility === null && (ap < 1 || selectedEnemy === null)) ? 'rgba(255,255,255,0.2)' : '#f87171',
                   cursor: turn !== 'player' || (selectedAbility === null && (ap < 1 || selectedEnemy === null)) ? 'not-allowed' : 'pointer',
-                  fontSize: 14, fontWeight: 800, textAlign: 'center', textTransform: 'uppercase',
+                  fontSize: 11, fontWeight: 800,
                   opacity: turn !== 'player' || (selectedAbility === null && (ap < 1 || selectedEnemy === null)) ? 0.4 : 1,
                   animation: turn === 'player' && ((selectedAbility !== null) || (ap >= 1 && selectedEnemy !== null)) ? 'pulseBorder 2s infinite' : 'none',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
                 }}
               >
                 <span>{selectedAbility !== null ? '✨ Применить' : '🔫 Атака · 1 AP'}</span>
-                <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>КЛИК</span>
+                <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>КЛИК</span>
               </div>
 
               <div
                 onClick={() => { playClick(); endTurn(); }}
                 style={{
-                  padding: '10px', borderRadius: 6,
+                  gridColumn: '1 / span 2',
+                  padding: '6px', borderRadius: 5,
                   border: '1px solid rgba(217,119,6,0.4)',
                   background: 'linear-gradient(180deg, rgb(180,100,10), rgb(120,60,8))',
                   color: '#fff', fontWeight: 800,
                   cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
-                  fontSize: 13, textAlign: 'center', textTransform: 'uppercase',
-                  letterSpacing: 1, opacity: turn !== 'player' ? 0.4 : 1,
-                  marginTop: 2,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  fontSize: 12,
+                  opacity: turn !== 'player' ? 0.4 : 1,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
                 }}
               >
                 <span>⏭ Конец хода</span>
-                <span style={{ fontSize: 10, opacity: 0.7, fontFamily: 'var(--font-mono)' }}>SPACE</span>
+                <span style={{ fontSize: 9, opacity: 0.7, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>SPACE</span>
               </div>
 
               <div
