@@ -200,6 +200,17 @@
   z-index: 5;
 }
 
+/* Нейтральный кабан — на 20% меньше питомца */
+.neutralSprite {
+  width: 108% !important;
+  height: 108% !important;
+  max-width: none !important;
+  margin-left: -4%;
+  margin-top: -4%;
+  position: relative;
+  z-index: 5;
+}
+
 .meleeSpin {
   animation: spin360 0.4s linear;
 }
@@ -590,6 +601,16 @@
 /* Green glow on in-range allies — subtle */
 .inRangeAlly {
   filter: drop-shadow(0 0 4px rgba(34, 197, 94, 0.35));
+  transition: filter 0.2s ease;
+}
+
+/* Нейтралы (кабан): жёлтая аура вместо красной */
+.neutralCrosshair {
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.6), 0 0 24px rgba(251, 191, 36, 0.3);
+  filter: brightness(1.15);
+}
+.inRangeNeutral {
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7));
   transition: filter 0.2s ease;
 }
 

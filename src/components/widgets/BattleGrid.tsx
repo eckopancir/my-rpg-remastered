@@ -545,6 +545,7 @@ export const BattleGrid = () => {
             const isInRange = inRangeCells.has(`${x},${y}`);
             const hovered = hoveredEnemy && enemy?.id === hoveredEnemy.id;
             const isAllyCell = enemy?.faction === 'Союзник';
+            const isNeutralCell = !!(enemy as any)?.isNeutral;
             const visible = isCellVisible(x, y);
 
             return (
@@ -605,7 +606,7 @@ export const BattleGrid = () => {
                 {/* Living Enemy — только в прямом обзоре (по памяти позиции не палим) */}
                 {enemy && visible && (
                   <div
-                    className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered && !isAllyCell ? ` ${styles.enemyCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCrosshair}` : ''}${isInRange && !isAllyCell ? ` ${styles.inRangeEnemy}` : ''}${isInRange && isAllyCell ? ` ${styles.inRangeAlly}` : ''}`}
+                    className={`${styles.unit} ${styles.enemy}${isSel ? ` ${styles.selected}` : ''}${enemy.isInvisible ? ` ${styles.invisible}` : ''}${woodsCells.has(`${x},${y}`) ? ` ${styles.inWoods}` : ''}${hovered && isNeutralCell ? ` ${styles.neutralCrosshair}` : ''}${hovered && !isAllyCell && !isNeutralCell ? ` ${styles.enemyCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCrosshair}` : ''}${isInRange && isNeutralCell ? ` ${styles.inRangeNeutral}` : ''}${isInRange && !isAllyCell && !isNeutralCell ? ` ${styles.inRangeEnemy}` : ''}${isInRange && isAllyCell ? ` ${styles.inRangeAlly}` : ''}`}
                     style={{ borderColor: ENEMY_COLORS[enemy.faction] || '#a1a1aa', width: enemy.bigModel || '100%', height: enemy.bigModel || '100%', zIndex: 5 }}
                     onMouseDown={(e) => { if (e.button === 2) { measureRef.current = true; setMeasuring({ x, y }); setRmbHeld(true); } }}
                   >
@@ -670,7 +671,7 @@ export const BattleGrid = () => {
                         return getEnemyImage(enemy.faction, enemy.name);
                       })()}
                       alt={enemy.name}
-                      className={`${styles.humanSprite}${((enemy as any).isPet || (enemy as any).isNeutral) ? ` ${styles.petSprite}` : ''}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
+                      className={`${styles.humanSprite}${(enemy as any).isNeutral ? ` ${styles.neutralSprite}` : (enemy as any).isPet ? ` ${styles.petSprite}` : ''}${enemy.isSpinning ? ` ${styles.meleeSpin}` : ''}${enemy.isEnraged ? ` ${styles.enraged}` : ''}`}
                       draggable={false}
                       style={{
                         // База обычных спрайтов смотрит вниз; модели зверей:
