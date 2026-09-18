@@ -6,7 +6,7 @@ import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
-import { CONSUMABLE_MAP } from '../data/consumables';
+import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
 import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
@@ -103,6 +103,9 @@ export interface GridEnemy {
   petKind?: string;
   petAp?: number;
   petBuffs?: { stat: string; value: number; remaining: number }[];
+  // Нейтрал (фракция Нейтралы, напр. кабан): никого не трогает, его игнорят ИИ.
+  // Вне пошаговости: бродит по таймеру. Убить может только игрок (лут — мясо).
+  isNeutral?: boolean;
   // Позывной (досье), отступление к медику/костру, сдача в плен.
   callsign?: string;
   retreating?: boolean;
@@ -268,6 +271,8 @@ export interface CombatGridStore {
   setPetCommandMode: (v: boolean) => void;
   commandPetMove: (x: number, y: number) => void;
   commandPetAttack: (enemyId: number | string) => void;
+  /** Шаг нейтралов (кабан): 1 клетка в случайную сторону. Зовёт 10-сек таймер. */
+  wanderNeutrals: () => void;
   selectedAbility: number | null;
   selectedAbilitySource: 'player' | 'skillBar' | 'pet' | null;
   playerInvisible: boolean;
@@ -1025,7 +1030,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   aggroWave: (center, radius = 9) => {
     set((s) => ({
       enemies: s.enemies.map((e) => {
-        if (e.dead || e.currentHp <= 0 || e.faction === 'Союзник') return e;
+        if (e.dead || e.currentHp <= 0 || e.faction === 'Союзник' || (e as any).isNeutral) return e;
         if (e.aggro && e.knowsPlayer && !e.sleeping) return e;
         if (Math.hypot(e.pos.x - center.x, e.pos.y - center.y) > radius) return e;
         return { ...e, aggro: true, sleeping: false, knowsPlayer: true, alertTurn: get().turnCount };
@@ -1198,10 +1203,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           } catch { /* ignore */ }
           const screamIdx = Math.floor(Math.random() * 5) + 1;
           playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
-          next = { ...next, dead: true, loot: freshLoot, looted: false, isHit: false };
+          // Нейтрал: свой лут не затираем, мести нет.
+          next = (next as any).isNeutral
+            ? { ...next, dead: true, isHit: false }
+            : { ...next, dead: true, loot: freshLoot, looted: false, isHit: false };
           get().addBattleLog(`💀 ${next.name} сгорел!`);
           get().addMessage(`💀 ${next.name} сгорел! Кликни для лута`);
-          get().triggerRevengeDialogues(next.pos, (next as any).callsign);
+          if (!(next as any).isNeutral) get().triggerRevengeDialogues(next.pos, (next as any).callsign);
           wavesCheck = true;
         }
       }
@@ -1713,11 +1721,47 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           loot: [], looted: true, isMinion: false,
           isPet: true, petKind, petAp: 5, petBuffs: [],
         } as any);
-        console.log(`[PETSPAWN] kind=${petKind} hp=${nums.maxHp} dmg=${nums.damage} pos=${spot.x},${spot.y}`);
         get().addBattleLog(`🐾 ${meta.name} вступает в бой!`);
         if (satMood !== 'green') {
           get().addBattleLog(`🐾 ${meta.name} ${satMood === 'yellow' ? 'проголодался (−30% HP)' : 'голоден (−90% HP)'} — покорми в Экипировке`);
         }
+      }
+    }
+
+    // Нейтральный кабан: 1 шт на арену (шанс ниже; тест — всегда).
+    // Никого не трогает, ИИ его игнорирует, ходит по 10-сек таймеру.
+    // 50 HP, с трупа — 3-8 мяса. Убить может только игрок.
+    {
+      const NEUTRAL_BOAR_CHANCE = 1.0; // тест: 100%. Прод: 0.2.
+      if (Math.random() < NEUTRAL_BOAR_CHANCE) {
+        let spot = { x: Math.max(1, GRID - 4), y: Math.max(1, GRID - 4) };
+        for (let a = 0; a < 60; a++) {
+          const rx = 1 + Math.floor(Math.random() * (GRID - 2));
+          const ry = 1 + Math.floor(Math.random() * (GRID - 2));
+          if (Math.hypot(rx - playerPos.x, ry - playerPos.y) < 6) continue;
+          if (!isCellWalkable(rx, ry, obstacles)) continue;
+          if (activeEnemies.some((e: any) => !e.dead && e.pos.x === rx && e.pos.y === ry)) continue;
+          spot = { x: rx, y: ry };
+          break;
+        }
+        const meatQty = 3 + Math.floor(Math.random() * 6);
+        activeEnemies.push({
+          id: `neutral-boar-${Date.now()}`,
+          name: 'Кабан',
+          faction: 'Нейтралы',
+          dps: 1, damage: 1,
+          maxHp: 50, currentHp: 50,
+          armor: 0, evasion: 0.05, block: 0,
+          crit: 0, accuracy: 0.5, punching: 0,
+          vampir: 0, regen: 0, speed: 0,
+          pos: spot, rotation: 0,
+          rangeDistance: 1, shotPrice: 1, runAp: 0,
+          skillUse: [], cooldowns: {}, isInvisible: false, invisTurns: 0,
+          aggro: false, knowsPlayer: false, sleeping: false, dead: false, isHit: false,
+          loot: [makeConsumable('food_meat', meatQty)], looted: false,
+          isMinion: false, isNeutral: true,
+        } as any);
+        get().addBattleLog(`🐗 Дикий кабан бродит неподалёку...`);
       }
     }
 
@@ -2628,6 +2672,32 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     get().addBattleLog(`🐾 ${pet.name}: шаг (${step.cells} кл.)`);
   },
 
+  wanderNeutrals: () => {
+    const s = get();
+    if (!s.isActive) return;
+    const dirs = [
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+    ];
+    let moved = false;
+    const next = s.enemies.map((e: any) => {
+      if (!e.isNeutral || e.dead || (e.currentHp || 0) <= 0) return e;
+      // Таснуем направления, берём первое проходимое.
+      const shuffled = [...dirs].sort(() => Math.random() - 0.5);
+      for (const d of shuffled) {
+        const nx = e.pos.x + d.dx, ny = e.pos.y + d.dy;
+        if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+        if (!isCellWalkable(nx, ny, s.obstacles)) continue;
+        if (nx === s.playerPos.x && ny === s.playerPos.y) continue;
+        if (s.enemies.some((o: any) => o.id !== e.id && !o.dead && (o.currentHp || 0) > 0 && o.pos.x === nx && o.pos.y === ny)) continue;
+        moved = true;
+        return { ...e, pos: { x: nx, y: ny }, rotation: getAngle(e.pos, { x: nx, y: ny }) };
+      }
+      return e;
+    });
+    if (moved) set({ enemies: next });
+  },
+
   commandPetAttack: async (enemyId) => {
     const s = get();
     if (s.turn !== 'player' || s.isMoving) return;
@@ -2638,6 +2708,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     const target = s.enemies.find((e: any) => e.id === enemyId);
     if (!target || target.dead || (target.currentHp || 0) <= 0 || target.faction === 'Союзник') return;
+    if ((target as any).isNeutral) { get().addMessage('🐗 Нейтралов не трогаем'); return; }
     if ((pet.petAp || 0) <= 0) { get().addMessage('❌ У питомца нет AP'); return; }
     set({ petTargetId: enemyId, isMoving: true });
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -2688,7 +2759,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
     if (!pet || pet.sleeping || (pet.currentHp || 0) <= 0) return false;
     const target = s.enemies.find((e: any) => e.id === targetId);
-    if (!target || target.dead || (target.currentHp || 0) <= 0 || target.faction === 'Союзник') return false;
+    if (!target || target.dead || (target.currentHp || 0) <= 0 || target.faction === 'Союзник' || (target as any).isNeutral) return false;
     if (getDist(pet.pos, target.pos) > (pet.rangeDistance || 1.5)) return false;
     // Поворот питомца к цели — физика как у нас/врагов
     const rot = getAngle(pet.pos, target.pos);
@@ -2934,7 +3005,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       let hit = 0;
       set((s2: any) => ({
         enemies: s2.enemies.map((e: any) => {
-          if (e.dead || (e.currentHp || 0) <= 0 || e.faction === 'Союзник') return e;
+          if (e.dead || (e.currentHp || 0) <= 0 || e.faction === 'Союзник' || (e as any).isNeutral) return e;
           if (getDist(pet.pos, e.pos) > aoe) return e;
           hit++;
           return {
@@ -2954,6 +3025,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const target = tid != null ? state.enemies.find((e: any) => e.id === tid) : null;
     if (!target || target.dead || (target.currentHp || 0) <= 0 || target.faction === 'Союзник') {
       get().addMessage('❌ Выбери цель: сначала команда атаки');
+      return;
+    }
+    if ((target as any).isNeutral) {
+      get().addMessage('🐗 Нейтралов не трогаем');
       return;
     }
     set({ petTargetId: target.id });
@@ -3006,7 +3081,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       enemies: s2.enemies.map((e: any) => e.id === pet.id ? { ...e, petAp: pap } : e),
     }));
     const foesAround = (): any[] => get().enemies
-      .filter((e: any) => e.id !== pet.id && !e.dead && (e.currentHp || 0) > 0 && e.faction !== 'Союзник' && !e.isInvisible)
+      .filter((e: any) => e.id !== pet.id && !e.dead && (e.currentHp || 0) > 0 && e.faction !== 'Союзник' && !(e as any).isNeutral && !e.isInvisible)
       .sort((a: any, b: any) => getDist(pet.pos, a.pos) - getDist(pet.pos, b.pos));
     let guard = 0;
     while (pap >= 1 && guard++ < 8) {
@@ -3387,14 +3462,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         } catch (e) { /* ignore */ }
         const screamIdx = Math.floor(Math.random() * 5) + 1;
         playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
+        // Нейтрал: свой лут (мясо) не затираем, мести за него нет.
+        const keepNeutralLoot = (updatedEnemy as any).isNeutral;
         set((s2) => ({
           enemies: s2.enemies.map((e) =>
-            e.id === enemyId ? { ...e, dead: true, loot: freshLoot, looted: false, pos: corpsePos } : e
+            e.id === enemyId ? { ...e, dead: true, loot: keepNeutralLoot ? (e.loot || []) : freshLoot, looted: false, pos: corpsePos } : e
           ),
           message: `💀 ${updatedEnemy.name} уничтожен! Кликни для лута`,
         }));
         get().addBattleLog(`💀 ${updatedEnemy.name} уничтожен!`);
-        get().triggerRevengeDialogues(updatedEnemy.pos, (updatedEnemy as any).callsign);
+        if (!keepNeutralLoot) get().triggerRevengeDialogues(updatedEnemy.pos, (updatedEnemy as any).callsign);
         const allDead = get().enemies.every((e) => e.dead);
         if (allDead) {
           const hasReserve = get().reserve.length > 0;
@@ -3759,7 +3836,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const state = get();
     if (state.turn !== 'player' || state.isMoving) return;
     // Check all dead + no reserve -> free movement (союзники не в счёт).
-    const allDead = state.enemies.every((e) => e.dead || e.faction === 'Союзник');
+    const allDead = state.enemies.every((e) => e.dead || e.faction === 'Союзник' || (e as any).isNeutral);
     const noReserve = state.reserve.length === 0;
     if (allDead && noReserve) {
       // Врагов нет — тик сюда не доходит (ранний return), поэтому стойку
@@ -3783,7 +3860,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     // Защита от зависания: остался 1-2 противника, 50 ходов ни одного выстрела
     // ни с чьей стороны (застрял/за картой/не достать) — сбежали, бой окончен.
-    const hostiles = state.enemies.filter((e) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник');
+    const hostiles = state.enemies.filter((e) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник' && !(e as any).isNeutral);
     if (hostiles.length >= 1 && hostiles.length <= 2
       && state.reserve.length === 0 && state.pendingReinforce.length === 0
       && (state.turnCount - (state.lastShotTurn ?? 0)) >= 50) {
@@ -3875,7 +3952,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const hasPaw = (ps.skills['pb_t3_paw'] || 0) > 0;
           const hasRoar = (ps.skills['pb_t3_roar'] || 0) > 0;
           if (hasPaw && turn > 0 && turn % 6 === 0) {
-            const tgt = get().enemies.find((e: any) => !e.dead && e.faction !== 'Союзник' && getDist(pet.pos, e.pos) <= 2);
+            const tgt = get().enemies.find((e: any) => !e.dead && e.faction !== 'Союзник' && !(e as any).isNeutral && getDist(pet.pos, e.pos) <= 2);
             if (tgt) {
               playCombatSound('SkullBasher', 0.5);
               get().petStrikeAt(tgt.id, 2, { stun: 1 });
@@ -3887,7 +3964,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             let hit = 0;
             set((s2: any) => ({
               enemies: s2.enemies.map((e: any) => {
-                if (e.dead || e.faction === 'Союзник' || getDist(pet.pos, e.pos) > 10) return e;
+                if (e.dead || e.faction === 'Союзник' || (e as any).isNeutral || getDist(pet.pos, e.pos) > 10) return e;
                 hit++;
                 return { ...e, accuracy: Math.max(0.05, (e.accuracy || 1) * 0.8), debuffs: { ...(e.debuffs||{}), roar: true, turns: 1 } };
               }),

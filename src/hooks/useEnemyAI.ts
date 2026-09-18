@@ -238,6 +238,9 @@ export const useEnemyAI = () => {
         }
         if (enemy.currentHp <= 0) continue;
 
+        // Нейтрал (кабан): вне пошаговости — ходит по 10-сек таймеру, ИИ его не трогает.
+        if ((enemy as any).isNeutral) continue;
+
         // Питомец: без ИИ — ждёт команд; с ИИ (pet_ai) — авто-бой своим ходом.
         // try/catch: сбой ИИ питомца не должен ронять ходы остальных.
         if ((enemy as any).isPet) {
@@ -305,7 +308,8 @@ export const useEnemyAI = () => {
         // --- Увидел труп рядом (3 клетки), даже случайно проходя мимо: паника ---
         // (спящие выше уже continue — они трупов не видят).
         if (!useCombatGridStore.getState().alarmRaised && enemy.faction !== 'Союзник') {
-          const corpseNear = updatedEnemies.some((o: any) => o.dead
+          // Труп нейтрала (кабана) паники не вызывает.
+          const corpseNear = updatedEnemies.some((o: any) => o.dead && !(o as any).isNeutral
             && Math.max(Math.abs(o.pos.x - enemy.pos.x), Math.abs(o.pos.y - enemy.pos.y)) <= 3);
           if (corpseNear) {
             useCombatGridStore.getState().raiseCorpseAlarm(enemy.id);
@@ -583,7 +587,7 @@ export const useEnemyAI = () => {
 
         // --- Сдача в плен: последний живой противник при HP<25% (не босс) ---
         if (!isBoss && !enemy.surrenderOffered && !enemy.surrendering && enemy.currentHp > 0) {
-          const alive = updatedEnemies.filter((o: any) => !o.dead && o.currentHp > 0 && o.faction !== 'Союзник');
+          const alive = updatedEnemies.filter((o: any) => !o.dead && o.currentHp > 0 && o.faction !== 'Союзник' && !(o as any).isNeutral);
           if (alive.length === 1 && alive[0].id === enemy.id && hpFrac < 0.25) {
             enemy.surrendering = true;
             updatedEnemies[i] = { ...enemy };
@@ -637,9 +641,9 @@ export const useEnemyAI = () => {
           // Мусорщик у трупа не стреляет — только собирает хабар.
           let lootingCorpses = false;
           if (isAlly) {
-            // Союзник: ближайший живой противник — знают, где враги.
+            // Союзник: ближайший живой противник — знают, где враги (нейтралов не трогают).
             const hostile = updatedEnemies
-              .filter((e: any) => e.id !== enemy.id && !e.dead && e.currentHp > 0 && e.faction !== 'Союзник')
+              .filter((e: any) => e.id !== enemy.id && !e.dead && e.currentHp > 0 && e.faction !== 'Союзник' && !(e as any).isNeutral)
               .sort((a: any, b: any) => getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos))[0];
             // Врагов не осталось: миньоны — к хозяину, мусорщики — за хабаром с трупов.
             // Мусорщик без трупов просто ждёт (не трогает игрока).
@@ -647,7 +651,7 @@ export const useEnemyAI = () => {
               if ((enemy as any).isMinion) {
                 targetPos = { ...currentStore.playerPos };
               } else {
-                const hostilesLeft = updatedEnemies.some((e: any) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник');
+                const hostilesLeft = updatedEnemies.some((e: any) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник' && !(e as any).isNeutral);
                 const corpses = !hostilesLeft
                   ? updatedEnemies.filter((e: any) => e.dead && e.loot && e.loot.length > 0)
                   : [];
@@ -1066,6 +1070,8 @@ export const useEnemyAI = () => {
           for (let ei = 0; ei < updatedEnemies.length; ei++) {
             const e = updatedEnemies[ei];
             if (e.dead || e.currentHp <= 0) continue;
+            // Нейтралы мины не задевают и не подрывают.
+            if ((e as any).isNeutral) continue;
             const dist = Math.abs(e.pos.x - mine.pos.x) + Math.abs(e.pos.y - mine.pos.y);
             if (dist <= 1) {
               // Detonate!
@@ -1077,6 +1083,7 @@ export const useEnemyAI = () => {
               for (let ej = 0; ej < updatedEnemies.length; ej++) {
                 const enemy = updatedEnemies[ej];
                 if (enemy.dead) continue;
+                if ((enemy as any).isNeutral) continue;
                 const eDist = Math.abs(enemy.pos.x - mine.pos.x) + Math.abs(enemy.pos.y - mine.pos.y);
                 if (eDist <= 1) {
                   const dmg = Math.round(mine.damage * (1 - eDist * 0.15));

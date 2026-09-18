@@ -36,6 +36,7 @@ const ENEMY_COLORS: Record<string, string> = {
   Бандиты: '#dc2626',
   Военные: '#16a34a',
   Союзник: '#22d3ee',
+  Нейтралы: '#9ca3af',
   Неизвестно: '#a1a1aa',
 };
 
@@ -119,8 +120,8 @@ export const BattleGrid = () => {
   const setPlannedPath = useCombatGridStore((s) => s.setPlannedPath);
   const lootingEnemy = useCombatGridStore((s) => s.lootingEnemy);
   const canFinish = useMemo(() => {
-    // Союзники не блокируют финиш: все ВРАГИ мертвы + резерв пуст.
-    const hostiles = enemies.filter((e) => e.faction !== 'Союзник');
+    // Союзники и нейтралы не блокируют финиш: все ВРАГИ мертвы + резерв пуст.
+    const hostiles = enemies.filter((e) => e.faction !== 'Союзник' && !(e as any).isNeutral);
     return hostiles.length > 0 && hostiles.every((e) => e.dead) && reserve.length === 0;
   }, [enemies, reserve]);
   const [hoveredDeadId, setHoveredDeadId] = useState<number | string | null>(null);
@@ -160,6 +161,15 @@ export const BattleGrid = () => {
   const rmbDownCell = useRef<{ x: number; y: number } | null>(null);
 
   useEnemyAI();
+
+  // Нейтралы (кабан): шаг раз в 10 сек вне пошаговости, пока бой активен.
+  useEffect(() => {
+    if (!isActive) return;
+    const t = setInterval(() => {
+      useCombatGridStore.getState().wanderNeutrals();
+    }, 10000);
+    return () => clearInterval(t);
+  }, [isActive]);
 
   // -- Sound effects --
   const prevShotLine = useRef<typeof shotLine>(null);
@@ -574,10 +584,11 @@ export const BattleGrid = () => {
                     onMouseLeave={() => setHoveredDeadId(null)}
                   >
                     <img
-                      src={getCharacterImage(deadEnemy.deadModel || 'dead')}
+                      src={(deadEnemy as any).isNeutral ? (petModelImage('boar') || getCharacterImage(deadEnemy.deadModel || 'dead')) : getCharacterImage(deadEnemy.deadModel || 'dead')}
                       alt="dead"
                       className={`${styles.deadSprite}${hoveredDeadId === deadEnemy.id ? ` ${styles.deadHovered}` : ''}`}
                       draggable={false}
+                      style={(deadEnemy as any).isNeutral ? { filter: 'grayscale(1)' } : undefined}
                     />
                   </div>
                 )}
