@@ -6,7 +6,7 @@ import { useSound } from '../../hooks/useSound';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
-import { getEnemyImage, getBattleImage, getCharacterImage, images } from '../../assets/index';
+import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { weaponRangeProfile } from '../../data/ammo';
 import { PET_META, type PetKind } from '../../data/pets';
@@ -37,6 +37,28 @@ const ENEMY_COLORS: Record<string, string> = {
   Военные: '#16a34a',
   Союзник: '#22d3ee',
   Неизвестно: '#a1a1aa',
+};
+
+/** Искра удара питомца: картинка на клетке цели, гаснет сама (key = id для повторов). */
+const PetHitSpark = () => {
+  const petHitFx = useCombatGridStore((s) => s.petHitFx);
+  if (!petHitFx) return null;
+  const src = petStrikeImage();
+  if (!src) return null;
+  return (
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 41 }}>
+      <div style={{ position: 'absolute', left: `${(petHitFx.x / 31) * 100}%`, top: `${(petHitFx.y / 31) * 100}%`, width: 0, height: 0 }}>
+        <img
+          key={petHitFx.id}
+          src={src}
+          alt=""
+          draggable={false}
+          className={styles.petHitPop}
+          style={{ width: 64, height: 64, objectFit: 'contain', transform: 'translate(-50%,-50%)' }}
+        />
+      </div>
+    </div>
+  );
 };
 
 import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
@@ -793,6 +815,8 @@ export const BattleGrid = () => {
 
         {/* Shot volley: muzzle flash + flying bullets (no more yellow line) */}
         {volley && <ShotVolley key={volleyKey} shot={volley} />}
+        {/* Искра удара питомца на цели */}
+        <PetHitSpark />
 
         {/* Превью конуса дробовика: зажатая ПКМ при активном стволе с конусом */}
         {showConePreview && coneProf && cursorPos && (() => {

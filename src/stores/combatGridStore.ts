@@ -257,6 +257,8 @@ export interface CombatGridStore {
   petCommandMode: boolean;
   petTargetId: number | string | null;
   petAiActive: boolean;
+  /** Искра удара питомца: позиция + ключ для перерисовки (гаснет таймером). */
+  petHitFx: { x: number; y: number; id: number } | null;
   selectPetAbility: (index: number) => void;
   usePetAbility: (index: number, enemyId?: number | string) => void;
   /** Ход ИИ питомца (авто-бой при активной способности pet_ai). */
@@ -1103,6 +1105,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   petCommandMode: false,
   petTargetId: null,
   petAiActive: false,
+  petHitFx: null,
   selectedAbility: null,
   selectedAbilitySource: null,
   playerInvisible: false,
@@ -1716,7 +1719,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     set({
       isActive: true, playerPos, enemies: activeEnemies, obstacles,
-      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, selectedAbility: null, selectedAbilitySource: null,
+      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, petHitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
@@ -2704,6 +2707,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     get().addPopup(target.pos.x, target.pos.y, `-${dmg} 🐾`, 'DMG');
     get().addBattleLog(`🐾 ${pet.name}: −${dmg} по ${target.name}`);
+    // Искра удара питомца на цели (гаснет сама).
+    {
+      const fxId = Date.now() + Math.random();
+      set({ petHitFx: { x: target.pos.x, y: target.pos.y, id: fxId } });
+      setTimeout(() => {
+        if (get().petHitFx?.id === fxId) set({ petHitFx: null });
+      }, 380);
+    }
     if (opts?.stun) {
       set((st: any) => ({
         enemies: st.enemies.map((e: any) => e.id === targetId ? { ...e, stunned: true, stunTurns: opts.stun } : e),
@@ -3966,7 +3977,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
       corpseSearch: null, alarmRaised: false, noSleep: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
-      playerAbilities: [], abilityCooldowns: [], skillBarAbilities: [], skillBarCooldowns: [], petAbilities: [], petCooldowns: [], petCommandMode: false, petTargetId: null, selectedAbility: null, selectedAbilitySource: null,
+      playerAbilities: [], abilityCooldowns: [], skillBarAbilities: [], skillBarCooldowns: [], petAbilities: [], petCooldowns: [], petCommandMode: false, petTargetId: null, petHitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, teleportStealthReady: false, isPlacingMine: false, immortalityTurns: 0, showCookingMenu: false, cardRarityName: null,
       ammo: MAX_AMMO, maxAmmo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
     });

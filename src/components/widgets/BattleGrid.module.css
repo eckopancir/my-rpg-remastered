@@ -587,6 +587,17 @@
   animation: muzzlePop 0.18s ease-out forwards;
 }
 
+/* Искра удара питомца — масштаб + затухание на клетке цели */
+.petHitPop {
+  animation: petHitPop 0.38s ease-out forwards;
+}
+
+@keyframes petHitPop {
+  0% { opacity: 1; transform: translate(-50%,-50%) scale(0.55) rotate(-8deg); }
+  45% { opacity: 1; transform: translate(-50%,-50%) scale(1.12) rotate(4deg); }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(1.25) rotate(0deg); }
+}
+
 @keyframes muzzlePop {
   0% { opacity: 1; }
   60% { opacity: 1; }

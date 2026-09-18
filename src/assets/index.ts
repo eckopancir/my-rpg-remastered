@@ -105,6 +105,10 @@ export const sniperSkillsBg = (): string | undefined =>
 export const beastClassBg = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_zigqvdzigqvdzigq');
 
+/** Искра удара питомца на цели. */
+export const petStrikeImage = (): string | undefined =>
+  uiImageMap.get('gemini_generated_image_hr70wnhr70wnhr70-photoroom');
+
 /** Общий фон окна способностей лесничего (тиры перков). */
 export const beastSkillsBg = (): string | undefined =>
   uiImageMap.get('gemini_generated_image_6q9ft56q9ft56q9f');
