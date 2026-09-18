@@ -5,7 +5,14 @@ import {
   petOfTier, petCanAllocate, petTierOpen, petRankText,
   type PetAbilityDef, type PetBranch,
 } from '../../data/pets';
-import { beastSkillsBg } from '../../assets/index';
+import { beastSkillsBg, getLesnikImage } from '../../assets/index';
+
+/** Картинка способности (или эмодзи, если картинки нет). */
+export const PetDefIcon = ({ def, size }: { def: PetAbilityDef; size: number }) => {
+  const src = def.image ? getLesnikImage(def.image) : undefined;
+  if (src) return <img src={src} alt={def.name} draggable={false} style={{ width: size, height: size, objectFit: 'cover', borderRadius: 6 }} />;
+  return <span style={{ fontSize: size, lineHeight: 1 }}>{def.icon}</span>;
+};
 
 export const PetCell = ({
   def, onHover, onLeave, compact, bare,
@@ -55,7 +62,7 @@ export const PetCell = ({
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        <span style={{ fontSize: compact ? 22 : 30 }}>{def.icon}</span>
+        <PetDefIcon def={def} size={compact ? 40 : 52} />
         {locked && (
           <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, background: 'rgba(0,0,0,0.45)' }}>🔒</span>
         )}
@@ -125,8 +132,8 @@ export const PetTooltip = ({
       fontFamily: 'var(--font-sans)',
     }}>
       <div style={{ height: 3, background: meta.color, opacity: 0.95, borderRadius: '10px 10px 0 0' }} />
-      <div style={{ padding: '8px 14px 12px', textAlign: 'center' }}>
-        <div style={{ fontSize: 34 }}>{def.icon}</div>
+        <div style={{ padding: '8px 14px 12px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center' }}><PetDefIcon def={def} size={64} /></div>
         <div style={{ fontSize: 15, fontWeight: 700, color: meta.color, lineHeight: 1.2 }}>
           {def.name}
         </div>

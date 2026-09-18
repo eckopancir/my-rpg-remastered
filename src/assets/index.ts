@@ -5,6 +5,7 @@ const backgroundImageModules = import.meta.glob<{ default: string }>('./Images/b
 const mapImageModules = import.meta.glob<{ default: string }>('./Images/map/*.png', { eager: true });
 const uiImageModules = import.meta.glob<{ default: string }>('./Images/ui/*.{png,jpg,jfif}', { eager: true });
 const sniperImageModules = import.meta.glob<{ default: string }>('./Images/class/sniper/*.png', { eager: true });
+const lesnikImageModules = import.meta.glob<{ default: string }>('./Images/class/lesnik/*.png', { eager: true });
 
 const extractKey = (path: string): string => path.split('/').pop()?.replace(/\.(png|jpg|jfif)$/, '').toLowerCase() || '';
 
@@ -23,6 +24,7 @@ const backgroundImageMap = toMap(backgroundImageModules);
 const mapImageMap = toMap(mapImageModules);
 const uiImageMap = toMap(uiImageModules);
 const sniperImageMap = toMap(sniperImageModules);
+const lesnikImageMap = toMap(lesnikImageModules);
 
 const RESOURCE_IMAGE_MAP: Record<string, string> = {
   'вода': 'r1', 'изолента': 'r2', 'железо': 'r3', 'дерево': 'r4',
@@ -86,6 +88,10 @@ export const getSchemeImage = (stat?: string): string | undefined => {
 /** Картинка способности снайпера по ключу тира: '1.1' | 'def 5.1'. */
 export const getSniperImage = (key: string): string | undefined =>
   sniperImageMap.get(key.toLowerCase());
+
+/** Картинка способности лесничего по ключу: '1.1'..'7.1' | 'ии автобой' | 'команда атака'. */
+export const getLesnikImage = (key: string): string | undefined =>
+  lesnikImageMap.get(key.toLowerCase());
 
 /** Фон шапки класса снайпера. */
 export const sniperClassBg = (): string | undefined =>

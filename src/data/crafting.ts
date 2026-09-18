@@ -100,6 +100,38 @@ const GEAR_COST: Record<CraftCategory, Record<string, CraftCost>> = {
 export const craftCostFor = (slot: string, quality: string): CraftCost =>
   GEAR_COST[craftCategoryOf({ slot })][quality] || GEAR_COST.armor['Обычный'];
 
+/**
+ * Баланс перековки: +1 уровень обычного предмета = в среднем разбор
+ * 10 обычных предметов той же категории.
+ * База = средний выход разбора обычного × 10 (single source: DISASSEMBLE_TABLE).
+ * Множитель ранга (rank+1: 1..7) растёт быстрее выхода разбора (1+0.5·rank:
+ * 1..4) — высокое качество качать дороже: божественный ≈ 17.5 своих разборов
+ * (≈ 70 обычных). Прогрессия цены в «своих» разборах: 10 → 13.3 → 15 → 16 →
+ * 16.7 → 17.1 → 17.5.
+ */
+const avgRange10 = (r: [number, number] | undefined): number =>
+  r ? Math.round(((r[0] + r[1]) / 2) * 10) : 0;
+
+const reforgeBaseFor = (cat: CraftCategory): CraftCost => {
+  const t = DISASSEMBLE_TABLE[cat] || {};
+  const g = (m: MaterialType) => avgRange10((t as any)[m] as [number, number] | undefined);
+  return { scrap: g('scrap'), wires: g('wires'), chip: g('chip'), reagent: g('reagent'), alloy: g('alloy'), powder: g('powder') };
+};
+
+/** Цена подъёма уровня перековкой (+1 ур.) по слоту и качеству. */
+export const reforgeCostFor = (slot: string, quality: string): CraftCost => {
+  const base = reforgeBaseFor(craftCategoryOf({ slot }));
+  const mult = Math.max(0, QUALITY_ORDER.indexOf(quality)) + 1;
+  return {
+    scrap: base.scrap * mult,
+    wires: base.wires * mult,
+    chip: base.chip * mult,
+    reagent: base.reagent * mult,
+    alloy: base.alloy * mult,
+    powder: base.powder * mult,
+  };
+};
+
 // Совместимость: старая плоская таблица (броня).
 export const CRAFT_COST: Record<string, CraftCost> = GEAR_COST.armor;
 

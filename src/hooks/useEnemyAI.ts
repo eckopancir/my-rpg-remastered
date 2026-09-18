@@ -246,6 +246,16 @@ export const useEnemyAI = () => {
               && !enemy.dead && !enemy.sleeping && (enemy.currentHp || 0) > 0) {
               await useCombatGridStore.getState().petAiTurn();
               updatedEnemies = useCombatGridStore.getState().enemies.map((e: any) => ({ ...e }));
+              // Пересинк возвращает стор-порядок и сносит «союзники первыми»:
+              // цикл продолжил бы с i+1 уже по другому порядку и часть врагов
+              // (соло-босс — всегда) пропускала бы ход вечно. Восстанавливаем
+              // порядок и ставим счётчик обратно на питомца.
+              updatedEnemies = [
+                ...updatedEnemies.filter((e: any) => e.faction === 'Союзник'),
+                ...updatedEnemies.filter((e: any) => e.faction !== 'Союзник'),
+              ];
+              const petNewIdx = updatedEnemies.findIndex((e: any) => e.id === enemy.id);
+              if (petNewIdx >= 0) i = petNewIdx;
               await new Promise((r) => setTimeout(r, 300));
             }
           } catch (e) {

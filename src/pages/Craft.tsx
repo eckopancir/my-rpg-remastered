@@ -12,7 +12,7 @@ import { useSound } from '../hooks/useSound';
 import {
   QUALITY_ORDER, QUALITY_COLORS,
   MATERIAL_NAMES, AMMO_CRAFT_COST,
-  craftCostFor, disassembleCategoryOf,
+  craftCostFor, reforgeCostFor, disassembleCategoryOf,
   getNextQuality, rollBlueprint, rollYield,
 } from '../data/crafting';
 import { AMMO_GROUPS, makeBulletPack, maxStackFor, countAmmo, type AmmoGroup } from '../data/ammo';
@@ -434,7 +434,7 @@ export const Craft = () => {
     if (!w) return;
     const curLvl = w.level || 1;
     if (curLvl >= level) { addLog(`❌ Максимум: уровень игрока (${level})`, 'warning'); return; }
-    const cost = craftCostFor((w.slot as string) || 'armor', w.quality || 'Обычный');
+    const cost = reforgeCostFor((w.slot as string) || 'armor', w.quality || 'Обычный');
     const need: Record<string, number> = {};
     for (const [mat, count] of Object.entries(cost)) {
       if (count > 0) need[MATERIAL_NAMES[mat as keyof typeof MATERIAL_NAMES]] = count;
@@ -740,7 +740,7 @@ export const Craft = () => {
                   const installed = w && Array.isArray((w as any).sockets) ? (w as any).sockets : [];
                   const wLvl = w ? (w.level || 1) : 1;
                   const canLevel = w && wLvl < level;
-                  const lvlCost = w ? craftCostFor((w.slot as string) || 'armor', w.quality || 'Обычный') : null;
+                  const lvlCost = w ? reforgeCostFor((w.slot as string) || 'armor', w.quality || 'Обычный') : null;
                   const bp = reforgeBlueprint;
                   const bpStat = bp ? ((bp as any).blueprintStat || 'damage') : '';
                   const bpPct = bp ? (SCHEME_FLAT_STATS.has(bpStat) ? schemeFlatFor(bpStat, ((bp as any).blueprintRarity || bp.quality)) : schemePctFor(bpStat, ((bp as any).blueprintRarity || bp.quality))) : 0;

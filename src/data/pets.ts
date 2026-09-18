@@ -24,8 +24,10 @@ export interface PetAbilityDef {
   branch: PetBranch;
   tier: number; // 0 = база вне тиров
   name: string;
-  /** эмодзи-заглушка (картинки потом) */
+  /** эмодзи-заглушка (если нет картинки) */
   icon: string;
+  /** ключ картинки лесничего (getLesnikImage), напр. '1.1' */
+  image?: string;
   kind: PetAbilityKind;
   maxRanks: number;
   /** очков в предыдущем тире ветки для открытия */
@@ -54,24 +56,24 @@ export const PET_META = {
 /** Бесплатная база: регенерация + ИИ + команда (вне веток, ячейки во free-ряду). */
 export const PET_FREE_DEFS: PetAbilityDef[] = [
   { id: 'pet_regen', branch: 'bear', tier: 0, name: 'Регенерация', icon: '💗', kind: 'passive', maxRanks: 1, gate: 0, freeTake: true, petApCost: 0, cooldown: 0, statsPerRank: [R('regen', 0.02, '+2% реген/ход')], mechanic: 'Питомец регенерирует 2% HP в ход. Бесплатно.' },
-  { id: 'pet_ai', branch: 'bear', tier: 0, name: 'ИИ: автобой', icon: '🤖', kind: 'passive', maxRanks: 1, gate: 0, freeTake: true, petApCost: 0, cooldown: 0, mechanic: 'Питомец сам бежит и атакует ближайших видимых врагов. Без КД, 0 AP. Без неё — пассивный.' },
-  { id: 'pet_command', branch: 'bear', tier: 0, name: 'Команда: атака', icon: '🎯', kind: 'active', maxRanks: 1, gate: 0, freeTake: true, petApCost: 0, cooldown: 0, mechanic: 'Направляет питомца на врага. Кликни врага — побежит и атакует. Повторная команда — смена цели. Без КД, 0 AP.' },
+  { id: 'pet_ai', branch: 'bear', tier: 0, name: 'ИИ: автобой', icon: '🤖', image: 'ии автобой', kind: 'passive', maxRanks: 1, gate: 0, freeTake: true, petApCost: 0, cooldown: 0, mechanic: 'Питомец сам бежит и атакует ближайших видимых врагов. Без КД, 0 AP. Без неё — пассивный.' },
+  { id: 'pet_command', branch: 'bear', tier: 0, name: 'Команда: атака', icon: '🎯', image: 'команда атака', kind: 'active', maxRanks: 1, gate: 0, freeTake: true, petApCost: 0, cooldown: 0, mechanic: 'Направляет питомца на врага. Кликни врага — побежит и атакует. Повторная команда — смена цели. Без КД, 0 AP.' },
 ];
 
 export const PET_ABILITIES: PetAbilityDef[] = [
   // ---------- МЕДВЕДЬ (танк: HP + урон) ----------
-  { id: 'pb_t1_hp', branch: 'bear', tier: 1, name: '+20% здоровья от хозяина', icon: '❤️', kind: 'stat', maxRanks: 5, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('pctPlayerHp', 0.2, '+20% здоровья от хозяина')] },
-  { id: 'pb_t1_arm', branch: 'bear', tier: 1, name: '+2.5 брони', icon: '🛡️', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('armor', 2.5, '+2.5 брони')] },
-  { id: 'pb_t2_dmg', branch: 'bear', tier: 2, name: '+2 урона', icon: '⚔️', kind: 'stat', maxRanks: 10, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('damage', 2, '+2 урона')] },
-  { id: 'pb_t2_aura', branch: 'bear', tier: 2, name: 'Стена стаи', icon: '🏰', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('armor', 0.02, '+2% брони')], aura: { stat: 'armor', value: 0.02 } },
-  { id: 'pb_t3_paw', branch: 'bear', tier: 3, name: 'Тяжёлая лапа', icon: '🐾', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pb_t3_roar'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 6 ходов ×2 + стан.' },
-  { id: 'pb_t3_roar', branch: 'bear', tier: 3, name: 'Дикий рёв', icon: '📢', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pb_t3_paw'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 8 ходов −20% меткости врагам в 10 кл. на 1 ход.' },
-  { id: 'pb_t4_def', branch: 'bear', tier: 4, name: 'Медвежья оборона', icon: '🛡️', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('pctHostArmor', 0.15, '+15% брони хозяина')], mechanic: 'Пассив: +15% брони хозяина за ранг.' },
-  { id: 'pb_t5_thick', branch: 'bear', tier: 5, name: 'Толстая кожа', icon: '🦏', kind: 'stat', maxRanks: 5, gate: 5, exclusiveWith: ['pb_t5_ursok'], petApCost: 0, cooldown: 0, statsPerRank: [R('block', 0.3, '+3% блока')], mechanic: 'Пассив: +3% блока за ранг (кап 50%).' },
-  { id: 'pb_t5_ursok', branch: 'bear', tier: 5, name: 'Ярость Урсока', icon: '🐻', kind: 'stat', maxRanks: 5, gate: 5, exclusiveWith: ['pb_t5_thick'], petApCost: 0, cooldown: 0, statsPerRank: [R('armorPerTurn', 0.2, '+0.2 брони/ход')], mechanic: 'Пассив: каждый ход +0.2 брони (стакается).' },
-  { id: 'pb_t6_restore', branch: 'bear', tier: 6, name: 'Неистовое восстановление', icon: '💚', kind: 'active', maxRanks: 1, gate: 4, exclusiveWith: ['pb_t6_regen'], petApCost: 0, cooldown: 50, mechanic: 'Лечит только медведя 25% HP каждый ход 3 хода. КД 50, 2 AP игрока.' },
-  { id: 'pb_t6_regen', branch: 'bear', tier: 6, name: 'Медвежья регенерация', icon: '💗', kind: 'passive', maxRanks: 1, gate: 4, exclusiveWith: ['pb_t6_restore'], petApCost: 0, cooldown: 0, statsPerRank: [R('regen', 0.03, '+3% реген')], mechanic: 'Пассив: реген 2%→5% (улучшает базу).' },
-  { id: 'pb_t7_alpha', branch: 'bear', tier: 7, name: 'Улучшенная стена стаи', icon: '👑', kind: 'ulta', maxRanks: 1, gate: 5, petApCost: 0, cooldown: 0, aura: { stat: 'maxHp', value: 0.3 }, mechanic: 'Улучшает «Стену стаи»: аура +30% здоровья союзникам в радиусе 30, пока зверь жив.' },
+  { id: 'pb_t1_hp', branch: 'bear', tier: 1, name: '+20% здоровья от хозяина', icon: '❤️', image: '1.1', kind: 'stat', maxRanks: 5, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('pctPlayerHp', 0.2, '+20% здоровья от хозяина')] },
+  { id: 'pb_t1_arm', branch: 'bear', tier: 1, name: '+2.5 брони', icon: '🛡️', image: '1.2', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('armor', 2.5, '+2.5 брони')] },
+  { id: 'pb_t2_dmg', branch: 'bear', tier: 2, name: '+2 урона', icon: '⚔️', image: '2.1', kind: 'stat', maxRanks: 10, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('damage', 2, '+2 урона')] },
+  { id: 'pb_t2_aura', branch: 'bear', tier: 2, name: 'Стена стаи', icon: '🏰', image: '2.2', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('armor', 0.02, '+2% брони')], aura: { stat: 'armor', value: 0.02 } },
+  { id: 'pb_t3_paw', branch: 'bear', tier: 3, name: 'Тяжёлая лапа', icon: '🐾', image: '3.1', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pb_t3_roar'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 6 ходов ×2 + стан.' },
+  { id: 'pb_t3_roar', branch: 'bear', tier: 3, name: 'Дикий рёв', icon: '📢', image: '3.2', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pb_t3_paw'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 8 ходов −20% меткости врагам в 10 кл. на 1 ход.' },
+  { id: 'pb_t4_def', branch: 'bear', tier: 4, name: 'Медвежья оборона', icon: '🛡️', image: '4.1', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('pctHostArmor', 0.15, '+15% брони хозяина')], mechanic: 'Пассив: +15% брони хозяина за ранг.' },
+  { id: 'pb_t5_thick', branch: 'bear', tier: 5, name: 'Толстая кожа', icon: '🦏', image: '5.1', kind: 'stat', maxRanks: 5, gate: 5, exclusiveWith: ['pb_t5_ursok'], petApCost: 0, cooldown: 0, statsPerRank: [R('block', 0.3, '+3% блока')], mechanic: 'Пассив: +3% блока за ранг (кап 50%).' },
+  { id: 'pb_t5_ursok', branch: 'bear', tier: 5, name: 'Ярость Урсока', icon: '🐻', image: '5.2', kind: 'stat', maxRanks: 5, gate: 5, exclusiveWith: ['pb_t5_thick'], petApCost: 0, cooldown: 0, statsPerRank: [R('armorPerTurn', 0.2, '+0.2 брони/ход')], mechanic: 'Пассив: каждый ход +0.2 брони (стакается).' },
+  { id: 'pb_t6_restore', branch: 'bear', tier: 6, name: 'Неистовое восстановление', icon: '💚', image: '6.1', kind: 'active', maxRanks: 1, gate: 4, exclusiveWith: ['pb_t6_regen'], petApCost: 0, cooldown: 50, mechanic: 'Лечит только медведя 25% HP каждый ход 3 хода. КД 50, 2 AP игрока.' },
+  { id: 'pb_t6_regen', branch: 'bear', tier: 6, name: 'Медвежья регенерация', icon: '💗', image: '6.2', kind: 'passive', maxRanks: 1, gate: 4, exclusiveWith: ['pb_t6_restore'], petApCost: 0, cooldown: 0, statsPerRank: [R('regen', 0.03, '+3% реген')], mechanic: 'Пассив: реген 2%→5% (улучшает базу).' },
+  { id: 'pb_t7_alpha', branch: 'bear', tier: 7, name: 'Улучшенная стена стаи', icon: '👑', image: '7.1', kind: 'ulta', maxRanks: 1, gate: 5, petApCost: 0, cooldown: 0, aura: { stat: 'maxHp', value: 0.3 }, mechanic: 'Улучшает «Стену стаи»: аура +30% здоровья союзникам в радиусе 30, пока зверь жив.' },
 
   // ---------- ВОЛК (вамп + скорость, саппорт) ----------
   { id: 'pw_t1_vamp', branch: 'wolf', tier: 1, name: '+1% вамп', icon: '🩸', kind: 'stat', maxRanks: 10, gate: 0, petApCost: 0, cooldown: 0, statsPerRank: [R('vampir', 0.01, '+1% вамп')] },

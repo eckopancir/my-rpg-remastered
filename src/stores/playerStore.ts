@@ -1437,6 +1437,14 @@ export const usePlayerStore = create<PlayerStore>()(
         ]);
         const paidTotal = Object.entries(build.skills).reduce((sum, [id, pts]) => sum + (freeIds.has(id) ? 0 : pts), 0);
         set({ pendingSkills: { ...build.skills }, skillPoints: Math.max(0, earned - paidTotal) });
+        // Сброс снял классы — автоматом берём главный класс билда (за 3 очка,
+        // как обычно; второй доберёшь вручную). Без класса билд не вкачать.
+        const mainChosen = build.classId === SNIPER_META.id
+          ? { id: SNIPER_META.id, name: SNIPER_META.name }
+          : build.classId.startsWith('pet_')
+            ? { id: 'lesnichiy', name: (PET_META as any)[build.classId.replace('pet_', '')]?.name || 'Лесничий' }
+            : null;
+        if (mainChosen) get().pickClass(mainChosen.id, mainChosen.name);
         get().addLog(`📥 Билд «${build.name}» подгружен — нажми ПРИНЯТЬ`, 'info');
       },
 
@@ -1526,8 +1534,10 @@ export const usePlayerStore = create<PlayerStore>()(
         const cost = s.level * 100;
         const token = useAuthStore.getState().token;
         if (!token) return;
-        // Clear skills immediately on client, don't wait for server
-        set({ skills: {}, pendingSkills: {} });
+        // Clear skills immediately on client, don't wait for server.
+        // Классы тоже снимаются (иначе сброс = бесплатные классы навсегда:
+        // сервер вернёт все очки, а галки останутся). Перевыбор — за 3 очка.
+        set({ skills: {}, pendingSkills: {}, chosenClasses: [] });
         get().recalcStats();
         try {
           const res = await fetch('/api/skills/reset.php', {
@@ -1540,8 +1550,8 @@ export const usePlayerStore = create<PlayerStore>()(
             return;
           }
           const json = await res.json();
-          set({ skillPoints: json.skillPoints, dataChips: json.dataChips });
-          get().addLog(`🔄 Навыки сброшены. Списанo ${cost} 💾.`, 'info');
+          set({ skillPoints: json.skillPoints, dataChips: json.dataChips, chosenClasses: [] });
+          get().addLog(`🔄 Навыки сброшены. Списанo ${cost} 💾. Классы сняты — выбери заново.`, 'info');
         } catch {
           get().addLog('❌ Ошибка сети при сбросе навыков', 'warning');
         }
