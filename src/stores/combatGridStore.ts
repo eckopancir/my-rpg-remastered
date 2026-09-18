@@ -1203,8 +1203,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               rank: rankOfEnemy((next as any).factionKey, next.name),
             });
           } catch { /* ignore */ }
-          const screamIdx = Math.floor(Math.random() * 5) + 1;
-          playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
+          // Нейтрал визжит по-своему (первые 3 сек), остальные — Вильгельм.
+          if ((next as any).isNeutral) {
+            playCombatSound('kaban-vizjit-rezko-v-shvatke', 0.5);
+            setTimeout(() => stopCombatSound('kaban-vizjit-rezko-v-shvatke'), 3000);
+          } else {
+            const screamIdx = Math.floor(Math.random() * 5) + 1;
+            playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
+          }
           // Нейтрал: свой лут не затираем, мести нет.
           next = (next as any).isNeutral
             ? { ...next, dead: true, isHit: false }
@@ -2852,7 +2858,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if ((eff.vampir || 0) >= 1) get().addBattleLog(`🩸 Вампиризм ${pet.name}: +${vamp} HP`);
     }
     const deadNow = (get().enemies.find((e: any) => e.id === targetId)?.currentHp || 0) <= 0;
-    if (deadNow) get().addBattleLog(`💀 ${target.name} повержен питомцем!`);
+    if (deadNow) {
+      get().addBattleLog(`💀 ${target.name} повержен питомцем!`);
+      if ((target as any).isNeutral) {
+        playCombatSound('kaban-vizjit-rezko-v-shvatke', 0.5);
+        setTimeout(() => stopCombatSound('kaban-vizjit-rezko-v-shvatke'), 3000);
+      }
+    }
     return true;
   },
 
@@ -3472,10 +3484,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             rank: rankOfEnemy((updatedEnemy as any).factionKey, updatedEnemy.name),
           });
         } catch (e) { /* ignore */ }
-        const screamIdx = Math.floor(Math.random() * 5) + 1;
-        playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
-        // Нейтрал: свой лут (мясо) не затираем, мести за него нет.
+        // Нейтрал визжит по-своему (первые 3 сек), остальные — Вильгельм.
         const keepNeutralLoot = (updatedEnemy as any).isNeutral;
+        if (keepNeutralLoot) {
+          playCombatSound('kaban-vizjit-rezko-v-shvatke', 0.5);
+          setTimeout(() => stopCombatSound('kaban-vizjit-rezko-v-shvatke'), 3000);
+        } else {
+          const screamIdx = Math.floor(Math.random() * 5) + 1;
+          playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
+        }
         set((s2) => ({
           enemies: s2.enemies.map((e) =>
             e.id === enemyId ? { ...e, dead: true, loot: keepNeutralLoot ? (e.loot || []) : freshLoot, looted: false, pos: corpsePos } : e
