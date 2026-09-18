@@ -12,7 +12,7 @@ import { useCombatGridStore } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getTerrainBonus } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
-import { getEnemyImage, getCharacterImage, images, getSniperImage } from '../assets/index';
+import { getEnemyImage, getCharacterImage, images, getSniperImage, petAvatarImage } from '../assets/index';
 import { SkillBar } from '../components/widgets/SkillBar';
 
 const LogPanel = () => {
@@ -708,6 +708,13 @@ export const Battle = () => {
               {/* Avatar + HP */}
               <div style={{ display: 'flex', gap: 10, padding: '10px 12px 8px', alignItems: 'center' }}>
                 <img src={(() => {
+                  // Питомец: jfif-аватар своего зверя. Нейтральный кабан: кабан.jfif.
+                  if ((hoverTarget as any).isPet) {
+                    return petAvatarImage(((hoverTarget as any).petKind as string) || 'bear') || getEnemyImage(hoverTarget.faction, hoverTarget.name);
+                  }
+                  if ((hoverTarget as any).isNeutral) {
+                    return petAvatarImage('boar') || getEnemyImage(hoverTarget.faction, hoverTarget.name);
+                  }
                   const nm = (hoverTarget as any).nowModel || (hoverTarget as any).avatar;
                   // Союзник: та же моделька, что на поле (без фолбэков наугад).
                   if (hoverTarget.faction === 'Союзник' && nm) {
