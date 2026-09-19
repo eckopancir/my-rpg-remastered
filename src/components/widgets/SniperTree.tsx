@@ -16,6 +16,13 @@ const frameFor = (rank: number, locked: boolean): string => {
   return '2px solid rgba(255,255,255,0.28)';
 };
 
+/** Картинка способности (или эмодзи, если картинки нет) — 1в1 как у лесничего. */
+const SniperDefIcon = ({ def, size }: { def: SniperAbilityDef; size: number }) => {
+  const src = def.img ? getSniperImage(def.img) : undefined;
+  if (src) return <img src={src} alt={def.name} draggable={false} style={{ width: size, height: size, objectFit: 'cover', borderRadius: 6 }} />;
+  return <span style={{ fontSize: size, lineHeight: 1 }}>{def.icon || '🎯'}</span>;
+};
+
 export const SniperCell = ({
   def, onHover, onLeave, compact, bare,
 }: {
@@ -38,15 +45,14 @@ export const SniperCell = ({
   const maxed = tot >= def.maxRanks;
   const check = sniperCanAllocate(def.id, skills, pendingSkills, skillPoints);
   const locked = tot === 0 && !check.ok;
-  const img = def.img ? getSniperImage(def.img) : undefined;
-  const frame = compact ? 48 : 67;
+  const frame = compact ? 48 : 60;
 
   // Только бонус за ранг + счётчик одним кеглем, без суммарного текста (сумма — в тултипе).
   const perRank = def.statsPerRank
     ? sniperRankText(def, 1).replace(/^\+/, '')
     : def.name;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: compact ? 110 : 150 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: compact ? 110 : 130 }}>
       <div
         onMouseEnter={(e) => onHover(def, e.clientX, e.clientY)}
         onMouseMove={(e) => onHover(def, e.clientX, e.clientY)}
@@ -66,11 +72,9 @@ export const SniperCell = ({
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        {img
-          ? <img src={img} alt={def.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ fontSize: compact ? 22 : 20 }}>{def.icon || '🎯'}</span>}
+        <SniperDefIcon def={def} size={compact ? 40 : 52} />
         {locked && (
-          <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, background: 'rgba(0,0,0,0.45)' }}>🔒</span>
+          <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, background: 'rgba(0,0,0,0.45)' }}>🔒</span>
         )}
       </div>
       {!bare && (
