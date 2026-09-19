@@ -1752,7 +1752,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           spot = { x: rx, y: ry };
           break;
         }
-        const meatQty = 3 + Math.floor(Math.random() * 6);
+        const meatQty = 2 + Math.floor(Math.random() * 4);
         activeEnemies.push({
           id: `neutral-boar-${Date.now()}`,
           name: 'Кабан',

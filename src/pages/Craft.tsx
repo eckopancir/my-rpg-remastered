@@ -369,8 +369,30 @@ export const Craft = () => {
   }
 
   // ============ ПЕРЕКОВКА ============
+  // Откуда взят предмет в слот (для возврата): инвентарь или слот экипировки.
+  const reforgeWeaponFrom = useRef<{ place: 'equipment'; slot: string } | null>(null);
   function handleDropToReforge(itemId: string) {
     if (reforgeWeapon) return;
+    // Из экипировки тащится как equip:slot — снимаем со слота.
+    if (itemId.startsWith('equip:')) {
+      const slot = itemId.slice('equip:'.length) as any;
+      const ps = usePlayerStore.getState();
+      const item = (ps.equipment as any)?.[slot] as Item | null | undefined;
+      if (!item) return;
+      if (!isSocketable(item)) { addLog('❌ Перековывать можно только оружие и броню', 'warning'); return; }
+      if ((item as any).unique) { addLog('❌ Уники нельзя перековывать', 'warning'); return; }
+      const taken = ps.unequipItem(slot);
+      if (!taken) return;
+      const fixed: Item = {
+        ...taken,
+        socketSlots: socketSlotsOf(taken),
+        sockets: Array.isArray((taken as any).sockets) ? (taken as any).sockets : [],
+      };
+      reforgeWeaponFrom.current = { place: 'equipment', slot };
+      setReforgeWeapon(fixed);
+      playSound('install', 0.4);
+      return;
+    }
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
     if (!isSocketable(item)) { addLog('❌ Перековывать можно только оружие и броню', 'warning'); return; }
@@ -382,12 +404,25 @@ export const Craft = () => {
       socketSlots: socketSlotsOf(item),
       sockets: Array.isArray((item as any).sockets) ? (item as any).sockets : [],
     };
+    reforgeWeaponFrom.current = null;
     setReforgeWeapon(fixed);
     playSound('install', 0.4);
   }
 
   function handleRemoveReforgeWeapon() {
     if (!reforgeWeapon) return;
+    // Возвращаем откуда взяли: в слот экипировки (если свободен) или в инвентарь.
+    const from = reforgeWeaponFrom.current;
+    reforgeWeaponFrom.current = null;
+    if (from?.place === 'equipment') {
+      const ps = usePlayerStore.getState();
+      if (!(ps.equipment as any)?.[from.slot]) {
+        ps.equipItem(from.slot as any, reforgeWeapon);
+        setReforgeWeapon(null);
+        playSound('clickbutton', 0.3);
+        return;
+      }
+    }
     addItem(reforgeWeapon);
     setReforgeWeapon(null);
     playSound('clickbutton', 0.3);
@@ -688,7 +723,7 @@ export const Craft = () => {
             <WapHeader title="⚒️ Перековка" glow="amber" />
             <>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-                Перетащи оружие/броню в большой слот и сферу в малый. Поднимай уровень до своего ({level}) и вставляй сферы в гнёзда. Уники не перековываются.
+                Перетащи оружие/броню в большой слот (из инвентаря или экипировки) и сферу в малый. Поднимай уровень до своего ({level}) и вставляй сферы в гнёзда. Уники не перековываются.
               </div>
               <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center', justifyContent: 'center' }}>
                 {/* Большой слот: оружие/броня */}
