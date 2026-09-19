@@ -641,13 +641,13 @@ export const Equipment = () => {
           )}
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 6px ${withAlpha(qc, 0.4)})` }} /> : null; })()}
+              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', position: 'relative', top: 6, filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 6px ${withAlpha(qc, 0.4)})` }} /> : null; })()}
               <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', lineHeight: 1, marginTop: 2, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, padding: '1px 4px' }}>
                 {item.level || 0} ур.
               </div>
               {isGun && (item as any).ammoCapacity != null && (
                 <div style={{
-                  position: 'absolute', bottom: 2, right: 3,
+                  position: 'absolute', bottom: 5, right: 3,
                   fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
                   color: '#fbbf24', background: 'rgba(0,0,0,0.75)',
                   borderRadius: 3, padding: '0 3px', lineHeight: '12px',
