@@ -1,16 +1,25 @@
 <?php
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../player/vitals_catchup.php';
 
 $user = requireAuth();
 $pdo = getDB();
 
 // 1. Read save_data for player state
-$stmt = $pdo->prepare('SELECT save_data FROM saves WHERE user_id = ?');
+$stmt = $pdo->prepare('SELECT save_data, updated_at FROM saves WHERE user_id = ?');
 $stmt->execute([$user['id']]);
 $row = $stmt->fetch();
 $player = [];
 if ($row) {
     $sd = json_decode($row['save_data'], true);
+    if (!is_array($sd)) $sd = [];
+    // Офлайн-догон виталов: пока сайт закрыт, фронтовые тики не идут.
+    $nowMs = (int)(microtime(true) * 1000);
+    $catchup = applyVitalsCatchup($sd, $nowMs, isset($row['updated_at']) ? strtotime($row['updated_at']) : null);
+    if ($catchup['applied']) {
+        $upd = $pdo->prepare('UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?');
+        $upd->execute([json_encode($sd, JSON_UNESCAPED_UNICODE), $user['id']]);
+    }
     $player = $sd['player'] ?? [];
 }
 

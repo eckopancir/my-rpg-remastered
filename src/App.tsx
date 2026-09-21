@@ -30,6 +30,7 @@ import { useInventoryStore } from './stores/inventoryStore';
 import { useExplorationStore } from './stores/explorationStore';
 import { useUiStore } from './stores/uiStore';
 import { useAuthStore } from './stores/authStore';
+import { takeVitalsCatchup } from './stores/authStore';
 import { demoteModStats, healWronglyDemoted } from './utils/itemStats';
 import { useEffect, useRef } from 'react';
 import { images } from './assets/index';
@@ -182,6 +183,21 @@ const AppContent = () => {
 
       const data = await loadGame();
       if (!data) return;
+
+      // Backend offline catch-up (regen while the site was closed) — show it.
+      try {
+        const vc = takeVitalsCatchup() as any;
+        if (vc && vc.applied && ((vc.hpGained || 0) > 0 || (vc.staminaGained || 0) > 0)) {
+          const mins = Math.max(1, Math.round((vc.offlineMin || 0)));
+          const ago = mins >= 60
+            ? `${Math.floor(mins / 60)} ч ${mins % 60} мин`
+            : `${mins} мин`;
+          const parts: string[] = [];
+          if (vc.hpGained > 0) parts.push(`+${vc.hpGained} HP`);
+          if (vc.staminaGained > 0) parts.push(`+${vc.staminaGained} стамины`);
+          useUiStore.getState().addToast(`💚 Пока вас не было (${ago}): ${parts.join(', ')}`, 'success');
+        }
+      } catch { /* ignore */ }
 
       // Keep highest XP/level — server may have stale values while exploration XP accumulates client-side
       const psBefore = usePlayerStore.getState();

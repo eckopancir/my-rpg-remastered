@@ -33,6 +33,15 @@ interface AuthStore {
   loadGame: () => Promise<SaveData | null>;
 }
 
+// Summary of backend offline vitals catch-up from the last loadGame() call
+// (HP/stamina regen while the site was closed). Read-and-clear via takeVitalsCatchup().
+let lastVitalsCatchup: Record<string, unknown> | null = null;
+export const takeVitalsCatchup = (): Record<string, unknown> | null => {
+  const v = lastVitalsCatchup;
+  lastVitalsCatchup = null;
+  return v;
+};
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
@@ -72,6 +81,7 @@ export const useAuthStore = create<AuthStore>()(
           });
           if (!res.ok) return null;
           const json = await res.json();
+          lastVitalsCatchup = (json.vitalsCatchup as Record<string, unknown>) || null;
           return json.data || null;
         } catch {
           return null;

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/player/vitals_catchup.php';
 
 $user = requireAuth();
 $input = json_decode(file_get_contents('php://input'), true);
@@ -13,8 +14,9 @@ $pdo = getDB();
 // Сытость питомца — серверный источник правды (часы клиента могут спешить,
 // поэтому клиентское значение игнорируем и оставляем stored).
 $data = $input['data'];
+$nowMs = (int)(microtime(true) * 1000);
 try {
-    $curStmt = $pdo->prepare('SELECT save_data FROM saves WHERE user_id = ?');
+    $curStmt = $pdo->prepare('SELECT save_data, updated_at FROM saves WHERE user_id = ?');
     $curStmt->execute([$user['id']]);
     if ($curRow = $curStmt->fetch()) {
         $curSd = json_decode($curRow['save_data'], true);
@@ -22,8 +24,28 @@ try {
             if (!isset($data['player']) || !is_array($data['player'])) $data['player'] = [];
             $data['player']['petSatiety'] = $curSd['player']['petSatiety'];
         }
+        // Safety net: this save arrives after an offline gap without a prior
+        // load.php catch-up (normally load runs first on open). Advance the
+        // stored vitals, then keep the best of stored/client so neither combat
+        // damage nor consumable heals get silently lost.
+        $storedAgeSec = $curRow['updated_at'] ? (time() - strtotime($curRow['updated_at'])) : 0;
+        if ($storedAgeSec > 120 && is_array($curSd)) {
+            $catchup = applyVitalsCatchup($curSd, $nowMs, strtotime($curRow['updated_at']) ?: null);
+            if ($catchup['applied'] && isset($curSd['player']['stats'], $data['player']['stats'])) {
+                $st = &$data['player']['stats'];
+                $cst = $curSd['player']['stats'];
+                $maxHp = (float)($st['maxHp'] ?? $cst['maxHp'] ?? 0);
+                $maxSt = (float)($st['maxStamina'] ?? $cst['maxStamina'] ?? 0);
+                if ($maxHp > 0) $st['currentHp'] = min($maxHp, max((float)($cst['currentHp'] ?? 0), (float)($st['currentHp'] ?? 0)));
+                if ($maxSt > 0) $st['stamina'] = min($maxSt, max((float)($cst['stamina'] ?? 0), (float)($st['stamina'] ?? 0)));
+            }
+        }
     }
 } catch (Exception $e) { /* best effort, сохраняем как есть */ }
+
+// Штамп времени виталов: точка отсчёта офлайн-регена.
+if (!isset($data['player']) || !is_array($data['player'])) $data['player'] = [];
+$data['player']['vitalsAt'] = $nowMs;
 
 $stmt = $pdo->prepare(
     'INSERT INTO saves (user_id, save_data, updated_at) VALUES (?, ?, NOW())
