@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { calculateCombatStep, type CombatPlayer, type CombatEnemy } from '../engine/combat';
+import { armorDR } from '../engine/armor';
 import { generateEnemy } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
 import { GAME_ITEMS, SET_BONUSES } from '../data/GameItems';
@@ -356,12 +357,13 @@ export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: num
   const FIGHT_TIME = 30;
   const blockChance = Math.min(stats.block * 0.1, 0.5);
   const blockEHP = blockChance > 0 && blockChance < 1 ? 1000 * blockChance / (1 - blockChance) : Infinity;
-  const armorEHP = stats.armor * FIGHT_TIME;
+  // Броня — асимптотический срез: EHP тела делится на (1 − DR).
+  const armorDRv = armorDR(stats.armor || 0);
   const evasionEHP = stats.evasion < 1 ? 1000 * stats.evasion / (1 - stats.evasion) : Infinity;
   const regenEHP = stats.regen * FIGHT_TIME;
   const vampirEHP = stats.vampir * effectiveDPS * FIGHT_TIME;
 
-  let totalEHP = stats.maxHp + armorEHP + regenEHP + vampirEHP;
+  let totalEHP = (stats.maxHp + regenEHP + vampirEHP) / Math.max(0.05, 1 - armorDRv);
   if (Number.isFinite(evasionEHP)) totalEHP += evasionEHP;
   if (Number.isFinite(blockEHP)) totalEHP += blockEHP;
 

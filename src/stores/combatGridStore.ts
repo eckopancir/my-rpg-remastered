@@ -10,6 +10,7 @@ import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
 import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
+import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
@@ -796,7 +797,8 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     if (!sound) sound = 'block';
   }
 
-  // 3) БРОНЯ после блока: punch 0–1 → 0–50%, 1–3 → 50–70%, 3+ → 70% кап.
+  // 3) БРОНЯ после блока: асимптотический срез DR = A^0.75/(A^0.75+135).
+  // Пробитие режет эффективную броню: punch 0–1 → 0–50%, 1–3 → 50–70%, 3+ → 70% кап.
   if (dmg > 0) {
     const p = attacker.punching || 0;
     let pierceFactor: number;
@@ -804,7 +806,7 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     else if (p >= 1.0) pierceFactor = 0.5 + (p - 1.0) * 0.1;
     else pierceFactor = p * 0.5;
     const effectiveEnemyArmor = (target.armor || 0) * (1 - pierceFactor);
-    dmg = Math.max(0, dmg - effectiveEnemyArmor);
+    dmg = applyArmorDamage(dmg, effectiveEnemyArmor);
   }
 
   // 4) Барьер (incoming damage multiplier).

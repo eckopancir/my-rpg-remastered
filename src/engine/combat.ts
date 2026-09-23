@@ -1,3 +1,5 @@
+import { applyArmorDamage } from './armor';
+
 export interface CombatPlayer {
   dps: number;
   dpsToxis?: number;
@@ -155,9 +157,9 @@ export const calculateCombatStep = (
       else if (playerPierce >= 1.0) playerPierceFactor = 0.5 + (playerPierce - 1.0) * 0.1;
       else playerPierceFactor = playerPierce * 0.5;
       const effectiveEnemyArmor = enemy.armor * (1 - playerPierceFactor);
-      const actualArmorReduction = Math.min(dmg, effectiveEnemyArmor);
-      dmg = Math.max(0, dmg - actualArmorReduction);
-      enemyArmorAbsorbed += actualArmorReduction;
+      const dmgAfterArmor = applyArmorDamage(dmg, effectiveEnemyArmor);
+      enemyArmorAbsorbed += dmg - dmgAfterArmor;
+      dmg = dmgAfterArmor;
     }
 
     let evasionSuccess = false;
@@ -196,9 +198,9 @@ export const calculateCombatStep = (
       else if (enemyPierce >= 1.0) enemyPierceFactor = 0.5 + (enemyPierce - 1.0) * 0.1;
       else enemyPierceFactor = enemyPierce * 0.5;
       const effectivePlayerArmor = player.armor * (1 - enemyPierceFactor);
-      const actualArmorReduction = Math.min(dmg, effectivePlayerArmor);
-      dmg = Math.max(0, dmg - actualArmorReduction);
-      playerArmorAbsorbed += actualArmorReduction;
+      const dmgAfterArmor = applyArmorDamage(dmg, effectivePlayerArmor);
+      playerArmorAbsorbed += dmg - dmgAfterArmor;
+      dmg = dmgAfterArmor;
     }
 
     let evasionSuccess = false;

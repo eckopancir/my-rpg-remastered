@@ -9,6 +9,7 @@ import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, w
 import { removeItemFromGrid } from '../data/backpacks';
 import { PET_META, petMood, petSatietyAt, petBaseStats, petBranchBonuses, isPetBranchHidden, type PetKind } from '../data/pets';
 import { effectiveItemStats } from '../utils/itemStats';
+import { armorDR } from '../engine/armor';
 import { petAvatarImage } from '../assets/index';
 import { PetStatsTooltip, fmtPetStat, type PetStatRow } from '../components/widgets/PetStatsTooltip';
 import { syncNow } from '../utils/serverSync';
@@ -581,12 +582,29 @@ export const Equipment = () => {
     if (!sv) return null;
     const d = (equipDelta[k as keyof typeof equipDelta] ?? 0) as number;
     const penalty = d < 0 ? fmtPenalty(k, d) : null;
+    // Расшифровки: срез брони, реген выносливости в час, вклад активного ствола в урон.
+    let hint: string | null = null;
+    let hintTitle = '';
+    if (k === 'armor') {
+      hint = `срез ${(armorDR((stats as any).armor || 0) * 100).toFixed(1)}%`;
+      hintTitle = 'Срез урона: A^0.75/(A^0.75+135)';
+    } else if (k === 'maxStamina') {
+      hint = `+${Math.round(((stats as any).maxStamina || 0) * 0.02)}/ч`;
+      hintTitle = '+2%/ч вне похода, −1%/ч в походе';
+    } else if (k === 'damage') {
+      const gun = (equipment as any)[activeWeaponSlot];
+      if (gun) {
+        const gd = Math.round(effectiveItemStats(gun).damage || 0);
+        if (gd > 0) hint = `(${gd} ${(SLOT_LABELS[activeWeaponSlot] || '').toLowerCase()})`;
+      }
+    }
     return (
       <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
         <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
         <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
           <span style={{ color: sv.color, fontWeight: 600 }}>{valOverride ?? sv.val}</span>{' '}
           <span style={{ color: 'rgba(255,255,255,0.72)' }}>{sv.label}</span>
+          {hint && <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, marginLeft: 6 }} title={hintTitle}>{hint}</span>}
           {penalty && <span style={{ color: '#f87171', fontSize: 10, marginLeft: 6 }}>-{penalty}</span>}
         </span>
       </div>
