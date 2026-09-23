@@ -708,8 +708,10 @@ export const usePlayerStore = create<PlayerStore>()(
         }
         set({ accessoryAbilities: consumableAbs, skillAbilities: skillAbs });
         // Питомцы: боевые активки активной ветки (для панели 24).
-        let pa: any[] = get().activePetId ? petBattleAbilities(get().skills, get().activePetId) as any[] : [];
-        if (get().activePetId) {
+        // Только с классом «Лесничий» — иначе ни зверя, ни его бесплаток в бою.
+        const hasLesnichiy = get().chosenClasses.includes('lesnichiy');
+        let pa: any[] = hasLesnichiy && get().activePetId ? petBattleAbilities(get().skills, get().activePetId) as any[] : [];
+        if (hasLesnichiy && get().activePetId) {
           if (!pa.some((a: any) => a.id === 'petb_pet_ai')) {
             pa.push({ id: 'petb_pet_ai', defId: 'pet_ai', name: 'ИИ: автобой', icon: '🤖', petApCost: 0, cooldown: 0, needsTarget: false, range: 2, exec: 'ai' } as any);
           }
@@ -1433,6 +1435,11 @@ export const usePlayerStore = create<PlayerStore>()(
           get().addLog('🔒 Этот зверь выйдет в будущем обновлении', 'warning');
           return;
         }
+        // Без класса «Лесничий» зверя выбрать нельзя (как щит без милишника).
+        if (kind && !get().chosenClasses.includes('lesnichiy')) {
+          get().addLog('🔒 Питомцы доступны с классом «Лесничий»', 'warning');
+          return;
+        }
         set({ activePetId: kind });
         get().recalcAbilities();
         get().syncPetAura();
@@ -1510,7 +1517,8 @@ export const usePlayerStore = create<PlayerStore>()(
         const combat = useCombatGridStore.getState();
         const pet = combat.enemies.find((e: any) => e.isPet && !e.dead && !e.sleeping && (e.currentHp || 0) > 0);
         const cur = s.activeEffects.find((e) => e.id === 'pet_aura');
-        if (!s.activePetId || !pet) {
+        // Без класса «Лесничий» ауры нет, даже если зверь как-то остался на поле.
+        if (!s.chosenClasses.includes('lesnichiy') || !s.activePetId || !pet) {
           if (cur) {
             set({ activeEffects: s.activeEffects.filter((e) => e.id !== 'pet_aura') });
             get().recalcStats();
@@ -1628,6 +1636,13 @@ export const usePlayerStore = create<PlayerStore>()(
             get().addLog('🛡️ Щит снят в инвентарь (нужен класс «Милишник»)', 'warning');
             syncNow();
           }
+        }
+        // Без лесничего зверь уходит: чистим активного питомца и его способности.
+        if (classId === 'lesnichiy' && get().activePetId) {
+          set({ activePetId: null });
+          get().recalcAbilities();
+          get().syncPetAura();
+          get().addLog('🐾 Питомец убран (нужен класс «Лесничий»)', 'warning');
         }
       },
 

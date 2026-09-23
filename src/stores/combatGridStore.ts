@@ -1757,13 +1757,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return 0;
     })();
 
-    // Питомец: спавн рядом с игроком, если выбран зверь.
-    const petAbilities = [...(usePlayerStore.getState().petAbilities || [])];
+    // Питомец: спавн рядом с игроком, если выбран зверь И взят класс «Лесничий».
+    // Без класса — ни зверя, ни его способностей на поле боя.
+    const hasLesnichiy = (usePlayerStore.getState().chosenClasses || []).includes('lesnichiy');
+    const petAbilities = hasLesnichiy ? [...(usePlayerStore.getState().petAbilities || [])] : [];
     const petCooldowns = petAbilities.map(() => 0);
     {
       const ps = usePlayerStore.getState();
       const petKind = ps.activePetId as PetKind | null;
-      if (petKind && PET_META[petKind]) {
+      if (hasLesnichiy && petKind && PET_META[petKind]) {
         const lvlMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
         const bonus = petBranchBonuses(petKind, ps.skills);
         const meleeItem = (ps.equipment as any)?.weapon1;
