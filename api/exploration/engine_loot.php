@@ -164,7 +164,7 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
 
   // 5. Build item
   $genId = generateUid();
-  $levelMult = 1 + ($playerLevel - 1) * 0.1;
+  $levelMult = 1 + ($playerLevel - 1) * 0.05;
 
   // Compute final stats with quality bonuses
   $finalStats = $base['stats'] ?? [];

@@ -5,9 +5,9 @@ import { bulletDamageMult } from '../data/ammo';
 const num = (v: unknown): number =>
   typeof v === 'object' && v !== null ? ((v as any)?.base || 0) : ((v as number) || 0);
 
-/** Множитель статов мода от его уровня: на 30 ур. ≈ ×3.9 (15% крита из 0.04). */
+/** Множитель статов мода от его уровня: +5% за уровень (на 50 ур. ≈ ×3.45). */
 export const modLevelMult = (mod: Pick<Item, 'level'>): number =>
-  1 + (Math.max(1, mod.level || 1) - 1) * 0.1;
+  1 + (Math.max(1, mod.level || 1) - 1) * 0.05;
 
 /** Разовый даунскейл СТАРЫХ модов: раньше статы пеклись со скейлом уровня,
  *  теперь скейлит рантайм — делим один раз, чтобы не двоило.

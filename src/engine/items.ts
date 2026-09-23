@@ -288,7 +288,7 @@ export const generateItem = (
       ? (generatedItem.stats[randomStatKey] || 0)
       : (bonusSource[randomStatKey] || 0);
     // Дробные бонусы скейлятся как раньше (откат). Новые ключи — только стихийка.
-    const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
+    const levelMultiplier = 1 + (playerLevel - 1) * 0.05;
     const totalBonus = baseBonusValue * procMultiplier * levelMultiplier;
     finalStats[randomStatKey] = (finalStats[randomStatKey] || 0) + totalBonus;
   }
@@ -312,7 +312,7 @@ export const generateItem = (
       // Моды хранят базу: скейлит рантайм по уровню мода. Тут не масштабируем.
       if (generatedItem.slot.startsWith('mod_')) break;
       if (originalBaseStat !== 0 && originalBaseStat > 0) {
-        const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
+        const levelMultiplier = 1 + (playerLevel - 1) * 0.05;
         finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
       }
       // Штрафы (отрицательные) сохраняются — не зануляем.
@@ -328,7 +328,7 @@ export const generateItem = (
     if (generatedItem.slot.startsWith('mod_')) break;
     // Штрафы не растут с уровнем (остаются как в базе) и не зануляются.
     if (originalBaseStat !== 0 && originalBaseStat > 0) {
-      const levelMultiplier = 1 + (playerLevel - 1) * 0.1;
+      const levelMultiplier = 1 + (playerLevel - 1) * 0.05;
       finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
     }
     // Штрафы (отрицательные) сохраняются — не зануляем.
