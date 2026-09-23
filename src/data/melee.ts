@@ -58,8 +58,8 @@ export const MELEE_ABILITIES: MeleeAbilityDef[] = [
   },
 
   // ---------- ТИР 1 ----------
-  { id: 'mln_t1_melee', column: 'melee', tier: 1, name: '+3 урон ближнего боя', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🗡️', statsPerRank: [R('meleeDamage', 3, '+3 урон ближнего боя')] },
-  { id: 'mln_t1_shotgun', column: 'melee', tier: 1, name: '+2 урон дробовика', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🔫', statsPerRank: [R('shotgunDamage', 2, '+2 урон дробовика')] },
+  { id: 'mln_t1_melee', column: 'melee', tier: 1, name: '+2.5 урон', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🗡️', statsPerRank: [R('damage', 2.5, '+2.5 урон')] },
+  { id: 'mln_t1_shotgun', column: 'melee', tier: 1, name: '+2 броня', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🔫', statsPerRank: [R('armor', 2, '+2 броня')] },
 
   // ---------- ТИР 2 (нужно 5 из Т1) ----------
   { id: 'mln_t2_vamp', column: 'melee', tier: 2, name: '+2% вампиризм', kind: 'stat', maxRanks: 5, gate: 5, apCost: 0, cooldown: 0, icon: '🩸', statsPerRank: [R('vampir', 0.02, '+2% вампиризм')] },
@@ -95,7 +95,7 @@ export const MELEE_ABILITIES: MeleeAbilityDef[] = [
   {
     id: 'mln_t6_adrenaline', column: 'melee', tier: 6, name: 'Укол адреналина', kind: 'active',
     maxRanks: 2, gate: 0, apCost: 1, cooldown: 50, icon: '💉',
-    mechanic: '+20% урона и брони на 5 ходов. КД 50.',
+    mechanic: '+10% урона и брони за ранг на 5 ходов. КД 50.',
   },
   {
     id: 'mln_t6_regen', column: 'melee', tier: 6, name: 'Второе дыхание', kind: 'passive',
@@ -213,7 +213,7 @@ export const meleeCanAllocate = (
 export const meleeRankText = (def: MeleeAbilityDef, rank: number): string => {
   if (def.statsPerRank) {
     return def.statsPerRank.map((s) => {
-      if (s.stat === 'meleeDamage' || s.stat === 'shotgunDamage' || s.stat === 'damage') {
+      if (s.stat === 'meleeDamage' || s.stat === 'shotgunDamage' || s.stat === 'damage' || s.stat === 'armor' || s.stat === 'maxHp' || s.stat === 'maxStamina') {
         return `+${s.value * rank} ${s.text.replace(/^[+-][\d.]+%?\s*/, '')}`;
       }
       const total = s.value * rank;
@@ -226,7 +226,7 @@ export const meleeRankText = (def: MeleeAbilityDef, rank: number): string => {
   if (def.id === 'mln_t4_fortify') return `+${rank * 10}% брони на 3 хода`;
   if (def.id === 'mln_t6_cheap') return `Способности дешевле на ${rank}AP (мин. 0)`;
   if (def.id === 'mln_t6_regen') return `Реген ${rank * 2.5}% HP в ход`;
-  if (def.id === 'mln_t6_adrenaline') return '+20% урона и брони на 5 ходов';
+  if (def.id === 'mln_t6_adrenaline') return `+${rank * 10}% урона и брони на 5 ходов`;
   if (def.id === 'mln_t7_rage') return '+50% урона, +100% реген на 3 хода';
   if (def.id === 'mln_t7_ram') return '2x урона + отброс + стан на 4 хода';
   if (def.id === 'mln_t7_rush') return '+10 AP на 1 ход, броня в 0';
@@ -261,8 +261,8 @@ export function buildMeleeBattleAbility(
       return {
         ...base, id: 'mlnb_adrenaline', apCost: ap(1), cooldown: 50, powerRating: 60,
         effects: [
-          { type: 'stat_boost_mult', stat: 'damage', value: 0.2, duration: 5 },
-          { type: 'stat_boost_mult', stat: 'armor', value: 0.2, duration: 5 },
+          { type: 'stat_boost_mult', stat: 'damage', value: 0.1 * rank, duration: 5 },
+          { type: 'stat_boost_mult', stat: 'armor', value: 0.1 * rank, duration: 5 },
         ],
       };
     case 'mln_t7_rage':

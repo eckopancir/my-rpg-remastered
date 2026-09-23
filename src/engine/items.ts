@@ -32,11 +32,12 @@ export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
     crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005,
     dpsExtro: 2, dpsFire: 2, dpsEmi: 2, dpsToxis: 2, damage: 3,
   },
-  head: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
-  armor: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
+  head: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250, stamina: 1.5 },
+  armor: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250, stamina: 1.5 },
   shield: { regen: 2, evasion: 0.004, armor: 2, maxHp: 250 },
-  gloves: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
-  boots: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
+  gloves: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250, stamina: 1.5 },
+  boots: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250, stamina: 1.5 },
+  pants: { stamina: 1.5 },
   ammo: { regen: 0.01, block: 0.003, evasion: 0.002, armor: 0.5, maxHp: 20, damage: 0.5 },
   mod: {
     regen: 0.005, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250, damage: 2,
@@ -157,10 +158,13 @@ const uniqueId = () => String(Date.now()) + '_' + (++_idCounter) + '_' + Math.ra
 // Штрафы (отрицательные) при этом НЕ растут и НЕ зануляются.
 
 // Стихийный урон может появиться на оружии с уровнем, даже если его
-// не было в базе. Остальные новые характеристики — нет.
+// не было в базе. Выносливость — только на броне (слот armor-класса).
+// Остальные новые характеристики — нет.
 const ROLLABLE_NEW_STATS = new Set([
   'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire',
 ]);
+const ARMOR_NEW_STATS = new Set(['stamina']);
+const ARMOR_POOL_SLOTS = new Set(['head', 'armor', 'pants', 'gloves', 'boots', 'shield']);
 
 export const generateItem = (
   items: ItemDefinition[],
@@ -253,8 +257,10 @@ export const generateItem = (
   }
   // С уровня падают бонусы ТОЛЬКО к тем статам, что уже есть в базе.
   // Исключение — стихийный урон: он может появиться заново.
+  // Выносливость может появиться заново, но только на броне.
   // (+5 брони или +15% крита из ниоткуда — нельзя.)
-  bonusKeys = bonusKeys.filter((k) => (finalStats[k] || 0) !== 0 || ROLLABLE_NEW_STATS.has(k));
+  const slotIsArmor = ARMOR_POOL_SLOTS.has(generatedItem.slot);
+  bonusKeys = bonusKeys.filter((k) => (finalStats[k] || 0) !== 0 || ROLLABLE_NEW_STATS.has(k) || (slotIsArmor && ARMOR_NEW_STATS.has(k)));
 
   // Мод: сигнатура из дефа + ОДИН случайный второй стат из пула.
   // Совпал с сигнатурой — дабл (крит+крит). Магазины — только +патроны.

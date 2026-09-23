@@ -5,6 +5,7 @@ export interface FoodDef {
   name: string;
   icon: string;
   healPct: number;      // HP % restored (0 = no heal)
+  stamPct: number;      // stamina % restored (0 = none)
   price: number;         // base price
   desc: string;
   isRaw: boolean;       // true = needs cooking, false = eat directly
@@ -20,8 +21,8 @@ export interface RecipeDef {
   desc: string;
 }
 
-const F = (id: string, name: string, icon: string, healPct: number, price: number, desc: string, isRaw: boolean): FoodDef =>
-  ({ id, name, icon, healPct, price, desc, isRaw });
+const F = (id: string, name: string, icon: string, healPct: number, price: number, desc: string, isRaw: boolean, stamPct = 0): FoodDef =>
+  ({ id, name, icon, healPct, stamPct, price, desc, isRaw });
 
 // ─── Raw food (needs cooking) ─────────────────────────────────────────
 export const FOOD_MEAT = F('food_meat', 'Мясо', '🥩', 0, 150, 'Сырое мясо. Нужно приготовить.', true);
@@ -36,16 +37,24 @@ export const FOOD_BREAD = F('food_bread', 'Хлеб', '🍞', 2, 30, 'Восст
 
 // ─── Cooked food (crafted from recipes) — цена = сумма ингредиентов ──
 export const FOOD_BOILED_WATER = F('food_boiled_water', 'Кипяченая вода', '♨️', 1, 30, 'Вода × 2. Восстанавливает 1% HP.', false);
-export const FOOD_RAGU = F('food_ragu', 'Рагу', '🍲', 15, 190, 'Картошка + вода + мясо. Восстанавливает 15% HP.', false);
-export const FOOD_FRIED_MEAT = F('food_fried_meat', 'Жареное мясо', '🍖', 20, 300, 'Мясо × 2. Восстанавливает 20% HP.', false);
-export const FOOD_BOILED_POTATO = F('food_boiled_potato', 'Варёная картошка', '🥔', 12, 40, 'Картошка + вода. Восстанавливает 12% HP.', false);
+export const FOOD_RAGU = F('food_ragu', 'Рагу', '🍲', 12, 190, 'Картошка + вода + мясо. Восстанавливает 12% HP.', false);
+export const FOOD_FRIED_MEAT = F('food_fried_meat', 'Жареное мясо', '🍖', 14, 300, 'Мясо × 2. Восстанавливает 14% HP.', false);
+export const FOOD_BOILED_POTATO = F('food_boiled_potato', 'Варёная картошка', '🥔', 10, 40, 'Картошка + вода. Восстанавливает 10% HP.', false);
 export const FOOD_SANDWICH = F('food_sandwich', 'Бутерброд', '🥪', 5, 80, 'Колбаса + хлеб. Восстанавливает 5% HP.', false);
 export const FOOD_FRIED_POTATO = F('food_fried_potato', 'Жареная картошка', '🍟', 8, 50, 'Картошка × 2. Восстанавливает 8% HP.', false);
+
+// ─── Еда на выносливость и полевая медицина (дорогие позиции базара) ──
+export const FOOD_COFFEE = F('food_coffee', 'Кофе', '☕', 0, 150, 'Восстанавливает 3% выносливости.', false, 3);
+export const FOOD_ENERGY = F('food_energy', 'Энергетик', '🧃', 0, 250, 'Восстанавливает 5% выносливости.', false, 5);
+export const FOOD_ADRENALINE = F('food_adrenaline', 'Укол адреналина', '💉', 0, 800, 'Восстанавливает 10% выносливости. Дорогой.', false, 10);
+export const FOOD_FIRSTAID = F('food_firstaid', 'Аптечка', '🩹', 25, 600, 'Восстанавливает 25% HP. Дорогая.', false);
+export const FOOD_BANDAGE = F('food_bandage', 'Бинты', '🩼', 15, 450, 'Восстанавливают 15% HP. Дорогие.', false);
 
 export const ALL_FOOD: FoodDef[] = [
   FOOD_MEAT, FOOD_POTATO, FOOD_WATER,
   FOOD_SAUSAGE, FOOD_APPLE, FOOD_STEW, FOOD_BREAD,
   FOOD_BOILED_WATER, FOOD_RAGU, FOOD_FRIED_MEAT, FOOD_BOILED_POTATO, FOOD_SANDWICH, FOOD_FRIED_POTATO,
+  FOOD_COFFEE, FOOD_ENERGY, FOOD_ADRENALINE, FOOD_FIRSTAID, FOOD_BANDAGE,
 ];
 
 export const FOOD_MAP: Record<string, FoodDef> = Object.fromEntries(ALL_FOOD.map((f) => [f.id, f]));
@@ -58,19 +67,19 @@ export const RECIPES: RecipeDef[] = [
     desc: 'Вода × 2 = Кипяченая вода (1% HP)',
   },
   {
-    id: 'recipe_ragu', name: 'Рагу', icon: '🍲', result: FOOD_RAGU, healPct: 15,
+    id: 'recipe_ragu', name: 'Рагу', icon: '🍲', result: FOOD_RAGU, healPct: 12,
     ingredients: [{ foodId: 'food_potato', qty: 1 }, { foodId: 'food_water', qty: 1 }, { foodId: 'food_meat', qty: 1 }],
-    desc: 'Картошка + Вода + Мясо = Рагу (15% HP)',
+    desc: 'Картошка + Вода + Мясо = Рагу (12% HP)',
   },
   {
-    id: 'recipe_fried_meat', name: 'Жареное мясо', icon: '🍖', result: FOOD_FRIED_MEAT, healPct: 20,
+    id: 'recipe_fried_meat', name: 'Жареное мясо', icon: '🍖', result: FOOD_FRIED_MEAT, healPct: 14,
     ingredients: [{ foodId: 'food_meat', qty: 2 }],
-    desc: 'Мясо × 2 = Жареное мясо (20% HP)',
+    desc: 'Мясо × 2 = Жареное мясо (14% HP)',
   },
   {
-    id: 'recipe_boiled_potato', name: 'Варёная картошка', icon: '🥔', result: FOOD_BOILED_POTATO, healPct: 12,
+    id: 'recipe_boiled_potato', name: 'Варёная картошка', icon: '🥔', result: FOOD_BOILED_POTATO, healPct: 10,
     ingredients: [{ foodId: 'food_potato', qty: 1 }, { foodId: 'food_water', qty: 1 }],
-    desc: 'Картошка + Вода = Варёная картошка (12% HP)',
+    desc: 'Картошка + Вода = Варёная картошка (10% HP)',
   },
   {
     id: 'recipe_sandwich', name: 'Бутерброд', icon: '🥪', result: FOOD_SANDWICH, healPct: 5,

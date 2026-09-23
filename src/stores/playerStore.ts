@@ -1933,21 +1933,38 @@ export const usePlayerStore = create<PlayerStore>()(
         // Food: cannot eat during active combat
         const FOOD_HEAL: Record<string, number> = {
           food_sausage: 2, food_apple: 1, food_stew: 3, food_bread: 2,
-          food_ragu: 15, food_fried_meat: 20, food_boiled_potato: 12,
+          food_ragu: 12, food_fried_meat: 14, food_boiled_potato: 10,
           food_sandwich: 5, food_fried_potato: 8, food_boiled_water: 1,
+          food_firstaid: 25, food_bandage: 15,
         };
-        if (FOOD_HEAL[abilId] !== undefined) {
+        // Еда на выносливость: % от maxStamina.
+        const FOOD_STAM: Record<string, number> = {
+          food_coffee: 3, food_energy: 5, food_adrenaline: 10,
+        };
+        if (FOOD_HEAL[abilId] !== undefined || FOOD_STAM[abilId] !== undefined) {
           if (useCombatGridStore.getState().isCombatActive()) {
             get().addLog(`❌ Нельзя есть во время боя!`, 'warning');
             return;
           }
-          const pct = FOOD_HEAL[abilId];
           const s = get();
-          const heal = Math.round(s.stats.maxHp * pct / 100);
-          const newHp = Math.min(s.stats.maxHp, s.stats.currentHp + heal);
-          set({ stats: { ...s.stats, currentHp: newHp } });
+          const parts: string[] = [];
+          let newHp = s.stats.currentHp;
+          let newStam = s.stats.stamina;
+          if (FOOD_HEAL[abilId] !== undefined) {
+            const pct = FOOD_HEAL[abilId];
+            const heal = Math.round(s.stats.maxHp * pct / 100);
+            newHp = Math.min(s.stats.maxHp, s.stats.currentHp + heal);
+            parts.push(`+${pct}% HP (+${heal})`);
+          }
+          if (FOOD_STAM[abilId] !== undefined) {
+            const pct = FOOD_STAM[abilId];
+            const gain = Math.round(s.stats.maxStamina * pct / 100);
+            newStam = Math.min(s.stats.maxStamina, s.stats.stamina + gain);
+            parts.push(`+${pct}% выносливости (+${gain})`);
+          }
+          set({ stats: { ...s.stats, currentHp: newHp, stamina: newStam } });
           playCombatSound('nom-nom-nom_gPJiWn4', 0.5);
-          get().addLog(`🍖 ${item.displayName || item.name}: +${pct}% HP (+${heal})`, 'heal');
+          get().addLog(`🍖 ${item.displayName || item.name}: ${parts.join(', ')}`, 'heal');
           const qty = (item.quantity ?? 1) as number;
           if (qty > 1) {
             useInventoryStore.getState().decrementItem(item.id);
@@ -2023,9 +2040,8 @@ export const usePlayerStore = create<PlayerStore>()(
         const s = get();
         if (!s.travel.isTraveling) return;
         const newRemaining = s.travel.remaining - 1;
-        // Stamina drain during travel: 1% per second
+        // Дрейн стамины в пути — почасовая модель (−1%/ч), считает минутный тик и бекенд.
         set((state) => ({
-          stats: { ...state.stats, stamina: Math.max(0, state.stats.stamina - 1) },
           travel: { ...state.travel, remaining: newRemaining },
         }));
         if (newRemaining <= 0) {
@@ -2051,9 +2067,8 @@ export const usePlayerStore = create<PlayerStore>()(
         if (s.travel.remaining <= 1) {
           set({
             travel: { isTraveling: false, isReturning: false, destination: null, remaining: 0, total: 0 },
-            stats: { ...s.stats, stamina: s.stats.maxStamina },
           });
-          get().addLog(`🏠 Вернулись на базу. Выносливость полностью восстановлена!`, 'heal');
+          get().addLog(`🏠 Вернулись на базу.`, 'heal');
         }
       },
 

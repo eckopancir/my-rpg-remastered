@@ -278,9 +278,9 @@ export const ALL_ABILITIES: AccessoryAbility[] = [
   { id: 'food_apple', name: 'Яблоко', icon: '🍎', description: '+1% HP.', apCost: 1, cooldown: 0, powerRating: 1, effects: [{ type: 'heal_percent', value: 1 }] },
   { id: 'food_stew', name: 'Тушёнка', icon: '🥫', description: '+3% HP.', apCost: 1, cooldown: 0, powerRating: 3, effects: [{ type: 'heal_percent', value: 3 }] },
   { id: 'food_bread', name: 'Хлеб', icon: '🍞', description: '+2% HP.', apCost: 1, cooldown: 0, powerRating: 2, effects: [{ type: 'heal_percent', value: 2 }] },
-  { id: 'food_ragu', name: 'Рагу', icon: '🍲', description: '+15% HP.', apCost: 1, cooldown: 0, powerRating: 15, effects: [{ type: 'heal_percent', value: 15 }] },
-  { id: 'food_fried_meat', name: 'Жареное мясо', icon: '🍖', description: '+20% HP.', apCost: 1, cooldown: 0, powerRating: 20, effects: [{ type: 'heal_percent', value: 20 }] },
-  { id: 'food_boiled_potato', name: 'Варёная картошка', icon: '🥔', description: '+12% HP.', apCost: 1, cooldown: 0, powerRating: 12, effects: [{ type: 'heal_percent', value: 12 }] },
+  { id: 'food_ragu', name: 'Рагу', icon: '🍲', description: '+12% HP.', apCost: 1, cooldown: 0, powerRating: 12, effects: [{ type: 'heal_percent', value: 12 }] },
+  { id: 'food_fried_meat', name: 'Жареное мясо', icon: '🍖', description: '+14% HP.', apCost: 1, cooldown: 0, powerRating: 14, effects: [{ type: 'heal_percent', value: 14 }] },
+  { id: 'food_boiled_potato', name: 'Варёная картошка', icon: '🥔', description: '+10% HP.', apCost: 1, cooldown: 0, powerRating: 10, effects: [{ type: 'heal_percent', value: 10 }] },
   { id: 'food_sandwich', name: 'Бутерброд', icon: '🥪', description: '+5% HP.', apCost: 1, cooldown: 0, powerRating: 5, effects: [{ type: 'heal_percent', value: 5 }] },
   { id: 'food_fried_potato', name: 'Жареная картошка', icon: '🍟', description: '+8% HP.', apCost: 1, cooldown: 0, powerRating: 8, effects: [{ type: 'heal_percent', value: 8 }] },
 ];

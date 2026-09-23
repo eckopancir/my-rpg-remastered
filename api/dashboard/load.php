@@ -15,7 +15,17 @@ if ($row) {
     if (!is_array($sd)) $sd = [];
     // Офлайн-догон виталов: пока сайт закрыт, фронтовые тики не идут.
     $nowMs = (int)(microtime(true) * 1000);
-    $catchup = applyVitalsCatchup($sd, $nowMs, isset($row['updated_at']) ? strtotime($row['updated_at']) : null);
+    $exploring = false;
+    $exploreStartedMs = null;
+    try {
+        $expStmt = $pdo->prepare("SELECT UNIX_TIMESTAMP(started_at)*1000 AS sms FROM explorations WHERE user_id = ? AND phase NOT IN ('complete','idle') ORDER BY id DESC LIMIT 1");
+        $expStmt->execute([$user['id']]);
+        if ($expRow = $expStmt->fetch()) {
+            $exploring = true;
+            $exploreStartedMs = isset($expRow['sms']) ? (int)$expRow['sms'] : null;
+        }
+    } catch (Exception $e) { /* ignore */ }
+    $catchup = applyVitalsCatchup($sd, $nowMs, isset($row['updated_at']) ? strtotime($row['updated_at']) : null, $exploring, $exploreStartedMs);
     if ($catchup['applied']) {
         $upd = $pdo->prepare('UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?');
         $upd->execute([json_encode($sd, JSON_UNESCAPED_UNICODE), $user['id']]);

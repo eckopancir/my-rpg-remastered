@@ -187,7 +187,7 @@ const AppContent = () => {
       // Backend offline catch-up (regen while the site was closed) — show it.
       try {
         const vc = takeVitalsCatchup() as any;
-        if (vc && vc.applied && ((vc.hpGained || 0) > 0 || (vc.staminaGained || 0) > 0)) {
+        if (vc && vc.applied && ((vc.hpGained || 0) > 0 || (vc.staminaGained || 0) > 0 || (vc.staminaLost || 0) > 0)) {
           const mins = Math.max(1, Math.round((vc.offlineMin || 0)));
           const ago = mins >= 60
             ? `${Math.floor(mins / 60)} ч ${mins % 60} мин`
@@ -195,6 +195,7 @@ const AppContent = () => {
           const parts: string[] = [];
           if (vc.hpGained > 0) parts.push(`+${vc.hpGained} HP`);
           if (vc.staminaGained > 0) parts.push(`+${vc.staminaGained} стамины`);
+          if (vc.staminaLost > 0) parts.push(`−${vc.staminaLost} стамины (экспедиция)`);
           useUiStore.getState().addToast(`💚 Пока вас не было (${ago}): ${parts.join(', ')}`, 'success');
         }
       } catch { /* ignore */ }

@@ -7,6 +7,7 @@ import { getAvailableCards, getRefreshTime, forceRefresh, ENEMY_TYPE_TO_KEY } fr
 import type { GeneratedCard, EnemyShortName } from '../data/encounters';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore, type ExpeditionEntry } from '../stores/uiStore';
+import { syncNow } from '../utils/serverSync';
 
 const RARITY_BG: Record<string, string> = {
   'Обычный': 'rgba(255,255,255,0.3)',
@@ -81,6 +82,18 @@ export const Expedition = () => {
     const card = cards.find((c) => c.id === id);
     if (!card) return;
 
+    // Цена экспедиции — выносливость = SL карты.
+    const pst = usePlayerStore.getState();
+    if ((pst.stats.stamina || 0) < card.totalSl) {
+      addToast(`❌ Нужно ${card.totalSl} выносливости, а есть ${Math.floor(pst.stats.stamina || 0)}`, 'error');
+      addLog(`❌ Экспедиция "${card.name}": нужно ${card.totalSl} выносливости.`, 'warning');
+      return;
+    }
+    usePlayerStore.setState((st: any) => ({
+      stats: { ...st.stats, stamina: Math.max(0, st.stats.stamina - card.totalSl) },
+    }));
+    addLog(`⚡ Экспедиция "${card.name}": −${card.totalSl} выносливости.`, 'info');
+
     const entryId = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const entry: ExpeditionEntry = {
       id: entryId,
@@ -102,6 +115,7 @@ export const Expedition = () => {
     addToQueue(entry);
     addLog(`📋 Экспедиция на карту "${card.name}" (SL ${card.totalSl}) добавлена.`, 'info');
     addToast(`Экспедиция на "${card.name}" запущена!`, 'success');
+    try { syncNow(); } catch { /* ignore */ }
     navigate('/dashboard');
   }, [selectedId, cards, zoneName, addToQueue, addLog, addToast, navigate]);
 
@@ -184,7 +198,7 @@ export const Expedition = () => {
                   background: 'rgba(0,0,0,0.55)',
                   color: '#fff', fontWeight: 600,
                 }}>
-                  SL {card.totalSl}
+                  SL {card.totalSl} · −{card.totalSl}⚡
                 </div>
 
                 <div style={{

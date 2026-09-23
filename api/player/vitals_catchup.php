@@ -12,20 +12,25 @@
 
 if (!function_exists('applyVitalsCatchup')) {
 
-define('VITALS_MAX_OFFLINE_SEC', 12 * 3600); // cap offline progress: 12h
-define('VITALS_STAMINA_PER_MIN', 1);         // same as frontend passive regen at base (+1/min)
+define('VITALS_MAX_OFFLINE_SEC', 72 * 3600); // cap offline progress: 72h
+define('VITALS_STAMINA_PER_MIN', 1);         // legacy, больше не используется (модель почасовая, см. ниже)
 
 /**
  * Advances HP/stamina/effects/travel inside $saveData (player.*) from the
  * stored vitalsAt timestamp up to $nowMs. Always re-stamps vitalsAt.
  *
+ * Stamina — почасовая модель: в активной экспедиции −1%/ч от maxStamina,
+ * иначе +2%/ч (даже с закрытым сайтом, до 72ч).
+ * $exploring: true — сейчас есть активная экспедиция (фаза не complete/idle).
+ * $exploreStartedMs: когда она стартовала (для сплита реген/трейн в гэпе).
+ *
  * Returns a summary for client toasts:
- * ['applied', 'offlineMin', 'hpGained', 'staminaGained', 'effectsExpired', 'travelFinished']
+ * ['applied', 'offlineMin', 'hpGained', 'staminaGained', 'staminaLost', 'effectsExpired', 'travelFinished']
  */
-function applyVitalsCatchup(array &$saveData, int $nowMs, $fallbackUpdatedAtSec = null): array {
+function applyVitalsCatchup(array &$saveData, int $nowMs, $fallbackUpdatedAtSec = null, $exploring = false, $exploreStartedMs = null): array {
     $summary = [
         'applied' => false, 'offlineMin' => 0, 'hpGained' => 0,
-        'staminaGained' => 0, 'effectsExpired' => 0, 'travelFinished' => false,
+        'staminaGained' => 0, 'staminaLost' => 0, 'effectsExpired' => 0, 'travelFinished' => false,
     ];
     if (!isset($saveData['player']) || !is_array($saveData['player'])) return $summary;
     $pl = &$saveData['player'];
@@ -91,18 +96,43 @@ function applyVitalsCatchup(array &$saveData, int $nowMs, $fallbackUpdatedAtSec 
         }
     }
 
-    // 2) Passive regen on the leftover time, at base x1 rate
-    //    (frontend: x1 at base, x0.3 outside; offline location is unknown -> base rate).
+    // 2) HP-реген по минутному тику (как фронт); в активной экспедиции — пауза.
+    //    Стамина — почасовая: −1%/ч в экспедиции, иначе +2%/ч от maxStamina.
+    //    Если экспедиция стартовала внутри гэпа — сплит: реген до старта, дрейн после.
+    $drainSec = 0;
+    $regenSecForStam = $regenSec;
+    if ($exploring) {
+        $expStart = is_numeric($exploreStartedMs) ? (int)$exploreStartedMs : 0;
+        if ($expStart > $anchorMs && $expStart < $nowMs) {
+            $regenSecForStam = (int)floor(($expStart - $anchorMs) / 1000);
+            $drainSec = $elapsedSec - (int)floor(($expStart - $anchorMs) / 1000);
+        } else {
+            $regenSecForStam = 0;
+            $drainSec = $elapsedSec;
+        }
+    }
     $minutes = (int)floor($regenSec / 60);
-    if ($minutes > 0) {
+    // В экспедиции HP стоит; если она стартовала внутри гэпа — реген за idle-часть.
+    $hpMinutes = $exploring ? (int)floor($regenSecForStam / 60) : $minutes;
+    if ($hpMinutes > 0) {
         if ($maxHp > 0 && $curHp < $maxHp && $regen > 0) {
-            $newHp = min($maxHp, $curHp + $minutes * $regen);
+            $newHp = min($maxHp, $curHp + $hpMinutes * $regen);
             $summary['hpGained'] = (int)round($newHp - $curHp);
             $curHp = $newHp;
             $pl['stats']['currentHp'] = $curHp;
         }
-        if ($maxSt > 0 && $curSt < $maxSt) {
-            $newSt = min($maxSt, $curSt + $minutes * VITALS_STAMINA_PER_MIN);
+    }
+    if ($maxSt > 0) {
+        if ($drainSec > 0) {
+            $lost = $maxSt * 0.01 * ($drainSec / 3600);
+            $newSt = max(0.0, $curSt - $lost);
+            $summary['staminaLost'] = (int)round($curSt - $newSt);
+            $curSt = $newSt;
+            $pl['stats']['stamina'] = $curSt;
+        }
+        $stamMinutes = (int)floor($regenSecForStam / 60);
+        if ($stamMinutes > 0 && $curSt < $maxSt) {
+            $newSt = min($maxSt, $curSt + $maxSt * 0.02 * ($regenSecForStam / 3600));
             $summary['staminaGained'] = (int)round($newSt - $curSt);
             $pl['stats']['stamina'] = $newSt;
         }

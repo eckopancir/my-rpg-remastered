@@ -83,19 +83,27 @@ export const useGameLoop = () => {
 
       // 6. Passive regen — faster at base, slower outside (skip during server-polled phase of exploration)
       // Тикает раз в минуту (isRegenTick), кроме арены.
+      // Стамина — почасовая модель: в активном travel −1%/ч, иначе +2%/ч от maxStamina.
       const skipRegenDueToExploration = exploration.isExploring && !exploration.isReturningHome;
+      const traveling = exploration.isExploring || player.travel.isTraveling || player.travel.isReturning;
       if (isRegenTick && !skipRegenDueToExploration && !player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
         const s = player.stats;
         if (s.currentHp !== s.maxHp || s.stamina !== s.maxStamina) {
           const atBase = !player.travel.isReturning && !player.travel.isTraveling;
           const regenVal = s.regen * (atBase ? 1 : 0.3);
           const newHp = Math.min(s.maxHp, s.currentHp + regenVal);
-          console.log('[PASSIVE_REGEN]', { before: s.currentHp, regenUsed: s.regen, multiplier: atBase ? 1 : 0.3, regenVal, after: newHp, maxHp: s.maxHp, ts: Date.now() });
+          const maxSt = s.maxStamina || 0;
+          const newStam = maxSt > 0
+            ? (traveling
+              ? Math.max(0, s.stamina - (maxSt * 0.01) / 60)
+              : Math.min(maxSt, s.stamina + (maxSt * 0.02) / 60))
+            : s.stamina;
+          console.log('[PASSIVE_REGEN]', { before: s.currentHp, regenUsed: s.regen, multiplier: atBase ? 1 : 0.3, regenVal, after: newHp, maxHp: s.maxHp, stamina: s.stamina, staminaAfter: newStam, traveling, ts: Date.now() });
           usePlayerStore.setState({
             stats: {
               ...s,
               currentHp: newHp,
-              stamina: Math.min(s.maxStamina, s.stamina + (atBase ? 1 : 0.1)),
+              stamina: newStam,
             },
           });
         }

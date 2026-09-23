@@ -30,7 +30,13 @@ try {
         // damage nor consumable heals get silently lost.
         $storedAgeSec = $curRow['updated_at'] ? (time() - strtotime($curRow['updated_at'])) : 0;
         if ($storedAgeSec > 120 && is_array($curSd)) {
-            $catchup = applyVitalsCatchup($curSd, $nowMs, strtotime($curRow['updated_at']) ?: null);
+            $expSm = null;
+            try {
+                $expStmt2 = $pdo->prepare("SELECT UNIX_TIMESTAMP(started_at)*1000 AS sms FROM explorations WHERE user_id = ? AND phase NOT IN ('complete','idle') ORDER BY id DESC LIMIT 1");
+                $expStmt2->execute([$user['id']]);
+                if ($expRow2 = $expStmt2->fetch()) $expSm = isset($expRow2['sms']) ? (int)$expRow2['sms'] : null;
+            } catch (Exception $e2) { /* ignore */ }
+            $catchup = applyVitalsCatchup($curSd, $nowMs, strtotime($curRow['updated_at']) ?: null, $expSm !== null, $expSm);
             if ($catchup['applied'] && isset($curSd['player']['stats'], $data['player']['stats'])) {
                 $st = &$data['player']['stats'];
                 $cst = $curSd['player']['stats'];

@@ -20,7 +20,18 @@ if (!is_array($data)) $data = [];
 // site was closed (frontend ticks only run in an open tab).
 $nowMs = (int)(microtime(true) * 1000);
 $updatedSec = isset($row['updated_at']) ? strtotime($row['updated_at']) : null;
-$catchup = applyVitalsCatchup($data, $nowMs, $updatedSec ?: null);
+// Активная экспедиция: стамина в гэпе падает (−1%/ч), иначе растёт (+2%/ч).
+$exploring = false;
+$exploreStartedMs = null;
+try {
+    $expStmt = $pdo->prepare("SELECT UNIX_TIMESTAMP(started_at)*1000 AS sms FROM explorations WHERE user_id = ? AND phase NOT IN ('complete','idle') ORDER BY id DESC LIMIT 1");
+    $expStmt->execute([$user['id']]);
+    if ($expRow = $expStmt->fetch()) {
+        $exploring = true;
+        $exploreStartedMs = isset($expRow['sms']) ? (int)$expRow['sms'] : null;
+    }
+} catch (Exception $e) { /* ignore */ }
+$catchup = applyVitalsCatchup($data, $nowMs, $updatedSec ?: null, $exploring, $exploreStartedMs);
 if ($catchup['applied']) {
     $upd = $pdo->prepare('UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?');
     $upd->execute([json_encode($data, JSON_UNESCAPED_UNICODE), $user['id']]);
