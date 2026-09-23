@@ -91,7 +91,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     : flipLeft
       ? Math.max(8, x - TOOLTIP_W - 16)
       : x + 16;
-  const tooltipY = pinMode ? 10 : Math.max(8, Math.min(y - 10, window.innerHeight - 340));
+  const tooltipY = pinMode ? 10 : Math.max(8, Math.min(y - 10, window.innerHeight - 420));
   // Спойлеры сета/сфер — изначально свернуты, через 3с плавно раскрываются.
   const [spoilersOpen, setSpoilersOpen] = useState(false);
   useEffect(() => {
@@ -132,7 +132,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     : ((EQUIPMENT_SLOTS as readonly string[]).includes(item.slot || '') ? (item.slot as string) : null);
   const compareItem = compareSlot ? (equipment as any)[compareSlot] : null;
   const showCompare = shiftHeld && compareItem && compareItem.id !== item.id;
-  const compareX = Math.max(8, tooltipX - 276);
+  const compareX = flipLeft ? tooltipX + TOOLTIP_W + 16 : tooltipX - 276;
+  const compareY = tooltipY;
   const foodIcon = item.type === 'consumable' && item.abilityId ? (FOOD_MAP[item.abilityId]?.icon || getConsumableIcon(item)) : null;
   const shieldIcon = item.slot === 'shield' ? ((item as any).icon || '🛡️') : null;
   const imgUrl = item.image
@@ -154,7 +155,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
   return (
     <>
     {showCompare && !nested && (
-      <ItemTooltip item={compareItem} x={compareX - 16} y={y} nested />
+      <ItemTooltip item={compareItem} x={compareX} y={compareY} nested />
     )}
     <div
       style={{
