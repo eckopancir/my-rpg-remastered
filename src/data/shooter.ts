@@ -86,18 +86,18 @@ export const SHOOTER_ABILITIES: ShooterAbilityDef[] = [
     id: 'sht_t4_head', column: 'shooter', tier: 4, name: 'Тройной выстрел', kind: 'active',
     maxRanks: 10, gate: 0, exclusiveWith: ['sht_t4_react', 'sht_t4_bazooka'], apCost: 2, cooldown: 10, icon: '🎯',
     multiTarget: 3,
-    mechanic: 'Выбери 3 цели по очереди: всем ×3 урона. КД 10.',
+    mechanic: 'Выбери 3 цели по очереди: всем ×3 урона (+0.1× за ранг). КД 10.',
   },
   {
     id: 'sht_t4_react', column: 'shooter', tier: 4, name: 'Адская реакция', kind: 'active',
     maxRanks: 10, gate: 0, exclusiveWith: ['sht_t4_head', 'sht_t4_bazooka'], apCost: 1, cooldown: 10, icon: '😈',
-    mechanic: '+100% скорости на 1 ход. КД 10.',
+    mechanic: '+100% скорости (+10% за ранг) на 1 ход. КД 10.',
   },
   {
     id: 'sht_t4_bazooka', column: 'shooter', tier: 4, name: 'Залп из базуки', kind: 'active',
     maxRanks: 10, gate: 0, exclusiveWith: ['sht_t4_head', 'sht_t4_react'], apCost: 2, cooldown: 10, icon: '🚀',
     cellAoE: { radius: 1, range: 10 },
-    mechanic: 'Удар по клетке 3×3: 5x урона всем врагам. КД 10.',
+    mechanic: 'Удар по клетке 3×3: 5x урона (+0.2x за ранг) всем врагам. КД 10.',
   },
 
   // ---------- ТИР 5 (нужно 25 из Т1–4) ----------
@@ -114,17 +114,17 @@ export const SHOOTER_ABILITIES: ShooterAbilityDef[] = [
   {
     id: 'sht_t6_bandage', column: 'shooter', tier: 6, name: 'Полевой бинт', kind: 'active',
     maxRanks: 5, gate: 0, apCost: 1, cooldown: 50, icon: '🩼',
-    mechanic: '+5% HP/ход и ×3 регена. Длительность = 3 + ранг ходов. КД 50.',
+    mechanic: '+5% HP/ход (+1% за ранг) и ×3 регена. Длительность = 3 + ранг ходов. КД 50.',
   },
   {
     id: 'sht_t6_acid', column: 'shooter', tier: 6, name: 'Кислотные патроны', kind: 'active',
     maxRanks: 5, gate: 0, apCost: 2, cooldown: 50, icon: '🧪',
-    mechanic: '-50% брони цели + стан. Длительность = 5 + ранг ходов. КД 50.',
+    mechanic: '-50% брони цели (−5 п.п. за ранг) + стан. Длительность = 5 + ранг ходов. КД 50.',
   },
   {
     id: 'sht_t6_shred', column: 'shooter', tier: 6, name: 'Подкалиберные', kind: 'active',
     maxRanks: 5, gate: 0, apCost: 1, cooldown: 50, icon: '🔩',
-    mechanic: '+100% пробития. Длительность = 2 + ранг ходов. КД 50.',
+    mechanic: '+100% пробития (+20% за ранг). Длительность = 2 + ранг ходов. КД 50.',
   },
 
   // ---------- ТИР 7 (нужно 32 из Т1–6, любые две) ----------
@@ -281,13 +281,13 @@ export const shooterRankText = (def: ShooterAbilityDef, rank: number): string =>
       return `+${shown} ${label}`;
     }).join(' · ');
   }
-  if (def.id === 'sht_t4_react') return '+100% скорости на 1 ход';
-  if (def.id === 'sht_t4_head') return '3 цели по ×3 урона';
-  if (def.id === 'sht_t4_bazooka') return '5x урона по клетке 3×3';
+  if (def.id === 'sht_t4_react') return `+${Math.round((1.0 + 0.1 * (rank - 1)) * 100)}% скорости на 1 ход`;
+  if (def.id === 'sht_t4_head') return `3 цели по ×${Number((3 + 0.1 * (rank - 1)).toFixed(1))} урона`;
+  if (def.id === 'sht_t4_bazooka') return `${Number((5 + 0.2 * (rank - 1)).toFixed(1))}x урона по клетке 3×3`;
   if (def.id === 'sht_t6_stim') return `+1 AP на ${5 + rank} ходов`;
-  if (def.id === 'sht_t6_bandage') return `+5% HP/ход, ×3 регена на ${3 + rank} ходов`;
-  if (def.id === 'sht_t6_acid') return `-50% брони + стан на ${5 + rank} ходов`;
-  if (def.id === 'sht_t6_shred') return `+100% пробития на ${2 + rank} ходов`;
+  if (def.id === 'sht_t6_bandage') return `+${5 + (rank - 1)}% HP/ход, ×3 регена на ${3 + rank} ходов`;
+  if (def.id === 'sht_t6_acid') return `-${50 + 5 * (rank - 1)}% брони + стан на ${5 + rank} ходов`;
+  if (def.id === 'sht_t6_shred') return `+${100 + 20 * (rank - 1)}% пробития на ${2 + rank} ходов`;
   if (def.id === 'sht_t8_elem') return '+50% стихийного урона пистолета на 10 ходов';
   if (def.id === 'sht_t8_exo') return '-50% входящего урона на 5 ходов';
   if (def.id === 'sht_t8_wind') return '+400% скорости на 1 ход';
@@ -315,18 +315,18 @@ export function buildShooterBattleAbility(
     case 'sht_grenade':
       return { ...base, id: 'shtb_grenade', apCost: ap(2), cooldown: 5, powerRating: 60, requiresTarget: true, range: 8, effects: [{ type: 'damage', multiplier: 5, aoe: 2 }] };
     case 'sht_t4_head':
-      return { ...base, id: 'shtb_head', apCost: ap(2), cooldown: 10, powerRating: 75, requiresTarget: true, multiTarget: 3, effects: [{ type: 'damage', multiplier: 3 }] };
+      return { ...base, id: 'shtb_head', apCost: ap(2), cooldown: 10, powerRating: 75, requiresTarget: true, multiTarget: 3, effects: [{ type: 'damage', multiplier: 3 + 0.1 * (rank - 1) }] };
     case 'sht_t4_react':
-      return { ...base, id: 'shtb_react', apCost: ap(1), cooldown: 10, powerRating: 60, effects: [{ type: 'stat_boost', stat: 'speed', value: 1.0, duration: 1 }] };
+      return { ...base, id: 'shtb_react', apCost: ap(1), cooldown: 10, powerRating: 60, effects: [{ type: 'stat_boost', stat: 'speed', value: 1.0 + 0.1 * (rank - 1), duration: 1 }] };
     case 'sht_t4_bazooka':
-      return { ...base, id: 'shtb_bazooka', apCost: ap(2), cooldown: 10, powerRating: 65, cellAoE: { radius: 1, range: 10 }, effects: [{ type: 'damage', multiplier: 5 }] };
+      return { ...base, id: 'shtb_bazooka', apCost: ap(2), cooldown: 10, powerRating: 65, cellAoE: { radius: 1, range: 10 }, effects: [{ type: 'damage', multiplier: 5 + 0.2 * (rank - 1) }] };
     case 'sht_t6_stim':
       return { ...base, id: 'shtb_stim', apCost: ap(1), cooldown: 50, powerRating: 60, effects: [{ type: 'sprint_boost', duration: 5 + rank, value: 1 }] };
     case 'sht_t6_bandage':
       return {
         ...base, id: 'shtb_bandage', apCost: ap(1), cooldown: 50, powerRating: 60,
         effects: [
-          { type: 'heal_over_time', value: 0.05, duration: 3 + rank },
+          { type: 'heal_over_time', value: 0.05 + 0.01 * (rank - 1), duration: 3 + rank },
           { type: 'stat_boost_mult', stat: 'regen', value: 2, duration: 3 + rank },
         ],
       };
@@ -334,12 +334,12 @@ export function buildShooterBattleAbility(
       return {
         ...base, id: 'shtb_acid', apCost: ap(2), cooldown: 50, powerRating: 60, requiresTarget: true, range: 7,
         effects: [
-          { type: 'stat_boost', stat: 'enemyArmorReduction', value: 0.5, duration: 5 + rank },
+          { type: 'stat_boost', stat: 'enemyArmorReduction', value: 0.5 + 0.05 * (rank - 1), duration: 5 + rank },
           { type: 'status', id: 'stun', duration: 1 },
         ],
       };
     case 'sht_t6_shred':
-      return { ...base, id: 'shtb_shred', apCost: ap(1), cooldown: 50, powerRating: 60, range: 10, effects: [{ type: 'stat_boost', stat: 'punching', value: 1.0, duration: 2 + rank }] };
+      return { ...base, id: 'shtb_shred', apCost: ap(1), cooldown: 50, powerRating: 60, range: 10, effects: [{ type: 'stat_boost', stat: 'punching', value: 1.0 + 0.2 * (rank - 1), duration: 2 + rank }] };
     case 'sht_t8_elem':
       return { ...base, id: 'shtb_elem', apCost: ap(1), cooldown: 50, powerRating: 65, effects: [] };
     case 'sht_t8_exo':
