@@ -372,7 +372,7 @@ export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: num
 };
 
 const BASE_STATS: PlayerStats = {
-  maxHp: 9980, currentHp: 10000, maxStamina: 100, stamina: 100,
+  maxHp: 480, currentHp: 500, maxStamina: 100, stamina: 100,
   damage: 5, meleeDamage: 0, shotgunDamage: 0,
   autoDamage: 0, pistolDamage: 0, heavyDamage: 0, critDamage: 0,
   crit: 0.05, armor: 2, regen: 1, evasion: 0.05, block: 0,
