@@ -1382,6 +1382,10 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Молот Торнадо', rarity: 'superepic', slot: 'weapon1', stats: { damage: 22, speed: -0.2, armor: 1, vampir: 0.04, punching: 0.06, crit: 0.04, evasion: -0.3 }, mods: {}, set: 'Феникс' },
   { name: 'Клинок из обсидиана', rarity: 'superepic', slot: 'weapon1', stats: { damage: 14, crit: 0.05, vampir: 0.04, punching: 0.06 } },
 
+  // === ЩИТЫ (слот shield, класс Милишник; блока в stats нет — +25% шанс даёт надетый щит) ===
+  { name: 'Полицейский щит', rarity: 'epic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 8, maxHp: 200, evasion: 0.01 } },
+  { name: 'Баллистический щит', rarity: 'superepic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 14, maxHp: 350, regen: 0.1 } },
+
 
   // === СЕТ «СТАЛКЕР» (epic) ===
   { name: 'Шлем сталкера', rarity: 'epic', slot: 'head', stats: { armor: 3, evasion: 0.016, maxHp: 150 }, set: 'Сталкер' },

@@ -34,6 +34,7 @@ export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
   },
   head: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
   armor: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
+  shield: { regen: 2, evasion: 0.004, armor: 2, maxHp: 250 },
   gloves: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
   boots: { regen: 2, block: 0.005, evasion: 0.004, armor: 2, maxHp: 250 },
   ammo: { regen: 0.01, block: 0.003, evasion: 0.002, armor: 0.5, maxHp: 20, damage: 0.5 },
@@ -330,7 +331,7 @@ export const generateItem = (
 
   generatedItem.stats = finalStats;
 
-  // Гнёзда под сферы: оружие 1–5, броня 1–3 (модам и уникам не положены).
+  // Гнёзда под сферы: оружие 1–5, броня 1–3 (модам, уникам и щитам не положены).
   const isGear = generatedItem.slot === 'weapon1' || generatedItem.slot === 'weapon2'
     || generatedItem.slot.startsWith('gun_')
     || ['head', 'armor', 'pants', 'gloves', 'boots'].includes(generatedItem.slot);

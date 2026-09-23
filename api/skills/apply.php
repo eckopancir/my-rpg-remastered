@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/sniper_validate.php';
 require_once __DIR__ . '/pet_validate.php';
+require_once __DIR__ . '/melee_validate.php';
 
 $user = requireAuth();
 $input = json_decode(file_get_contents('php://input'), true);
@@ -21,7 +22,7 @@ try {
     $existing = [];
     $totalSpent = 0;
     // Бесплатные базовые снайпера в потраченные не считаются.
-    $freeTakeIds = ['snp_x_aim' => 1, 'snp_a7_deadeye' => 1, 'snp_x_stealth' => 1, 'pet_regen' => 1, 'pet_ai' => 1];
+    $freeTakeIds = ['snp_x_aim' => 1, 'snp_a7_deadeye' => 1, 'snp_x_stealth' => 1, 'pet_regen' => 1, 'pet_ai' => 1, 'mln_shield_use' => 1, 'mln_shotgun_stun' => 1];
     foreach ($stmt->fetchAll() as $row) {
         $existing[$row['skill_id']] = (int)$row['points'];
         if (!isset($freeTakeIds[$row['skill_id']])) $totalSpent += (int)$row['points'];
@@ -50,7 +51,7 @@ try {
     $pendingTotal = 0;
 
     // Бесплатные базовые снайпера очки не тратят (зеркало freeTake).
-    $freeTake = ['snp_x_aim' => 1, 'snp_a7_deadeye' => 1, 'snp_x_stealth' => 1, 'pet_regen' => 1, 'pet_ai' => 1];
+    $freeTake = ['snp_x_aim' => 1, 'snp_a7_deadeye' => 1, 'snp_x_stealth' => 1, 'pet_regen' => 1, 'pet_ai' => 1, 'mln_shield_use' => 1, 'mln_shotgun_stun' => 1];
 
     // First pass: apply pending to get new skills map
     foreach ($pendingSkills as $skillId => $points) {
@@ -84,6 +85,13 @@ try {
     if ($petErr !== null) {
         $pdo->rollBack();
         jsonResponse(['error' => $petErr], 400);
+    }
+
+    // Антиабуз милишника (зеркало src/data/melee.ts).
+    $mlnErr = validateMelee($newSkills);
+    if ($mlnErr !== null) {
+        $pdo->rollBack();
+        jsonResponse(['error' => $mlnErr], 400);
     }
 
     // UPSERT new skills

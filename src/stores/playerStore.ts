@@ -13,6 +13,7 @@ import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SNIPER_ABILITIES, SNIPER_BY_ID, SNIPER_META, sniperCanAllocate, sniperBattleAbilities, sniperFindInvalid } from '../data/sniper';
 import { PET_ABILITIES, PET_BY_ID, PET_META, PET_FREE_DEFS, petCanAllocate, petBattleAbilities, petFindInvalid, petBranchAuras, isPetBranchHidden, type PetKind, type PetBattleAbility } from '../data/pets';
+import { MELEE_ABILITIES, MELEE_BY_ID, MELEE_META, meleeCanAllocate, meleeBattleAbilities, meleeFindInvalid } from '../data/melee';
 import { backpackSlotsFor, backpackDefByName, backpackSlots, makeBackpack, tryInsertInto, createGrid, tryInsertIntoGrid, removeItemFromGrid, findFreeSlot, placeItemAt, type BackpackGrid } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
@@ -23,7 +24,7 @@ import { playCombatSound } from '../hooks/useSound';
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'pants', 'weapon1', 'weapon2',
   'gun_pistol', 'gun_shotgun', 'gun_sniper', 'gun_heavy',
-  'gloves', 'boots', 'backpack',
+  'gloves', 'boots', 'backpack', 'shield',
 ] as const;
 export type EquipmentSlot = typeof EQUIPMENT_SLOTS[number];
 
@@ -41,10 +42,11 @@ export const getEquipSlot = (item: Item): EquipmentSlot | null => {
 };
 
 /**
- * Класс способности: sniper | lesnichiy | null (классические ветки удалены из игры).
+ * Класс способности: sniper | lesnichiy | melee | null (классические ветки удалены из игры).
  */
 export const classForSkill = (skillId: string): string | null => {
   if (skillId.startsWith('snp_')) return SNIPER_META.id;
+  if (skillId.startsWith('mln_')) return MELEE_META.id;
   if (skillId.startsWith('pb_') || skillId.startsWith('pw_') || skillId.startsWith('po_') || skillId.startsWith('pet_')) return 'lesnichiy';
   return null;
 };
@@ -95,7 +97,8 @@ export interface SkillUtilityEffects {
 
 export interface PlayerStats {
   maxHp: number; currentHp: number; maxStamina: number; stamina: number;
-  damage: number; crit: number; armor: number; regen: number;
+  damage: number; meleeDamage: number; shotgunDamage: number;
+  crit: number; armor: number; regen: number;
   evasion: number; block: number; punching: number; accuracy: number;
   vampir: number; speed: number;
   dpsEmi: number; dpsToxis: number; dpsExtro: number; dpsFire: number;
@@ -221,6 +224,8 @@ interface PlayerStore {
   deallocateSkill: (skillId: string) => void;
   allocateSniper: (skillId: string) => void;
   deallocateSniper: (skillId: string) => void;
+  allocateMelee: (skillId: string) => void;
+  deallocateMelee: (skillId: string) => void;
   migrateSniper: () => Promise<void>;
   applySkills: () => void;
   cancelSkills: () => void;
@@ -251,7 +256,7 @@ interface PlayerStore {
 
 const EMPTY_STATS: PlayerStats = {
   maxHp: 0, currentHp: 0, maxStamina: 0, stamina: 0,
-  damage: 0, crit: 0, armor: 0, regen: 0, evasion: 0, block: 0,
+  damage: 0, meleeDamage: 0, shotgunDamage: 0, crit: 0, armor: 0, regen: 0, evasion: 0, block: 0,
   punching: 0, accuracy: 0, vampir: 0, speed: 0,
   dpsEmi: 0, dpsToxis: 0, dpsExtro: 0, dpsFire: 0,
   power: 0,
@@ -359,7 +364,7 @@ export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: num
 
 const BASE_STATS: PlayerStats = {
   maxHp: 9980, currentHp: 10000, maxStamina: 100, stamina: 100,
-  damage: 5, crit: 0.05, armor: 2, regen: 1, evasion: 0.05, block: 0,
+  damage: 5, meleeDamage: 0, shotgunDamage: 0, crit: 0.05, armor: 2, regen: 1, evasion: 0.05, block: 0,
   punching: 0, accuracy: 1.0, vampir: 0.01, speed: 0.05,
   dpsEmi: 0, dpsToxis: 0, dpsExtro: 0, dpsFire: 0,
   power: 0,
@@ -526,6 +531,8 @@ export const usePlayerStore = create<PlayerStore>()(
           maxStamina: Math.round(BASE_STATS.maxStamina + lvl * 5 + equipBonus.maxStamina + effectBonus.maxStamina + skillBonus.maxStamina + setBonus.maxStamina),
           stamina: 0,
           damage: Math.max(1, dps),
+          meleeDamage: Math.max(0, skillBonus.meleeDamage),
+          shotgunDamage: Math.max(0, skillBonus.shotgunDamage),
           crit: Math.max(0, BASE_STATS.crit + equipBonus.crit + effectBonus.crit + skillBonus.crit + setBonus.crit),
           armor: Math.max(0, BASE_STATS.armor + equipBonus.armor + effectBonus.armor + skillBonus.armor + setBonus.armor),
           regen: Math.max(0, BASE_STATS.regen + equipBonus.regen + effectBonus.regen + skillBonus.regen + setBonus.regen),
@@ -566,6 +573,12 @@ export const usePlayerStore = create<PlayerStore>()(
           for (const [k, v] of Object.entries(e.statSets)) {
             if (v !== undefined && k in newStats) (newStats as any)[k] = v;
           }
+        }
+
+        // Щит милишника: +2.5 блока (25% шанс) при надетом щите.
+        // Фикс вне скейла уровня/редкости: редкость влияет только на доборочные статы.
+        if (s.equipment.shield) {
+          newStats.block = Math.min(5.0, newStats.block + 2.5);
         }
 
         // Power rating
@@ -660,10 +673,15 @@ export const usePlayerStore = create<PlayerStore>()(
           consumableAbs.push(ab);
           if (consumableAbs.length >= 12) break;
         }
-        // Скилловые способности — снайпер (для WOW-панели). Классика удалена.
+        // Скилловые способности — снайпер + милишник (для WOW-панели). Классика удалена.
         const seenSkill = new Set<string>();
         const skillAbs: (AccessoryAbility | null)[] = [];
         for (const ab of sniperBattleAbilities(get().skills, {})) {
+          if (seenSkill.has(ab.id)) continue;
+          seenSkill.add(ab.id);
+          skillAbs.push(ab as any);
+        }
+        for (const ab of meleeBattleAbilities(get().skills, {})) {
           if (seenSkill.has(ab.id)) continue;
           seenSkill.add(ab.id);
           skillAbs.push(ab as any);
@@ -702,6 +720,11 @@ export const usePlayerStore = create<PlayerStore>()(
 
       equipItem: (slot, item) => {
         const s = get();
+        // Щит — только с классом «Милишник».
+        if (slot === 'shield' && !s.chosenClasses.includes(MELEE_META.id)) {
+          get().addLog('🔒 Щит доступен с классом «Милишник»', 'warning');
+          return false;
+        }
         if (s.equipment[slot]) {
           get().addLog(`❌ Слот ${slot} уже занят. Сначала снимите предмет.`, 'warning');
           return false;
@@ -1089,6 +1112,107 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       // Питомцы: ветки тратят общие очки; freeTake (реген) — сразу применённые.
+      allocateMelee: async (skillId) => {
+        const s = get();
+        const def = MELEE_BY_ID[skillId];
+        if (!def) return;
+        if (!get().requireClassFor(skillId)) return;
+        // Базовые бесплатны и применяются СРАЗУ (без ПРИНЯТЬ): клик — активна.
+        if (def.freeTake) {
+          const st = get();
+          const check = meleeCanAllocate(skillId, st.skills, st.pendingSkills, st.skillPoints);
+          if (!check.ok) {
+            if (check.reason) get().addLog(`❌ ${check.reason}`, 'warning');
+            return;
+          }
+          const toApply: Record<string, number> = { [skillId]: 1 };
+          const cur = get();
+          set({ skills: { ...cur.skills, ...toApply } });
+          get().recalcStats();
+          try {
+            const token = useAuthStore.getState().token;
+            if (!token) throw new Error('no token');
+            const res = await fetch('/api/skills/apply.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ pendingSkills: toApply }),
+            });
+            if (!res.ok) throw new Error('apply failed');
+            const json = await res.json();
+            set({ skills: json.skills, skillPoints: json.skillPoints });
+            get().addLog(`✨ «${def.name}» активна`, 'info');
+          } catch {
+            const rollback = { ...get().skills };
+            for (const id of Object.keys(toApply)) delete rollback[id];
+            set({ skills: rollback });
+            get().addLog('❌ Не удалось взять способность (нет связи?)', 'warning');
+          }
+          return;
+        }
+        const st = get();
+        const check = meleeCanAllocate(skillId, st.skills, st.pendingSkills, st.skillPoints);
+        if (!check.ok) {
+          if (check.reason) get().addLog(`❌ ${check.reason}`, 'warning');
+          return;
+        }
+        const pending = st.pendingSkills[skillId] || 0;
+        set({ skillPoints: st.skillPoints - 1, pendingSkills: { ...st.pendingSkills, [skillId]: pending + 1 } });
+      },
+
+      deallocateMelee: async (skillId) => {
+        const s = get();
+        const def = MELEE_BY_ID[skillId];
+        if (!def) return;
+        const pending = s.pendingSkills[skillId] || 0;
+        if (pending > 0) {
+          const next = pending - 1;
+          const updated = { ...s.pendingSkills };
+          if (next <= 0) delete updated[skillId];
+          else updated[skillId] = next;
+          // Антиабуз: проверяем, что после снятия всё осталось валидно.
+          const dropped = meleeFindInvalid(s.skills, updated);
+          const hitsApplied = dropped.filter((id) => (s.skills[id] || 0) > 0);
+          if (hitsApplied.length > 0) {
+            // Применённые способности сломались бы — запрещаем снятие.
+            const names = hitsApplied.map((id) => `«${MELEE_BY_ID[id]?.name || id}»`).join(', ');
+            get().addLog(`❌ Нельзя снять: сломается ${names} (сначала сброс ветки)`, 'warning');
+            return;
+          }
+          let refund = def.freeTake ? 0 : 1;
+          if (dropped.length > 0) {
+            for (const id of dropped) {
+              if (!MELEE_BY_ID[id]?.freeTake) refund += updated[id] || 0;
+              delete updated[id];
+            }
+            const names = dropped.map((id) => `«${MELEE_BY_ID[id]?.name || id}»`).join(', ');
+            get().addLog(`🧹 Закрыто без гейта и снято: ${names}`, 'warning');
+          }
+          set({ skillPoints: s.skillPoints + refund, pendingSkills: updated });
+          return;
+        }
+        // Снятие применённой базовой способности (была бесплатна — без возврата).
+        const applied = s.skills[skillId] || 0;
+        if (applied > 0 && def.freeTake) {
+          const cur = { ...get().skills };
+          delete cur[skillId];
+          set({ skills: cur });
+          try {
+            const token = useAuthStore.getState().token;
+            if (!token) throw new Error('no token');
+            const res = await fetch('/api/skills/remove.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ skillIds: [skillId] }),
+            });
+            if (!res.ok) throw new Error('remove failed');
+            get().addLog(`🔄 «${def.name}» снята`, 'info');
+          } catch {
+            set({ skills: { ...get().skills, [skillId]: applied } });
+            get().addLog('❌ Не удалось снять способность', 'warning');
+          }
+        }
+      },
+
       allocatePet: async (skillId) => {
         const s = get();
         const def = PET_BY_ID[skillId];
@@ -1408,9 +1532,15 @@ export const usePlayerStore = create<PlayerStore>()(
           const spent = PET_ABILITIES.filter((a) => a.branch === pk).reduce((sum, a) => sum + (skills[a.id] || 0), 0);
           if (spent > best) { best = spent; classId = `pet_${pk}`; }
         }
+        {
+          const spent = MELEE_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0), 0);
+          if (spent > best) { best = spent; classId = MELEE_META.id; }
+        }
         const className = classId === SNIPER_META.id
           ? SNIPER_META.name
-          : (PET_META as any)[classId.replace('pet_', '')]?.name || classId;
+          : classId === MELEE_META.id
+            ? MELEE_META.name
+            : (PET_META as any)[classId.replace('pet_', '')]?.name || classId;
         const build: SkillBuild = {
           id: `build_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: `${className} ${total}`,
           classId, total, createdAt: Date.now(), skills,
@@ -1448,6 +1578,7 @@ export const usePlayerStore = create<PlayerStore>()(
           ...SNIPER_ABILITIES.filter((a) => a.freeTake).map((a) => a.id),
           ...PET_ABILITIES.filter((a) => a.freeTake).map((a) => a.id),
           ...PET_FREE_DEFS.filter((a) => a.freeTake).map((a) => a.id),
+          ...MELEE_ABILITIES.filter((a) => a.freeTake).map((a) => a.id),
         ]);
         const paidTotal = Object.entries(build.skills).reduce((sum, [id, pts]) => sum + (freeIds.has(id) ? 0 : pts), 0);
         set({ pendingSkills: { ...build.skills }, skillPoints: Math.max(0, earned - paidTotal) });
@@ -1455,9 +1586,11 @@ export const usePlayerStore = create<PlayerStore>()(
         // как обычно; второй доберёшь вручную). Без класса билд не вкачать.
         const mainChosen = build.classId === SNIPER_META.id
           ? { id: SNIPER_META.id, name: SNIPER_META.name }
-          : build.classId.startsWith('pet_')
-            ? { id: 'lesnichiy', name: (PET_META as any)[build.classId.replace('pet_', '')]?.name || 'Лесничий' }
-            : null;
+          : build.classId === MELEE_META.id
+            ? { id: MELEE_META.id, name: MELEE_META.name }
+            : build.classId.startsWith('pet_')
+              ? { id: 'lesnichiy', name: (PET_META as any)[build.classId.replace('pet_', '')]?.name || 'Лесничий' }
+              : null;
         if (mainChosen) get().pickClass(mainChosen.id, mainChosen.name);
         get().addLog(`📥 Билд «${build.name}» подгружен — нажми ПРИНЯТЬ`, 'info');
       },
@@ -1493,20 +1626,22 @@ export const usePlayerStore = create<PlayerStore>()(
           // Антиабуз: чистим применённые способности без гейта (старые сейвы).
           const st = get();
           const bad = sniperFindInvalid(st.skills, {});
-          if (bad.length > 0) {
-            const refund = bad.reduce((sum, id) => sum + (st.skills[id] || 0), 0);
+          const badMelee = meleeFindInvalid(st.skills, {});
+          const allBad = [...bad, ...badMelee.filter((id) => !bad.includes(id))];
+          if (allBad.length > 0) {
+            const refund = allBad.reduce((sum, id) => sum + (st.skills[id] || 0), 0);
             const next = { ...st.skills };
-            bad.forEach((id) => delete next[id]);
+            allBad.forEach((id) => delete next[id]);
             set({ skills: next, skillPoints: st.skillPoints + refund });
             get().recalcStats();
             try {
               await fetch('/api/skills/remove.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ skillIds: bad }),
+                body: JSON.stringify({ skillIds: allBad }),
               });
             } catch { /* silent */ }
-            get().addLog(`🧹 Сняты недействительные способности снайпера (${bad.length}, +${refund} очк.)`, 'warning');
+            get().addLog(`🧹 Сняты недействительные способности (${allBad.length}, +${refund} очк.)`, 'warning');
           }
           // Скрытность: автовыдача тем, у кого уже есть снайперские навыки (старые сейвы).
           const st2 = get();
@@ -1580,6 +1715,16 @@ export const usePlayerStore = create<PlayerStore>()(
 
         // Снайпер считается через src/data/sniper.ts (snp_*), см. ниже.
         for (const def of SNIPER_ABILITIES) {
+          if (!def.statsPerRank) continue;
+          const r = lvl(def.id);
+          if (r <= 0) continue;
+          for (const s of def.statsPerRank) {
+            (total as any)[s.stat] = ((total as any)[s.stat] || 0) + s.value * r;
+          }
+        }
+
+        // Милишник считается через src/data/melee.ts (mln_*).
+        for (const def of MELEE_ABILITIES) {
           if (!def.statsPerRank) continue;
           const r = lvl(def.id);
           if (r <= 0) continue;

@@ -318,6 +318,7 @@ export interface CombatGridStore {
   addPopup: (x: number, y: number, text: string, type?: string) => void;
   addBattleLog: (msg: string) => void;
   procElementalDebuffs: (targetId: string | number) => void;
+  procShotgunStun: (targetId: string | number) => void;
   tickEnemyDebuffs: () => void;
   isCellBlocked: (x: number, y: number, ignoreEnemyId?: number) => boolean;
   findPath: (from: { x: number; y: number }, to: { x: number; y: number }) => { x: number; y: number }[];
@@ -1172,6 +1173,23 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set((s) => ({ enemies: s.enemies.map((e) => e.id === targetId ? { ...e, debuffs: db } : e) }));
     for (const n of notes) get().addPopup(en.pos.x, en.pos.y, n, 'DEBUFF');
     get().addBattleLog(`☠️ ${en.name}: ${notes.join(', ')}`);
+  },
+
+  // Милишник, база «Дробящий выстрел»: 5% шанс, что выстрел из дробовика
+  // оглушит цель на 1 ход (механика и звук стана — общие).
+  procShotgunStun: (targetId) => {
+    if ((usePlayerStore.getState().skills['mln_shotgun_stun'] || 0) <= 0) return;
+    const w = usePlayerStore.getState().getActiveWeapon();
+    if (!w || ammoTypeForWeapon(w) !== 'shell') return;
+    if (Math.random() >= 0.05) return;
+    const tgt = get().enemies.find((e) => e.id === targetId);
+    if (!tgt || tgt.dead || (tgt.currentHp || 0) <= 0) return;
+    playCombatSound('SkullBasher', 0.5);
+    set((s) => ({
+      enemies: s.enemies.map((e) => (e.id === targetId ? { ...e, stunned: true, stunTurns: 1 } : e)),
+    }));
+    get().addPopup(tgt.pos.x, tgt.pos.y, '😵 СТАН!', 'SPECIAL');
+    get().addBattleLog(`💥 Дробовик: ${tgt.name} оглушён на 1 ход`);
   },
 
   // Тик дебафов в начале хода врагов (зовёт useEnemyAI): горение бьёт,
@@ -2288,7 +2306,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             }
 
             // Ram: knockback 2 cells + stun
-            if (ability.id === 'ram') {
+            if (ability.id === 'ram' || ability.id === 'mlnb_ram') {
               playCombatSound('SkullBasher', 0.4);
               const dx = targetEnemy.pos.x - state.playerPos.x;
               const dy = targetEnemy.pos.y - state.playerPos.y;
@@ -2379,9 +2397,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (type === 'stat_boost_mult') {
         const boost = effect as AbilityEffect & { type: 'stat_boost_mult' };
         if (ability.id === 'barrier') playCombatSound('Buckler', 0.4);
-        if (ability.id === 'rage') playCombatSound('BlackKing', 0.4);
-        if (ability.id === 'fortify') playCombatSound('442', 0.4);
-        if (ability.id === 'adrenaline') playCombatSound('Bottle_Pour', 0.4);
+        if (ability.id === 'rage' || ability.id === 'mlnb_rage') playCombatSound('BlackKing', 0.4);
+        if (ability.id === 'fortify' || ability.id === 'mlnb_fortify') playCombatSound('442', 0.4);
+        if (ability.id === 'adrenaline' || ability.id === 'mlnb_adrenaline') playCombatSound('Bottle_Pour', 0.4);
         const player = usePlayerStore.getState();
         const existing = player.activeEffects.find((e) => e.id === `ability_${ability.id}`);
         if (existing) {
@@ -2437,11 +2455,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }
         if (statusEffect.id === 'shield') {
           playCombatSound('MaximumArmor', 0.4);
+          // Заряды = длительность эффекта (Жидкая броня: 3, Поднять щит: ранг).
+          const charges = Math.max(1, statusEffect.duration || 3);
           usePlayerStore.setState((st: any) => ({
-            stats: { ...st.stats, shieldCharges: 3 },
+            stats: { ...st.stats, shieldCharges: charges },
           }));
-          get().addPopup(state.playerPos.x, state.playerPos.y, '🛡️ ЩИТ (3 атаки)!', 'BUFF');
-          get().addBattleLog(`🛡️ ${ability.name}: поглощает 3 атаки`);
+          get().addPopup(state.playerPos.x, state.playerPos.y, `🛡️ ЩИТ (${charges} ${charges === 1 ? 'атака' : charges < 5 ? 'атаки' : 'атак'})!`, 'BUFF');
+          get().addBattleLog(`🛡️ ${ability.name}: поглощает ${charges} атаки`);
         }
         if (statusEffect.id === 'invisibility') {
           playCombatSound('invis', 0.4);
@@ -3213,7 +3233,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         { x: px + fdx - fdy, y: py + fdy + fdx },
         { x: px + fdx + fdy, y: py + fdy - fdx },
       ];
-      let effectiveDps = player.stats.damage;
+      let effectiveDps = player.stats.damage + (player.stats.meleeDamage || 0);
       const faction = enemy.faction;
       const pureDmg = calcPureDamage(player.stats, faction);
       if (player.stats.stamina < 0.1 * player.stats.maxStamina) effectiveDps *= 0.5;
@@ -3332,6 +3352,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Качество патронов в магазине: +0% и далее +5% за ранг.
     const ammoMult = bulletDamageMult((gunNow as any)?.loadedAmmoQuality);
     if (ammoMult > 1) effectiveDps *= ammoMult;
+    // Милишник Т1: бонус урона дробовика.
+    if (gunNow && ammoTypeForWeapon(gunNow) === 'shell') {
+      effectiveDps += player.stats.shotgunDamage || 0;
+    }
 
     // Скрытность снайпера: первый выстрел из скрытности +100% крит.
     const hasSnpStealth = (usePlayerStore.getState().skills['snp_x_stealth'] || 0) > 0;
@@ -3378,6 +3402,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // Стихийные дебафы: шанс = значение стихии (только если попали и цель жива).
     if (actualDmg > 0) get().procElementalDebuffs(enemyId);
+    // Милишник: 5% стан от дробовика.
+    if (actualDmg > 0) get().procShotgunStun(enemyId);
 
     // Выстрел услышали все в радиусе 20 от жертвы — бегут в бой.
     get().aggroWave(enemy.pos);
@@ -3423,6 +3449,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         // Качество патронов в магазине.
         const bAmmoMult = bulletDamageMult((w2 as any)?.loadedAmmoQuality);
         if (bAmmoMult > 1) effDps *= bAmmoMult;
+        // Милишник Т1: бонус урона дробовика.
+        if (w2 && ammoTypeForWeapon(w2) === 'shell') {
+          effDps += pStats.shotgunDamage || 0;
+        }
 
         const atkStat = { dps: effDps, pure: pureBonus, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
         const tgtStat = applyTerrainToTarget(
@@ -3447,6 +3477,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         get().addPopup(st.playerPos.x, st.playerPos.y, '+1 🏃', 'BUFF');
         // Стихийные дебафы и на бонус-выстрелах.
         if (dmg > 0) get().procElementalDebuffs(enemyId);
+        // Милишник: 5% стан от дробовика и на бонус-выстрелах.
+        if (dmg > 0) get().procShotgunStun(enemyId);
 
         setTimeout(() => {
           set((s) => ({ enemies: s.enemies.map((e) => e.id === enemyId ? { ...e, isHit: false } : e) }));
@@ -4032,6 +4064,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     // Tick player effects per turn instead of per real second
     usePlayerStore.getState().tickEffects();
+    // Милишник Т6 «Второе дыхание»: пассивный реген 2.5% HP в ход за ранг.
+    {
+      const pst = usePlayerStore.getState();
+      const regenRank = pst.skills['mln_t6_regen'] || 0;
+      if (regenRank > 0) {
+        const cur = pst.stats.currentHp;
+        const max = pst.stats.maxHp;
+        const add = Math.round(max * 0.025 * regenRank);
+        if (cur < max && add > 0) {
+          usePlayerStore.setState((st: any) => ({ stats: { ...st.stats, currentHp: Math.min(max, cur + add) } }));
+          get().addPopup(get().playerPos.x, get().playerPos.y, `+${add} 💚`, 'HEAL');
+          get().addBattleLog(`💚 Второе дыхание: +${add} HP игроку`);
+        }
+      }
+    }
     // Reset maxAp if sprint/rush effect expired
     const st = get();
     const hasRush = usePlayerStore.getState().activeEffects.some((e: any) => e.id === 'ability_sprint');

@@ -201,7 +201,8 @@ const GRID_W = 5;
 export const isBigItem = (item: Item): boolean => {
   const s = (item.slot || '') as string;
   return s === 'weapon1' || s === 'weapon2' || s.startsWith('gun_')
-    || s === 'head' || s === 'armor' || s === 'pants' || s === 'gloves' || s === 'boots';
+    || s === 'head' || s === 'armor' || s === 'pants' || s === 'gloves' || s === 'boots'
+    || s === 'shield';
 };
 
 export interface BackpackGrid {

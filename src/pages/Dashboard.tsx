@@ -222,7 +222,7 @@ export const Dashboard = () => {
       .then(r => r.json())
       .then(data => {
         if (data.error) return;
-        const slots = ['head','armor','pants','weapon1','weapon2','gun_pistol','gun_shotgun','gun_sniper','gun_heavy','gloves','boots','backpack'];
+        const slots = ['head','armor','pants','weapon1','weapon2','gun_pistol','gun_shotgun','gun_sniper','gun_heavy','gloves','boots','backpack','shield'];
         const eq: Record<string, any> = {};
         slots.forEach((s) => { eq[s] = data.equipment[s] ?? null; });
         usePlayerStore.setState({

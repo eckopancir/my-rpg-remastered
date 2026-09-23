@@ -85,7 +85,7 @@ const statPrice = (stats: Record<string, number>): number => {
 };
 
 const CATEGORY_SLOTS: Record<string, string[]> = {
-  weapons: ['weapon1', 'weapon2'],
+  weapons: ['weapon1', 'weapon2', 'shield'],
   armor: ['head', 'armor', 'pants', 'gloves', 'boots'],
   consumables: ['consumable'],
   mods: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock',

@@ -21,6 +21,7 @@ const ITEMS_PER_PAGE = cols * 8;
 const SLOT_FILTERS = [
   { value: '', label: 'All slots' },
   { value: 'weapon1', label: '— Оружие' },
+  { value: 'shield', label: '— Щит' },
   { value: 'weapon2', label: '— Автомат' },
   { value: 'gun_pistol', label: '— Пистолет' },
   { value: 'gun_shotgun', label: '— Дробовик' },
@@ -458,11 +459,14 @@ export const InventoryOverlay = () => {
                   || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
                   || getItemImage(item.name, item.displayName, item.slot, item.type);
                 // Расходники и патроны пока без арта — эмодзи-заглушка из дефа; рюкзаки — картинка по семейству.
+                // Щиты пока без арта — эмодзи из предмета.
                 const emojiIcon = item.type === 'consumable'
                   ? getConsumableIcon(item)
-                  : item.type === 'backpack' ? null
-                  : item.type === 'bullet' ? null // картинка группы через getItemImage выше
-                  : null;
+                  : item.slot === 'shield'
+                    ? ((item as any).icon || '🛡️')
+                    : item.type === 'backpack' ? null
+                    : item.type === 'bullet' ? null // картинка группы через getItemImage выше
+                    : null;
 
                 return (
                   <div
@@ -677,7 +681,7 @@ export const InventoryOverlay = () => {
 
 const getEquipSlotLocal = (item: Item): string | null => {
   if (!item.slot) return null;
-  const directSlots = ['head', 'armor', 'pants', 'weapon1', 'gloves', 'boots', 'backpack'];
+  const directSlots = ['head', 'armor', 'pants', 'weapon1', 'gloves', 'boots', 'backpack', 'shield'];
   if (directSlots.includes(item.slot)) return item.slot;
   // Огнестрел — в свой классовый слот.
   if (item.slot === 'weapon2') return gunSlotForWeapon(item);

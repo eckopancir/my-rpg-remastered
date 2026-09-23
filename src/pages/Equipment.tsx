@@ -202,6 +202,7 @@ const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
   pants: { top: 196, left: Math.round(45 * S) },
   weapon1: { top: Math.round(120 * S), left: Math.round(-35 * S) },
   weapon2: { top: Math.round(120 * S), left: Math.round(125 * S) },
+  shield: { top: Math.round(120 * S) + 80, left: Math.round(-35 * S) },
   gloves: { top: Math.round(60 * S), left: Math.round(-20 * S) },
   boots: { top: 285, left: Math.round(45 * S) },
   backpack: { top: Math.round(60 * S), left: Math.round(125 * S) },
@@ -210,7 +211,7 @@ const SLOT_POSITIONS: Record<string, { top: number; left: number }> = {
 const SLOT_LABELS: Record<string, string> = {
   head: 'Шлем', armor: 'Броня', pants: 'Штаны', weapon1: 'Ближний бой', weapon2: 'Автомат',
   gun_pistol: 'Пистолет', gun_shotgun: 'Дробовик', gun_sniper: 'Снайперка', gun_heavy: 'Тяжёлое',
-  gloves: 'Перчатки', boots: 'Ботинки', backpack: 'Рюкзак',
+  gloves: 'Перчатки', boots: 'Ботинки', backpack: 'Рюкзак', shield: 'Щит',
 };
 
 // Слоты поверх силуэта + отдельный ряд оружейной сумки под куклой.
@@ -330,6 +331,9 @@ export const Equipment = () => {
   const dragItem = useMemo(() => items.find((i) => i.id === draggedItemId), [items, draggedItemId]);  const validDropSlots = useMemo(() => {
     if (!dragItem) return new Set<string>();
     const slots = new Set<string>();
+    // Щит — только с классом «Милишник» (слот с замком).
+    const shieldLocked = (dragItem as any).slot === 'shield' && !usePlayerStore.getState().chosenClasses.includes('melee');
+    if (shieldLocked) return slots;
     // Пачку патронов можно бросить на любой надетый ствол с магазином.
     if ((dragItem as any).type === 'bullet') {
       for (const gs of GUN_SLOTS) {
@@ -360,6 +364,11 @@ export const Equipment = () => {
     }
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
+    // Щит — только с классом «Милишник».
+    if (slot === 'shield' && !usePlayerStore.getState().chosenClasses.includes('melee')) {
+      usePlayerStore.getState().addLog('🔒 Щит доступен с классом «Милишник»', 'warning');
+      return;
+    }
     // Огнестрел — только в свой классовый слот.
     if (item.slot === 'weapon2' && gunSlotForWeapon(item) !== slot) {
       usePlayerStore.getState().addLog(`❌ Сюда не подходит: неси в «${SLOT_LABELS[gunSlotForWeapon(item)] || slot}».`, 'warning');
@@ -551,6 +560,11 @@ export const Equipment = () => {
       clickTimer.current = null;
     }
     if (slot === 'backpack' && item) { setBackpackOpen(true); return; }
+    // Щиты нельзя модифицировать и ставить в них сферы.
+    if (slot === 'shield') {
+      usePlayerStore.getState().addLog('🔒 Щиты нельзя модифицировать и ставить сферы', 'warning');
+      return;
+    }
     if (item) setCustomizing({ item, slot });
   };
 
@@ -652,7 +666,7 @@ export const Equipment = () => {
           )}
           {item ? (
             <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', position: 'relative', top: 6, filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 6px ${withAlpha(qc, 0.4)})` }} /> : null; })()}
+              {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', position: 'relative', top: 6, filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 6px ${withAlpha(qc, 0.4)})` }} /> : ((item as any).icon ? <span style={{ fontSize: 40, lineHeight: 1, position: 'relative', top: 6 }}>{(item as any).icon}</span> : null); })()}
               <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', lineHeight: 1, marginTop: 2, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, padding: '1px 4px' }}>
                 {item.level || 0} ур.
               </div>
@@ -669,7 +683,11 @@ export const Equipment = () => {
             </div>
           ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', opacity: isHover ? 0.8 : 0.55 }}>
-            <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.22)' }}>+</span>
+            {slot === 'shield' && !usePlayerStore.getState().chosenClasses.includes('melee') ? (
+              <span title="Нужен класс «Милишник»" style={{ fontSize: 18, lineHeight: 1 }}>🔒</span>
+            ) : (
+              <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.22)' }}>+</span>
+            )}
           </div>
           )}
         </div>

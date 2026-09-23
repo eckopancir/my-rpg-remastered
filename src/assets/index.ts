@@ -185,6 +185,8 @@ export const getBulletImage = (packName?: string): string | undefined => {
 };
 
 export const getItemImage = (name?: string, displayName?: string, slot?: string, type?: string): string | undefined => {
+  // Щиты пока без арта — рисуются эмодзи (item.icon).
+  if (slot === 'shield') return undefined;
   // Рюкзаки — картинка по семейству (11 спрайтов pack_*.png).
   if (type === 'backpack') return getBackpackImage(name || displayName);
   // Патроны — картинка по группе (6 спрайтов ammo_*.png).

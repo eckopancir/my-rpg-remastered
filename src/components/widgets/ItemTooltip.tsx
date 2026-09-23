@@ -41,6 +41,7 @@ const SLOT_LABELS: Record<string, string> = {
   weapon1: 'Ближний бой', weapon2: 'Автомат',
   gun_pistol: 'Пистолет', gun_shotgun: 'Дробовик', gun_sniper: 'Снайперка', gun_heavy: 'Тяжёлое',
   head: 'Шлем', armor: 'Броня', pants: 'Штаны', gloves: 'Перчатки', boots: 'Ботинки',
+  shield: 'Щит',
   ammo: '(снято с игры)', bullet: 'Патроны',
   any: 'Универсально',
   mod_scope: 'Прицел', mod_barrel: 'Ствол', mod_receiver: 'Ресивер',
@@ -133,6 +134,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
   const showCompare = shiftHeld && compareItem && compareItem.id !== item.id;
   const compareX = Math.max(8, tooltipX - 276);
   const foodIcon = item.type === 'consumable' && item.abilityId ? (FOOD_MAP[item.abilityId]?.icon || getConsumableIcon(item)) : null;
+  const shieldIcon = item.slot === 'shield' ? ((item as any).icon || '🛡️') : null;
   const imgUrl = item.image
     || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
     || getItemImage(item.name, item.displayName, item.slot, item.type);
@@ -184,12 +186,12 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
             <span style={{ fontSize: 6, fontWeight: 600, letterSpacing: 0.5, color: 'rgba(251,191,36,0.75)', marginTop: 1, textTransform: 'uppercase' }}>мощность</span>
           </span>
         </div>
-      {(imgUrl || foodIcon) && (
+      {(imgUrl || foodIcon || shieldIcon) && (
         <div style={{ textAlign: 'center', padding: '4px 14px 0', position: 'relative' }}>
           {imgUrl ? (
             <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
           ) : (
-            <span style={{ fontSize: 72, lineHeight: 1.2 }}>{foodIcon}</span>
+            <span style={{ fontSize: 72, lineHeight: 1.2 }}>{foodIcon || shieldIcon}</span>
           )}
           {isSocketable(item) && socketSlotsOf(item) > 0 && (() => {
             const max = socketSlotsOf(item);
@@ -425,6 +427,15 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         };
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {item.slot === 'shield' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
+                <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
+                <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
+                  <span style={{ color: '#60a5fa', fontWeight: 600 }}>+25%</span>{' '}
+                  <span style={{ color: 'rgba(255,255,255,0.72)' }}>шанс блока (надетый щит)</span>
+                </span>
+              </div>
+            )}
             {posKeys.slice(0, 12).map((k) => renderRow(k, disp[k], false))}
               {negKeys.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

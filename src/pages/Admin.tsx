@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
+import { useInventoryStore } from '../stores/inventoryStore';
+import { usePlayerStore } from '../stores/playerStore';
+import { generateItem } from '../engine/items';
+import { GAME_ITEMS } from '../data/GameItems';
+import { syncNow } from '../utils/serverSync';
 import { WapPanel } from '../components/ui/WapPanel';
 import { WapHeader } from '../components/ui/WapHeader';
+import { Button } from '../components/ui/Button';
 
 export const Admin = () => {
   const user = useAuthStore((s) => s.user);
@@ -42,6 +48,36 @@ export const Admin = () => {
         <WapHeader title="ИНФОРМАЦИЯ О СЕРВЕРЕ" glow="none" />
         <div style={{ fontFamily: 'var(--wa-font-terminal)', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
           <div>PHP: {dbInfo || 'загрузка...'}</div>
+        </div>
+      </WapPanel>
+
+      {/* ТЕСТ: выдача щитов милишника (временно, снести после теста) */}
+      <WapPanel variant="metal">
+        <WapHeader title="ТЕСТ: ЩИТЫ" glow="none" />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              const ps = usePlayerStore.getState();
+              const inv = useInventoryStore.getState();
+              let n = 0;
+              for (let i = 0; i < 10; i++) {
+                try {
+                  const it = generateItem(GAME_ITEMS, Math.max(1, ps.level), null, null, 'shield') as any;
+                  inv.addItem(it);
+                  n++;
+                } catch { /* ignore */ }
+              }
+              syncNow();
+              ps.addLog(`🛡️ Тест: выдано щитов: ${n}`, 'loot');
+            }}
+          >
+            🛡️ Выдать 10 щитов
+          </Button>
+          <span style={{ fontFamily: 'var(--wa-font-terminal)', fontSize: 11, color: 'var(--text-muted)' }}>
+            Временно для теста милишника
+          </span>
         </div>
       </WapPanel>
     </motion.div>

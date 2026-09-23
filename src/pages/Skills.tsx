@@ -5,8 +5,10 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { SNIPER_META, SNIPER_ABILITIES, sniperMaxRanks, sniperOfTier, sniperCanAllocate, type SniperAbilityDef } from '../data/sniper';
 import { PET_META, PET_ABILITIES, PET_FREE_DEFS, petMaxRanks, petCanAllocate, type PetAbilityDef } from '../data/pets';
+import { MELEE_META, MELEE_ABILITIES, meleeMaxRanks, meleeFreeDefs, meleeCanAllocate, type MeleeAbilityDef } from '../data/melee';
 import { SniperTree, SniperCell } from '../components/widgets/SniperTree';
 import { BeastTree, PetCell, PetTooltip } from '../components/widgets/BeastTree';
+import { MeleeTree, MeleeCell, MeleeTooltip } from '../components/widgets/MeleeTree';
 import { AbilityTooltip } from '../components/widgets/AbilityTooltip';
 import { sniperClassBg, beastClassBg } from '../assets/index';
 
@@ -54,16 +56,20 @@ export const Skills = () => {
     const snpSpent = SNIPER_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
     if (snpSpent > best) { best = snpSpent; bestId = SNIPER_META.id; }
     const petSpent = PET_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
-    if (petSpent > best) { bestId = 'lesnichiy'; }
+    if (petSpent > best) { best = petSpent; bestId = 'lesnichiy'; }
+    const mlnSpent = MELEE_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+    if (mlnSpent > best) { best = mlnSpent; bestId = MELEE_META.id; }
     setSel(bestId);
   }, [skills, pendingSkills]);
   const [baseTip, setBaseTip] = useState<{ def: SniperAbilityDef; x: number; y: number } | null>(null);
   const [petTip, setPetTip] = useState<{ def: PetAbilityDef; x: number; y: number } | null>(null);
+  const [mlnTip, setMlnTip] = useState<{ def: MeleeAbilityDef; x: number; y: number } | null>(null);
   const basePair = sniperOfTier('attack', 0);
   // Клик по тайлу: добрать класс (с вопросом, макс. 2, 3 очка) + показать ветку.
   const [confirmDlg, setConfirmDlg] = useState<null | { kind: 'pick' | 'abandon'; id: string; name: string; color: string }>(null);
   const classMetaOf = (id: string): { name: string; color: string } => {
     if (id === SNIPER_META.id) return { name: SNIPER_META.name, color: SNIPER_META.color };
+    if (id === MELEE_META.id) return { name: MELEE_META.name, color: MELEE_META.color };
     if (id === 'lesnichiy') return { name: 'Лесничий', color: '#a16207' };
     return { name: id, color: '#888' };
   };
@@ -93,8 +99,10 @@ export const Skills = () => {
 
   const pointsInTree = selectedClass === 'lesnichiy'
     ? PET_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0)
-    : SNIPER_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
-  const pointsMax = selectedClass === 'lesnichiy' ? petMaxRanks() : sniperMaxRanks();
+    : selectedClass === MELEE_META.id
+      ? MELEE_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0)
+      : SNIPER_ABILITIES.reduce((sum, a) => sum + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+  const pointsMax = selectedClass === 'lesnichiy' ? petMaxRanks() : selectedClass === MELEE_META.id ? meleeMaxRanks() : sniperMaxRanks();
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -205,10 +213,60 @@ export const Skills = () => {
             </div>
             );
           })()}
+          {(() => {
+            const mlnSpent = MELEE_ABILITIES.reduce((s, a) => s + (skills[a.id] || 0) + (pendingSkills[a.id] || 0), 0);
+            const isActive = selectedClass === MELEE_META.id;
+            const chosen = chosenClasses.includes(MELEE_META.id);
+            return (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'stretch' }}>
+              <button
+                key={MELEE_META.id}
+                onClick={() => clickTile(MELEE_META.id, MELEE_META.name)}
+                style={{
+                  width: 152, height: 152, padding: 0, position: 'relative', overflow: 'hidden',
+                  backgroundColor: '#0b0d10',
+                  border: `2px solid ${isActive ? MELEE_META.color : 'rgba(255,255,255,0.10)'}`,
+                  borderRadius: 10, cursor: 'pointer',
+                  boxShadow: isActive ? `0 0 14px ${MELEE_META.color}55` : 'none',
+                  transition: 'all 120ms', flexShrink: 0,
+                }}
+              >
+                <ClassBadges chosen={chosen} onAbandon={() => askAbandon(MELEE_META.id)} />
+                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64 }}>
+                  {MELEE_META.icon}
+                </span>
+                <span style={{
+                  position: 'absolute', left: 0, right: 0, bottom: 0,
+                  padding: '6px 4px', fontSize: 13, fontWeight: 700, color: '#fff',
+                  background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.9)', fontFamily: 'var(--font-mono)',
+                }}>
+                  {MELEE_META.name} {mlnSpent}/{meleeMaxRanks()}
+                  {!chosen && (
+                    <span style={{ display: 'block', fontSize: 9, color: '#fbbf24' }}>🔒 выбор — 3 очк.</span>
+                  )}
+                </span>
+              </button>
+              {/* Бесплатные базы милишника — справа от картинки класса */}
+              <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', justifyContent: 'center' }}>
+                {meleeFreeDefs().map((def) => (
+                  <MeleeCell
+                    key={def.id}
+                    def={def}
+                    compact
+                    bare
+                    onHover={(d, x, y) => setMlnTip({ def: d, x, y })}
+                    onLeave={() => setMlnTip(null)}
+                  />
+                ))}
+              </div>
+            </div>
+            );
+          })()}
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Tree — Active | Passive like stolen-realm (снайпер — новая модель) */}
-      {selectedClass === 'lesnichiy' ? <BeastTree /> : <SniperTree />}
+      {selectedClass === 'lesnichiy' ? <BeastTree /> : selectedClass === MELEE_META.id ? <MeleeTree /> : <SniperTree />}
       </div>
       {/* Инфо справа — вертикально */}
       <div style={{ width: 150, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, position: 'sticky', top: 12 }}>
@@ -335,6 +393,20 @@ export const Skills = () => {
             const chk = petCanAllocate(petTip.def.id, skills, pendingSkills, skillPoints);
             if (!chk.ok) return { text: `🔒 ${chk.reason}`, color: '#f87171' };
             return { text: 'ЛКМ — взять (бесплатно)', color: '#4ade80' };
+          })()}
+        />
+      )}
+      {mlnTip && (
+        <MeleeTooltip
+          def={mlnTip.def}
+          rank={(skills[mlnTip.def.id] || 0) + (pendingSkills[mlnTip.def.id] || 0)}
+          x={mlnTip.x} y={mlnTip.y}
+          statusLine={(() => {
+            const cur = (skills[mlnTip.def.id] || 0) + (pendingSkills[mlnTip.def.id] || 0);
+            if (cur >= mlnTip.def.maxRanks) return { text: '● Взято', color: '#4ade80' };
+            const chk = meleeCanAllocate(mlnTip.def.id, skills, pendingSkills, skillPoints);
+            if (!chk.ok) return { text: `🔒 ${chk.reason}`, color: '#f87171' };
+            return { text: mlnTip.def.freeTake ? 'ЛКМ — взять (бесплатно)' : 'ЛКМ — вкачать · ПКМ — снять', color: '#4ade80' };
           })()}
         />
       )}
