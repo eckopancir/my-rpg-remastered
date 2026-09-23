@@ -84,14 +84,22 @@ const formatStat = (k: string, v: number): string => {
 export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) => {
   // Тултип fit-content, реальная ширина ~320-360px. Если справа от курсора
   // нет места — разворачиваем слева от курсора, чтобы не уезжать за экран.
+  // nested-тултип (сравнение по Shift) получает уже готовые экранные
+  // координаты и рисуется как есть — без повторного сдвига/флипа,
+  // иначе posisiя двоится и тултипы ложатся друг на друга.
   const TOOLTIP_W = 360;
-  const flipLeft = !pinMode && x + 16 + TOOLTIP_W > window.innerWidth;
-  const tooltipX = pinMode
-    ? Math.max(8, window.innerWidth / 2 - 140)
-    : flipLeft
-      ? Math.max(8, x - TOOLTIP_W - 16)
-      : x + 16;
-  const tooltipY = pinMode ? 10 : Math.max(8, Math.min(y - 10, window.innerHeight - 420));
+  const CMP_W = 372;
+  const flipLeft = !pinMode && !nested && x + 16 + TOOLTIP_W > window.innerWidth;
+  const tooltipX = nested
+    ? Math.max(8, Math.min(x, window.innerWidth - TOOLTIP_W))
+    : pinMode
+      ? Math.max(8, window.innerWidth / 2 - 140)
+      : flipLeft
+        ? Math.max(8, x - TOOLTIP_W - 16)
+        : x + 16;
+  const tooltipY = nested
+    ? Math.max(8, Math.min(y, window.innerHeight - 120))
+    : pinMode ? 10 : Math.max(8, Math.min(y - 10, window.innerHeight - 420));
   // Спойлеры сета/сфер — изначально свернуты, через 3с плавно раскрываются.
   const [spoilersOpen, setSpoilersOpen] = useState(false);
   useEffect(() => {
@@ -132,7 +140,10 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     : ((EQUIPMENT_SLOTS as readonly string[]).includes(item.slot || '') ? (item.slot as string) : null);
   const compareItem = compareSlot ? (equipment as any)[compareSlot] : null;
   const showCompare = shiftHeld && compareItem && compareItem.id !== item.id;
-  const compareX = flipLeft ? tooltipX + TOOLTIP_W + 16 : tooltipX - 276;
+  // Курсор по центру: основной справа от курсора — сравнение слева от курсора,
+  // основной слева — сравнение справа. Клампим, чтобы не уехать за края.
+  const rawCompareX = flipLeft ? tooltipX + TOOLTIP_W + 12 : tooltipX - CMP_W;
+  const compareX = Math.max(8, Math.min(rawCompareX, window.innerWidth - TOOLTIP_W));
   const compareY = tooltipY;
   const foodIcon = item.type === 'consumable' && item.abilityId ? (FOOD_MAP[item.abilityId]?.icon || getConsumableIcon(item)) : null;
   const shieldIcon = item.slot === 'shield' ? ((item as any).icon || '🛡️') : null;
