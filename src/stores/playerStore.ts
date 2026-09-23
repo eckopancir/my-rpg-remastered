@@ -12,7 +12,7 @@ import type { ActiveEffect } from '../types/player';
 import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
 import { SNIPER_ABILITIES, SNIPER_BY_ID, SNIPER_META, sniperCanAllocate, sniperBattleAbilities, sniperFindInvalid } from '../data/sniper';
-import { PET_ABILITIES, PET_BY_ID, PET_META, PET_FREE_DEFS, petCanAllocate, petBattleAbilities, petFindInvalid, petBranchAuras, type PetKind, type PetBattleAbility } from '../data/pets';
+import { PET_ABILITIES, PET_BY_ID, PET_META, PET_FREE_DEFS, petCanAllocate, petBattleAbilities, petFindInvalid, petBranchAuras, isPetBranchHidden, type PetKind, type PetBattleAbility } from '../data/pets';
 import { backpackSlotsFor, backpackDefByName, backpackSlots, makeBackpack, tryInsertInto, createGrid, tryInsertIntoGrid, removeItemFromGrid, findFreeSlot, placeItemAt, type BackpackGrid } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
@@ -1184,6 +1184,10 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       setActivePet: (kind) => {
+        if (kind && isPetBranchHidden(kind)) {
+          get().addLog('🔒 Этот зверь выйдет в будущем обновлении', 'warning');
+          return;
+        }
         set({ activePetId: kind });
         get().recalcAbilities();
         get().syncPetAura();

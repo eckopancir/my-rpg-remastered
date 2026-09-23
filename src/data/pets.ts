@@ -106,13 +106,20 @@ export const PET_BY_ID: Record<string, PetAbilityDef> = Object.fromEntries(
 );
 
 export const PET_BRANCHES: PetBranch[] = ['bear', 'wolf', 'boar'];
+
+/** Скрытые ветки: видны как «🔒 СКОРО», качать и выбирать нельзя (выйдут в будущем обновлении). */
+export const HIDDEN_PET_BRANCHES: PetBranch[] = ['boar'];
+export const isPetBranchHidden = (branch: PetBranch): boolean =>
+  HIDDEN_PET_BRANCHES.includes(branch);
 export const PET_TIERS: number[] = [1, 2, 3, 4, 5, 6, 7];
 
 export const petOfTier = (branch: PetBranch, tier: number): PetAbilityDef[] =>
   PET_ABILITIES.filter((a) => a.branch === branch && a.tier === tier);
 
 export const petMaxRanks = (): number =>
-  [...PET_ABILITIES, ...PET_FREE_DEFS].reduce((s, a) => s + a.maxRanks, 0);
+  [...PET_ABILITIES, ...PET_FREE_DEFS]
+    .filter((a) => !isPetBranchHidden(a.branch))
+    .reduce((s, a) => s + a.maxRanks, 0);
 
 export type PetSkills = Record<string, number>;
 export const petRank = (s: PetSkills, id: string): number => s[id] || 0;
@@ -167,6 +174,7 @@ export const petCanAllocate = (
 ): { ok: boolean; reason: string } => {
   const def = PET_BY_ID[id];
   if (!def) return { ok: false, reason: 'Нет такой способности' };
+  if (isPetBranchHidden(def.branch)) return { ok: false, reason: `«${PET_META[def.branch].name}» выйдет в будущем обновлении` };
   if (!def.freeTake && skillPoints <= 0) return { ok: false, reason: 'Нет очков' };
   const cur = (skills[id] || 0) + (pending[id] || 0);
   if (cur >= def.maxRanks) return { ok: false, reason: 'Максимум' };

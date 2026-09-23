@@ -7,7 +7,7 @@ import { WapHeader } from '../components/ui/WapHeader';
 import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, equipmentDelta, type EquipmentSlot } from '../stores/playerStore';
 import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, worseQuality, type AmmoGroup } from '../data/ammo';
 import { removeItemFromGrid } from '../data/backpacks';
-import { PET_META, petMood, petSatietyAt, petBaseStats, petBranchBonuses, type PetKind } from '../data/pets';
+import { PET_META, petMood, petSatietyAt, petBaseStats, petBranchBonuses, isPetBranchHidden, type PetKind } from '../data/pets';
 import { effectiveItemStats } from '../utils/itemStats';
 import { petAvatarImage } from '../assets/index';
 import { PetStatsTooltip, fmtPetStat, type PetStatRow } from '../components/widgets/PetStatsTooltip';
@@ -78,11 +78,16 @@ const PetSlotRow = () => {
       {kinds.map((k) => {
         const meta = PET_META[k];
         const active = activePetId === k;
+        const hidden = isPetBranchHidden(k);
         return (
           <div
             key={k}
             onClick={() => {
               playClick();
+              if (hidden) {
+                usePlayerStore.getState().addLog(`🔒 «${meta.name}» выйдет в будущем обновлении`, 'warning');
+                return;
+              }
               if (!unlocked) {
                 usePlayerStore.getState().addLog('🔒 Питомцы доступны с классом «Лесничий»', 'warning');
                 return;
@@ -102,7 +107,7 @@ const PetSlotRow = () => {
               const id = useUiStore.getState().draggedItemId;
               if (id) feedPet(id);
             }}
-            title={unlocked ? (active ? `${meta.name} — активен (клик — убрать). Перетащи сюда еду.` : `Выбрать: ${meta.name}. Перетащи сюда еду.`) : 'Нужен класс «Лесничий»'}
+            title={hidden ? `🔒 «${meta.name}» — выйдет в будущем обновлении` : unlocked ? (active ? `${meta.name} — активен (клик — убрать). Перетащи сюда еду.` : `Выбрать: ${meta.name}. Перетащи сюда еду.`) : 'Нужен класс «Лесничий»'}
             style={{
               width: 64, height: 64, borderRadius: 8, cursor: 'pointer', position: 'relative',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -117,6 +122,12 @@ const PetSlotRow = () => {
               : <span style={{ fontSize: 26, lineHeight: 1 }}>{meta.icon}</span>; })()}
             {!unlocked && (
               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: 'rgba(0,0,0,0.45)', borderRadius: 6 }}>🔒</span>
+            )}
+            {hidden && (
+              <span style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 16, background: 'rgba(0,0,0,0.55)', borderRadius: 6 }}>
+                <span>🔒</span>
+                <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, color: '#fbbf24' }}>СКОРО</span>
+              </span>
             )}
             <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, fontSize: 8, fontWeight: 700, textAlign: 'center', padding: '6px 0 1px', color: active ? meta.color : '#fff', background: 'linear-gradient(transparent, rgba(0,0,0,0.75))', borderRadius: '0 0 6px 6px', textShadow: '0 1px 2px #000' }}>{meta.name}</span>
           </div>

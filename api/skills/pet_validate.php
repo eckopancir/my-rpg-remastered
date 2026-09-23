@@ -68,6 +68,13 @@ function validatePets($skills) {
     foreach ($defs as $id => $d) {
         $pts[$id] = isset($skills[$id]) ? (int)$skills[$id] : 0;
     }
+    // 0. Скрытые ветки (выйдут в будущем обновлении) качать нельзя.
+    $hiddenBranches = ['boar'];
+    foreach ($defs as $id => $d) {
+        if ($pts[$id] > 0 && in_array($d[0], $hiddenBranches, true)) {
+            return 'Питомцы: ветка «Кабан» выйдет в будущем обновлении';
+        }
+    }
     // 1. Лимиты рангов.
     foreach ($defs as $id => $d) {
         if ($pts[$id] < 0 || $pts[$id] > $d[2]) {

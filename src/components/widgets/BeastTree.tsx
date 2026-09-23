@@ -2,7 +2,7 @@ import { useState, Fragment } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import {
   PET_META, PET_BRANCHES, PET_TIERS, PET_ABILITIES,
-  petOfTier, petCanAllocate, petTierOpen, petRankText,
+  petOfTier, petCanAllocate, petTierOpen, petRankText, isPetBranchHidden,
   type PetAbilityDef, type PetBranch,
 } from '../../data/pets';
 import { beastSkillsBg, getLesnikImage } from '../../assets/index';
@@ -230,9 +230,24 @@ export const BeastTree = () => {
                 <div style={{ padding: '4px 8px', fontSize: 10, fontWeight: 800, letterSpacing: 2, color: PET_META[b].color, background: 'rgba(0,0,0,0.45)', borderBottom: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', borderRadius: '6px 6px 0 0', marginBottom: 6 }}>
                   {PET_META[b].icon} {PET_META[b].name.toUpperCase()}
                 </div>
-                {[1, 2, 3, 4, 5, 6, 7].map((t) => (
-                  <PetTierBlock key={t} branch={b} tier={t} label={`ТИР ${t}`} onHover={onHover} onLeave={onLeave} />
-                ))}
+                {isPetBranchHidden(b) ? (
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: 6, padding: '28px 8px', opacity: 0.75,
+                    border: '1px dashed rgba(255,255,255,0.18)', borderRadius: 8,
+                    background: 'rgba(0,0,0,0.35)',
+                  }}>
+                    <span style={{ fontSize: 30 }}>🔒</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: '#fbbf24' }}>СКОРО</span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 1.5 }}>
+                      Ветка выйдет<br />в будущем обновлении
+                    </span>
+                  </div>
+                ) : (
+                  [1, 2, 3, 4, 5, 6, 7].map((t) => (
+                    <PetTierBlock key={t} branch={b} tier={t} label={`ТИР ${t}`} onHover={onHover} onLeave={onLeave} />
+                  ))
+                )}
               </div>
               {idx < PET_BRANCHES.length - 1 && <div style={{ width: 1, background: 'rgba(255,255,255,0.14)', flexShrink: 0, margin: '8px 0' }} />}
             </Fragment>
