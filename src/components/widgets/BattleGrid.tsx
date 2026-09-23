@@ -71,6 +71,7 @@ export const BattleGrid = () => {
   const isActive = useCombatGridStore((s) => s.isActive);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
   const petCommandMode = useCombatGridStore((s) => s.petCommandMode);
+  const multiTargetIds = useCombatGridStore((s) => s.multiTargetIds);
   const turn = useCombatGridStore((s) => s.turn);
   const turnCount = useCombatGridStore((s) => s.turnCount);
   const isMoving = useCombatGridStore((s) => s.isMoving);
@@ -367,6 +368,33 @@ export const BattleGrid = () => {
       useCombatGridStore.getState().teleportTo(x, y);
       return;
     }
+    // Стрелок «Залп из базуки»: клик по клетке — выстрел 3×3.
+    if (useCombatGridStore.getState().isPlacingAoE) {
+      useCombatGridStore.getState().placeAoE(x, y);
+      return;
+    }
+    // Стрелок «Тройной выстрел»: набор целей по очереди, огонь на N-й.
+    {
+      const cs = useCombatGridStore.getState();
+      const sel = cs.selectedAbility;
+      const src = cs.selectedAbilitySource;
+      const ab = sel !== null && sel !== undefined
+        ? (src === 'skillBar' ? cs.skillBarAbilities[sel] : cs.playerAbilities[sel])
+        : null;
+      const need = (ab as any)?.multiTarget;
+      if (need && sel !== null) {
+        const target = enemies.find((e) => !e.dead && e.currentHp > 0 && e.pos.x === x && e.pos.y === y);
+        if (!target || (target as any).isPet || target.faction === 'Союзник') return;
+        const wasIncluded = cs.multiTargetIds.includes(target.id);
+        cs.toggleMultiTarget(target.id, need);
+        const after = useCombatGridStore.getState().multiTargetIds;
+        // N-я новая цель набрана — огонь. Повторный клик снимает цель.
+        if (!wasIncluded && after.length >= need) {
+          cs.useAbility();
+        }
+        return;
+      }
+    }
     const enemy = enemies.find((e) => !e.dead && e.currentHp > 0 && e.pos.x === x && e.pos.y === y);
     if (enemy) {
       // Питомец: клик по своему зверю — вкл/выкл режим команды.
@@ -649,6 +677,23 @@ export const BattleGrid = () => {
                           zIndex: 7, pointerEvents: 'none',
                         }}>
                           {Number(d.toFixed(1))}
+                        </div>
+                      );
+                    })()}
+                    {/* Мультитаргет «Тройного выстрела»: порядковый номер цели */}
+                    {(() => {
+                      const ord = multiTargetIds.indexOf(enemy.id);
+                      if (ord < 0) return null;
+                      return (
+                        <div style={{
+                          position: 'absolute', top: -32, right: -6,
+                          width: 20, height: 20, borderRadius: '50%',
+                          background: '#3b82f6', color: '#fff',
+                          fontSize: 12, fontWeight: 800, lineHeight: '20px', textAlign: 'center',
+                          border: '2px solid #fff', zIndex: 8, pointerEvents: 'none',
+                          boxShadow: '0 0 8px rgba(59,130,246,0.8)',
+                        }}>
+                          {ord + 1}
                         </div>
                       );
                     })()}

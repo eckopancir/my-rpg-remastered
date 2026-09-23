@@ -33,4 +33,8 @@ export interface AccessoryAbility {
   powerRating: number;
   requiresTarget?: boolean;
   range?: number;
+  /** мультитаргет: выбрать N целей по очереди (стрелок «Тройной выстрел») */
+  multiTarget?: number;
+  /** таргет по клетке: квадрат Чебышева radius, дальность range (стрелок «Залп из базуки») */
+  cellAoE?: { radius: number; range: number };
 }

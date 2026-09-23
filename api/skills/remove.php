@@ -18,9 +18,10 @@ try {
     foreach ($input['skillIds'] as $skillId) {
         $skillId = (string)$skillId;
         if ($skillId === '') continue;
-        // Снайперские, пет-ид, милишник и удалённая классика — защита от злоупотребления эндпоинтом.
+        // Снайперские, пет-ид, милишник, стрелок и удалённая классика — защита от злоупотребления эндпоинтом.
         if (strpos($skillId, 'snp_') !== 0
             && strpos($skillId, 'mln_') !== 0
+            && strpos($skillId, 'sht_') !== 0
             && strpos($skillId, 'pb_') !== 0
             && strpos($skillId, 'pw_') !== 0
             && strpos($skillId, 'po_') !== 0

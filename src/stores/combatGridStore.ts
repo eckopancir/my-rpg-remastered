@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { usePlayerStore } from './playerStore';
+import { gunSlotForWeapon } from './playerStore';
 import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
@@ -174,6 +175,28 @@ export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; powe
   return { kind: 'single', count: 1, power: 1, sound: 'shotenemy' };
 };
 
+/** Класс активного ствола для бонусов стрелка: автомат (weapon2) / пистолет / тяжёлое (+isMg для пулемёта). */
+export const gunClassForShooter = (w: any): { cls: 'auto' | 'pistol' | 'heavy' | null; isMg: boolean } => {
+  if (!w) return { cls: null, isMg: false };
+  const n = String(w.name || '').toLowerCase();
+  const isMg = /m134|m60|m249|pkm|миниган|пулем/.test(n) || ammoTypeForWeapon(w) === 'mg';
+  const slot = gunSlotForWeapon(w);
+  if (slot === 'gun_pistol') return { cls: 'pistol', isMg: false };
+  if (slot === 'gun_heavy') return { cls: 'heavy', isMg };
+  if (slot === 'weapon2') return { cls: 'auto', isMg: false };
+  return { cls: null, isMg };
+};
+
+/** Бонус урона стрелка Т1 под класс ствола (плоский, как meleeDamage). */
+export const shooterGunDamage = (): number => {
+  const ps = usePlayerStore.getState();
+  const { cls } = gunClassForShooter(ps.getActiveWeapon());
+  if (cls === 'auto') return ps.stats.autoDamage || 0;
+  if (cls === 'pistol') return ps.stats.pistolDamage || 0;
+  if (cls === 'heavy') return ps.stats.heavyDamage || 0;
+  return 0;
+};
+
 export interface GrenadeAnim {
   from: { x: number; y: number };
   to: { x: number; y: number };
@@ -291,6 +314,17 @@ export interface CombatGridStore {
   sniperCritBonus: () => number;
   /** бонус дальности снайпера (Т6) */
   sniperRangeBonus: () => number;
+  /** бонус дальности стрелка Т7 под активный ствол (автомат/пистолет/тяжёлое) */
+  shooterRangeBonus: () => number;
+  /** боевой стак скорости стрелка Т8 «Боевой раж» (+1% за выстрел, кап +400%) */
+  bonusSpeed: number;
+  /** мультитаргет стрелка «Тройной выстрел»: выбранные цели по порядку */
+  multiTargetIds: (number | string)[];
+  toggleMultiTarget: (id: number | string, max: number) => void;
+  clearMultiTarget: () => void;
+  /** прицеливание AoE по клетке (стрелок «Залп из базуки») */
+  isPlacingAoE: boolean;
+  pendingAoE: any | null;
   showCookingMenu: boolean;
   setShowCookingMenu: (show: boolean) => void;
 
@@ -298,6 +332,7 @@ export interface CombatGridStore {
   initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }, allyCount?: number) => boolean;
   teleportTo: (x: number, y: number) => void;
   placeMine: (x: number, y: number) => void;
+  placeAoE: (x: number, y: number) => void;
   checkAutoTriggers: () => void;
   movePlayer: (x: number, y: number) => void;
   handleKeyboardMove: (dx: number, dy: number) => void;
@@ -728,7 +763,9 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   }
 
   // 1) КРИТ: множитель к базовому урону.
+  // Стрелок Т2/Т5 «крит. урон»: плоская добавка к множителю крита.
   const critVal = attacker.crit || 0;
+  const critDmgBonus = Math.max(0, (attacker as any).critDamage || 0);
   let critMultiplier = 1;
   let isCrit = false;
   if (forcedMult > 0) {
@@ -744,6 +781,7 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     critMultiplier = baseTier > 0
       ? (Math.random() < chance ? baseTier + 2 : baseTier + 1)
       : 2;
+    critMultiplier += critDmgBonus;
     dmg *= critMultiplier;
     type = 'CRIT';
     sound = 'crit';
@@ -1125,6 +1163,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isTeleporting: false,
   teleportStealthReady: false,
   isPlacingMine: false,
+  bonusSpeed: 0,
+  multiTargetIds: [],
+  isPlacingAoE: false,
+  pendingAoE: null,
   immortalityTurns: 0,
   showCookingMenu: false,
   setShowCookingMenu: (show: boolean) => set({ showCookingMenu: show }),
@@ -1703,6 +1745,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const startRange = gun && !gunIsMelee ? weaponRangeProfile(gun).range : 1.5;
     // Снайпер Т6: дальность +1/ранг.
     const snpRange = usePlayerStore.getState().skills['snp_a6_range'] || 0;
+    // Стрелок Т7 «Длинный ствол»: +1 под класс стартового ствола.
+    const shtRange = (() => {
+      const ps = usePlayerStore.getState();
+      const { cls } = gunClassForShooter(gun);
+      if (cls === 'auto' && (ps.skills['sht_t7_rgauto'] || 0) > 0) return 1;
+      if (cls === 'pistol' && (ps.skills['sht_t7_rgpist'] || 0) > 0) return 1;
+      if (cls === 'heavy' && (ps.skills['sht_t7_rgheavy'] || 0) > 0) return 1;
+      return 0;
+    })();
 
     // Питомец: спавн рядом с игроком, если выбран зверь.
     const petAbilities = [...(usePlayerStore.getState().petAbilities || [])];
@@ -1800,7 +1851,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
-      range: startRange + snpRange, isDefensiveMode: false,
+      range: startRange + snpRange + shtRange, isDefensiveMode: false,
       turnCount: 0, lastShotTurn: 0, selectedEnemy: null,
       message: gun && !gunIsMelee && startAmmo <= 0 ? `❌ Нет патронов (${ammoGroupName(ammoTypeForWeapon(gun))})!` : '⚔️ Твой ход',
       isVictory: false, isDefeat: false, isMoving: false, isSelected: false,
@@ -1812,6 +1863,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       corpseSearch: null, alarmRaised: false, noSleep: false,
       battleId: get().battleId + 1,
       stealth: false,
+      bonusSpeed: 0, multiTargetIds: [], isPlacingAoE: false, pendingAoE: null,
     });
     get().addBattleLog(`⚔️ Бой начался! Противников: ${activeEnemies.filter((e) => e.faction !== 'Союзник').length}`);
     // Снайпер Т7 «Стеклянная пушка»: входящий +50%, свой урон +25% на весь бой.
@@ -2044,6 +2096,102 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       newCooldowns[idx] = ability.cooldown;
       const cooldownKey = source === 'skillBar' ? 'skillBarCooldowns' : 'abilityCooldowns';
       set({ [cooldownKey]: newCooldowns, ap: state.ap - ability.apCost, selectedAbility: null, selectedAbilitySource: null, selectedEnemy: null, message: `🌊 ${ability.name} (AP: ${state.ap - ability.apCost})` } as any);
+      return;
+    }
+
+    // Стрелок Т8 «Шквальный огонь»: выстрелов = патронов в магазине, патроны не тратятся.
+    if (ability.id === 'shtb_barrage') {
+      const alive = state.enemies.filter((e) => !e.dead && e.currentHp > 0);
+      const shots = Math.max(0, get().ammo);
+      if (alive.length === 0 || shots <= 0) {
+        get().addMessage(shots <= 0 ? '❌ Магазин пуст — нечем стрелять' : '❌ Нет целей');
+        set({ selectedAbility: null, selectedAbilitySource: null });
+        return;
+      }
+      playCombatSound('m134', 0.3);
+      get().addBattleLog(`🌊 ${ability.name}: ${shots} выстрелов по случайным целям (патроны не тратятся)!`);
+      const baseDmg = (usePlayerStore.getState().stats.damage || 5) + shooterGunDamage();
+      for (let i = 0; i < shots; i++) {
+        setTimeout(() => {
+          const s = get();
+          const targets = s.enemies.filter((e) => !e.dead && e.currentHp > 0);
+          if (targets.length === 0) return;
+          const pick = targets[Math.floor(Math.random() * targets.length)];
+          const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
+          pick.currentHp = Math.max(0, pick.currentHp - rawDmg);
+          pick.isHit = true;
+          set({ shotLine: { from: s.playerPos, to: pick.pos, kind: 'burst', count: 1 } });
+          setTimeout(() => { const st = get(); if (st.shotLine?.to === pick.pos) set({ shotLine: null }); }, 300);
+          get().addPopup(pick.pos.x, pick.pos.y, `-${rawDmg} 🌊`, 'DMG');
+          if (pick.currentHp <= 0) {
+            pick.dead = true;
+            pick.isHit = false;
+            get().addBattleLog(`💀 ${pick.name} уничтожен!`);
+          }
+          if (i === shots - 1) set({ enemies: [...get().enemies] });
+          else set({ enemies: [...s.enemies] });
+        }, i * 200);
+      }
+      const newCooldowns = source === 'skillBar' ? [...state.skillBarCooldowns] : [...state.abilityCooldowns];
+      newCooldowns[idx] = ability.cooldown;
+      const cooldownKey = source === 'skillBar' ? 'skillBarCooldowns' : 'abilityCooldowns';
+      set({ [cooldownKey]: newCooldowns, ap: state.ap - ability.apCost, selectedAbility: null, selectedAbilitySource: null, selectedEnemy: null, message: `🌊 ${ability.name} (AP: ${state.ap - ability.apCost})` } as any);
+      return;
+    }
+
+    // Стрелок Т4 «Тройной выстрел»: бьёт по заранее выбранным целям (×3 каждой).
+    if ((ability as any).multiTarget) {
+      const need = (ability as any).multiTarget as number;
+      const ids = get().multiTargetIds;
+      if (ids.length < need) {
+        get().addMessage(`🎯 Выбери ${need} цели по очереди (${ids.length}/${need})`);
+        return;
+      }
+      const pStats = usePlayerStore.getState().stats;
+      const effRange = get().range;
+      let fired = 0;
+      for (const tid of ids.slice(0, need)) {
+        const tgt = get().enemies.find((e) => e.id === tid);
+        if (!tgt || tgt.dead || (tgt.currentHp || 0) <= 0 || tgt.faction === 'Союзник') continue;
+        if (getDist(get().playerPos, tgt.pos) > effRange) continue;
+        if (!checkVisibility(get().playerPos, get().playerRotation, tgt.pos, get().obstacles, { fov: 360 })) continue;
+        const atk = {
+          dps: (pStats.damage || 0) + shooterGunDamage(), pure: calcPureDamage(pStats, tgt.faction),
+          crit: pStats.crit, critDamage: (pStats as any).critDamage || 0,
+          accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true,
+        };
+        const tgtSt = applyTerrainToTarget({ armor: tgt.armor, evasion: tgt.evasion, block: tgt.block }, tgt.pos, get().obstacles);
+        const res = calculateCombatResult(atk, tgtSt);
+        const dmg = Math.round(res.damage * 3);
+        set((s) => ({
+          enemies: s.enemies.map((e) => (e.id === tid
+            ? { ...e, currentHp: Math.max(0, e.currentHp - dmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true }
+            : e)),
+        }));
+        get().addPopup(tgt.pos.x, tgt.pos.y, `-${dmg} 🎯`, 'CRIT');
+        get().addBattleLog(`🎯 ${ability.name}: ${tgt.name} −${dmg}`);
+        fired++;
+      }
+      if (fired === 0) { get().addMessage('❌ Нет доступных целей'); return; }
+      playCombatSound('shotenemy', 0.4);
+      set({ shotLine: null });
+      get().aggroWave(get().playerPos);
+      set({ stealth: false });
+      // «Боевой раж»: каждый выстрел +1% скорости (кап +400%).
+      if ((usePlayerStore.getState().skills['sht_t8_rage'] || 0) > 0 && (get().bonusSpeed || 0) < 4) {
+        set({ bonusSpeed: Math.min(4, Math.round(((get().bonusSpeed || 0) + 0.01 * fired) * 100) / 100) });
+      }
+      const newCooldowns = source === 'skillBar' ? [...state.skillBarCooldowns] : [...state.abilityCooldowns];
+      newCooldowns[idx] = ability.cooldown;
+      const cooldownKey = source === 'skillBar' ? 'skillBarCooldowns' : 'abilityCooldowns';
+      set({ [cooldownKey]: newCooldowns, ap: state.ap - ability.apCost, selectedAbility: null, selectedAbilitySource: null, selectedEnemy: null, multiTargetIds: [], message: `🎯 ${ability.name} (AP: ${state.ap - ability.apCost})` } as any);
+      return;
+    }
+
+    // Стрелок Т4 «Залп из базуки»: прицеливание по клетке (оплата при выстреле).
+    if ((ability as any).cellAoE) {
+      set({ isPlacingAoE: true, pendingAoE: ability, message: '🚀 Выбери клетку для залпа' });
+      get().addBattleLog(`🚀 ${ability.name}: выбери клетку 3×3`);
       return;
     }
 
@@ -2575,6 +2723,20 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       set((s) => ({ maxAp: Math.max(1, s.maxAp - 1), ap: Math.min(s.ap, s.maxAp - 1) }));
     }
 
+    // Стрелок Т8 «Стихийный прицел»: метка на 10 ходов (+50% стихии пистолета, см. attackEnemy).
+    if (ability.id === 'shtb_elem') {
+      usePlayerStore.getState().addEffect({
+        id: 'ability_shtb_elem',
+        name: ability.name,
+        duration: 10,
+        remaining: 10,
+        statBoosts: {},
+        statBoostsMult: {},
+      } as any);
+      get().addPopup(state.playerPos.x, state.playerPos.y, '🌈 ПРИЦЕЛ!', 'BUFF');
+      get().addBattleLog(`🌈 ${ability.name}: +50% стихийного урона пистолета на 10 ходов`);
+    }
+
     // Second wind: sacrifice 90% HP, gain immortality for 3 turns
     if (ability.id === 'second_wind') {
       const player = usePlayerStore.getState();
@@ -2599,6 +2761,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       selectedAbility: null,
       selectedAbilitySource: null,
       selectedEnemy: null,
+      multiTargetIds: [],
       message: `✨ ${ability.name} (AP: ${newAp})`,
       enemies: [...state.enemies],
     } as any);
@@ -2657,6 +2820,79 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     get().addPopup(x, y, '💣 МИНА', 'SPECIAL');
     get().addBattleLog(`💣 Мина установлена на (${x}, ${y})`);
+  },
+
+  // Стрелок «Тройной выстрел»: набор целей по очереди, огонь на N-й.
+  toggleMultiTarget: (id, max) => {
+    const cur = get().multiTargetIds;
+    if (cur.includes(id)) {
+      set({ multiTargetIds: cur.filter((t) => t !== id) });
+      get().addMessage(`🎯 Цели: ${cur.length - 1}/${max}`);
+      return;
+    }
+    if (cur.length >= max) { get().addMessage(`❌ Уже выбрано ${max}`); return; }
+    const next = [...cur, id];
+    set({ multiTargetIds: next });
+    get().addMessage(`🎯 Цели: ${next.length}/${max}`);
+  },
+
+  clearMultiTarget: () => set({ multiTargetIds: [] }),
+
+  // Стрелок «Залп из базуки»: удар 5x по квадрату 3×3 (Чебышев ≤ 1) вокруг клетки.
+  placeAoE: (x, y) => {
+    const state = get();
+    const ability = state.pendingAoE as any;
+    if (!state.isPlacingAoE || !ability) return;
+    const range = ability.cellAoE?.range ?? 10;
+    if (getDist(state.playerPos, { x, y }) > range) { get().addMessage(`❌ Слишком далеко (макс ${range})`); return; }
+    if (!checkVisibility(state.playerPos, state.playerRotation, { x, y }, state.obstacles, { fov: 360 })) {
+      get().addMessage('❌ Точка за препятствием');
+      return;
+    }
+    const playerStats = usePlayerStore.getState().stats;
+    const radius = ability.cellAoE?.radius ?? 1;
+    const dmg = Math.round((playerStats.damage || 5) * 5);
+    playCombatSound('bazooka_sound_effect', 0.5);
+    set({ shotLine: { from: state.playerPos, to: { x, y }, kind: 'single', count: 1, power: 1.8, sound: 'bazooka_sound_effect' } });
+    setTimeout(() => set({ shotLine: null }), 400);
+    const hits: (number | string)[] = [];
+    set((s) => ({
+      enemies: s.enemies.map((e) => {
+        if (e.dead || e.currentHp <= 0 || e.faction === 'Союзник') return e;
+        const dd = Math.max(Math.abs(e.pos.x - x), Math.abs(e.pos.y - y));
+        if (dd > radius) return e;
+        hits.push(e.id);
+        return { ...e, currentHp: Math.max(0, e.currentHp - dmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true } as any;
+      }),
+    }));
+    for (const id of hits) {
+      const t = get().enemies.find((e) => e.id === id);
+      if (t) get().addPopup(t.pos.x, t.pos.y, `-${dmg} 💥`, 'DMG');
+    }
+    get().triggerShake();
+    set((s: any) => ({
+      globalEffects: [...s.globalEffects, { type: 'GRENADE', pos: { x, y }, damage: dmg, timer: 2 }],
+    }));
+    get().addBattleLog(`🚀 ${ability.name || 'Залп из базуки'}: ${hits.length} целей по клетке 3×3`);
+    get().aggroWave({ x, y });
+    // Оплата — при выстреле: AP + КД в том ряду, откуда вызвали.
+    {
+      const ab = ability as any;
+      const sIdx = get().skillBarAbilities.findIndex((a) => a && a.id === ab.id);
+      if (sIdx >= 0) {
+        const cd = [...get().skillBarCooldowns];
+        cd[sIdx] = ab.cooldown || 0;
+        set({ skillBarCooldowns: cd, ap: Math.max(0, get().ap - (ab.apCost || 0)) });
+      } else {
+        const pIdx = get().playerAbilities.findIndex((a) => a && a.id === ab.id);
+        if (pIdx >= 0) {
+          const cd = [...get().abilityCooldowns];
+          cd[pIdx] = ab.cooldown || 0;
+          set({ abilityCooldowns: cd, ap: Math.max(0, get().ap - (ab.apCost || 0)) });
+        }
+      }
+    }
+    set({ isPlacingAoE: false, pendingAoE: null, isSelected: false, selectedAbility: null, selectedAbilitySource: null, message: `🚀 ${ability.name || 'Залп из базуки'}!` });
   },
 
   // ---------- Питомец: команды и способности (ходит в ход игрока) ----------
@@ -3243,6 +3479,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         dps: effectiveDps,
         pure: pureDmg,
         crit: player.stats.crit + get().sniperCritBonus() + (state.stealth && hasSnpStealth ? 1.0 : 0),
+        critDamage: (player.stats as any).critDamage || 0,
         accuracy: player.stats.accuracy,
         punching: player.stats.punching,
         vampir: player.stats.vampir,
@@ -3356,13 +3593,22 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (gunNow && ammoTypeForWeapon(gunNow) === 'shell') {
       effectiveDps += player.stats.shotgunDamage || 0;
     }
+    // Стрелок Т1: бонус урона под класс ствола (автомат/пистолет/тяжёлое).
+    effectiveDps += shooterGunDamage();
+    // Стрелок Т8 «Стихийный прицел»: +50% стихийного урона пистолета на 10 ходов.
+    let pureMult = 1;
+    if (gunClassForShooter(gunNow).cls === 'pistol'
+      && usePlayerStore.getState().activeEffects.some((e: any) => e.id === 'ability_shtb_elem')) {
+      pureMult = 1.5;
+    }
 
     // Скрытность снайпера: первый выстрел из скрытности +100% крит.
     const hasSnpStealth = (usePlayerStore.getState().skills['snp_x_stealth'] || 0) > 0;
     const attackerStats = {
       dps: effectiveDps,
-      pure: pureDmg,
+      pure: pureDmg * pureMult,
       crit: player.stats.crit + get().sniperCritBonus() + (state.stealth && hasSnpStealth ? 1.0 : 0),
+      critDamage: (player.stats as any).critDamage || 0,
       accuracy: player.stats.accuracy,
       punching: player.stats.punching,
       vampir: player.stats.vampir,
@@ -3404,6 +3650,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (actualDmg > 0) get().procElementalDebuffs(enemyId);
     // Милишник: 5% стан от дробовика.
     if (actualDmg > 0) get().procShotgunStun(enemyId);
+    // Стрелок Т8 «Боевой раж»: каждый выстрел +1% скорости до конца боя (кап +400%).
+    if ((usePlayerStore.getState().skills['sht_t8_rage'] || 0) > 0 && (get().bonusSpeed || 0) < 4) {
+      const nb = Math.min(4, Math.round(((get().bonusSpeed || 0) + 0.01) * 100) / 100);
+      set({ bonusSpeed: nb });
+    }
 
     // Выстрел услышали все в радиусе 20 от жертвы — бегут в бой.
     get().aggroWave(enemy.pos);
@@ -3419,8 +3670,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (vampHeal > 0) get().addPopup(state.playerPos.x, state.playerPos.y, `+${vampHeal} 🩸`, 'VAMP');
     if ((player.stats.regen || 0) > 0) get().addPopup(state.playerPos.x, state.playerPos.y, `+${Math.round(player.stats.regen || 0)} HP`, 'HEAL');
 
-    // Extra shots from speed (no AP/ammo cost)
-    const bonusShots = calcExtraShots(player.stats.speed || 0);
+    // Extra shots from speed (no AP/ammo cost). Боевой раж стрелка складывается сюда же.
+    const bonusShots = calcExtraShots((player.stats.speed || 0) + (get().bonusSpeed || 0));
     for (let i = 0; i < bonusShots; i++) {
       const delay = 500 * (i + 1);
       setTimeout(() => {
@@ -3453,8 +3704,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (w2 && ammoTypeForWeapon(w2) === 'shell') {
           effDps += pStats.shotgunDamage || 0;
         }
+        // Стрелок Т1: бонус урона под класс ствола.
+        effDps += shooterGunDamage();
+        // Стрелок Т8 «Стихийный прицел»: +50% стихийного урона пистолета.
+        let bPureMult = 1;
+        if (gunClassForShooter(w2).cls === 'pistol'
+          && usePlayerStore.getState().activeEffects.some((e: any) => e.id === 'ability_shtb_elem')) {
+          bPureMult = 1.5;
+        }
 
-        const atkStat = { dps: effDps, pure: pureBonus, crit: pStats.crit, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
+        const atkStat = { dps: effDps, pure: pureBonus * bPureMult, crit: pStats.crit, critDamage: (pStats as any).critDamage || 0, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
         const tgtStat = applyTerrainToTarget(
           { armor: en.armor, evasion: en.evasion, block: en.block },
           en.pos,
@@ -3479,6 +3738,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (dmg > 0) get().procElementalDebuffs(enemyId);
         // Милишник: 5% стан от дробовика и на бонус-выстрелах.
         if (dmg > 0) get().procShotgunStun(enemyId);
+        // Стрелок Т8 «Боевой раж»: каждый выстрел +1% скорости (кап +400%).
+        if (dmg > 0 && (usePlayerStore.getState().skills['sht_t8_rage'] || 0) > 0 && (get().bonusSpeed || 0) < 4) {
+          const nb = Math.min(4, Math.round(((get().bonusSpeed || 0) + 0.01) * 100) / 100);
+          set({ bonusSpeed: nb });
+        }
 
         setTimeout(() => {
           set((s) => ({ enemies: s.enemies.map((e) => e.id === enemyId ? { ...e, isHit: false } : e) }));
@@ -3785,6 +4049,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   sniperRangeBonus: () => usePlayerStore.getState().skills['snp_a6_range'] || 0,
 
+  // Стрелок Т7 «Длинный ствол»: +1 дальности под класс активного ствола.
+  shooterRangeBonus: () => {
+    const ps = usePlayerStore.getState();
+    const { cls } = gunClassForShooter(ps.getActiveWeapon());
+    if (cls === 'auto' && (ps.skills['sht_t7_rgauto'] || 0) > 0) return 1;
+    if (cls === 'pistol' && (ps.skills['sht_t7_rgpist'] || 0) > 0) return 1;
+    if (cls === 'heavy' && (ps.skills['sht_t7_rgheavy'] || 0) > 0) return 1;
+    return 0;
+  },
+
   reload: () => {
     const state = get();
     if (state.turn !== 'player') return;
@@ -3884,7 +4158,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set({
       ammo: mag,
       maxAmmo: cap,
-      range: (prof ? prof.range : 1.5) + get().sniperRangeBonus(),
+      range: (prof ? prof.range : 1.5) + get().sniperRangeBonus() + get().shooterRangeBonus(),
       selectedEnemy: null,
       message: `🔫 ${nw?.displayName || nw?.name || 'Кулаки'}`,
     });
@@ -4090,7 +4364,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!hasBlockStance && st.maxAp < BASE_AP) {
       set({ maxAp: BASE_AP, ap: Math.min(st.ap, BASE_AP) });
     }
-    set({ turn: 'enemy', ap: 0, isDefensiveMode: false, isSelected: false, turnCount: nextTurnCount, message: '🤖 Ход врага...' });
+    set({ turn: 'enemy', ap: 0, isDefensiveMode: false, isSelected: false, multiTargetIds: [], isPlacingAoE: false, pendingAoE: null, turnCount: nextTurnCount, message: '🤖 Ход врага...' });
   },
 
   cleanup: () => {
@@ -4156,7 +4430,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
       corpseSearch: null, alarmRaised: false, noSleep: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
-      playerAbilities: [], abilityCooldowns: [], skillBarAbilities: [], skillBarCooldowns: [], petAbilities: [], petCooldowns: [], petCommandMode: false, petTargetId: null, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
+      playerAbilities: [], abilityCooldowns: [], skillBarAbilities: [], skillBarCooldowns: [], petAbilities: [], petCooldowns: [], petCommandMode: false, petTargetId: null, hitFx: null, selectedAbility: null, selectedAbilitySource: null, bonusSpeed: 0, multiTargetIds: [], isPlacingAoE: false, pendingAoE: null,
       playerInvisible: false, playerInvisTurns: 0, isTeleporting: false, teleportStealthReady: false, isPlacingMine: false, immortalityTurns: 0, showCookingMenu: false, cardRarityName: null,
       ammo: MAX_AMMO, maxAmmo: MAX_AMMO, isDefensiveMode: false, isSelected: false, reserve: [],
     });

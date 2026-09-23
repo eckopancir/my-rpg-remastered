@@ -1,4 +1,5 @@
 import type { Item } from '../types/items';
+import { usePlayerStore } from '../stores/playerStore';
 
 // 6 групп боеприпасов. Стак — 30 шт (по-тарковски).
 export type AmmoGroup = 'pistol' | 'rifle' | 'sniper' | 'shell' | 'mg' | 'energy';
@@ -131,7 +132,7 @@ const magazineWeaponClass = (weapon: { name?: string; ammoType?: string }): stri
   return 'rifle';
 };
 
-/** Итоговая вместимость: база + бонус магазина-мода (по его качеству). */
+/** Итоговая вместимость: база + бонус магазина-мода (по его качеству) + Т7 стрелка. */
 export const effectiveAmmoCapacity = (item: {
   ammoCapacity?: number; name?: string; ammoType?: string;
   mods?: Record<string, { quality?: string } | any>;
@@ -140,8 +141,20 @@ export const effectiveAmmoCapacity = (item: {
   const mag = item.mods?.['mod_magazine'] as { quality?: string } | undefined;
   if (!mag) return base;
   const qidx = Math.max(0, QUALITY_ORDER.indexOf(mag.quality || 'Обычный'));
-  const table = MAGAZINE_BONUS[magazineWeaponClass(item)] || MAGAZINE_BONUS.default;
-  return base + (table[Math.min(qidx, table.length - 1)] || 0);
+  const wcls = magazineWeaponClass(item);
+  const table = MAGAZINE_BONUS[wcls] || MAGAZINE_BONUS.default;
+  const tableBonus = table[Math.min(qidx, table.length - 1)] || 0;
+  // Стрелок Т7 «Магазин»: +25% пистолет/автомат, +50% тяжёлое, +20% пулемёт.
+  // Ленивый доступ к стору (вызов в рантайме, после инициализации модулей).
+  let extra = 0;
+  try {
+    const sk = usePlayerStore.getState().skills || {};
+    if (wcls === 'pistol' && (sk['sht_t7_magpist'] || 0) > 0) extra = Math.round(tableBonus * 0.25);
+    else if (wcls === 'rifle' && (sk['sht_t7_magauto'] || 0) > 0) extra = Math.round(tableBonus * 0.25);
+    else if (wcls === 'heavy' && (sk['sht_t7_magheavy'] || 0) > 0) extra = Math.round(tableBonus * 0.5);
+    else if (wcls === 'mg' && (sk['sht_t7_magmg'] || 0) > 0) extra = Math.round(tableBonus * 0.2);
+  } catch { /* ignore */ }
+  return base + tableBonus + extra;
 };
 
 /** Цена пачки = цена штуки × количество (без скейла от уровня). */
