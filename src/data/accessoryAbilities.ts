@@ -283,6 +283,11 @@ export const ALL_ABILITIES: AccessoryAbility[] = [
   { id: 'food_boiled_potato', name: 'Варёная картошка', icon: '🥔', description: '+10% HP.', apCost: 1, cooldown: 0, powerRating: 10, effects: [{ type: 'heal_percent', value: 10 }] },
   { id: 'food_sandwich', name: 'Бутерброд', icon: '🥪', description: '+5% HP.', apCost: 1, cooldown: 0, powerRating: 5, effects: [{ type: 'heal_percent', value: 5 }] },
   { id: 'food_fried_potato', name: 'Жареная картошка', icon: '🍟', description: '+8% HP.', apCost: 1, cooldown: 0, powerRating: 8, effects: [{ type: 'heal_percent', value: 8 }] },
+  { id: 'food_coffee', name: 'Кофе', icon: '☕', description: '+3% выносливости (есть вне боя).', apCost: 1, cooldown: 0, powerRating: 3, effects: [] },
+  { id: 'food_energy', name: 'Энергетик', icon: '🧃', description: '+5% выносливости (есть вне боя).', apCost: 1, cooldown: 0, powerRating: 5, effects: [] },
+  { id: 'food_adrenaline', name: 'Укол адреналина', icon: '💉', description: '+10% выносливости (есть вне боя).', apCost: 1, cooldown: 0, powerRating: 10, effects: [] },
+  { id: 'food_firstaid', name: 'Аптечка', icon: '🩹', description: '+25% HP (есть вне боя).', apCost: 1, cooldown: 0, powerRating: 25, effects: [{ type: 'heal_percent', value: 25 }] },
+  { id: 'food_bandage', name: 'Бинты', icon: '🩼', description: '+15% HP (есть вне боя).', apCost: 1, cooldown: 0, powerRating: 15, effects: [{ type: 'heal_percent', value: 15 }] },
 ];
 
 export const ABILITY_MAP = Object.fromEntries(

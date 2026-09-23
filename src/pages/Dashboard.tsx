@@ -543,25 +543,26 @@ export const Dashboard = () => {
       )}
 
       {/* Debug */}
-      <div style={{ opacity: 0.35 }}>
+      <div>
         <WapPanel variant="metal">
           <WapHeader title="🧪 DEBUG" glow="none" />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Button size="sm" variant="ghost" onClick={() => debugGenerateItems(200)} style={{ fontSize: 9 }}>+200 предметов</Button>
-            <Button size="sm" variant="ghost" onClick={() => debugAddResources(10)} style={{ fontSize: 9 }}>+10 рес.</Button>
-            <Button size="sm" variant="ghost" onClick={() => usePlayerStore.getState().addChips(5000)} style={{ fontSize: 9 }}>+5000 💾</Button>
-            <Button size="sm" variant="ghost" onClick={() => usePlayerStore.getState().addExp(50000)} style={{ fontSize: 9 }}>+50000 XP</Button>
-            <Button size="sm" variant="ghost" onClick={() => debugAddMods(5)} style={{ fontSize: 9 }}>+5 модификаций</Button>
-            <Button size="sm" variant="primary" onClick={() => debugAddAmmo(4)} style={{ fontSize: 9 }}>+4 амуниции 🎒</Button>
-            <Button size="sm" variant="ghost" onClick={() => debugAddChests()} style={{ fontSize: 9 }}>+10 сундуков 📦</Button>
-            <Button size="sm" variant="ghost" onClick={() => debugAddConsumables()} style={{ fontSize: 9 }}>+расходники 🧪</Button>
-            <Button size="sm" variant="ghost" onClick={() => debugAddBackpacks()} style={{ fontSize: 9 }}>+рюкзаки 🎒</Button>
-            <Button size="sm" variant="ghost" onClick={() => debugAddBullets()} style={{ fontSize: 9 }}>+патроны 🔸</Button>
-            <Button size="sm" variant="success" onClick={() => usePlayerStore.setState((s) => ({ stats: { ...s.stats, currentHp: s.stats.maxHp } }))} style={{ fontSize: 9 }}>❤️ Полное исцеление</Button>
-            <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 9 }}>🗑️ Очистить инвентарь</Button>
-            <Button size="sm" variant="danger" onClick={() => usePlayerStore.getState().resetLevel()} style={{ fontSize: 9 }}>⬇️ Сброс уровня</Button>
-            <Button size="sm" variant="danger" onClick={() => { useExplorationStore.getState().resetExploration(); usePlayerStore.getState().addLog('🔄 Экспедиция сброшена', 'system'); }} style={{ fontSize: 9 }}>🔄 Сброс экспедиции</Button>
-            <label style={{ fontSize: 9, display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '4px 8px' }} title="Для тестов: ночь отключается везде">
+            <Button size="sm" variant="primary" onClick={() => debugGenerateItems(200)} style={{ fontSize: 11 }}>+200 предметов</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddResources(10)} style={{ fontSize: 11 }}>+10 рес.</Button>
+            <Button size="sm" variant="success" onClick={() => usePlayerStore.getState().addChips(5000)} style={{ fontSize: 11 }}>+5000 💾</Button>
+            <Button size="sm" variant="success" onClick={() => usePlayerStore.getState().addExp(50000)} style={{ fontSize: 11 }}>+50000 XP</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddMods(5)} style={{ fontSize: 11 }}>+5 модификаций</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddAmmo(4)} style={{ fontSize: 11 }}>+4 амуниции 🎒</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddChests()} style={{ fontSize: 11 }}>+10 сундуков 📦</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddConsumables()} style={{ fontSize: 11 }}>+расходники 🧪</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddBackpacks()} style={{ fontSize: 11 }}>+рюкзаки 🎒</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddBullets()} style={{ fontSize: 11 }}>+патроны 🔸</Button>
+            <Button size="sm" variant="success" onClick={() => usePlayerStore.setState((s) => ({ stats: { ...s.stats, currentHp: s.stats.maxHp } }))} style={{ fontSize: 11 }}>❤️ Полное исцеление</Button>
+            <Button size="sm" variant="success" onClick={() => { usePlayerStore.setState((s) => ({ stats: { ...s.stats, stamina: s.stats.maxStamina } })); useUiStore.getState().addToast('⚡ Выносливость восстановлена', 'success'); }} style={{ fontSize: 11 }}>⚡ Полная выносливость</Button>
+            <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 11 }}>🗑️ Очистить инвентарь</Button>
+            <Button size="sm" variant="danger" onClick={() => usePlayerStore.getState().resetLevel()} style={{ fontSize: 11 }}>⬇️ Сброс уровня</Button>
+            <Button size="sm" variant="danger" onClick={() => { useExplorationStore.getState().resetExploration(); usePlayerStore.getState().addLog('🔄 Экспедиция сброшена', 'system'); }} style={{ fontSize: 11 }}>🔄 Сброс экспедиции</Button>
+            <label style={{ fontSize: 11, display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '4px 8px' }} title="Для тестов: ночь отключается везде">
               <input type="checkbox" checked={forceDay} onChange={(e) => setForceDay(e.target.checked)} style={{ cursor: 'pointer' }} />
               ☀️ Всегда день
             </label>

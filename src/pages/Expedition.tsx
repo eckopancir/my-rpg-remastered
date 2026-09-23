@@ -197,8 +197,9 @@ export const Expedition = () => {
                   padding: '2px 8px', borderRadius: 4, fontSize: 11,
                   background: 'rgba(0,0,0,0.55)',
                   color: '#fff', fontWeight: 600,
-                }}>
-                  SL {card.totalSl} · −{card.totalSl}⚡
+                }}
+                  title={`Вход стоит ${card.totalSl} выносливости`}>
+                  SL {card.totalSl} <span style={{ color: '#fbbf24' }}>⚡</span>
                 </div>
 
                 <div style={{
