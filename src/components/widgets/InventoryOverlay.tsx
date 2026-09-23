@@ -64,6 +64,7 @@ const SORT_OPTIONS = [
   { value: 'accuracy', label: 'Точность' },
   { value: 'block', label: 'Блок' },
   { value: 'vampir', label: 'Вампиризм' },
+  { value: 'stamina', label: 'Выносливость' },
   { value: 'price', label: 'Цена' },
   { value: 'rarity', label: 'Редкость' },
 ];

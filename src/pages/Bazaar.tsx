@@ -7,7 +7,7 @@ import { generateItem, getItemQuality } from '../engine/items';
 import { makeBackpack } from '../data/backpacks';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { AMMO_GROUPS, maxStackFor, makeBulletPack } from '../data/ammo';
-import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
+import { CONSUMABLE_DEFS } from '../data/consumables';
 import { BACKPACK_DEFS } from '../data/backpacks';
 import { ALL_FOOD as ALL_FOOD_DATA } from '../data/food';
 
@@ -85,36 +85,14 @@ const statPrice = (stats: Record<string, number>): number => {
 };
 
 const CATEGORY_SLOTS: Record<string, string[]> = {
-  weapons: ['weapon1', 'weapon2', 'shield'],
-  armor: ['head', 'armor', 'pants', 'gloves', 'boots'],
-  consumables: ['consumable'],
+  weapons: ['weapon1', 'weapon2'],
+  armor: ['head', 'armor', 'pants', 'gloves', 'boots', 'shield'],
   mods: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock',
     'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness',
     'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
 };
 
 const generateCategoryItem = (level: number, validSlots: string[], idx: number): ShopItem | null => {
-  // Расходники: боевые штуки из CONSUMABLE_DEFS (слоты ammo удалены из игры).
-  if (validSlots.includes('consumable')) {
-    const def = CONSUMABLE_DEFS[Math.floor(Math.random() * CONSUMABLE_DEFS.length)];
-    const qty = 1 + Math.floor(Math.random() * 3);
-    const item = makeConsumable(def.abilityId, qty);
-    return {
-      id: item.id + '_cat_' + idx + '_' + Date.now(),
-      name: item.name,
-      displayName: `${item.name} x${qty}`,
-      level: 1,
-      rarity: 'common',
-      quality: 'Обычный',
-      qualityColor: 'white',
-      price: (def.price + level) * qty,
-      stats: {},
-      slot: 'consumable',
-      type: 'consumable',
-      abilityId: def.abilityId,
-      quantity: qty,
-    } as ShopItem;
-  }
   for (let attempt = 0; attempt < 10; attempt++) {
     const targetSlot = validSlots[Math.floor(Math.random() * validSlots.length)];
     const single = generateItem(GAME_ITEMS, level, null, null, targetSlot);
@@ -156,11 +134,6 @@ const generateShop = (level: number): ShopItem[] => {
   // Броня: 8 снаряжения + 2 рюкзака = ровно 10.
   for (let i = 0; i < 8; i++) {
     const item = generateCategoryItem(level, CATEGORY_SLOTS.armor, idx++);
-    if (item) items.push(item);
-  }
-  // Амуниция: ровно 10 боевых расходников.
-  for (let i = 0; i < 10; i++) {
-    const item = generateCategoryItem(level, CATEGORY_SLOTS.consumables, idx++);
     if (item) items.push(item);
   }
   // Модификации: ровно 10.
@@ -267,12 +240,11 @@ type SortKey = 'price' | 'level' | 'name' | 'quality';
 // Лавки площади: секции витрины. Цвета — акценты секций.
 const STALLS = [
   { id: 'weapons', label: 'Оружие', icon: '⚔️', flavor: 'Оружие от местных умельцев', color: '#f87171', slots: ['weapon1', 'weapon2'] },
-  { id: 'armor', label: 'Броня', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'pants', 'gloves', 'boots', 'backpack'] },
-  { id: 'consumables', label: 'Амуниция', icon: '🧪', flavor: 'Амулеты, еда и мелочи', color: '#4ade80', slots: ['consumable'] },
+  { id: 'armor', label: 'Броня', icon: '🛡️', flavor: 'Защита на любой вкус', color: '#60a5fa', slots: ['head', 'armor', 'pants', 'gloves', 'boots', 'backpack', 'shield'] },
   { id: 'mods', label: 'Модификации', icon: '🔩', flavor: 'Тюнинг снаряжения', color: '#c084fc', slots: ['mod_barrel', 'mod_scope', 'mod_magazine', 'mod_muzzle', 'mod_receiver', 'mod_stock', 'mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'] },
   { id: 'resources', label: 'Ресурсы', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
   { id: 'food', label: 'Еда', icon: '🍖', flavor: 'Продукты и припасы', color: '#fb923c', slots: [] as string[] },
-  { id: 'battle_supplies', label: 'Расходники', icon: '🎒', flavor: 'Патроны', color: '#fb923c', slots: ['bullet'] },
+  { id: 'battle_supplies', label: 'Патроны', icon: '🎒', flavor: 'Патроны', color: '#fb923c', slots: ['bullet'] },
 ] as const;
 
 type StallId = typeof STALLS[number]['id'] | 'all';
@@ -459,7 +431,7 @@ export const Bazaar = () => {
     if (id === 'food') return sortedShop.filter((item) => item.type === 'consumable' && item.abilityId?.startsWith('food_'));
     const stall = STALLS.find((s) => s.id === id);
     const validSlots = stall ? [...stall.slots] : [];
-    return sortedShop.filter((item) => validSlots.includes(item.slot) && !(id === 'consumables' && item.abilityId?.startsWith('food_')));
+    return sortedShop.filter((item) => validSlots.includes(item.slot));
   };
 
   const handleBuy = async (shopItem: ShopItem) => {

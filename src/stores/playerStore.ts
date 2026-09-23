@@ -1618,6 +1618,15 @@ export const usePlayerStore = create<PlayerStore>()(
         if (!s.chosenClasses.includes(classId)) return;
         set({ chosenClasses: get().chosenClasses.filter((c) => c !== classId) });
         get().addLog('🚪 Класс убран из выбранных', 'info');
+        // Без милишника щит носить нельзя: снимаем в инвентарь, слот блокируется.
+        if (classId === MELEE_META.id && get().equipment.shield) {
+          const item = get().unequipItem('shield');
+          if (item) {
+            useInventoryStore.getState().addItem(item);
+            get().addLog('🛡️ Щит снят в инвентарь (нужен класс «Милишник»)', 'warning');
+            syncNow();
+          }
+        }
       },
 
       requireClassFor: (skillId) => {
@@ -1816,6 +1825,14 @@ export const usePlayerStore = create<PlayerStore>()(
         // Классы тоже снимаются (иначе сброс = бесплатные классы навсегда:
         // сервер вернёт все очки, а галки останутся). Перевыбор — за 3 очка.
         set({ skills: {}, pendingSkills: {}, chosenClasses: [] });
+        // Без милишника щит носить нельзя: снимаем в инвентарь.
+        if (get().equipment.shield) {
+          const item = get().unequipItem('shield');
+          if (item) {
+            useInventoryStore.getState().addItem(item);
+            get().addLog('🛡️ Щит снят в инвентарь (нужен класс «Милишник»)', 'warning');
+          }
+        }
         get().recalcStats();
         try {
           const res = await fetch('/api/skills/reset.php', {
