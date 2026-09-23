@@ -67,9 +67,9 @@ export const SHOOTER_ABILITIES: ShooterAbilityDef[] = [
   },
 
   // ---------- ТИР 1 ----------
-  { id: 'sht_t1_auto', column: 'shooter', tier: 1, name: '+2 урон автомата', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🔫', statsPerRank: [R('autoDamage', 2, '+2 урон автомата')] },
-  { id: 'sht_t1_pistol', column: 'shooter', tier: 1, name: '+2 урон пистолета', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🔫', statsPerRank: [R('pistolDamage', 2, '+2 урон пистолета')] },
-  { id: 'sht_t1_heavy', column: 'shooter', tier: 1, name: '+2 урон тяжёлого', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🔫', statsPerRank: [R('heavyDamage', 2, '+2 урон тяжёлого')] },
+  { id: 'sht_t1_damage', column: 'shooter', tier: 1, name: '+2 урон', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🔫', statsPerRank: [R('damage', 2, '+2 урон')] },
+  { id: 'sht_t1_armor', column: 'shooter', tier: 1, name: '+2 броня', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🛡️', statsPerRank: [R('armor', 2, '+2 броня')] },
+  { id: 'sht_t1_acc', column: 'shooter', tier: 1, name: '+1% меткость', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🎯', statsPerRank: [R('accuracy', 0.01, '+1% меткость')] },
 
   // ---------- ТИР 2 (нужно 5 из Т1) ----------
   { id: 'sht_t2_speed', column: 'shooter', tier: 2, name: '+2% скорость атаки', kind: 'stat', maxRanks: 10, gate: 5, apCost: 0, cooldown: 0, icon: '🏃', statsPerRank: [R('speed', 0.02, '+2% скорость атаки')] },
@@ -77,7 +77,9 @@ export const SHOOTER_ABILITIES: ShooterAbilityDef[] = [
   { id: 'sht_t2_critdmg', column: 'shooter', tier: 2, name: '+2% крит. урон', kind: 'stat', maxRanks: 10, gate: 5, apCost: 0, cooldown: 0, icon: '💥', statsPerRank: [R('critDamage', 0.02, '+2% крит. урон')] },
 
   // ---------- ТИР 3 (нужно 10 из Т1–2) ----------
-  { id: 'sht_t3_acc', column: 'shooter', tier: 3, name: '+2% меткость', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '🎯', statsPerRank: [R('accuracy', 0.02, '+2% меткость')] },
+  { id: 'sht_t3_eva', column: 'shooter', tier: 3, name: '+1% уклонение', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '💨', statsPerRank: [R('evasion', 0.01, '+1% уклонение')] },
+  { id: 'sht_t3_hp', column: 'shooter', tier: 3, name: '+250 здоровья', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '❤️', statsPerRank: [R('maxHp', 250, '+250 здоровья')] },
+  { id: 'sht_t3_stam', column: 'shooter', tier: 3, name: '+5 выносливости', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, icon: '⚡', statsPerRank: [R('maxStamina', 5, '+5 выносливости')] },
 
   // ---------- ТИР 4 (нужно 15 из Т1–3, только одна) ----------
   {
@@ -270,7 +272,7 @@ export const shooterCanAllocate = (
 export const shooterRankText = (def: ShooterAbilityDef, rank: number): string => {
   if (def.statsPerRank) {
     return def.statsPerRank.map((s) => {
-      if (['autoDamage', 'pistolDamage', 'heavyDamage', 'damage'].includes(s.stat)) {
+      if (['autoDamage', 'pistolDamage', 'heavyDamage', 'damage', 'armor', 'maxHp', 'maxStamina'].includes(s.stat)) {
         return `+${s.value * rank} ${s.text.replace(/^[+-][\d.]+%?\s*/, '')}`;
       }
       const total = s.value * rank;
