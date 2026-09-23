@@ -17,7 +17,7 @@ import { usePlayerStore, gunSlotForWeapon, EQUIPMENT_SLOTS } from '../../stores/
 import { useUiStore } from '../../stores/uiStore';
 import { effectiveItemStats, modStatsOf, modLevelMult } from '../../utils/itemStats';
 import { socketSlotsOf, schematicBonusOf, isSocketable, schemePctFor, schemeFlatFor, SCHEME_FLAT_STATS, SCHEME_STAT_LABELS } from '../../data/schematics';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 
 interface ItemTooltipProps {
   item: Item;
@@ -89,6 +89,23 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
   // иначе posisiя двоится и тултипы ложатся друг на друга.
   const TOOLTIP_W = 360;
   const CMP_W = 372;
+  const BOTTOM_GAP = 8;
+  // Фактическая высота тултипа: меряем рефом, чтобы низ тултипа упирался
+  // в низ вьюпорта (поднимаем на реальную высоту, а не на фиксированные 420).
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [boxH, setBoxH] = useState(420);
+  useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    setBoxH(el.offsetHeight || 420);
+    const ro = new ResizeObserver(() => {
+      const h = el.offsetHeight;
+      if (h) setBoxH((prev) => (Math.abs(prev - h) > 1 ? h : prev));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [item.id]);
+  const maxTop = Math.max(8, window.innerHeight - boxH - BOTTOM_GAP);
   const flipLeft = !pinMode && !nested && x + 16 + TOOLTIP_W > window.innerWidth;
   const tooltipX = nested
     ? Math.max(8, Math.min(x, window.innerWidth - TOOLTIP_W))
@@ -98,8 +115,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         ? Math.max(8, x - TOOLTIP_W - 16)
         : x + 16;
   const tooltipY = nested
-    ? Math.max(8, Math.min(y, window.innerHeight - 120))
-    : pinMode ? 10 : Math.max(8, Math.min(y - 10, window.innerHeight - 420));
+    ? Math.max(8, Math.min(y, maxTop))
+    : pinMode ? 10 : Math.max(8, Math.min(y - 10, maxTop));
   // Спойлеры сета/сфер — изначально свернуты, через 3с плавно раскрываются.
   const [spoilersOpen, setSpoilersOpen] = useState(false);
   useEffect(() => {
@@ -169,6 +186,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       <ItemTooltip item={compareItem} x={compareX} y={compareY} nested />
     )}
     <div
+      ref={boxRef}
       style={{
         position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 9999,
         width: 'fit-content', minWidth: 320,
