@@ -201,6 +201,10 @@ export const getItemImage = (name?: string, displayName?: string, slot?: string,
   if (resKey) return itemImageMap.get(resKey);
   const modKey = MOD_IMAGE_MAP[lookup];
   if (modKey) return itemImageMap.get(modKey);
+  // Точное совпадение имени файла — приоритет (арты стволов и именные спрайты).
+  // Иначе lookup с цифрами уезжает на numbered-файлы ('ak47' -> '4.png').
+  const exact = itemImageMap.get(lookup);
+  if (exact) return exact;
   for (const [key, url] of itemImageMap) {
     if (lookup.includes(key) || key.includes(lookup)) return url;
   }
