@@ -52,7 +52,8 @@ export const healWronglyDemoted = (item: any): boolean => {
   return healed;
 };
 
-/** Вклад только вставленных модов по каждому стату (с учётом уровня модов). */
+/** Вклад только вставленных модов по каждому стату (с учётом уровня модов).
+ *  Штрафы (минусовые статы) уровнем не масштабируются — как и база оружия. */
 export const modStatsOf = (item: Item): Record<string, number> => {
   const out: Record<string, number> = {};
   if (item.mods) {
@@ -60,7 +61,8 @@ export const modStatsOf = (item: Item): Record<string, number> => {
       if (!mod || !(mod as Item).stats) continue;
       const mult = modLevelMult(mod as Item);
       for (const [k, v] of Object.entries((mod as Item).stats || {})) {
-        out[k] = (out[k] || 0) + num(v) * mult;
+        const nv = num(v);
+        out[k] = (out[k] || 0) + (nv < 0 ? nv : nv * mult);
       }
     }
   }

@@ -177,6 +177,9 @@ export interface WeaponRangeProfile {
 export const weaponRangeProfile = (weapon: { name?: string; ammoType?: string }): WeaponRangeProfile => {
   // Ближний бой (и кулаки): радиус клетка вокруг, бьёт 3 клетки спереди.
   if ((weapon as any).slot === 'weapon1' || (weapon as any).isFists) return { range: 1.5 };
+  // Явная дальность на предмете (новые стволы) — приоритет над эвристиками.
+  const explicit = (weapon as any).range;
+  if (typeof explicit === 'number' && explicit > 0) return { range: explicit };
   const n = (weapon.name || '').toLowerCase();
   if (/базук|рпг|гп-25|гранатом|milkor|m79/.test(n)) return { range: 10, aoe: 1 };
   if (/огнемет|огнемёт|flame|дробовик|обрез|spas|aa-12|remington|двустволка|осада/.test(n)) return { range: 5, cone: true };

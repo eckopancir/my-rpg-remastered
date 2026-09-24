@@ -66,11 +66,12 @@ function getGameItems() {
 
     // Firearms (weapon2)
     ['name' => 'Пистолет ТТ',    'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 8, 'crit' => 0.03], 'ammoCapacity' => 8],
-    ['name' => 'MP5',             'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 5, 'crit' => 0.02], 'ammoCapacity' => 30],
-    ['name' => 'АК-47',           'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 9, 'crit' => 0.02], 'ammoCapacity' => 30],
+    ['name' => 'UZI',           'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 6, 'speed' => 0.08], 'ammoCapacity' => 32],
+    ['name' => 'Thompson',      'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 9], 'ammoCapacity' => 30],
+    ['name' => 'AK-47',         'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 10, 'crit' => 0.01], 'ammoCapacity' => 30],
     ['name' => 'Дробовик',        'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 14, 'accuracy' => 0.7, 'armor' => -2], 'ammoCapacity' => 6],
     ['name' => 'Винтовка СВД',   'rarity' => 'epic',      'slot' => 'weapon2', 'stats' => ['damage' => 16, 'crit' => 0.05], 'ammoCapacity' => 10],
-    ['name' => 'ППШ',             'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 4], 'ammoCapacity' => 71],
+    ['name' => 'M16A4',         'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 10, 'crit' => 0.02], 'ammoCapacity' => 30],
     ['name' => 'Снайперская винтовка','rarity' => 'epic',  'slot' => 'weapon2', 'stats' => ['damage' => 22, 'crit' => 0.08], 'ammoCapacity' => 5],
 
     // Armor
@@ -183,9 +184,9 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
     $finalStats[$statKey] = ($finalStats[$statKey] ?? 0) + $bonusVal;
   }
 
-  // Scale base stats by level
+  // Scale base stats by level (штрафы не растут — только положительные статы).
   foreach ($finalStats as $k => $v) {
-    $v = $v * $levelMult;
+    if ($v > 0) $v = $v * $levelMult;
     $finalStats[$k] = round($v, 3);
   }
 
