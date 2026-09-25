@@ -13,10 +13,10 @@ import {
   QUALITY_ORDER, QUALITY_COLORS,
   MATERIAL_NAMES, AMMO_CRAFT_COST,
   craftCostFor, reforgeCostFor, disassembleCategoryOf,
-  getNextQuality, rollBlueprint, rollYield,
+  getNextQuality, rollLadderSphere, rollYield,
 } from '../data/crafting';
 import { AMMO_GROUPS, makeBulletPack, maxStackFor, countAmmo, type AmmoGroup } from '../data/ammo';
-import { SCHEME_STATS, SCHEME_STAT_LABELS, SCHEME_FLAT_STATS, schemePctFor, schemeFlatFor, isSocketable, socketSlotsOf, statsForLevel, levelStatMult } from '../data/schematics';
+import { SCHEME_STATS, SCHEME_STAT_LABELS, SCHEME_FLAT_STATS, schemePctFor, schemeFlatFor, socketRarityOf, isSocketable, socketSlotsOf, statsForLevel, levelStatMult } from '../data/schematics';
 import { getSchemeImage } from '../assets/index';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem } from '../engine/items';
@@ -319,34 +319,43 @@ export const Craft = () => {
         quality: 'Обычный', qualityColor: '#a0a0a0',
       } as Item);
     }
-    let blueprint: Item | null = null;
+    // Сферы: два способа.
+    // 1) Возврат вставленных: каждая сфера на предмете — 25% сохраниться (того же стата и качества).
+    // 2) Лестница: максимум одна сфера с предмета, роллы сверху вниз (ранг выше → свой → ниже).
+    // Сфера на один случайный стат (уровня у сфер нет).
+    // Стихийные — плоская прибавка, остальные — %.
+    const makeSphere = (stat: string, bp: string): Item => {
+      const isFlat = SCHEME_FLAT_STATS.has(stat);
+      const pct = isFlat ? schemeFlatFor(stat, bp) : schemePctFor(stat, bp);
+      const label = SCHEME_STAT_LABELS[stat] || stat;
+      return {
+        id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${bp}): ${label} +${pct}${isFlat ? '' : '%'}`,
+        type: 'blueprint', blueprintRarity: bp, blueprintStat: stat, slot: 'any', rarity: bp,
+        level: 1, stats: {}, quality: bp,
+        qualityColor: QUALITY_COLORS[bp] || '#a0a0a0', stackable: false,
+        image: getSchemeImage(stat),
+      } as Item;
+    };
+    const blueprints: Item[] = [];
     for (const item of filled) {
-      if (!item.quality || blueprint) continue;
       // Из патронов сфер не бывает.
       if (disassembleCategoryOf(item) === 'bullet' || disassembleCategoryOf(item) === 'energyCell') continue;
-      const bp = rollBlueprint(item.quality);
-      if (bp) {
-        // Сфера на один случайный стат (уровня у сфер нет).
-        // Стихийные — плоская прибавка (+10, +5 за ранг), остальные — %.
-        const stat = SCHEME_STATS[Math.floor(Math.random() * SCHEME_STATS.length)];
-        const isFlat = SCHEME_FLAT_STATS.has(stat);
-        const pct = isFlat ? schemeFlatFor(stat, bp) : schemePctFor(stat, bp);
-        const label = SCHEME_STAT_LABELS[stat] || stat;
-        blueprint = {
-          id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${bp}): ${label} +${pct}${isFlat ? '' : '%'}`,
-          type: 'blueprint', blueprintRarity: bp, blueprintStat: stat, slot: 'any', rarity: bp,
-          level: 1, stats: {}, quality: bp,
-          qualityColor: QUALITY_COLORS[bp] || '#a0a0a0', stackable: false,
-          image: getSchemeImage(stat),
-        } as Item;
+      // Способ 1: возврат вставленных сфер (25% каждая).
+      for (const s of (Array.isArray((item as any).sockets) ? (item as any).sockets : []) as { stat: string; pct: number }[]) {
+        if (!s || !s.stat) continue;
+        if (Math.random() < 0.25) blueprints.push(makeSphere(s.stat, socketRarityOf(s.stat, s.pct)));
       }
+      // Способ 2: лестница (одна с предмета).
+      if (!item.quality) continue;
+      const rank = rollLadderSphere(item.quality);
+      if (rank) blueprints.push(makeSphere(SCHEME_STATS[Math.floor(Math.random() * SCHEME_STATS.length)], rank));
     }
     try {
       const res = await fetch(`${base}/craft/disassemble.php`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }, body:JSON.stringify({
         consumeIds,
         materials: materials.map((m) => ({ id: m.id, name: m.name, quantity: m.quantity, quality: m.quality || 'Обычный' })),
-        blueprint: blueprint ? { id: blueprint.id, name: blueprint.name, displayName: blueprint.displayName, slot: blueprint.slot, quality: blueprint.quality, qualityColor: blueprint.qualityColor, level: blueprint.level, blueprintRarity: (blueprint as any).blueprintRarity, blueprintStat: (blueprint as any).blueprintStat, image: blueprint.image } : null,
+        blueprints: blueprints.map((b) => ({ id: b.id, name: b.name, displayName: b.displayName, slot: b.slot, quality: b.quality, qualityColor: b.qualityColor, level: b.level, blueprintRarity: (b as any).blueprintRarity, blueprintStat: (b as any).blueprintStat, image: b.image })),
       }) });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
@@ -370,7 +379,7 @@ export const Craft = () => {
       }
     }
     playSound('craft3', 0.5);
-    if (blueprint) {
+    for (const blueprint of blueprints) {
       addItem(blueprint);
       addLog(`💎 Выпала: ${blueprint.displayName}`, 'loot');
     }
@@ -696,6 +705,20 @@ export const Craft = () => {
             <WapHeader title="🔨 Разбор на ресурсы" glow="amber" />
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
               Перетащи до 5 любых предметов (кроме ресурсов) в слоты и нажми «Разобрать все».
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12, padding: '8px 10px', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 6, lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 700, color: '#a78bfa', marginBottom: 4 }}>💎 Как падают сферы</div>
+              <div><b>1. Возврат вставленных</b> — каждая сфера на разбираемом предмете с шансом <b>25%</b> сохраняется (тот же стат и качество). Со ствола с 5 сферами может вернуться до 5 штук. При разборе остальное сгорает.</div>
+              <div style={{ marginTop: 4 }}><b>2. Лестница</b> — максимум <b>одна</b> сфера с предмета (патроны не дают). Роллы сверху вниз, первое срабатывание забирает приз. Стат случайный из 16. Шансы по качеству вещи:</div>
+              <div style={{ marginTop: 4, display: 'grid', gridTemplateColumns: '1fr', gap: 2, fontSize: 10.5 }}>
+                <span>⚪ Обычный: 5% обычная, 1% редкая</span>
+                <span>🟢 Редкий: 10% обычная, 5% редкая, 1% раритетная</span>
+                <span>🔵 Раритетный: 15/10/5% обычная/редкая/раритетная, 1% эпическая</span>
+                <span>🟣 Эпический: 20/15/10/5% обычная…эпическая, 1% смертоносная</span>
+                <span>🔴 Смертоносный: 25/20/15/10/5% обычная…смертоносная, 1% легендарная</span>
+                <span>🟡 Легендарный: 30/25/20/15/10/5% обычная…легендарная, 1% божественная</span>
+                <span>🔷 Божественный: 35/30/25/20/15/10% обычная…легендарная, 5% божественная</span>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'center' }}>
               {disassembleSlots.map((item, idx) => (

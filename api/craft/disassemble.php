@@ -33,19 +33,24 @@ try {
         }
     }
 
-    // Add blueprint if dropped
-    if (!empty($input['blueprint'])) {
-        $bp = $input['blueprint'];
-        $bpId = $bp['id'] ?? ('bp_' . uniqid());
-        $bpName = $bp['name'] ?? 'Blueprint';
-        $bpSlot = $bp['slot'] ?? 'any';
-        $data = $bp;
-        unset($data['id'], $data['name'], $data['slot'], $data['quantity']);
+    // Add blueprints if dropped (one or many spheres per disassemble)
+    $bps = [];
+    if (!empty($input['blueprints']) && is_array($input['blueprints'])) $bps = $input['blueprints'];
+    elseif (!empty($input['blueprint'])) $bps = [$input['blueprint']];
+    if (!empty($bps)) {
         $insBp = $pdo->prepare(
             'INSERT INTO inventory_items (user_id, item_id, name, slot, quantity, equipped, data)
              VALUES (?, ?, ?, ?, 1, 0, ?)'
         );
-        $insBp->execute([$user['id'], $bpId, $bpName, $bpSlot, json_encode($data, JSON_UNESCAPED_UNICODE)]);
+        foreach ($bps as $bp) {
+            if (!is_array($bp)) continue;
+            $bpId = $bp['id'] ?? ('bp_' . uniqid());
+            $bpName = $bp['name'] ?? 'Blueprint';
+            $bpSlot = $bp['slot'] ?? 'any';
+            $data = $bp;
+            unset($data['id'], $data['name'], $data['slot'], $data['quantity']);
+            $insBp->execute([$user['id'], $bpId, $bpName, $bpSlot, json_encode($data, JSON_UNESCAPED_UNICODE)]);
+        }
     }
 
     $pdo->commit();

@@ -53,6 +53,21 @@ export const schemeFlatFor = (stat: string, rarity?: string): number => {
   return 5 + 2.5 * idx;
 };
 
+const QUALITY_ORDER = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
+
+/**
+ * Ранг сферы по её вставленному бонусу (обратная таблица schemePctFor/schemeFlatFor).
+ * Нужно для возврата сфер при разборе: сфера сохраняется того же качества.
+ * Не сошлось (старые данные) — 'Обычный'.
+ */
+export const socketRarityOf = (stat: string, pct: number): string => {
+  for (const q of QUALITY_ORDER) {
+    const want = SCHEME_FLAT_STATS.has(stat) ? schemeFlatFor(stat, q) : schemePctFor(stat, q);
+    if (Math.abs(want - (pct || 0)) < 1e-9) return q;
+  }
+  return 'Обычный';
+};
+
 const WEAPON_SLOTS = ['weapon1', 'weapon2', 'gun_pistol', 'gun_shotgun', 'gun_sniper', 'gun_heavy'];
 const ARMOR_SLOTS = ['head', 'armor', 'pants', 'gloves', 'boots'];
 
