@@ -37,7 +37,7 @@ const STAT_LABELS: Record<string, string> = {
 };
 
 const SLOT_LABELS: Record<string, string> = {
-  weapon1: 'Ближний бой', weapon2: 'Автомат',
+  weapon1: 'Ближний бой', weapon2: 'Оружие',
   gun_pistol: 'Пистолет', gun_shotgun: 'Дробовик', gun_sniper: 'Снайперка', gun_heavy: 'Тяжёлое',
   head: 'Шлем', armor: 'Броня', pants: 'Штаны', gloves: 'Перчатки', boots: 'Ботинки',
   shield: 'Щит',
@@ -47,6 +47,17 @@ const SLOT_LABELS: Record<string, string> = {
   mod_muzzle: 'Дуло', mod_magazine: 'Магазин', mod_stock: 'Приклад',
   mod_blade: 'Лезвие', mod_handle: 'Рукоять', mod_pommel: 'Обух', mod_harness: 'Крепление',
   mod_lining: 'Арамидный внутренний слой', mod_hardshell: 'Композитный внешний слой', mod_utility: 'Система', mod_patch: 'Бронепластина',
+};
+
+const WEAPON_CLASS_LABELS: Record<string, string> = {
+  pistol: 'Пистолет', rifle: 'Автомат', sniper: 'Снайперская винтовка',
+  shell: 'Дробовик', mg: 'Пулемёт', energy: 'Энергетическое',
+};
+
+/** Класс ствола по группе патронов (все стволы лежат в одном слоте weapon2). */
+const weaponClassOf = (item: Item): string => {
+  if (item.slot === 'weapon2') return WEAPON_CLASS_LABELS[ammoTypeForWeapon(item as any)] || 'Оружие';
+  return SLOT_LABELS[item.slot || ''] || (item.slot || '');
 };
 
 const MOD_SLOTS_MAP: Record<string, string[]> = {
@@ -249,7 +260,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.45)', flexWrap: 'wrap' }}>
           <span>Lv.{item.level || 1}</span>
-          {item.slot && <span>• {SLOT_LABELS[item.slot] || item.slot}</span>}
+          {item.slot && <span>• {item.slot === 'weapon2' ? weaponClassOf(item) : (SLOT_LABELS[item.slot] || item.slot)}</span>}
           {item.slot && MOD_SLOTS_MAP[item.slot] && <span>• ⚙ {item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>}
         </div>
       </div>
