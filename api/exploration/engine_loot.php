@@ -20,7 +20,7 @@ define('QUALITY_BONUSES', json_encode([
   'gloves'  => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
   'boots'   => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
   'ammo'    => ['regen' => 0.01, 'block' => 0.003, 'evasion' => 0.002, 'armor' => 0.5, 'health' => 20, 'damage' => 0.5],
-  'mod'     => ['regen' => 0.005, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250, 'damage' => 2, 'crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.005, 'dpsExtro' => 1, 'dpsFire' => 1, 'dpsEmi' => 1, 'dpsToxis' => 1, 'ammoCapacity' => 5],
+  'mod'     => ['regen' => 0.005, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250, 'damage' => 2, 'crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.0025, 'dpsExtro' => 1, 'dpsFire' => 1, 'dpsEmi' => 1, 'dpsToxis' => 1, 'ammoCapacity' => 5],
 ]));
 
 define('RARITY_CHANCES', json_encode(['normal' => 33, 'epic' => 33, 'superepic' => 34]));

@@ -42,7 +42,7 @@ export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
   ammo: { regen: 0.01, block: 0.003, evasion: 0.002, armor: 0.5, maxHp: 20, damage: 0.5 },
   mod: {
     regen: 0.005, block: 0.005, evasion: 0.0004, armor: 2, maxHp: 250, damage: 2,
-    crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005,
+    crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.0025,
     dpsExtro: 1, dpsFire: 1, dpsEmi: 1, dpsToxis: 1,
     ammoCapacity: 5,
   },
@@ -141,7 +141,7 @@ export const rollModExtraStat = (
   slot: string,
   weaponSlots: string[] = ['mod_blade', 'mod_handle', 'mod_pommel', 'mod_harness', 'mod_scope', 'mod_barrel', 'mod_receiver', 'mod_muzzle', 'mod_stock'],
   armorSlots: string[] = ['mod_lining', 'mod_hardshell', 'mod_utility', 'mod_patch'],
-  weaponPool: Record<string, number> = { damage: 3, crit: 0.04, speed: 0.04, accuracy: 0.04, punching: 0.04, vampir: 0.04 },
+  weaponPool: Record<string, number> = { damage: 3, crit: 0.04, speed: 0.04, accuracy: 0.02, punching: 0.04, vampir: 0.04 },
   armorPool: Record<string, number> = { armor: 2.5, maxHp: 250, regen: 2, evasion: 0.004, block: 0.04 },
 ): void => {
   if (slot === 'mod_magazine') return;
