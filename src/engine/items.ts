@@ -163,6 +163,8 @@ const uniqueId = () => String(Date.now()) + '_' + (++_idCounter) + '_' + Math.ra
 const ROLLABLE_NEW_STATS = new Set([
   'dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire',
 ]);
+// Вампиризм может появиться заново, но только на оружии.
+const WEAPON_ROLLABLE_NEW_STATS = new Set(['vampir']);
 const ARMOR_NEW_STATS = new Set(['stamina']);
 const ARMOR_POOL_SLOTS = new Set(['head', 'armor', 'pants', 'gloves', 'boots', 'shield']);
 
@@ -260,7 +262,8 @@ export const generateItem = (
   // Выносливость может появиться заново, но только на броне.
   // (+5 брони или +15% крита из ниоткуда — нельзя.)
   const slotIsArmor = ARMOR_POOL_SLOTS.has(generatedItem.slot);
-  bonusKeys = bonusKeys.filter((k) => (finalStats[k] || 0) !== 0 || ROLLABLE_NEW_STATS.has(k) || (slotIsArmor && ARMOR_NEW_STATS.has(k)));
+  const slotIsWeapon = generatedItem.slot.startsWith('weapon') || generatedItem.slot.startsWith('gun_');
+  bonusKeys = bonusKeys.filter((k) => (finalStats[k] || 0) !== 0 || ROLLABLE_NEW_STATS.has(k) || (slotIsArmor && ARMOR_NEW_STATS.has(k)) || (slotIsWeapon && WEAPON_ROLLABLE_NEW_STATS.has(k)));
 
   // Мод: сигнатура из дефа + ОДИН случайный второй стат из пула.
   // Совпал с сигнатурой — дабл (крит+крит). Магазины — только +патроны.

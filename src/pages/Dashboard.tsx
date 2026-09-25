@@ -19,7 +19,7 @@ import { generateItem, getItemQuality, rollModExtraStat, QUALITY_MOD_MULT, QUALI
 import { createChest } from '../data/chests';
 import { CONSUMABLE_DEFS, makeConsumable } from '../data/consumables';
 import { BACKPACK_DEFS, makeBackpack } from '../data/backpacks';
-import { AMMO_GROUPS, makeBulletPack } from '../data/ammo';
+import { AMMO_GROUPS, makeBulletPack, ammoTypeForWeapon } from '../data/ammo';
 
 const debugAddBullets = () => {
   const addItem = useInventoryStore.getState().addItem;
@@ -94,6 +94,18 @@ const debugGenerateItems = (count: number) => {
     if (drop) addItem(drop);
   }
   useUiStore.getState().addToast(`🎒 Сгенерировано ${count} предметов`, 'loot');
+};
+
+// DEBUG: 500 автоматов (группа автоматных патронов) текущего уровня.
+const debugAddRifles = (count: number) => {
+  const addItem = useInventoryStore.getState().addItem;
+  const pool = GAME_ITEMS.filter((i) => i.slot === 'weapon2' && ammoTypeForWeapon(i as any) === 'rifle');
+  const lvl = usePlayerStore.getState().level;
+  for (let i = 0; i < count; i++) {
+    const drop = generateItem(pool, lvl);
+    if (drop) addItem(drop);
+  }
+  useUiStore.getState().addToast(`🔫 Выдано ${count} автоматов`, 'loot');
 };
 
 const debugAddMods = (count: number) => {
@@ -548,6 +560,7 @@ export const Dashboard = () => {
           <WapHeader title="🧪 DEBUG" glow="none" />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <Button size="sm" variant="primary" onClick={() => debugGenerateItems(200)} style={{ fontSize: 11 }}>+200 предметов</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddRifles(500)} style={{ fontSize: 11 }}>+500 автоматов 🔫</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddResources(10)} style={{ fontSize: 11 }}>+10 рес.</Button>
             <Button size="sm" variant="success" onClick={() => usePlayerStore.getState().addChips(5000)} style={{ fontSize: 11 }}>+5000 💾</Button>
             <Button size="sm" variant="success" onClick={() => usePlayerStore.getState().addExp(50000)} style={{ fontSize: 11 }}>+50000 XP</Button>

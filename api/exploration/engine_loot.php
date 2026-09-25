@@ -175,11 +175,13 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
 
   $bonusSource = (json_decode(QUALITY_BONUSES, true))[$slotKey] ?? [];
   // Бонусы — только к статам, что уже есть в базе (как в клиенте);
-  // исключение — стихийный урон, он может появиться заново.
+  // исключение — стихийный урон (всем) и вампиризм (только оружие).
   $rollableNew = ['dpsEmi' => 1, 'dpsToxis' => 1, 'dpsExtro' => 1, 'dpsFire' => 1];
+  $isWeaponSlot = strpos($slotKey, 'weapon') === 0 || strpos($slotKey, 'gun_') === 0;
   $bonusKeys = [];
   foreach (array_keys($bonusSource) as $bk) {
     if (($finalStats[$bk] ?? 0) != 0 || isset($rollableNew[$bk])) $bonusKeys[] = $bk;
+    elseif ($bk === 'vampir' && $isWeaponSlot) $bonusKeys[] = $bk;
   }
 
   for ($i = 0; $i < $tier['bonusStatsCount']; $i++) {
