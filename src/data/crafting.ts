@@ -118,17 +118,19 @@ const reforgeBaseFor = (cat: CraftCategory): CraftCost => {
   return { scrap: g('scrap'), wires: g('wires'), chip: g('chip'), reagent: g('reagent'), alloy: g('alloy'), powder: g('powder') };
 };
 
-/** Цена подъёма уровня перековкой (+1 ур.) по слоту и качеству. */
+/** Цена подъёма уровня перековкой (+1 ур.) по слоту и качеству.
+ *  Порох из требований убран: подъём оружия идёт без пороха. */
 export const reforgeCostFor = (slot: string, quality: string): CraftCost => {
   const base = reforgeBaseFor(craftCategoryOf({ slot }));
   const mult = Math.max(0, QUALITY_ORDER.indexOf(quality)) + 1;
+  const isWeapon = craftCategoryOf({ slot }) === 'weapon';
   return {
     scrap: base.scrap * mult,
     wires: base.wires * mult,
     chip: base.chip * mult,
     reagent: base.reagent * mult,
     alloy: base.alloy * mult,
-    powder: base.powder * mult,
+    powder: isWeapon ? 0 : base.powder * mult,
   };
 };
 
