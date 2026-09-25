@@ -29,7 +29,7 @@ export const QUALITY_TIERS: QualityTier[] = [
 export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
   weapon1: { crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005, damage: 2 },
   weapon2: {
-    crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005,
+    crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005, speed: 0.02,
     dpsExtro: 2, dpsFire: 2, dpsEmi: 2, dpsToxis: 2, damage: 3,
   },
   head: { regen: 2, block: 0.005, evasion: 0.0004, armor: 2, maxHp: 250, stamina: 1.5 },

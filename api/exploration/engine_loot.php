@@ -14,7 +14,7 @@ define('QUALITY_TIERS', json_encode([
 
 define('QUALITY_BONUSES', json_encode([
   'weapon1' => ['crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.005, 'damage' => 2],
-  'weapon2' => ['crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.005, 'dpsExtro' => 2, 'dpsFire' => 2, 'dpsEmi' => 2, 'dpsToxis' => 2, 'damage' => 3],
+  'weapon2' => ['crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.005, 'speed' => 0.02, 'dpsExtro' => 2, 'dpsFire' => 2, 'dpsEmi' => 2, 'dpsToxis' => 2, 'damage' => 3],
   'head'    => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
   'armor'   => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
   'gloves'  => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
@@ -174,7 +174,13 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
   elseif (strpos($slotKey, 'ammo') === 0) $slotKey = 'ammo';
 
   $bonusSource = (json_decode(QUALITY_BONUSES, true))[$slotKey] ?? [];
-  $bonusKeys = array_keys($bonusSource);
+  // Бонусы — только к статам, что уже есть в базе (как в клиенте);
+  // исключение — стихийный урон, он может появиться заново.
+  $rollableNew = ['dpsEmi' => 1, 'dpsToxis' => 1, 'dpsExtro' => 1, 'dpsFire' => 1];
+  $bonusKeys = [];
+  foreach (array_keys($bonusSource) as $bk) {
+    if (($finalStats[$bk] ?? 0) != 0 || isset($rollableNew[$bk])) $bonusKeys[] = $bk;
+  }
 
   for ($i = 0; $i < $tier['bonusStatsCount']; $i++) {
     if (empty($bonusKeys)) break;
