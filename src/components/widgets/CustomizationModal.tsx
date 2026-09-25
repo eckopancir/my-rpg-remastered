@@ -27,7 +27,7 @@ const FIREARM_SLOT_POSITIONS: ModSlotPos[] = [
   { id: 'mod_scope', name: 'Прицел', top: Math.round(93 * SCALE), left: Math.round(193 * SCALE) },
   { id: 'mod_barrel', name: 'Ствол', top: Math.round(142 * SCALE), left: Math.round(346 * SCALE) },
   { id: 'mod_receiver', name: 'Ресивер', top: Math.round(170 * SCALE), left: Math.round(240 * SCALE) },
-  { id: 'mod_muzzle', name: 'Дуло', top: Math.round(132 * SCALE), left: Math.round(451 * SCALE) },
+  { id: 'mod_muzzle', name: 'Дуло', top: Math.round(151 * SCALE), left: Math.round(464 * SCALE) },
   { id: 'mod_magazine', name: 'Магазин', top: Math.round(283 * SCALE), left: Math.round(240 * SCALE) },
   { id: 'mod_stock', name: 'Приклад', top: Math.round(168 * SCALE), left: Math.round(117 * SCALE) },
 ];
