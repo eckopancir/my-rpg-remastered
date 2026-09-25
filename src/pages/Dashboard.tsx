@@ -96,6 +96,18 @@ const debugGenerateItems = (count: number) => {
   useUiStore.getState().addToast(`🎒 Сгенерировано ${count} предметов`, 'loot');
 };
 
+// DEBUG: 500 брони заданного слота текущего уровня.
+const debugAddArmorSlot = (slot: string, label: string, count: number) => {
+  const addItem = useInventoryStore.getState().addItem;
+  const pool = GAME_ITEMS.filter((i) => i.slot === slot);
+  const lvl = usePlayerStore.getState().level;
+  for (let i = 0; i < count; i++) {
+    const drop = generateItem(pool, lvl);
+    if (drop) addItem(drop);
+  }
+  useUiStore.getState().addToast(`🛡️ Выдано ${count}: ${label}`, 'loot');
+};
+
 // DEBUG: 500 автоматов (группа автоматных патронов) текущего уровня.
 const debugAddRifles = (count: number) => {
   const addItem = useInventoryStore.getState().addItem;
@@ -561,6 +573,11 @@ export const Dashboard = () => {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <Button size="sm" variant="primary" onClick={() => debugGenerateItems(200)} style={{ fontSize: 11 }}>+200 предметов</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddRifles(500)} style={{ fontSize: 11 }}>+500 автоматов 🔫</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddArmorSlot('head', 'шлемов', 500)} style={{ fontSize: 11 }}>+500 шлемов 🪖</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddArmorSlot('armor', 'брони', 500)} style={{ fontSize: 11 }}>+500 брони 🦺</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddArmorSlot('gloves', 'перчаток', 500)} style={{ fontSize: 11 }}>+500 перчаток 🧤</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddArmorSlot('pants', 'штанов', 500)} style={{ fontSize: 11 }}>+500 штанов 👖</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddArmorSlot('boots', 'ботинок', 500)} style={{ fontSize: 11 }}>+500 ботинок 🥾</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddResources(10)} style={{ fontSize: 11 }}>+10 рес.</Button>
             <Button size="sm" variant="success" onClick={() => usePlayerStore.getState().addChips(5000)} style={{ fontSize: 11 }}>+5000 💾</Button>
             <Button size="sm" variant="success" onClick={() => usePlayerStore.getState().addExp(50000)} style={{ fontSize: 11 }}>+50000 XP</Button>
