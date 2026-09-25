@@ -1,4 +1,5 @@
 import { socketSlotsOf } from '../data/schematics';
+import { backpackSlotsFor } from '../data/backpacks';
 
 /** Фикс цены продажи ресурсов для крафта (за шт, без мультипликаторов). */
 export const CRAFT_MAT_SELL_PRICE: Record<string, number> = {
@@ -11,10 +12,16 @@ export const getSellPrice = (item: { price?: number; level?: number; quality?: s
   if ((item as any).type === 'material' && item.name && CRAFT_MAT_SELL_PRICE[item.name] != null) {
     return CRAFT_MAT_SELL_PRICE[item.name] * (item.quantity || 1);
   }
-  if (item.price) return Math.floor(item.price * rate);
   // Без цены — формула уже является ценой продажи при ставке 0.4,
   // поэтому нестандартную ставку (барон 0.8/1.0) масштабируем относительно неё.
   const rateMult = rate / 0.4;
+  // Рюкзаки — цена строго за слоты (вместимость с учётом качества):
+  // 80 × 1.3^(слоты−10). Мелочь — копейки, топ — безумные деньги.
+  if ((item as any).type === 'backpack' || (item as any).slot === 'backpack') {
+    const slots = Math.max(0, backpackSlotsFor(item as any) || 0);
+    return Math.floor(80 * Math.pow(1.3, slots - 10) * rateMult);
+  }
+  if (item.price) return Math.floor(item.price * rate);
   const qualityMultiplier =
     item.quality === 'Божественный' ? 12 :
     item.quality === 'Легендарный' ? 8 :
