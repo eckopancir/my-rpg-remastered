@@ -46,11 +46,11 @@ export const schemePctFor = (stat: string, rarity?: string): number => {
   return Math.round((raw / 3) * 10) / 10;
 };
 
-/** Плоский бонус стихийной сферы: +10, +5 за ранг (Обычная +10 … Божественная +40). */
+/** Плоский бонус стихийной сферы: +5, +2.5 за ранг (Обычная +5 … Божественная +20). */
 export const schemeFlatFor = (stat: string, rarity?: string): number => {
   if (!SCHEME_FLAT_STATS.has(stat)) return schemePctFor(stat, rarity);
   const idx = QUALITY_INDEX[rarity || 'Обычный'] ?? 0;
-  return 10 + 5 * idx;
+  return 5 + 2.5 * idx;
 };
 
 const WEAPON_SLOTS = ['weapon1', 'weapon2', 'gun_pistol', 'gun_shotgun', 'gun_sniper', 'gun_heavy'];
