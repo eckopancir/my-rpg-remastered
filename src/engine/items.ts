@@ -332,7 +332,17 @@ export const generateItem = (
     if (bonusKeys.length === 0) break;
     // Модам качественные бонус-роллы не положены: у них уже есть второй стат.
     if (isModSlot) break;
-    const randomStatKey = bonusKeys[Math.floor(Math.random() * bonusKeys.length)];
+    // Оружие: стихийка имбовая — ей отдельная ветка 25%, остальное 75% в базу.
+    // Иначе стволы регулярно дают больше стихийного урона, чем обычного.
+    let randomStatKey: string;
+    if (slotIsWeapon) {
+      const flatKeys = bonusKeys.filter((k) => ROLLABLE_NEW_STATS.has(k));
+      const baseKeys = bonusKeys.filter((k) => !ROLLABLE_NEW_STATS.has(k));
+      const pool = flatKeys.length > 0 && (baseKeys.length === 0 || Math.random() < 0.25) ? flatKeys : baseKeys.length > 0 ? baseKeys : flatKeys;
+      randomStatKey = pool[Math.floor(Math.random() * pool.length)];
+    } else {
+      randomStatKey = bonusKeys[Math.floor(Math.random() * bonusKeys.length)];
+    }
     const baseBonusValue = generatedItem.slot.startsWith('mod_')
       ? (generatedItem.stats[randomStatKey] || 0)
       : (bonusSource[randomStatKey] || 0);

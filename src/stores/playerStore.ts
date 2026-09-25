@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { calculateCombatStep, type CombatPlayer, type CombatEnemy } from '../engine/combat';
-import { armorDR } from '../engine/armor';
 import { generateEnemy } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
@@ -340,34 +339,30 @@ const sumMultBoosts = (effects: ActiveEffect[]): Partial<Record<string, number>>
   return mults;
 };
 
+/**
+ * Статичная мощность: фиксированные веса за единицу стата.
+ * Не зависит от надетого и величины характеристик (линейна).
+ * Стихии суммируются ВСЕ (старый max() только по максимальной — баг, убран).
+ * Процентные статы (крит/скорость/точность/уклон/пробитие/вамп) — за 0.01;
+ * блок — за 1% шанса (стат × 10); HP — за 100; остальное — за 1.
+ */
 export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: number; defensiveScore: number } => {
-  const attackCount = 1 + (stats.speed || 0) * 0.5;
-  const hitChance = Math.min(stats.accuracy ?? 1, 1);
-  const rawDPS = stats.damage * attackCount * hitChance;
-  const expectedCrit = 1 + (stats.crit || 0);
-  const punchMult = 1 + stats.punching * 0.5;
-  const elementDamage = Math.max(
-    (stats.dpsEmi || 0) * 0.25,
-    (stats.dpsToxis || 0) * 0.25,
-    Math.max(stats.dpsExtro || 0, stats.dpsFire || 0) * 0.5,
-  );
-  const effectiveDPS = (rawDPS + elementDamage) * expectedCrit * punchMult;
-  const offensiveScore = effectiveDPS * 3;
-
-  const FIGHT_TIME = 30;
-  const blockChance = Math.min(stats.block * 0.1, 0.5);
-  const blockEHP = blockChance > 0 && blockChance < 1 ? 1000 * blockChance / (1 - blockChance) : Infinity;
-  // Броня — асимптотический срез: EHP тела делится на (1 − DR).
-  const armorDRv = armorDR(stats.armor || 0);
-  const evasionEHP = stats.evasion < 1 ? 1000 * stats.evasion / (1 - stats.evasion) : Infinity;
-  const regenEHP = stats.regen * FIGHT_TIME;
-  const vampirEHP = stats.vampir * effectiveDPS * FIGHT_TIME;
-
-  let totalEHP = (stats.maxHp + regenEHP + vampirEHP) / Math.max(0.05, 1 - armorDRv);
-  if (Number.isFinite(evasionEHP)) totalEHP += evasionEHP;
-  if (Number.isFinite(blockEHP)) totalEHP += blockEHP;
-
-  const defensiveScore = totalEHP / 10;
+  const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const offensiveScore =
+    n(stats.damage) * 1.0 +
+    (n(stats.dpsEmi) + n(stats.dpsToxis) + n(stats.dpsExtro) + n(stats.dpsFire)) * 2.0 +
+    n(stats.crit) * 100 * 1.5 +
+    n(stats.speed) * 100 * 0.8 +
+    n(stats.accuracy) * 100 * 2.0 +
+    n(stats.punching) * 100 * 0.6;
+  const defensiveScore =
+    n(stats.evasion) * 100 * 6.0 +
+    n(stats.block) * 10 * 10.0 +
+    n(stats.armor) * 0.3 +
+    n(stats.maxHp) / 100 * 1.0 +
+    n(stats.vampir) * 100 * 0.85 +
+    n(stats.regen) * 2.5 +
+    n(stats.maxStamina) * 0.25;
   return { offensiveScore: Math.round(offensiveScore), defensiveScore: Math.round(defensiveScore) };
 };
 

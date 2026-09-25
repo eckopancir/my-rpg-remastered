@@ -186,7 +186,20 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
 
   for ($i = 0; $i < $tier['bonusStatsCount']; $i++) {
     if (empty($bonusKeys)) break;
+    // Оружие: стихийка — отдельная ветка 25%, иначе база (75%).
     $statKey = $bonusKeys[array_rand($bonusKeys)];
+    if ($isWeaponSlot) {
+      $flatKeys = [];
+      $baseKeys = [];
+      foreach ($bonusKeys as $bk) {
+        if (isset($rollableNew[$bk])) $flatKeys[] = $bk; else $baseKeys[] = $bk;
+      }
+      if (!empty($flatKeys) && (empty($baseKeys) || (mt_rand() / mt_getrandmax()) < 0.25)) {
+        $statKey = $flatKeys[array_rand($flatKeys)];
+      } elseif (!empty($baseKeys)) {
+        $statKey = $baseKeys[array_rand($baseKeys)];
+      }
+    }
     $baseBonus = $bonusSource[$statKey] ?? 0;
     $bonusVal = $baseBonus * $levelMult;
     $finalStats[$statKey] = ($finalStats[$statKey] ?? 0) + $bonusVal;
