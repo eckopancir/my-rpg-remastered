@@ -292,6 +292,10 @@ export const Equipment = () => {
 
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  // Контекстное меню слота: избранное для надетой вещи (как в инвентаре).
+  const [slotMenu, setSlotMenu] = useState<{ slot: string; x: number; y: number } | null>(null);
+  const favorites = useInventoryStore((s) => s.favorites);
+  const toggleFavorite = useInventoryStore((s) => s.toggleFavorite);
   const [hoverSlot, setHoverSlot] = useState<string | null>(null);
   const [customizing, setCustomizing] = useState<{ item: Item | null; slot: string } | null>(null);
   const [backpackOpen, setBackpackOpen] = useState(false);
@@ -669,6 +673,7 @@ export const Equipment = () => {
           onMouseLeave={handleMouseLeave}
           onClick={() => handleSlotClick(slot, item)}
           onDoubleClick={() => handleSlotDoubleClick(slot, item)}
+          onContextMenu={(e) => { if (item) { e.preventDefault(); setSlotMenu({ slot, x: e.clientX, y: e.clientY }); } }}
           draggable={!!item}
           onDragStart={(e) => { if (item) { e.dataTransfer.setData('text/plain', `equip:${slot}`); useUiStore.getState().setDraggedItemId(`equip:${slot}`); } }}
           onDragEnd={() => useUiStore.getState().setDraggedItemId(null)}
@@ -704,6 +709,10 @@ export const Equipment = () => {
             <>
               {/* Свечение качества за предметом */}
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(ellipse 72% 66% at 50% 55%, ${withAlpha(glowBase, 0.32)}, transparent 70%)` }} />
+              {/* Звёздочка избранного */}
+              {favorites[item.id] && (
+                <span style={{ position: 'absolute', top: 2, left: 5, fontSize: 11, lineHeight: 1, color: '#ffd700', textShadow: '0 0 4px rgba(255,215,0,0.8)', zIndex: 3, pointerEvents: 'none' }}>★</span>
+              )}
               {/* Уголки качества */}
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2, filter: (isHover || isActiveGun || isDragTarget) ? `drop-shadow(0 0 3px ${cc})` : 'none' }}>
                 <div style={{ position: 'absolute', top: 3, left: 3, width: 9, height: 9, borderTop: `2px solid ${cc}`, borderLeft: `2px solid ${cc}`, borderTopLeftRadius: 5 }} />
@@ -1020,6 +1029,31 @@ export const Equipment = () => {
         </div>
       )}
       {tooltipItem && <ItemTooltip item={tooltipItem} x={tooltipPos.x} y={tooltipPos.y} />}
+
+      {/* Контекстное меню слота: избранное */}
+      {slotMenu && (() => {
+        const menuItem = (equipment as any)[slotMenu.slot];
+        if (!menuItem) return null;
+        return (
+          <div
+            onMouseLeave={() => setSlotMenu(null)}
+            style={{
+              position: 'fixed', left: Math.min(slotMenu.x, window.innerWidth - 180), top: Math.min(slotMenu.y, window.innerHeight - 60),
+              zIndex: 10001, background: '#141416', border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 6, padding: 4, minWidth: 160,
+            }}
+          >
+            <div
+              onClick={() => { toggleFavorite(menuItem.id); setSlotMenu(null); }}
+              style={{ padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#ffd700', borderRadius: 3 }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              {favorites[menuItem.id] ? '☆ Убрать из избранного' : '★ В избранное'}
+            </div>
+          </div>
+        );
+      })()}
 
       {customizing && (
         <CustomizationModal
