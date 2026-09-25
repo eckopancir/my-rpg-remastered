@@ -15,12 +15,12 @@ define('QUALITY_TIERS', json_encode([
 define('QUALITY_BONUSES', json_encode([
   'weapon1' => ['crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.005, 'damage' => 2],
   'weapon2' => ['crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.005, 'speed' => 0.02, 'dpsExtro' => 2, 'dpsFire' => 2, 'dpsEmi' => 2, 'dpsToxis' => 2, 'damage' => 3],
-  'head'    => ['regen' => 2, 'block' => 0.05, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
-  'armor'   => ['regen' => 2, 'block' => 0.05, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
-  'gloves'  => ['regen' => 2, 'block' => 0.05, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
-  'boots'   => ['regen' => 2, 'block' => 0.05, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
-  'ammo'    => ['regen' => 0.01, 'block' => 0.03, 'evasion' => 0.002, 'armor' => 0.5, 'health' => 20, 'damage' => 0.5],
-  'mod'     => ['regen' => 0.005, 'block' => 0.05, 'evasion' => 0.004, 'armor' => 2, 'health' => 250, 'damage' => 2, 'crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.0025, 'dpsExtro' => 1, 'dpsFire' => 1, 'dpsEmi' => 1, 'dpsToxis' => 1, 'ammoCapacity' => 5],
+  'head'    => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
+  'armor'   => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
+  'gloves'  => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
+  'boots'   => ['regen' => 2, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250],
+  'ammo'    => ['regen' => 0.01, 'block' => 0.003, 'evasion' => 0.002, 'armor' => 0.5, 'health' => 20, 'damage' => 0.5],
+  'mod'     => ['regen' => 0.005, 'block' => 0.005, 'evasion' => 0.004, 'armor' => 2, 'health' => 250, 'damage' => 2, 'crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.0025, 'dpsExtro' => 1, 'dpsFire' => 1, 'dpsEmi' => 1, 'dpsToxis' => 1, 'ammoCapacity' => 5],
 ]));
 
 define('RARITY_CHANCES', json_encode(['normal' => 33, 'epic' => 33, 'superepic' => 34]));
