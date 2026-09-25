@@ -889,7 +889,7 @@ export const GAME_ITEMS: ItemDefinition[] = [,
     type: 'mod',
     stats: { speed: 0.04 },
   },
-  // Магазины: только +патроны (бонус по классу оружия × качеству, см. MAGAZINE_BONUS).
+  // Магазины: только +патроны (% от базы ствола × качество, см. MAGAZINE_PCT).
   {
     name: 'Удлиненный магазин',
     rarity: 'epic',

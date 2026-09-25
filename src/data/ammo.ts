@@ -105,18 +105,11 @@ export const worseQuality = (a?: string, b?: string): string =>
   bulletQualityIndex(a) <= bulletQualityIndex(b) ? (a || 'Обычный') : (b || 'Обычный');
 
 /**
- * Бонус +патронов от магазина-мода: класс оружия × качество мода.
- * Снайпер 1→6, автомат 5→30, пистолет 2→12, дробь 1→6, пулемёт 10→60, тяжёлое 1→5.
+ * Бонус магазина-мода в % от базовой вместимости ствола (по качеству мода).
+ * Обычный +50% … Божественный +100%. Округление всегда вверх (ceil),
+ * минимум +1 — стволы на 1–2 патрона тоже получают прибавку.
  */
-export const MAGAZINE_BONUS: Record<string, number[]> = {
-  sniper: [1, 2, 3, 4, 4, 5, 6],
-  rifle: [5, 8, 12, 16, 20, 25, 30],
-  pistol: [2, 3, 4, 6, 8, 10, 12],
-  shotgun: [1, 2, 2, 3, 4, 5, 6],
-  mg: [10, 15, 20, 30, 40, 50, 60],
-  heavy: [1, 1, 2, 2, 3, 4, 5],
-  default: [2, 3, 4, 5, 6, 8, 10],
-};
+export const MAGAZINE_PCT = [50, 58, 67, 75, 83, 92, 100];
 
 const magazineWeaponClass = (weapon: { name?: string; ammoType?: string }): string => {
   const n = (weapon.name || '').toLowerCase();
@@ -132,7 +125,7 @@ const magazineWeaponClass = (weapon: { name?: string; ammoType?: string }): stri
   return 'rifle';
 };
 
-/** Итоговая вместимость: база + бонус магазина-мода (по его качеству) + Т7 стрелка. */
+/** Итоговая вместимость: база + % от магазина-мода (по его качеству, ceil) + Т7 стрелка (% от базы, ceil). */
 export const effectiveAmmoCapacity = (item: {
   ammoCapacity?: number; name?: string; ammoType?: string;
   mods?: Record<string, { quality?: string } | any>;
@@ -141,18 +134,18 @@ export const effectiveAmmoCapacity = (item: {
   const mag = item.mods?.['mod_magazine'] as { quality?: string } | undefined;
   if (!mag) return base;
   const qidx = Math.max(0, QUALITY_ORDER.indexOf(mag.quality || 'Обычный'));
-  const wcls = magazineWeaponClass(item);
-  const table = MAGAZINE_BONUS[wcls] || MAGAZINE_BONUS.default;
-  const tableBonus = table[Math.min(qidx, table.length - 1)] || 0;
-  // Стрелок Т7 «Магазин»: +25% пистолет/автомат, +50% тяжёлое, +20% пулемёт.
+  const pct = MAGAZINE_PCT[Math.min(qidx, MAGAZINE_PCT.length - 1)] || 0;
+  const tableBonus = Math.ceil(base * pct / 100);
+  // Стрелок Т7 «Магазин»: +25% пистолет/автомат, +50% тяжёлое, +20% пулемёт (от базы).
   // Ленивый доступ к стору (вызов в рантайме, после инициализации модулей).
+  const wcls = magazineWeaponClass(item);
   let extra = 0;
   try {
     const sk = usePlayerStore.getState().skills || {};
-    if (wcls === 'pistol' && (sk['sht_t7_magpist'] || 0) > 0) extra = Math.round(tableBonus * 0.25);
-    else if (wcls === 'rifle' && (sk['sht_t7_magauto'] || 0) > 0) extra = Math.round(tableBonus * 0.25);
-    else if (wcls === 'heavy' && (sk['sht_t7_magheavy'] || 0) > 0) extra = Math.round(tableBonus * 0.5);
-    else if (wcls === 'mg' && (sk['sht_t7_magmg'] || 0) > 0) extra = Math.round(tableBonus * 0.2);
+    if (wcls === 'pistol' && (sk['sht_t7_magpist'] || 0) > 0) extra = Math.ceil(base * 0.25);
+    else if (wcls === 'rifle' && (sk['sht_t7_magauto'] || 0) > 0) extra = Math.ceil(base * 0.25);
+    else if (wcls === 'heavy' && (sk['sht_t7_magheavy'] || 0) > 0) extra = Math.ceil(base * 0.5);
+    else if (wcls === 'mg' && (sk['sht_t7_magmg'] || 0) > 0) extra = Math.ceil(base * 0.2);
   } catch { /* ignore */ }
   return base + tableBonus + extra;
 };
