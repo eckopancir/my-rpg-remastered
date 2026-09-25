@@ -68,7 +68,7 @@ function getGameItems() {
     ['name' => 'Пистолет ТТ',    'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 8, 'crit' => 0.03], 'ammoCapacity' => 8],
     ['name' => 'UZI',           'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 6, 'speed' => 0.08], 'ammoCapacity' => 32],
     ['name' => 'Thompson',      'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 8], 'ammoCapacity' => 100],
-    ['name' => 'AK-47',         'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 12, 'crit' => 0.01], 'ammoCapacity' => 30],
+    ['name' => 'AK-47',         'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 12, 'crit' => 0.02, 'punching' => 0.02], 'ammoCapacity' => 30],
     ['name' => 'Дробовик',        'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 14, 'accuracy' => 0.7, 'armor' => -2], 'ammoCapacity' => 6],
     ['name' => 'Винтовка СВД',   'rarity' => 'epic',      'slot' => 'weapon2', 'stats' => ['damage' => 16, 'crit' => 0.05], 'ammoCapacity' => 10],
     ['name' => 'M16A4',         'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 10, 'crit' => 0.02], 'ammoCapacity' => 30],
