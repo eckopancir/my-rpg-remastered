@@ -1768,6 +1768,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (hasLesnichiy && petKind && PET_META[petKind]) {
         const lvlMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
         const bonus = petBranchBonuses(petKind, ps.skills);
+        // Сет «Лесничий» (5 вещей): медведю 50% урона ближнего оружия, волку 30% HP хозяина.
+        const set5 = setPartsOf(setCountsOf(ps.equipment as any));
+        if (petKind === 'bear' && set5.petShareBear > 0) bonus.pctPlayerDmg = Math.max(bonus.pctPlayerDmg || 0, set5.petShareBear);
+        if (petKind === 'wolf' && set5.petShareWolf > 0) bonus.pctPlayerHp = Math.max(bonus.pctPlayerHp || 0, set5.petShareWolf);
         const meleeItem = (ps.equipment as any)?.weapon1;
         const meleeDmg = meleeItem ? (effectiveItemStats(meleeItem).damage || 0) : 0;
         const nums = petBaseStats(petKind, lvlMult, ps.stats.damage || 5, ps.stats.maxHp || 100, bonus, ps.stats.armor || 0, ps.stats.speed || 0, meleeDmg);
@@ -4356,6 +4360,33 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           usePlayerStore.setState((st: any) => ({ stats: { ...st.stats, currentHp: Math.min(max, cur + add) } }));
           get().addPopup(get().playerPos.x, get().playerPos.y, `+${add} 💚`, 'HEAL');
           get().addBattleLog(`💚 Второе дыхание: +${add} HP игроку`);
+        }
+      }
+    }
+    // Сет «Лесничий» (3 вещи): страж зверя — при HP<30% −80% входящего урона на 3 хода.
+    // Моделька горит зелёным и +25% размер (флаг guardTurns читает BattleGrid).
+    {
+      const pst = usePlayerStore.getState();
+      const guardOn = setPartsOf(setCountsOf(pst.equipment as any)).petGuard;
+      const pet = get().enemies.find((e: any) => (e as any).isPet && !e.dead && ((e as any).petKind === 'wolf' || (e as any).petKind === 'bear') && (e.currentHp || 0) > 0);
+      if (guardOn && pet) {
+        const frac = (pet.currentHp || 0) / Math.max(1, pet.maxHp || 1);
+        if (frac < 0.3 && !((pet as any).guardTurns > 0)) {
+          set((s) => ({
+            enemies: s.enemies.map((e: any) => e.id === pet.id
+              ? { ...e, guardTurns: 3, guardSaved: e.incomingDamageMult, incomingDamageMult: 0.2 }
+              : e),
+          }));
+          get().addPopup(pet.pos.x, pet.pos.y, '🛡️ СТРАЖ', 'BUFF');
+          get().addBattleLog(`🛡️ Страж зверя: ${pet.name} −80% урона (3 хода)`);
+        } else if (((pet as any).guardTurns || 0) > 0) {
+          const left = (pet as any).guardTurns - 1;
+          set((s) => ({
+            enemies: s.enemies.map((e: any) => e.id === pet.id
+              ? { ...e, guardTurns: left, incomingDamageMult: left > 0 ? 0.2 : ((e as any).guardSaved ?? 1) }
+              : e),
+          }));
+          if (left <= 0) get().addBattleLog(`🛡️ Страж зверя спал: ${pet.name}`);
         }
       }
     }

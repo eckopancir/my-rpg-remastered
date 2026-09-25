@@ -452,10 +452,10 @@ export function petBaseStats(
   kind: PetKind, levelMult: number, playerDamage: number, playerMaxHp: number, bonus: PetStatBonus, playerArmor: number = 0, playerSpeed: number = 0, playerMeleeDamage: number = 0,
 ): PetBaseNumbers {
   const base = kind === 'bear'
-    ? { hp: 600, dmgFrac: 0.25, armor: 4, eva: 0.05, block: 1.0, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0 }
+    ? { hp: 600, dmgFrac: 0.25, armor: 4, eva: 0.05, block: 10, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0 }
     : kind === 'wolf'
-      ? { hp: 350, dmgFrac: 0.2, armor: 1, eva: 0.15, block: 0.2, crit: 0.05, acc: 0.95, spd: 0.1, vamp: 0.05, reg: 0 }
-      : { hp: 450, dmgFrac: 0.25, armor: 2, eva: 0.08, block: 0.5, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0.01 };
+      ? { hp: 350, dmgFrac: 0.2, armor: 1, eva: 0.15, block: 2, crit: 0.05, acc: 0.95, spd: 0.1, vamp: 0.05, reg: 0 }
+      : { hp: 450, dmgFrac: 0.25, armor: 2, eva: 0.08, block: 5, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0.01 };
   const hostArmorBonus = (bonus.pctHostArmor || 0) * playerArmor;
   const maxHp = Math.round(
     (base.hp * levelMult + bonus.maxHp + playerMaxHp * bonus.pctPlayerHp) * (1 + bonus.pctBaseHp),

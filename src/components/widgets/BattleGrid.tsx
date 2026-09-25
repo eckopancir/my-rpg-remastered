@@ -722,11 +722,14 @@ export const BattleGrid = () => {
                         // База обычных спрайтов смотрит вниз; модели зверей:
                         // волк/кабан — вверх (+90°), медведь — влево (+180°).
                         // Нейтральный кабан смотрит вверх, как волк.
-                        transform: (enemy as any).isPet
+                        // Страж зверя (сет «Лесничий»): +25% размер.
+                        transform: ((enemy as any).isPet
                           ? `rotate(${enemy.rotation + (((enemy as any).petKind === 'bear') ? 180 : 90)}deg)`
                           : (enemy as any).isNeutral
                             ? `rotate(${enemy.rotation + 90}deg)`
-                            : `rotate(${enemy.rotation - 90}deg)`,
+                            : `rotate(${enemy.rotation - 90}deg)`) + (((enemy as any).isPet && (enemy as any).guardTurns > 0) ? ' scale(1.25)' : ''),
+                        // Страж зверя: зелёное горение.
+                        filter: ((enemy as any).isPet && (enemy as any).guardTurns > 0) ? 'drop-shadow(0 0 12px #22ff66) brightness(1.25)' : 'none',
                         // Патруль вне боя — полупрозрачный (еле видно); в бою — 100%.
                         // Босс всегда 100%: он не прячется.
                         opacity: ((enemy.aiRole === 'patrol' || enemy.aiRole === 'reinforce') && !enemy.aggro && !isBossEnemy(enemy.name, (enemy as any).factionKey)) ? 0.5 : 1,

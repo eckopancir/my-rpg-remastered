@@ -295,6 +295,9 @@ export interface SetParts {
   mults: Partial<Record<'damage' | 'maxHp' | 'armor', number>>;
   abilities: string[];
   passives: string[];
+  petGuard: boolean;
+  petShareBear: number;
+  petShareWolf: number;
 }
 
 /** Активные тиры сета: тиры кумулятивны (на 5 вещах работают и 3пк, и 5пк). */
@@ -303,6 +306,9 @@ export const setPartsOf = (counts: Record<string, number>): SetParts => {
   const mults: Partial<Record<'damage' | 'maxHp' | 'armor', number>> = {};
   const abilities: string[] = [];
   const passives: string[] = [];
+  let petGuard = false;
+  let petShareBear = 0;
+  let petShareWolf = 0;
   for (const [setName, count] of Object.entries(counts)) {
     const tiers = SET_BONUSES[setName];
     if (!tiers) continue;
@@ -312,9 +318,12 @@ export const setPartsOf = (counts: Record<string, number>): SetParts => {
       if (tier.mults) for (const [k, v] of Object.entries(tier.mults)) mults[k as keyof typeof mults] = (mults[k as keyof typeof mults] ?? 1) * (v as number);
       if (tier.ability && !abilities.includes(tier.ability)) abilities.push(tier.ability);
       if (tier.passives) for (const p of tier.passives) if (!passives.includes(p)) passives.push(p);
+      if (tier.petGuard) petGuard = true;
+      if (tier.petShareBear) petShareBear = Math.max(petShareBear, tier.petShareBear);
+      if (tier.petShareWolf) petShareWolf = Math.max(petShareWolf, tier.petShareWolf);
     }
   }
-  return { flat, mults, abilities, passives };
+  return { flat, mults, abilities, passives, petGuard, petShareBear, petShareWolf };
 };
 
 /** Ранг пассивки: очки навыков + дарованная сетом (считается за 1). */
