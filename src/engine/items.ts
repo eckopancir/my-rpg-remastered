@@ -4,9 +4,9 @@ import { schemePctFor, schemeFlatFor } from '../data/schematics';
 export type RarityKey = 'normal' | 'epic' | 'superepic';
 
 export const RARITY_CHANCES: Record<string, number> = {
-  normal: 33,
-  epic: 33,
-  superepic: 34,
+  normal: 50,
+  epic: 35,
+  superepic: 15,
 };
 
 export interface QualityTier {

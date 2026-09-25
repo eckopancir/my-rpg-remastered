@@ -23,7 +23,7 @@ define('QUALITY_BONUSES', json_encode([
   'mod'     => ['regen' => 0.005, 'block' => 0.04, 'evasion' => 0.004, 'armor' => 2, 'health' => 250, 'damage' => 2, 'crit' => 0.005, 'vampir' => 0.005, 'punching' => 0.005, 'accuracy' => 0.0025, 'dpsExtro' => 1, 'dpsFire' => 1, 'dpsEmi' => 1, 'dpsToxis' => 1, 'ammoCapacity' => 5],
 ]));
 
-define('RARITY_CHANCES', json_encode(['normal' => 33, 'epic' => 33, 'superepic' => 34]));
+define('RARITY_CHANCES', json_encode(['normal' => 50, 'epic' => 35, 'superepic' => 15]));
 
 // ---------------------------------------------------------------------------
 // Resource definitions
