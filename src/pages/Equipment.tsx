@@ -329,7 +329,8 @@ export const Equipment = () => {
     e.preventDefault();
   }, [pos]);
 
-  const dragItem = useMemo(() => items.find((i) => i.id === draggedItemId), [items, draggedItemId]);  const validDropSlots = useMemo(() => {
+  const dragItem = useMemo(() => items.find((i) => i.id === draggedItemId)
+    ?? (draggedItemId === 'reforge:weapon' ? (usePlayerStore.getState().reforgeWeapon as any) ?? undefined : undefined), [items, draggedItemId]);  const validDropSlots = useMemo(() => {
     if (!dragItem) return new Set<string>();
     const slots = new Set<string>();
     // Щит — только с классом «Милишник» (слот с замком).
@@ -359,6 +360,36 @@ export const Equipment = () => {
     const dtId = e.dataTransfer.getData('text/plain');
     const itemId = dtId || useUiStore.getState().draggedItemId;
     if (!itemId || itemId.startsWith('equip:')) return;
+    // Из перековки — надеваем прямо из слота перековки.
+    if (itemId === 'reforge:weapon') {
+      const rw = usePlayerStore.getState().reforgeWeapon as Item | null;
+      if (!rw) return;
+      if (slot === 'shield' && !usePlayerStore.getState().chosenClasses.includes('melee')) {
+        usePlayerStore.getState().addLog('🔒 Щит доступен с классом «Милишник»', 'warning');
+        return;
+      }
+      if (rw.slot === 'weapon2' && gunSlotForWeapon(rw) !== slot) {
+        usePlayerStore.getState().addLog(`❌ Сюда не подходит: неси в «${SLOT_LABELS[gunSlotForWeapon(rw)] || slot}».`, 'warning');
+        return;
+      }
+      if (rw.slot && rw.slot !== slot && !(rw.slot === 'weapon2' && (GUN_SLOTS as readonly string[]).includes(slot))) return;
+      const old = equipment[slot];
+      if (old) {
+        if (slot === 'backpack' && backpackLocked) {
+          usePlayerStore.getState().addLog('🔒 Рюкзак под замком — сними замочек, чтобы снять.', 'warning');
+          return;
+        }
+        unequipItem(slot);
+      }
+      if (equipItem(slot, rw)) {
+        usePlayerStore.getState().setReforgeWeapon(null);
+        if (old) addItem(old);
+        playSound('putting-on-a-safety-belt', 0.5);
+      } else if (old) {
+        equipItem(slot, old);
+      }
+      return;
+    }
     // Патроны на надетый ствол — зарядка магазина, а не экипировка.
     if ((GUN_SLOTS as readonly string[]).includes(slot) && (equipment as any)[slot]?.ammoCapacity) {
       if (handleLoadMag(slot, itemId)) return;

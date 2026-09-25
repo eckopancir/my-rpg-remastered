@@ -151,6 +151,16 @@ export const Craft = () => {
   const [reforgeBlueprint, setReforgeBlueprintLocal] = useState<Item | null>(() => usePlayerStore.getState().reforgeBlueprint);
   const setReforgeWeapon = (w: Item | null) => { setReforgeWeaponLocal(w); usePlayerStore.getState().setReforgeWeapon(w); };
   const setReforgeBlueprint = (b: Item | null) => { setReforgeBlueprintLocal(b); usePlayerStore.getState().setReforgeBlueprint(b); };
+  // Слот перековки могли очистить снаружи (перетаскивание в экипировку) — подтягиваем.
+  useEffect(() => usePlayerStore.subscribe((s) => {
+    setReforgeWeaponLocal(s.reforgeWeapon);
+    setReforgeBlueprintLocal(s.reforgeBlueprint);
+  }), []);
+  // Всё, что легло в перековку, помечаем избранным — искать через сортировку «Избранное».
+  const markReforgeFavorite = (id: string) => {
+    const st = useInventoryStore.getState();
+    if (!st.favorites[id]) st.toggleFavorite(id);
+  };
 
   // Tooltip for result items
   const [tooltipItem, setTooltipItem] = useState<Item | null>(null);
@@ -390,6 +400,7 @@ export const Craft = () => {
       };
       reforgeWeaponFrom.current = { place: 'equipment', slot };
       setReforgeWeapon(fixed);
+      markReforgeFavorite(fixed.id);
       playSound('install', 0.4);
       return;
     }
@@ -406,6 +417,7 @@ export const Craft = () => {
     };
     reforgeWeaponFrom.current = null;
     setReforgeWeapon(fixed);
+    markReforgeFavorite(fixed.id);
     playSound('install', 0.4);
   }
 
@@ -435,6 +447,7 @@ export const Craft = () => {
     if (item.type !== 'blueprint') { addLog('❌ Сюда только сферы', 'warning'); return; }
     removeItem(item.id);
     setReforgeBlueprint(item);
+    markReforgeFavorite(item.id);
     playSound('install', 0.4);
   }
 
@@ -731,10 +744,13 @@ export const Craft = () => {
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                   onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain') || useUiStore.getState().draggedItemId; if (id) handleDropToReforge(id); }}
                   onClick={() => reforgeWeapon && handleRemoveReforgeWeapon()}
+                  draggable={!!reforgeWeapon}
+                  onDragStart={(e) => { if (reforgeWeapon) { e.dataTransfer.setData('text/plain', 'reforge:weapon'); useUiStore.getState().setDraggedItemId('reforge:weapon'); } }}
+                  onDragEnd={() => useUiStore.getState().setDraggedItemId(null)}
                   onMouseEnter={(e) => { if (reforgeWeapon) { setTooltipItem(reforgeWeapon); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
                   onMouseMove={(e) => { if (reforgeWeapon) setTooltipPos({ x: e.clientX, y: e.clientY }); }}
                   onMouseLeave={() => setTooltipItem(null)}
-                  title={reforgeWeapon ? `${reforgeWeapon.displayName || reforgeWeapon.name} — клик вернуть в инвентарь` : 'Оружие или броня из инвентаря'}
+                  title={reforgeWeapon ? `${reforgeWeapon.displayName || reforgeWeapon.name} — клик вернуть, тяни в экипировку` : 'Оружие или броня из инвентаря'}
                   style={{
                     width: 110, height: 110, borderRadius: 8,
                     border: `2px dashed ${reforgeWeapon ? (reforgeWeapon.qualityColor || 'rgba(255,255,255,0.2)') : 'rgba(255,255,255,0.1)'}`,
