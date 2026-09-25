@@ -184,6 +184,17 @@ export const getBulletImage = (packName?: string): string | undefined => {
   return itemImageMap.get('ammo_rifle');
 };
 
+/** Новые автоматы (20 шт.): их арты показываем крупнее —
+ *  в тултипе +33% (180→240), в инвентаре +20% (44→53). */
+const LARGE_ART_WEAPONS = new Set([
+  'uzi', 'thompson', 'ak-47', 'm16a4', 'famas', 'aug', 'scar-l', 'fn p90',
+  'm5', 'vector', 'скс', 'winchester 1894', 'сайга-мк', 'cz 805 bren',
+  'fn f2000', 'galil ace', 'arx-160', 'rec7', 'scar-h', 'аш-12',
+]);
+
+export const isLargeArtWeapon = (name?: string): boolean =>
+  LARGE_ART_WEAPONS.has((name || '').toLowerCase());
+
 export const getItemImage = (name?: string, displayName?: string, slot?: string, type?: string): string | undefined => {
   // Щиты пока без арта — рисуются эмодзи (item.icon).
   if (slot === 'shield') return undefined;

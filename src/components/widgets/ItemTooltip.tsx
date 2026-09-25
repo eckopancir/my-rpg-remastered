@@ -1,4 +1,4 @@
-import { getItemImage, images, crystalImages, getSchemeImage } from '../../assets/index';
+import { getItemImage, images, crystalImages, getSchemeImage, isLargeArtWeapon } from '../../assets/index';
 import iconBullets from '../../assets/images/ui/icon-bullets.png';
 import iconScope from '../../assets/images/ui/icon-scope.png';
 import { getConsumableIcon } from '../../data/consumables';
@@ -12,7 +12,6 @@ import { ABILITY_MAP } from '../../data/accessoryAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 import { sniperSellRate } from '../../data/sniper';
-import { SET_BONUSES } from '../../data/GameItems';
 import { usePlayerStore, gunSlotForWeapon, EQUIPMENT_SLOTS } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
 import { effectiveItemStats, modStatsOf, modLevelMult } from '../../utils/itemStats';
@@ -168,9 +167,6 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
     || getItemImage(item.name, item.displayName, item.slot, item.type);
   const itemPower = calcItemPower(item);
-  const equippedSetCount = item.set
-    ? Object.values(equipment).filter((eq) => eq?.set === item.set).length
-    : 0;
 
   if (!pinMode && activePin && activePin.id === item.id) return null;
 
@@ -219,7 +215,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       {(imgUrl || foodIcon || shieldIcon) && (
         <div style={{ textAlign: 'center', padding: '4px 14px 0', position: 'relative' }}>
           {imgUrl ? (
-            <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
+            <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : isLargeArtWeapon(item.name) ? 240 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
           ) : (
             <span style={{ fontSize: 72, lineHeight: 1.2 }}>{foodIcon || shieldIcon}</span>
           )}
@@ -379,40 +375,6 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       })()}
       {/* divider like screenshot */}
       <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '10px 0 10px' }} />
-
-      {/* set bonuses — спойлер, раскрывается через 3с */}
-      {item.set && SET_BONUSES[item.set] && (
-        <div style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 8, marginBottom: 10, overflow: 'hidden', maxWidth: 320 }}>
-          <div
-            onClick={() => setSpoilersOpen((o) => !o)}
-            style={{ padding: '7px 8px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', pointerEvents: 'auto', userSelect: 'none' }}
-          >
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#c084fc', flex: 1 }}>◆ Сет «{item.set}» — {equippedSetCount}/{SET_BONUSES[item.set].at(-1)?.count ?? '?'}</span>
-            <span style={{ fontSize: 10, color: 'rgba(200,180,255,0.6)', transform: spoilersOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)' }}>▼</span>
-          </div>
-          <div style={{
-            display: 'grid',
-            gridTemplateRows: spoilersOpen ? '1fr' : '0fr',
-            opacity: spoilersOpen ? 1 : 0,
-            transition: 'grid-template-rows 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.35s ease',
-          }}>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ padding: '0 8px 7px' }}>
-                {SET_BONUSES[item.set].map((tier, idx) => {
-                  const bonusStr = Object.entries(tier.bonuses).map(([k, v]) => `${STAT_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v >= 1 ? v : v.toFixed(3)}`).join(', ');
-                  const isAchieved = equippedSetCount >= tier.count;
-                  const isMax = idx === SET_BONUSES[item.set].length - 1;
-                  return (
-                    <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4, wordBreak: 'break-word' }}>
-                      {isAchieved ? '◆ ' : isMax ? '◇ ' : '◇ '}({tier.count}) {bonusStr}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {item.abilityId && ABILITY_MAP[item.abilityId] && (
         <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.14)', borderRadius: 8, padding: '7px 8px', marginBottom: 10 }}>

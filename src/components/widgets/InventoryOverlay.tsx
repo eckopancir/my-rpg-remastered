@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useUiStore } from '../../stores/uiStore';
 import { usePlayerStore, gunSlotForWeapon } from '../../stores/playerStore';import { useInventoryStore } from '../../stores/inventoryStore';
-import { getItemImage } from '../../assets/index';
+import { getItemImage, isLargeArtWeapon } from '../../assets/index';
 import { useSound } from '../../hooks/useSound';
 import { WapHeader } from '../ui/WapHeader';
 import { WapPanel } from '../ui/WapPanel';
@@ -503,7 +503,7 @@ export const InventoryOverlay = () => {
                     {emojiIcon ? (
                       <span style={{ fontSize: 28, lineHeight: 1 }}>{emojiIcon}</span>
                     ) : imgUrl ? (
-                      <img src={imgUrl} alt="" draggable={false} style={{ width: 44, height: 44, objectFit: 'contain', imageRendering: 'pixelated' }} />
+                      <img src={imgUrl} alt="" draggable={false} style={{ width: isLargeArtWeapon(stacked.item.name) ? 53 : 44, height: isLargeArtWeapon(stacked.item.name) ? 53 : 44, objectFit: 'contain', imageRendering: 'pixelated' }} />
                     ) : (
                       <span style={{ fontSize: 16, opacity: 0.2 }}>?</span>
                     )}

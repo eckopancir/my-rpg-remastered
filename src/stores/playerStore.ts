@@ -4,7 +4,7 @@ import { calculateCombatStep, type CombatPlayer, type CombatEnemy } from '../eng
 import { armorDR } from '../engine/armor';
 import { generateEnemy } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
-import { GAME_ITEMS, SET_BONUSES } from '../data/GameItems';
+import { GAME_ITEMS } from '../data/GameItems';
 import { useInventoryStore } from './inventoryStore';
 import { useCombatGridStore } from './combatGridStore';
 import { useAuthStore } from './authStore';
@@ -506,33 +506,8 @@ export const usePlayerStore = create<PlayerStore>()(
         const effectBonus = sumEffectStats(s.activeEffects);
         const skillBonus = s.skillBonuses();
 
-        // Set bonuses
-        const setCounts: Record<string, number> = {};
-        for (const item of items) {
-          if (item && item.set) setCounts[item.set] = (setCounts[item.set] || 0) + 1;
-        }
+        // Сеты удалены из игры (вернутся новыми позже): бонусов нет.
         const setBonus: PlayerStats = { ...EMPTY_STATS };
-        for (const [setName, count] of Object.entries(setCounts)) {
-          const tiers = SET_BONUSES[setName];
-          if (!tiers) continue;
-          let activeTier = -1;
-          for (let i = tiers.length - 1; i >= 0; i--) {
-            if (count >= tiers[i].count) { activeTier = i; break; }
-          }
-          if (activeTier >= 0) {
-            for (const [k, v] of Object.entries(tiers[activeTier].bonuses)) {
-              const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
-              if (mappedKey === 'allDps') {
-                setBonus.dpsEmi += (v as number);
-                setBonus.dpsToxis += (v as number);
-                setBonus.dpsExtro += (v as number);
-                setBonus.dpsFire += (v as number);
-              } else if (mappedKey in setBonus) {
-                (setBonus as any)[mappedKey] += v;
-              }
-            }
-          }
-        }
 
         const lvl = s.level;
         const dps = BASE_STATS.damage + lvl + equipBonus.damage + effectBonus.damage + skillBonus.damage + setBonus.damage;
