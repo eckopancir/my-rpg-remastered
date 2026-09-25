@@ -215,7 +215,64 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
   if (isset($base['damage'])) $item['damage'] = $base['damage'];
   if (isset($base['mods'])) $item['mods'] = $base['mods'];
 
+  // Гнёзда под сферы + предустановленные сферы с дропа (зеркало клиента).
+  $slotName = $base['slot'] ?? '';
+  $isW = $slotName === 'weapon1' || $slotName === 'weapon2' || strpos($slotName, 'gun_') === 0;
+  $isA = in_array($slotName, ['head', 'armor', 'pants', 'gloves', 'boots'], true);
+  if (($isW || $isA) && empty($base['unique'])) {
+    $item['socketSlots'] = $isW ? (1 + random_int(0, 4)) : (1 + random_int(0, 2));
+    $pre = rollPreinstalledSpheres($slotName, $item['socketSlots'], $finalStats);
+    if (!empty($pre)) $item['sockets'] = $pre;
+  }
+
   return $item;
+}
+
+/**
+ * Предустановленные сферы с дропа: оружие 25%/10%/2% (1/2/3 шт.),
+ * броня 15%/5% (1/2 шт.). Ось: оружию — атакующие, броне — защитные
+ * (PHP-статы: health вместо maxHp). Качество сферы — обычной пирамидой.
+ */
+function rollPreinstalledSpheres($slot, $socketSlots, $stats) {
+  if (!$socketSlots || $socketSlots <= 0) return [];
+  $isW = $slot === 'weapon1' || $slot === 'weapon2' || strpos($slot, 'gun_') === 0;
+  $isA = in_array($slot, ['head', 'armor', 'pants', 'gloves', 'boots'], true);
+  if (!$isW && !$isA) return [];
+  $r = mt_rand() / mt_getrandmax();
+  $n = 0;
+  if ($isW) {
+    if ($r < 0.02) $n = 3; elseif ($r < 0.12) $n = 2; elseif ($r < 0.37) $n = 1;
+  } else {
+    if ($r < 0.05) $n = 2; elseif ($r < 0.20) $n = 1;
+  }
+  $n = min($n, $socketSlots);
+  if ($n <= 0) return [];
+  $pctKeys = $isW
+    ? ['damage', 'crit', 'speed', 'punching', 'accuracy', 'vampir']
+    : ['armor', 'evasion', 'block', 'vampir', 'regen', 'health'];
+  $flatKeys = $isW ? ['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro'] : [];
+  $pool = [];
+  foreach ($pctKeys as $k) { if (($stats[$k] ?? 0) > 0) $pool[] = $k; }
+  foreach ($flatKeys as $k) $pool[] = $k;
+  if (empty($pool)) return [];
+  $qnames = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
+  $defensive = ['armor' => 1, 'evasion' => 1, 'block' => 1, 'vampir' => 1, 'regen' => 1, 'health' => 1, 'maxHp' => 1];
+  $tiers = json_decode(QUALITY_TIERS, true);
+  $out = [];
+  for ($i = 0; $i < $n; $i++) {
+    $stat = $pool[array_rand($pool)];
+    $qt = weightedPick($tiers);
+    $idx = array_search($qt['name'], $qnames);
+    if ($idx === false) $idx = 0;
+    if (in_array($stat, ['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro'], true)) {
+      $pct = 5 + 2.5 * $idx;
+    } else {
+      $raw = 20 + 5 * $idx;
+      $pct = isset($defensive[$stat]) ? round($raw / 3, 1) : $raw;
+    }
+    $out[] = ['stat' => $stat, 'pct' => $pct];
+  }
+  return $out;
 }
 
 // ---------------------------------------------------------------------------

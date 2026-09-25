@@ -1,4 +1,5 @@
 import { ALL_ABILITIES } from '../data/accessoryAbilities';
+import { schemePctFor, schemeFlatFor } from '../data/schematics';
 
 export type RarityKey = 'normal' | 'epic' | 'superepic';
 
@@ -167,6 +168,47 @@ const ROLLABLE_NEW_STATS = new Set([
 const WEAPON_ROLLABLE_NEW_STATS = new Set(['vampir']);
 const ARMOR_NEW_STATS = new Set(['stamina']);
 const ARMOR_POOL_SLOTS = new Set(['head', 'armor', 'pants', 'gloves', 'boots', 'shield']);
+
+const WEAPON_SPHERE_PCT = ['damage', 'crit', 'speed', 'punching', 'accuracy', 'vampir'];
+const WEAPON_SPHERE_FLAT = ['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro'];
+const ARMOR_SPHERE_PCT = ['armor', 'evasion', 'block', 'vampir', 'regen', 'maxHp'];
+
+/**
+ * Предустановленные сферы с дропа: оружие 25%/10%/2% (1/2/3 шт.),
+ * броня 15%/5% (1/2 шт.), не больше гнёзд. Ось: оружию — атакующие
+ * (% — только из имеющихся в базе, стихийка — всегда), броне — защитные.
+ * Качество сферы — обычной пирамидой.
+ */
+export const rollPreinstalledSpheres = (
+  slot: string,
+  socketSlots: number,
+  stats: Record<string, number>,
+): { stat: string; pct: number }[] => {
+  if (!socketSlots || socketSlots <= 0) return [];
+  const isW = slot === 'weapon1' || slot === 'weapon2' || slot.startsWith('gun_');
+  const isA = ['head', 'armor', 'pants', 'gloves', 'boots'].includes(slot);
+  if (!isW && !isA) return [];
+  const r = Math.random();
+  let n = 0;
+  if (isW) {
+    if (r < 0.02) n = 3; else if (r < 0.12) n = 2; else if (r < 0.37) n = 1;
+  } else {
+    if (r < 0.05) n = 2; else if (r < 0.20) n = 1;
+  }
+  n = Math.min(n, socketSlots);
+  if (n <= 0) return [];
+  const pctPool = (isW ? WEAPON_SPHERE_PCT : ARMOR_SPHERE_PCT).filter((k) => (stats[k] || 0) > 0);
+  const flatPool = isW ? WEAPON_SPHERE_FLAT : [];
+  const pool = [...pctPool, ...flatPool];
+  if (pool.length === 0) return [];
+  const out: { stat: string; pct: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const stat = pool[Math.floor(Math.random() * pool.length)];
+    const q = getItemQuality();
+    out.push({ stat, pct: flatPool.includes(stat) ? schemeFlatFor(stat, q.name) : schemePctFor(stat, q.name) });
+  }
+  return out;
+};
 
 export const generateItem = (
   items: ItemDefinition[],
@@ -347,6 +389,12 @@ export const generateItem = (
   if (isGear && !(generatedItem as any).unique) {
     const isW = generatedItem.slot === 'weapon1' || generatedItem.slot === 'weapon2' || generatedItem.slot.startsWith('gun_');
     (generatedItem as any).socketSlots = isW ? 1 + Math.floor(Math.random() * 5) : 1 + Math.floor(Math.random() * 3);
+  }
+
+  // Предустановленные сферы с дропа (поверх гнёзд).
+  if (isGear && !(generatedItem as any).unique) {
+    const pre = rollPreinstalledSpheres(generatedItem.slot, (generatedItem as any).socketSlots || 0, finalStats);
+    if (pre.length > 0) (generatedItem as any).sockets = pre;
   }
 
   return generatedItem;
