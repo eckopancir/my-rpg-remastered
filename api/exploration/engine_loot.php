@@ -255,12 +255,17 @@ function rollPreinstalledSpheres($slot, $socketSlots, $stats) {
   foreach ($pctKeys as $k) { if (($stats[$k] ?? 0) > 0) $pool[] = $k; }
   foreach ($flatKeys as $k) $pool[] = $k;
   if (empty($pool)) return [];
+  $pctPool = [];
+  foreach ($pctKeys as $k) { if (($stats[$k] ?? 0) > 0) $pctPool[] = $k; }
   $qnames = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
   $defensive = ['armor' => 1, 'evasion' => 1, 'block' => 1, 'vampir' => 1, 'regen' => 1, 'health' => 1, 'maxHp' => 1, 'stamina' => 1];
   $tiers = json_decode(QUALITY_TIERS, true);
   $out = [];
   for ($i = 0; $i < $n; $i++) {
-    $stat = $pool[array_rand($pool)];
+    // Стихийка — отдельная ветка 25%, иначе характеристика с предмета (75%).
+    $useFlat = !empty($flatKeys) && (empty($pctPool) || (mt_rand() / mt_getrandmax()) < 0.25);
+    $pickPool = $useFlat ? $flatKeys : (!empty($pctPool) ? $pctPool : $flatKeys);
+    $stat = $pickPool[array_rand($pickPool)];
     $qt = weightedPick($tiers);
     $idx = array_search($qt['name'], $qnames);
     if ($idx === false) $idx = 0;

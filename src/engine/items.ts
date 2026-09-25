@@ -199,10 +199,14 @@ export const rollPreinstalledSpheres = (
   if (n <= 0) return [];
   const pctPool = (isW ? WEAPON_SPHERE_PCT : ARMOR_SPHERE_PCT).filter((k) => (stats[k] || 0) > 0);
   const flatPool = isW ? WEAPON_SPHERE_FLAT : [];
-  const pool = [...pctPool, ...flatPool];
-  if (pool.length === 0) return [];
+  if (pctPool.length === 0 && flatPool.length === 0) return [];
   const out: { stat: string; pct: number }[] = [];
   for (let i = 0; i < n; i++) {
+    // Стихийка имбовая и была всегда в пуле — теперь ей отдельная ветка 25%,
+    // остальные 75% — равномерный пик из характеристик, уже есть на предмете.
+    // Если один пул пуст — берём из другого.
+    const useFlat = flatPool.length > 0 && (pctPool.length === 0 || Math.random() < 0.25);
+    const pool = useFlat ? flatPool : pctPool.length > 0 ? pctPool : flatPool;
     const stat = pool[Math.floor(Math.random() * pool.length)];
     const q = getItemQuality();
     out.push({ stat, pct: flatPool.includes(stat) ? schemeFlatFor(stat, q.name) : schemePctFor(stat, q.name) });
