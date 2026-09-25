@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WapHeader } from '../ui/WapHeader';
 import { ItemTooltip } from './ItemTooltip';
@@ -123,6 +123,26 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
   };
 
   const itemImg = liveItem ? getItemImage(liveItem.name, liveItem.displayName, liveItem.slot, (liveItem as any).type) : undefined;
+
+  // Осмотр оружия: пробел — крупный план картинки на весь экран (как inspect в играх).
+  const [inspecting, setInspecting] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      const t = e.target as HTMLElement | null;
+      const tag = (t?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setInspecting((v) => !v);
+      } else if (e.code === 'Escape') {
+        setInspecting(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  useEffect(() => { setInspecting(false); }, [liveItem?.id]);
 
   const [pos, setPos] = useState({ x: window.innerWidth / 2 - 280, y: window.innerHeight / 2 - 220 });
   const dragState = useRef<{ dx: number; dy: number } | null>(null);
@@ -257,7 +277,27 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
 
           <p style={{ marginTop: 14, color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center', margin: 0 }}>
             Перетащи мод из инвентаря в слот. Нажми на слот с модом, чтобы снять.
+            <span style={{ color: '#fbbf24' }}> Пробел — рассмотреть оружие крупно.</span>
           </p>
+
+          {/* Крупный план оружия: оверлей поверх модалки. */}
+          {inspecting && itemImg && (
+            <div
+              onClick={() => setInspecting(false)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 10002,
+                background: 'rgba(0,0,0,0.88)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: 12, cursor: 'zoom-out',
+              }}
+            >
+              <img src={itemImg} alt={liveItem?.displayName || liveItem?.name} style={{ maxWidth: '86vw', maxHeight: '78vh', objectFit: 'contain', filter: 'drop-shadow(0 12px 40px rgba(0,0,0,0.8))' }} draggable={false} />
+              <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 600 }}>
+                {liveItem?.displayName || liveItem?.name}
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Пробел / Esc / клик — закрыть</span>
+            </div>
+          )}
 
           {hoverMod && (
             <ItemTooltip item={hoverMod} x={hoverPos.x} y={hoverPos.y} />
