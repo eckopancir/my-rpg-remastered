@@ -603,6 +603,8 @@ export const usePlayerStore = create<PlayerStore>()(
               (woStats as any)[mappedKey] -= v;
             }
           }
+          // У щита блока в stats нет — вычитаем и бонус ношения +20.
+          if (slot === 'shield') woStats.block -= 20;
           woStats.damage = Math.max(1, woStats.damage);
           woStats.crit = Math.max(0, woStats.crit);
           woStats.armor = Math.max(0, woStats.armor);

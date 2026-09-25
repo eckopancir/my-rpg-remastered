@@ -404,7 +404,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           const col = STAT_COLORS[k] || (isNeg ? '#f87171' : '#d1d5db');
           const isPct = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
           const isBlock = k === 'block';
-          const shown = isPct ? `${(Math.abs(v) * 100).toFixed(v < 0.01 ? 1 : 0)}%` : isBlock ? `${(Math.abs(v) * 10).toFixed(1)}%` : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(2)}`;
+          const shown = isPct ? `${(Math.abs(v) * 100).toFixed(v < 0.01 ? 1 : 0)}%` : isBlock ? `${Math.abs(v).toFixed(1)}%` : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(2)}`;
           const sign = isNeg ? '-' : '+';
           const label = STAT_LABELS[k] || k;
           return (
@@ -424,7 +424,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
                 <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
                 <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
-                  <span style={{ color: '#60a5fa', fontWeight: 600 }}>+25%</span>{' '}
+                  <span style={{ color: '#60a5fa', fontWeight: 600 }}>+20%</span>{' '}
                   <span style={{ color: 'rgba(255,255,255,0.72)' }}>шанс блока (надетый щит)</span>
                 </span>
               </div>

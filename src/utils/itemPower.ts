@@ -2,7 +2,7 @@ import { computePowerFromStats } from '../stores/playerStore';
 import type { PlayerStats } from '../stores/playerStore';
 import type { Item } from '../types/items';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
-import { effectiveItemStats } from './itemStats';
+import { effectiveItemStats, modLevelMult } from './itemStats';
 import { effectiveAmmoCapacity } from '../data/ammo';
 
 const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
@@ -51,14 +51,18 @@ export const calcItemPower = (item: Item): number => {
     ? sustainedShotsPerTurn(effectiveAmmoCapacity(item)) / 5
     : 1;
   const combined: Record<string, number> = effectiveItemStats(item);
+  // Моды показывают статы со скейлом уровня (как тултип) — мощность считаем с ним же.
+  const modMult = item.type === 'mod' ? modLevelMult(item) : 1;
   const asPlayer: Record<string, number> = {};
   for (const [k, v] of Object.entries(combined)) {
-    let val = v || 0;
+    let val = (v || 0) * modMult;
     if (val === 0) continue;
     if (k === 'damage') val *= sustainedFactor;
     const mappedKey = STAT_KEY_MAP[k] || k;
     asPlayer[mappedKey] = (asPlayer[mappedKey] || 0) + val;
   }
+  // У щита блока в stats нет — бонус +20 даёт сам факт ношения (как в recalcStats).
+  if (item.slot === 'shield') asPlayer.block = (asPlayer.block || 0) + 20;
   const { offensiveScore, defensiveScore } = computePowerFromStats(asPlayer as PlayerStats);
 
   let abilityPower = 0;
