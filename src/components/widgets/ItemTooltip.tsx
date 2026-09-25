@@ -9,6 +9,8 @@ import { QUALITY_TIERS } from '../../engine/items';
 import { backpackDefByName, backpackSlots, backpackSlotsFor } from '../../data/backpacks';
 import { ammoGroupName, ammoTypeForWeapon, maxStackFor, weaponRangeProfile, effectiveAmmoCapacity, MAGAZINE_PCT, bulletQualityIndex, BULLET_DMG_PCT, bulletDamageMult, type AmmoGroup } from '../../data/ammo';
 import { ABILITY_MAP } from '../../data/accessoryAbilities';
+import { SET_BONUSES } from '../../data/GameItems';
+import { SET_ABILITY_DEFS, SET_PASSIVE_LABELS } from '../../data/setAbilities';
 import { calcItemPower } from '../../utils/itemPower';
 import { getSellPrice } from '../../utils/sellPrice';
 import { sniperSellRate } from '../../data/sniper';
@@ -376,6 +378,54 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       })()}
       {/* divider like screenshot */}
       <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '10px 0 10px' }} />
+
+      {/* set bonuses — спойлер */}
+      {item.set && SET_BONUSES[item.set] && SET_BONUSES[item.set].length > 0 && (() => {
+        const equippedSetCount = Object.values(equipment).filter((eq) => (eq as any)?.set === item.set).length;
+        const maxCount = Math.max(...SET_BONUSES[item.set].map((t) => t.count));
+        const PCT_STATS = new Set(['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'punching']);
+        const fmtFlat = ([k, v]: [string, number]) => {
+          const val = PCT_STATS.has(k) ? `${(v * 100).toFixed(2).replace(/\.?0+$/, '')}%` : `${v}`;
+          return `${STAT_LABELS[k] || k}: ${v > 0 ? '+' : ''}${val}`;
+        };
+        const fmtMult = ([k, v]: [string, number]) => `${STAT_LABELS[k] || k}: +${Math.round((v - 1) * 100)}%`;
+        return (
+          <div style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: 8, marginBottom: 10, overflow: 'hidden', maxWidth: 320 }}>
+            <div
+              onClick={() => setSpoilersOpen((o) => !o)}
+              style={{ padding: '7px 8px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', pointerEvents: 'auto', userSelect: 'none' }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#c084fc', flex: 1 }}>◆ Сет «{item.set}» — {equippedSetCount}/{maxCount}</span>
+              <span style={{ fontSize: 10, color: 'rgba(200,180,255,0.6)', transform: spoilersOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)' }}>▼</span>
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateRows: spoilersOpen ? '1fr' : '0fr',
+              opacity: spoilersOpen ? 1 : 0,
+              transition: 'grid-template-rows 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.35s ease',
+            }}>
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ padding: '0 8px 7px' }}>
+                  {SET_BONUSES[item.set].map((tier, idx) => {
+                    const parts: string[] = [];
+                    if (tier.flat) parts.push(...Object.entries(tier.flat).map(fmtFlat));
+                    if (tier.mults) parts.push(...Object.entries(tier.mults).map(fmtMult));
+                    if (tier.ability && SET_ABILITY_DEFS[tier.ability]) parts.push(`✦ ${SET_ABILITY_DEFS[tier.ability].name}`);
+                    if (tier.passives) parts.push(...tier.passives.map((p) => `✦ ${SET_PASSIVE_LABELS[p] || p}`));
+                    const isAchieved = equippedSetCount >= tier.count;
+                    const isMax = idx === SET_BONUSES[item.set].length - 1;
+                    return (
+                      <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4, wordBreak: 'break-word' }}>
+                        {isAchieved ? '◆ ' : '◇ '}({tier.count}) {parts.join(', ')}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {item.abilityId && ABILITY_MAP[item.abilityId] && (
         <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.14)', borderRadius: 8, padding: '7px 8px', marginBottom: 10 }}>

@@ -1,5 +1,5 @@
 import type { Item } from '../types/items';
-import { usePlayerStore } from '../stores/playerStore';
+import { usePlayerStore, passiveRank } from '../stores/playerStore';
 
 // 6 групп боеприпасов. Стак — 30 шт (по-тарковски).
 export type AmmoGroup = 'pistol' | 'rifle' | 'sniper' | 'shell' | 'mg' | 'energy';
@@ -144,7 +144,7 @@ export const effectiveAmmoCapacity = (item: {
     const sk = usePlayerStore.getState().skills || {};
     if (wcls === 'pistol' && (sk['sht_t7_magpist'] || 0) > 0) extra = Math.ceil(base * 0.25);
     else if (wcls === 'rifle' && (sk['sht_t7_magauto'] || 0) > 0) extra = Math.ceil(base * 0.25);
-    else if (wcls === 'heavy' && (sk['sht_t7_magheavy'] || 0) > 0) extra = Math.ceil(base * 0.5);
+    else if (wcls === 'heavy' && passiveRank('sht_t7_magheavy') > 0) extra = Math.ceil(base * 0.5);
     else if (wcls === 'mg' && (sk['sht_t7_magmg'] || 0) > 0) extra = Math.ceil(base * 0.2);
   } catch { /* ignore */ }
   return base + tableBonus + extra;

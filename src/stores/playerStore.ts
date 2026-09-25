@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { calculateCombatStep, type CombatPlayer, type CombatEnemy } from '../engine/combat';
 import { generateEnemy } from '../engine/enemies';
 import { generateLoot } from '../engine/loot';
-import { GAME_ITEMS } from '../data/GameItems';
+import { GAME_ITEMS, SET_BONUSES, type SetTierBonus } from '../data/GameItems';
 import { useInventoryStore } from './inventoryStore';
 import { useCombatGridStore } from './combatGridStore';
 import { useAuthStore } from './authStore';
@@ -11,6 +11,7 @@ import type { Item } from '../types/items';
 import type { ActiveEffect } from '../types/player';
 import type { AccessoryAbility } from '../types/abilities';
 import { ABILITY_MAP } from '../data/accessoryAbilities';
+import { SET_ABILITY_DEFS } from '../data/setAbilities';
 import { SNIPER_ABILITIES, SNIPER_BY_ID, SNIPER_META, sniperCanAllocate, sniperBattleAbilities, sniperFindInvalid } from '../data/sniper';
 import { PET_ABILITIES, PET_BY_ID, PET_META, PET_FREE_DEFS, petCanAllocate, petBattleAbilities, petFindInvalid, petBranchAuras, isPetBranchHidden, type PetKind, type PetBattleAbility } from '../data/pets';
 import { MELEE_ABILITIES, MELEE_BY_ID, MELEE_META, meleeCanAllocate, meleeBattleAbilities, meleeFindInvalid } from '../data/melee';
@@ -279,6 +280,50 @@ const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
   maxStamina: 'maxStamina',
 };
 
+/** Подсчёт надетых вещей каждого сета. */
+export const setCountsOf = (equipment: Record<string, any>): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  for (const item of Object.values(equipment)) {
+    const set = (item as any)?.set;
+    if (set) counts[set] = (counts[set] || 0) + 1;
+  }
+  return counts;
+};
+
+export interface SetParts {
+  flat: Record<string, number>;
+  mults: Partial<Record<'damage' | 'maxHp' | 'armor', number>>;
+  abilities: string[];
+  passives: string[];
+}
+
+/** Активные тиры сета: тиры кумулятивны (на 5 вещах работают и 3пк, и 5пк). */
+export const setPartsOf = (counts: Record<string, number>): SetParts => {
+  const flat: Record<string, number> = {};
+  const mults: Partial<Record<'damage' | 'maxHp' | 'armor', number>> = {};
+  const abilities: string[] = [];
+  const passives: string[] = [];
+  for (const [setName, count] of Object.entries(counts)) {
+    const tiers = SET_BONUSES[setName];
+    if (!tiers) continue;
+    for (const tier of tiers) {
+      if (count < tier.count) continue;
+      if (tier.flat) for (const [k, v] of Object.entries(tier.flat)) flat[k] = (flat[k] || 0) + (v as number);
+      if (tier.mults) for (const [k, v] of Object.entries(tier.mults)) mults[k as keyof typeof mults] = (mults[k as keyof typeof mults] ?? 1) * (v as number);
+      if (tier.ability && !abilities.includes(tier.ability)) abilities.push(tier.ability);
+      if (tier.passives) for (const p of tier.passives) if (!passives.includes(p)) passives.push(p);
+    }
+  }
+  return { flat, mults, abilities, passives };
+};
+
+/** Ранг пассивки: очки навыков + дарованная сетом (считается за 1). */
+export const passiveRank = (id: string): number => {
+  const s = usePlayerStore.getState();
+  const fromSet = setPartsOf(setCountsOf(s.equipment as any)).passives.includes(id) ? 1 : 0;
+  return (s.skills[id] || 0) + fromSet;
+};
+
 const sumItemStats = (items: (Item | null)[]): PlayerStats => {  const total = { ...EMPTY_STATS };
   for (const item of items) {
     if (!item) continue;
@@ -501,8 +546,13 @@ export const usePlayerStore = create<PlayerStore>()(
         const effectBonus = sumEffectStats(s.activeEffects);
         const skillBonus = s.skillBonuses();
 
-        // Сеты удалены из игры (вернутся новыми позже): бонусов нет.
+        // Сеты: подсчёт надетых, плоские бонусы активных тиров (кумулятивно).
+        const setParts = setPartsOf(setCountsOf(s.equipment as any));
         const setBonus: PlayerStats = { ...EMPTY_STATS };
+        for (const [k, v] of Object.entries(setParts.flat)) {
+          const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
+          if (mappedKey in setBonus) (setBonus as any)[mappedKey] += v;
+        }
 
         const lvl = s.level;
         const dps = BASE_STATS.damage + lvl + equipBonus.damage + effectBonus.damage + skillBonus.damage + setBonus.damage;
@@ -538,6 +588,12 @@ export const usePlayerStore = create<PlayerStore>()(
         };
 
         // Слоты амуниции удалены: DPS-бонусов и passive-усилений от них больше нет.
+
+        // Мульты сетов (урон/HP/броня в %) — после плоских сумм.
+        for (const [k, v] of Object.entries(setParts.mults)) {
+          if (v === undefined) continue;
+          (newStats as any)[k] = Math.round(((newStats as any)[k] || 0) * (v as number));
+        }
 
         // Apply multiplier boosts from effects (fortify: ×2 armor, adrenaline: ×1.5 damage, etc.)
         const multBoosts = sumMultBoosts(s.activeEffects);
@@ -590,7 +646,9 @@ export const usePlayerStore = create<PlayerStore>()(
         newStats.stamina = Math.round(Math.min(fresh.stamina, newStats.maxStamina));
         newStats.incomingDamageMult = Math.max(0, newStats.incomingDamageMult);
 
-        // Per-item power contribution (delta: full - without this item)
+        // Per-item power contribution (delta: full - without this item).
+        // Сет пересчитывается без этой вещи (тиры честно падают), бонус ношения щита — тоже.
+        const fullSetParts = setPartsOf(setCountsOf(s.equipment as any));
         const itemPowers: PowerBreakdownItemPower[] = [];
         for (const slot of EQUIPMENT_SLOTS) {
           const item = s.equipment[slot];
@@ -605,6 +663,19 @@ export const usePlayerStore = create<PlayerStore>()(
           }
           // У щита блока в stats нет — вычитаем и бонус ношения +20.
           if (slot === 'shield') woStats.block -= 20;
+          // Откат полного сета, накат урезанного (без этой вещи).
+          const woParts = setPartsOf(setCountsOf({ ...s.equipment, [slot]: null } as any));
+          for (const [k, v] of Object.entries(fullSetParts.flat)) {
+            const mappedKey = STAT_KEY_MAP[k] || (k as keyof PlayerStats);
+            if (mappedKey in woStats && typeof woStats[mappedKey] === 'number') {
+              (woStats as any)[mappedKey] -= (v as number) - (woParts.flat[k] || 0);
+            }
+          }
+          for (const mk of ['damage', 'maxHp', 'armor'] as const) {
+            const full = fullSetParts.mults[mk] ?? 1;
+            const wo = woParts.mults[mk] ?? 1;
+            if (full !== 1 || wo !== 1) (woStats as any)[mk] = Math.round(((woStats as any)[mk] || 0) / full * wo);
+          }
           woStats.damage = Math.max(1, woStats.damage);
           woStats.crit = Math.max(0, woStats.crit);
           woStats.armor = Math.max(0, woStats.armor);
@@ -676,6 +747,14 @@ export const usePlayerStore = create<PlayerStore>()(
         for (const ab of shooterBattleAbilities(get().skills, {})) {
           if (seenSkill.has(ab.id)) continue;
           seenSkill.add(ab.id);
+          skillAbs.push(ab as any);
+        }
+        // Дарованные сетовые способности — в ту же панель арены.
+        for (const aid of setPartsOf(setCountsOf(get().equipment as any)).abilities) {
+          if (seenSkill.has(aid)) continue;
+          const ab = SET_ABILITY_DEFS[aid];
+          if (!ab) continue;
+          seenSkill.add(aid);
           skillAbs.push(ab as any);
         }
         set({ accessoryAbilities: consumableAbs, skillAbilities: skillAbs });

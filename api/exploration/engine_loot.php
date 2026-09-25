@@ -74,27 +74,67 @@ function getGameItems() {
     ['name' => 'M16A4',         'rarity' => 'normal',    'slot' => 'weapon2', 'stats' => ['damage' => 10, 'crit' => 0.02], 'ammoCapacity' => 30],
     ['name' => 'Снайперская винтовка','rarity' => 'epic',  'slot' => 'weapon2', 'stats' => ['damage' => 22, 'crit' => 0.08], 'ammoCapacity' => 5],
 
-    // Armor
-    ['name' => 'Кожаная куртка',  'rarity' => 'normal',    'slot' => 'armor', 'stats' => ['armor' => 2, 'health' => 20]],
-    ['name' => 'Бронежилет',      'rarity' => 'normal',    'slot' => 'armor', 'stats' => ['armor' => 5, 'health' => 40]],
-    ['name' => 'Комбинезон',      'rarity' => 'normal',    'slot' => 'armor', 'stats' => ['armor' => 3, 'regen' => 0.5]],
-    ['name' => 'Тяжёлый бронекостюм','rarity' => 'epic',   'slot' => 'armor', 'stats' => ['armor' => 10, 'health' => 80]],
-
-    // Helmets
-    ['name' => 'Кепка',           'rarity' => 'normal',    'slot' => 'head', 'stats' => ['armor' => 1]],
-    ['name' => 'Каска',           'rarity' => 'normal',    'slot' => 'head', 'stats' => ['armor' => 3, 'health' => 10]],
-    ['name' => 'Шлем',            'rarity' => 'normal',    'slot' => 'head', 'stats' => ['armor' => 4]],
-    ['name' => 'Тактический шлем','rarity' => 'epic',      'slot' => 'head', 'stats' => ['armor' => 6, 'accuracy' => 0.02]],
-
-    // Gloves
-    ['name' => 'Рабочие перчатки','rarity' => 'normal',    'slot' => 'gloves', 'stats' => ['armor' => 1]],
-    ['name' => 'Тактические перчатки','rarity' => 'normal','slot' => 'gloves','stats' => ['armor' => 2, 'damage' => 1]],
-    ['name' => 'Бронеперчатки',   'rarity' => 'epic',      'slot' => 'gloves', 'stats' => ['armor' => 4, 'health' => 20]],
-
-    // Boots
-    ['name' => 'Кроссовки',       'rarity' => 'normal',    'slot' => 'boots', 'stats' => ['evasion' => 0.01]],
-    ['name' => 'Армейские ботинки','rarity' => 'normal',   'slot' => 'boots', 'stats' => ['armor' => 2]],
-    ['name' => 'Тяжёлые сапоги',  'rarity' => 'epic',      'slot' => 'boots', 'stats' => ['armor' => 4, 'health' => 30]],
+    // Armor sets (12 комплектов × 5; PHP-статы: health вместо maxHp)
+    ['name' => 'Капюшон призрака', 'rarity' => 'superepic', 'slot' => 'head', 'set' => 'Призрак', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Плащ призрака', 'rarity' => 'superepic', 'slot' => 'armor', 'set' => 'Призрак', 'stats' => ['armor' => 10, 'health' => 172, 'evasion' => 0.0136, 'speed' => 0.0172, 'accuracy' => 0.01, 'stamina' => 5.1]],
+    ['name' => 'Штаны призрака', 'rarity' => 'superepic', 'slot' => 'pants', 'set' => 'Призрак', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Наручи призрака', 'rarity' => 'superepic', 'slot' => 'gloves', 'set' => 'Призрак', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Башмаки призрака', 'rarity' => 'superepic', 'slot' => 'boots', 'set' => 'Призрак', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Шлем разведчика', 'rarity' => 'normal', 'slot' => 'head', 'set' => 'Разведчик', 'stats' => ['armor' => 5.75, 'health' => 107, 'evasion' => 0.0041, 'speed' => 0.005, 'accuracy' => 0.0033, 'stamina' => 3.3, 'regen' => 0.5]],
+    ['name' => 'Куртка разведчика', 'rarity' => 'normal', 'slot' => 'armor', 'set' => 'Разведчик', 'stats' => ['armor' => 12, 'health' => 222, 'evasion' => 0.0085, 'speed' => 0.01, 'accuracy' => 0.0068, 'stamina' => 6.8, 'regen' => 1]],
+    ['name' => 'Штаны разведчика', 'rarity' => 'normal', 'slot' => 'pants', 'set' => 'Разведчик', 'stats' => ['armor' => 5.75, 'health' => 107, 'evasion' => 0.0041, 'speed' => 0.005, 'accuracy' => 0.0033, 'stamina' => 3.3, 'regen' => 0.5]],
+    ['name' => 'Перчатки разведчика', 'rarity' => 'normal', 'slot' => 'gloves', 'set' => 'Разведчик', 'stats' => ['armor' => 5.75, 'health' => 107, 'evasion' => 0.0041, 'speed' => 0.005, 'accuracy' => 0.0033, 'stamina' => 3.3, 'regen' => 0.5]],
+    ['name' => 'Ботинки разведчика', 'rarity' => 'normal', 'slot' => 'boots', 'set' => 'Разведчик', 'stats' => ['armor' => 5.75, 'health' => 107, 'evasion' => 0.0041, 'speed' => 0.005, 'accuracy' => 0.0033, 'stamina' => 3.3, 'regen' => 0.5]],
+    ['name' => 'Шлем рейнджера', 'rarity' => 'epic', 'slot' => 'head', 'set' => 'Рейнджер', 'stats' => ['armor' => 6.625, 'health' => 132, 'evasion' => 0.0033, 'speed' => 0.0033, 'accuracy' => 0.0033, 'stamina' => 1.975, 'vampir' => 0.0008]],
+    ['name' => 'Броня рейнджера', 'rarity' => 'epic', 'slot' => 'armor', 'set' => 'Рейнджер', 'stats' => ['armor' => 13.5, 'health' => 272, 'evasion' => 0.0068, 'speed' => 0.0068, 'accuracy' => 0.0068, 'stamina' => 4.1, 'vampir' => 0.0017]],
+    ['name' => 'Штаны рейнджера', 'rarity' => 'epic', 'slot' => 'pants', 'set' => 'Рейнджер', 'stats' => ['armor' => 6.625, 'health' => 132, 'evasion' => 0.0033, 'speed' => 0.0033, 'accuracy' => 0.0033, 'stamina' => 1.975, 'vampir' => 0.0008]],
+    ['name' => 'Перчатки рейнджера', 'rarity' => 'epic', 'slot' => 'gloves', 'set' => 'Рейнджер', 'stats' => ['armor' => 6.625, 'health' => 132, 'evasion' => 0.0033, 'speed' => 0.0033, 'accuracy' => 0.0033, 'stamina' => 1.975, 'vampir' => 0.0008]],
+    ['name' => 'Ботинки рейнджера', 'rarity' => 'epic', 'slot' => 'boots', 'set' => 'Рейнджер', 'stats' => ['armor' => 6.625, 'health' => 132, 'evasion' => 0.0033, 'speed' => 0.0033, 'accuracy' => 0.0033, 'stamina' => 1.975, 'vampir' => 0.0008]],
+    ['name' => 'Шлем тактика', 'rarity' => 'epic', 'slot' => 'head', 'set' => 'Тактик', 'stats' => ['armor' => 8.25, 'health' => 165, 'block' => 0.165, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.65, 'regen' => 0.5]],
+    ['name' => 'Броня тактика', 'rarity' => 'epic', 'slot' => 'armor', 'set' => 'Тактик', 'stats' => ['armor' => 17, 'health' => 340, 'block' => 0.34, 'evasion' => 0.0034, 'accuracy' => 0.0034, 'stamina' => 3.4, 'regen' => 1]],
+    ['name' => 'Штаны тактика', 'rarity' => 'epic', 'slot' => 'pants', 'set' => 'Тактик', 'stats' => ['armor' => 8.25, 'health' => 165, 'block' => 0.165, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.65, 'regen' => 0.5]],
+    ['name' => 'Перчатки тактика', 'rarity' => 'epic', 'slot' => 'gloves', 'set' => 'Тактик', 'stats' => ['armor' => 8.25, 'health' => 165, 'block' => 0.165, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.65, 'regen' => 0.5]],
+    ['name' => 'Ботинки тактика', 'rarity' => 'epic', 'slot' => 'boots', 'set' => 'Тактик', 'stats' => ['armor' => 8.25, 'health' => 165, 'block' => 0.165, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.65, 'regen' => 0.5]],
+    ['name' => 'Шлем штурмовика', 'rarity' => 'superepic', 'slot' => 'head', 'set' => 'Штурмовик', 'stats' => ['armor' => 9.875, 'health' => 198, 'block' => 0.2475, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.975, 'regen' => 0.825]],
+    ['name' => 'Броня штурмовика', 'rarity' => 'superepic', 'slot' => 'armor', 'set' => 'Штурмовик', 'stats' => ['armor' => 20.5, 'health' => 408, 'block' => 0.51, 'evasion' => 0.0034, 'accuracy' => 0.0034, 'stamina' => 4.1, 'regen' => 1.7]],
+    ['name' => 'Штаны штурмовика', 'rarity' => 'superepic', 'slot' => 'pants', 'set' => 'Штурмовик', 'stats' => ['armor' => 9.875, 'health' => 198, 'block' => 0.2475, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.975, 'regen' => 0.825]],
+    ['name' => 'Перчатки штурмовика', 'rarity' => 'superepic', 'slot' => 'gloves', 'set' => 'Штурмовик', 'stats' => ['armor' => 9.875, 'health' => 198, 'block' => 0.2475, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.975, 'regen' => 0.825]],
+    ['name' => 'Ботинки штурмовика', 'rarity' => 'superepic', 'slot' => 'boots', 'set' => 'Штурмовик', 'stats' => ['armor' => 9.875, 'health' => 198, 'block' => 0.2475, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.975, 'regen' => 0.825]],
+    ['name' => 'Шлем рейдера', 'rarity' => 'normal', 'slot' => 'head', 'set' => 'Рейдер', 'stats' => ['armor' => 11.5, 'health' => 297, 'evasion' => 0.0008, 'stamina' => 2.475, 'speed' => -0.0082, 'accuracy' => -0.005]],
+    ['name' => 'Броня рейдера', 'rarity' => 'normal', 'slot' => 'armor', 'set' => 'Рейдер', 'stats' => ['armor' => 24, 'health' => 612, 'evasion' => 0.0017, 'stamina' => 5.1, 'speed' => -0.017, 'accuracy' => -0.01]],
+    ['name' => 'Штаны рейдера', 'rarity' => 'normal', 'slot' => 'pants', 'set' => 'Рейдер', 'stats' => ['armor' => 11.5, 'health' => 297, 'evasion' => 0.0008, 'stamina' => 2.475, 'speed' => -0.0082, 'accuracy' => -0.005]],
+    ['name' => 'Перчатки рейдера', 'rarity' => 'normal', 'slot' => 'gloves', 'set' => 'Рейдер', 'stats' => ['armor' => 11.5, 'health' => 297, 'evasion' => 0.0008, 'stamina' => 2.475, 'speed' => -0.0082, 'accuracy' => -0.005]],
+    ['name' => 'Ботинки рейдера', 'rarity' => 'normal', 'slot' => 'boots', 'set' => 'Рейдер', 'stats' => ['armor' => 11.5, 'health' => 297, 'evasion' => 0.0008, 'stamina' => 2.475, 'speed' => -0.0082, 'accuracy' => -0.005]],
+    ['name' => 'Экзо-шлем', 'rarity' => 'epic', 'slot' => 'head', 'set' => 'Экзокостюм', 'stats' => ['armor' => 14.875, 'health' => 280, 'block' => 0.33, 'regen' => 1.65, 'stamina' => 4.95, 'speed' => -0.01, 'accuracy' => -0.0033, 'evasion' => -0.0082]],
+    ['name' => 'Экзокостюм', 'rarity' => 'epic', 'slot' => 'armor', 'set' => 'Экзокостюм', 'stats' => ['armor' => 30.5, 'health' => 580, 'block' => 0.68, 'regen' => 3.4, 'stamina' => 10.2, 'speed' => -0.02, 'accuracy' => -0.0068, 'evasion' => -0.017]],
+    ['name' => 'Экзо-штаны', 'rarity' => 'epic', 'slot' => 'pants', 'set' => 'Экзокостюм', 'stats' => ['armor' => 14.875, 'health' => 280, 'block' => 0.33, 'regen' => 1.65, 'stamina' => 4.95, 'speed' => -0.01, 'accuracy' => -0.0033, 'evasion' => -0.0082]],
+    ['name' => 'Экзо-перчатки', 'rarity' => 'epic', 'slot' => 'gloves', 'set' => 'Экзокостюм', 'stats' => ['armor' => 14.875, 'health' => 280, 'block' => 0.33, 'regen' => 1.65, 'stamina' => 4.95, 'speed' => -0.01, 'accuracy' => -0.0033, 'evasion' => -0.0082]],
+    ['name' => 'Экзо-ботинки', 'rarity' => 'epic', 'slot' => 'boots', 'set' => 'Экзокостюм', 'stats' => ['armor' => 14.875, 'health' => 280, 'block' => 0.33, 'regen' => 1.65, 'stamina' => 4.95, 'speed' => -0.01, 'accuracy' => -0.0033, 'evasion' => -0.0082]],
+    ['name' => 'Шлем силовой брони', 'rarity' => 'epic', 'slot' => 'head', 'set' => 'Силовая броня', 'stats' => ['armor' => 16.5, 'health' => 594, 'block' => 0.5275, 'regen' => 1.975, 'stamina' => 3.3, 'speed' => -0.0198, 'accuracy' => -0.01, 'evasion' => -0.0165]],
+    ['name' => 'Силовая броня', 'rarity' => 'epic', 'slot' => 'armor', 'set' => 'Силовая броня', 'stats' => ['armor' => 34, 'health' => 1224, 'block' => 1.09, 'regen' => 4.1, 'stamina' => 6.8, 'speed' => -0.041, 'accuracy' => -0.02, 'evasion' => -0.034]],
+    ['name' => 'Штаны силовой брони', 'rarity' => 'epic', 'slot' => 'pants', 'set' => 'Силовая броня', 'stats' => ['armor' => 16.5, 'health' => 594, 'block' => 0.5275, 'regen' => 1.975, 'stamina' => 3.3, 'speed' => -0.0198, 'accuracy' => -0.01, 'evasion' => -0.0165]],
+    ['name' => 'Перчатки силовой брони', 'rarity' => 'epic', 'slot' => 'gloves', 'set' => 'Силовая броня', 'stats' => ['armor' => 16.5, 'health' => 594, 'block' => 0.5275, 'regen' => 1.975, 'stamina' => 3.3, 'speed' => -0.0198, 'accuracy' => -0.01, 'evasion' => -0.0165]],
+    ['name' => 'Сапоги силовой брони', 'rarity' => 'epic', 'slot' => 'boots', 'set' => 'Силовая броня', 'stats' => ['armor' => 16.5, 'health' => 594, 'block' => 0.5275, 'regen' => 1.975, 'stamina' => 3.3, 'speed' => -0.0198, 'accuracy' => -0.01, 'evasion' => -0.0165]],
+    ['name' => 'Шлем джаггернаута', 'rarity' => 'superepic', 'slot' => 'head', 'set' => 'Джаггернаут', 'stats' => ['armor' => 33, 'health' => 825, 'block' => 0.66, 'regen' => 3.3, 'stamina' => 4.95, 'speed' => -0.033, 'accuracy' => -0.0165, 'evasion' => -0.033]],
+    ['name' => 'Броня джаггернаута', 'rarity' => 'superepic', 'slot' => 'armor', 'set' => 'Джаггернаут', 'stats' => ['armor' => 68, 'health' => 1700, 'block' => 1.36, 'regen' => 6.8, 'stamina' => 10.2, 'speed' => -0.068, 'accuracy' => -0.034, 'evasion' => -0.068]],
+    ['name' => 'Штаны джаггернаута', 'rarity' => 'superepic', 'slot' => 'pants', 'set' => 'Джаггернаут', 'stats' => ['armor' => 33, 'health' => 825, 'block' => 0.66, 'regen' => 3.3, 'stamina' => 4.95, 'speed' => -0.033, 'accuracy' => -0.0165, 'evasion' => -0.033]],
+    ['name' => 'Перчатки джаггернаута', 'rarity' => 'superepic', 'slot' => 'gloves', 'set' => 'Джаггернаут', 'stats' => ['armor' => 33, 'health' => 825, 'block' => 0.66, 'regen' => 3.3, 'stamina' => 4.95, 'speed' => -0.033, 'accuracy' => -0.0165, 'evasion' => -0.033]],
+    ['name' => 'Ботинки джаггернаута', 'rarity' => 'superepic', 'slot' => 'boots', 'set' => 'Джаггернаут', 'stats' => ['armor' => 33, 'health' => 825, 'block' => 0.66, 'regen' => 3.3, 'stamina' => 4.95, 'speed' => -0.033, 'accuracy' => -0.0165, 'evasion' => -0.033]],
+    ['name' => 'Шлем бродяги', 'rarity' => 'normal', 'slot' => 'head', 'set' => 'Бродяга', 'stats' => ['armor' => 7.375, 'health' => 148, 'block' => 0.0825, 'evasion' => 0.0008, 'stamina' => 0.825, 'regen' => 0.165]],
+    ['name' => 'Куртка бродяги', 'rarity' => 'normal', 'slot' => 'armor', 'set' => 'Бродяга', 'stats' => ['armor' => 15.5, 'health' => 308, 'block' => 0.17, 'evasion' => 0.0017, 'stamina' => 1.7, 'regen' => 0.34]],
+    ['name' => 'Штаны бродяги', 'rarity' => 'normal', 'slot' => 'pants', 'set' => 'Бродяга', 'stats' => ['armor' => 7.375, 'health' => 148, 'block' => 0.0825, 'evasion' => 0.0008, 'stamina' => 0.825, 'regen' => 0.165]],
+    ['name' => 'Перчатки бродяги', 'rarity' => 'normal', 'slot' => 'gloves', 'set' => 'Бродяга', 'stats' => ['armor' => 7.375, 'health' => 148, 'block' => 0.0825, 'evasion' => 0.0008, 'stamina' => 0.825, 'regen' => 0.165]],
+    ['name' => 'Ботинки бродяги', 'rarity' => 'normal', 'slot' => 'boots', 'set' => 'Бродяга', 'stats' => ['armor' => 7.375, 'health' => 148, 'block' => 0.0825, 'evasion' => 0.0008, 'stamina' => 0.825, 'regen' => 0.165]],
+    ['name' => 'Шлем мусорщика', 'rarity' => 'normal', 'slot' => 'head', 'set' => 'Мусорщик', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0008, 'stamina' => 0.5, 'regen' => 0.0825]],
+    ['name' => 'Куртка мусорщика', 'rarity' => 'normal', 'slot' => 'armor', 'set' => 'Мусорщик', 'stats' => ['armor' => 10, 'health' => 172, 'evasion' => 0.0017, 'stamina' => 1, 'regen' => 0.17]],
+    ['name' => 'Штаны мусорщика', 'rarity' => 'normal', 'slot' => 'pants', 'set' => 'Мусорщик', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0008, 'stamina' => 0.5, 'regen' => 0.0825]],
+    ['name' => 'Перчатки мусорщика', 'rarity' => 'normal', 'slot' => 'gloves', 'set' => 'Мусорщик', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0008, 'stamina' => 0.5, 'regen' => 0.0825]],
+    ['name' => 'Ботинки мусорщика', 'rarity' => 'normal', 'slot' => 'boots', 'set' => 'Мусорщик', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0008, 'stamina' => 0.5, 'regen' => 0.0825]],
+    ['name' => 'Шлем военного', 'rarity' => 'normal', 'slot' => 'head', 'set' => 'Военный', 'stats' => ['armor' => 9.125, 'health' => 214, 'block' => 0.165, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.325, 'regen' => 0.33]],
+    ['name' => 'Броня военного', 'rarity' => 'normal', 'slot' => 'armor', 'set' => 'Военный', 'stats' => ['armor' => 18.5, 'health' => 444, 'block' => 0.34, 'evasion' => 0.0034, 'accuracy' => 0.0034, 'stamina' => 2.7, 'regen' => 0.68]],
+    ['name' => 'Штаны военного', 'rarity' => 'normal', 'slot' => 'pants', 'set' => 'Военный', 'stats' => ['armor' => 9.125, 'health' => 214, 'block' => 0.165, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.325, 'regen' => 0.33]],
+    ['name' => 'Перчатки военного', 'rarity' => 'normal', 'slot' => 'gloves', 'set' => 'Военный', 'stats' => ['armor' => 9.125, 'health' => 214, 'block' => 0.165, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.325, 'regen' => 0.33]],
+    ['name' => 'Ботинки военного', 'rarity' => 'normal', 'slot' => 'boots', 'set' => 'Военный', 'stats' => ['armor' => 9.125, 'health' => 214, 'block' => 0.165, 'evasion' => 0.0017, 'accuracy' => 0.0017, 'stamina' => 1.325, 'regen' => 0.33]],
 
     // Ammo
     ['name' => 'Обычные патроны',         'rarity' => 'normal',    'slot' => 'ammo', 'stats' => ['damage' => 2]],
@@ -227,6 +267,7 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
   if (isset($base['ammoCapacity'])) $item['ammoCapacity'] = $base['ammoCapacity'];
   if (isset($base['damage'])) $item['damage'] = $base['damage'];
   if (isset($base['mods'])) $item['mods'] = $base['mods'];
+  if (isset($base['set'])) $item['set'] = $base['set'];
 
   // Гнёзда под сферы + предустановленные сферы с дропа (зеркало клиента).
   $slotName = $base['slot'] ?? '';

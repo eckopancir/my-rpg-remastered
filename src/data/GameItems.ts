@@ -344,234 +344,79 @@ export const GAME_ITEMS: ItemDefinition[] = [,
     ammoCapacity: 5,
   },
 
-  // --- Head Armor ---
-  { name: 'Кепка', rarity: 'normal', slot: 'head', stats: { armor: 0.5 } },
-  { name: 'Каска', rarity: 'normal', slot: 'head', stats: { armor: 1.5, maxHp: 50 } },
-  {
-    name: 'Шлем',
-    rarity: 'normal',
-    slot: 'head',
-    stats: { armor: 2.5, maxHp: 100 },
-  },
-  {
-    name: 'Тактический шлем',
-    rarity: 'epic',
-    slot: 'head',
-    stats: { armor: 4, maxHp: 150 },
-  },
-  {
-    name: 'Шлем с visor',
-    rarity: 'superepic',
-    slot: 'head',
-    stats: { armor: 5, maxHp: 200, evasion: 0.0016 },
-  },
-  { name: 'Шлем стража', rarity: 'normal', slot: 'head', stats: { block: 0.04, armor: 1 } },
-  {
-    name: 'Шлем агрессора',
-    rarity: 'epic',
-    slot: 'head',
-    stats: { block: 0.04, armor: 1 },
-  },
-  {
-    name: 'Шлем меткого снайпера',
-    rarity: 'epic',
-    slot: 'head',
-    stats: { block: 0.04, armor: 1.5 },
-  },
-  {
-    name: 'Костяной шлем',
-    rarity: 'epic',
-    slot: 'head',
-    stats: { maxHp: 15 },
-  },
-
-  {
-    name: 'Маска бандита',
-    rarity: 'normal',
-    slot: 'head',
-    stats: { armor: 0.5, evasion: 0.0004 },
-  },
-  {
-    name: 'Визор "Циклоп"',
-    rarity: 'epic',
-    slot: 'head',
-    stats: { armor: 2, block: 0.04 },
-  },
-  {
-    name: 'Оптический узел',
-    rarity: 'epic',
-    slot: 'head',
-    stats: { regen: 0.008, armor: 1.5 },
-  },
-  {
-    name: 'Шлем "Возрождение"',
-    rarity: 'superepic',
-    slot: 'head',
-    stats: { armor: 3, regen: 0.025 },
-  },
-
-  // --- Chest Armor ---
-  { name: 'Кожаная куртка', rarity: 'normal', slot: 'armor', stats: { armor: 1, maxHp: 50 } },
-  { name: 'Бронежилет', rarity: 'normal', slot: 'armor', stats: { armor: 2.5, maxHp: 100 } },
-  {
-    name: 'Кевларовая броня',
-    rarity: 'normal',
-    slot: 'armor',
-    stats: { armor: 4, maxHp: 150, regen: 0.1 },
-  },
-  {
-    name: 'Экзоскелет',
-    rarity: 'epic',
-    slot: 'armor',
-    stats: { armor: 6, maxHp: 300, stamina: 0.05 },
-  },
-  {
-    name: 'Боевая броня',
-    rarity: 'superepic',
-    slot: 'armor',
-    stats: { armor: 7.5, maxHp: 500, regen: 0.1, block: 0.4 },
-  },
-  { name: 'Кираса', rarity: 'normal', slot: 'armor', stats: { armor: 1.5 } },
-  {
-    name: 'Энергетическая броня',
-    rarity: 'epic',
-    slot: 'armor',
-    stats: { evasion: 0.0008, armor: 1.5 },
-  },
-  {
-    name: 'Костяной нагрудник болотника',
-    rarity: 'epic',
-    slot: 'armor',
-    stats: { maxHp: 35 },
-  },
-
-  {
-    name: 'Куртка бандита',
-    rarity: 'normal',
-    slot: 'armor',
-    stats: { evasion: 0.0012, maxHp: 10 },
-  },
-  {
-    name: 'Тактический каркас',
-    rarity: 'epic',
-    slot: 'armor',
-    stats: { armor: 5, block: 0.04 },
-  },
-  {
-    name: 'Адаптивный контур',
-    rarity: 'epic',
-    slot: 'armor',
-    stats: { armor: 1.5, regen: 0.02 },
-  },
-  {
-    name: 'Кираса "Бессмертие"',
-    rarity: 'superepic',
-    slot: 'armor',
-    stats: { armor: 7.5, block: 0.24, maxHp: 50 },
-  },
-
-  // --- Gloves ---
-  { name: 'Рабочие перчатки', rarity: 'normal', slot: 'gloves', stats: { armor: 0.5 } },
-  {
-    name: 'Тактические перчатки',
-    rarity: 'normal',
-    slot: 'gloves',
-    stats: { armor: 1 },
-  },
-  { name: 'Бронеперчатки', rarity: 'normal', slot: 'gloves', stats: { armor: 1.5 } },
-  {
-    name: 'Перчатки с усилителями',
-    rarity: 'epic',
-    slot: 'gloves',
-    stats: { armor: 2 },
-  },
-  { name: 'Боевые перчатки', rarity: 'normal', slot: 'gloves', stats: { regen: 0.01, armor: 0.5 } },
-  { name: 'Перчатки молнии', rarity: 'epic', slot: 'gloves', stats: { evasion: 0.0004, armor: 0.5 } },
-  {
-    name: 'Наручи из костей',
-    rarity: 'epic',
-    slot: 'gloves',
-    stats: { maxHp: 5, regen: 0.01 },
-  },
-
-  {
-    name: 'Перчатки бандита',
-    rarity: 'normal',
-    slot: 'gloves',
-    stats: { evasion: 0.0004 },
-  },
-  {
-    name: 'Захваты "Тиски"',
-    rarity: 'epic',
-    slot: 'gloves',
-    stats: { armor: 1, block: 0.04 },
-  },
-  {
-    name: 'Тактильные сенсоры',
-    rarity: 'epic',
-    slot: 'gloves',
-    stats: { regen: 0.005 },
-  },
-  {
-    name: 'Наручи "Взрыв"',
-    rarity: 'superepic',
-    slot: 'gloves',
-    stats: { armor: 1.5 },
-  },
-
-  // --- Boots ---
-  { name: 'Кроссовки', rarity: 'normal', slot: 'boots', stats: { evasion: 0.0008 } },
-  {
-    name: 'Армейские ботинки',
-    rarity: 'normal',
-    slot: 'boots',
-    stats: { armor: 1, stamina: 0.02 },
-  },
-  {
-    name: 'Тактические сапоги',
-    rarity: 'normal',
-    slot: 'boots',
-    stats: { armor: 1.5, evasion: 0.0016, stamina: 0.03 },
-  },
-  {
-    name: 'Реактивные ботинки',
-    rarity: 'superepic',
-    slot: 'boots',
-    stats: { armor: 2, evasion: 0.004, speed: 0.05 },
-  },
-  { name: 'Тяжёлые сапоги', rarity: 'normal', slot: 'boots', stats: { armor: 2.5 } },
-  { name: 'Сапоги охотника', rarity: 'normal', slot: 'boots', stats: { block: 0.04, armor: 1 } },
-  {
-    name: 'Ботинки из черепа',
-    rarity: 'epic',
-    slot: 'boots',
-    stats: { maxHp: 10, block: 0.04 },
-  },
-
-  {
-    name: 'Берцы бандита',
-    rarity: 'normal',
-    slot: 'boots',
-    stats: { evasion: 0.0004 },
-  },
-  {
-    name: 'Утяжелённые ступни',
-    rarity: 'epic',
-    slot: 'boots',
-    stats: { armor: 1.5, block: 0.008 },
-  },
-  {
-    name: 'Сервоприводы',
-    rarity: 'epic',
-    slot: 'boots',
-    stats: { speed: 0.008, evasion: 0.0004, armor: 0.5 },
-  },
-  {
-    name: 'Ботинки "Немезида"',
-    rarity: 'superepic',
-    slot: 'boots',
-    stats: { armor: 2, block: 0.12 },
-  },
+  // === КОМПЛЕКТЫ БРОНИ (12 сетов × 5 вещей; цифры — база 1 ур.) ===
+  // Призрак (superepic, сет для снайпера): 3пк +5% укл +10% пробит; 5пк — бронебой 300% на ход.
+  { name: 'Капюшон призрака', rarity: 'superepic', slot: 'head', set: 'Призрак', stats: { armor: 5, maxHp: 82, evasion: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Плащ призрака', rarity: 'superepic', slot: 'armor', set: 'Призрак', stats: { armor: 10, maxHp: 172, evasion: 0.0136, speed: 0.0172, accuracy: 0.01, stamina: 5.1 } },
+  { name: 'Штаны призрака', rarity: 'superepic', slot: 'pants', set: 'Призрак', stats: { armor: 5, maxHp: 82, evasion: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Наручи призрака', rarity: 'superepic', slot: 'gloves', set: 'Призрак', stats: { armor: 5, maxHp: 82, evasion: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Башмаки призрака', rarity: 'superepic', slot: 'boots', set: 'Призрак', stats: { armor: 5, maxHp: 82, evasion: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  // Разведчик (normal): 3пк +100 выносливости; 5пк +150 выносливости.
+  { name: 'Шлем разведчика', rarity: 'normal', slot: 'head', set: 'Разведчик', stats: { armor: 5.75, maxHp: 107, evasion: 0.0041, speed: 0.005, accuracy: 0.0033, stamina: 3.3, regen: 0.5 } },
+  { name: 'Куртка разведчика', rarity: 'normal', slot: 'armor', set: 'Разведчик', stats: { armor: 12, maxHp: 222, evasion: 0.0085, speed: 0.01, accuracy: 0.0068, stamina: 6.8, regen: 1 } },
+  { name: 'Штаны разведчика', rarity: 'normal', slot: 'pants', set: 'Разведчик', stats: { armor: 5.75, maxHp: 107, evasion: 0.0041, speed: 0.005, accuracy: 0.0033, stamina: 3.3, regen: 0.5 } },
+  { name: 'Перчатки разведчика', rarity: 'normal', slot: 'gloves', set: 'Разведчик', stats: { armor: 5.75, maxHp: 107, evasion: 0.0041, speed: 0.005, accuracy: 0.0033, stamina: 3.3, regen: 0.5 } },
+  { name: 'Ботинки разведчика', rarity: 'normal', slot: 'boots', set: 'Разведчик', stats: { armor: 5.75, maxHp: 107, evasion: 0.0041, speed: 0.005, accuracy: 0.0033, stamina: 3.3, regen: 0.5 } },
+  // Рейнджер (epic): 3пк +5% урона +5% крит; 5пк — маскировка 90% на ход.
+  { name: 'Шлем рейнджера', rarity: 'epic', slot: 'head', set: 'Рейнджер', stats: { armor: 6.625, maxHp: 132, evasion: 0.0033, speed: 0.0033, accuracy: 0.0033, stamina: 1.975, vampir: 0.0008 } },
+  { name: 'Броня рейнджера', rarity: 'epic', slot: 'armor', set: 'Рейнджер', stats: { armor: 13.5, maxHp: 272, evasion: 0.0068, speed: 0.0068, accuracy: 0.0068, stamina: 4.1, vampir: 0.0017 } },
+  { name: 'Штаны рейнджера', rarity: 'epic', slot: 'pants', set: 'Рейнджер', stats: { armor: 6.625, maxHp: 132, evasion: 0.0033, speed: 0.0033, accuracy: 0.0033, stamina: 1.975, vampir: 0.0008 } },
+  { name: 'Перчатки рейнджера', rarity: 'epic', slot: 'gloves', set: 'Рейнджер', stats: { armor: 6.625, maxHp: 132, evasion: 0.0033, speed: 0.0033, accuracy: 0.0033, stamina: 1.975, vampir: 0.0008 } },
+  { name: 'Ботинки рейнджера', rarity: 'epic', slot: 'boots', set: 'Рейнджер', stats: { armor: 6.625, maxHp: 132, evasion: 0.0033, speed: 0.0033, accuracy: 0.0033, stamina: 1.975, vampir: 0.0008 } },
+  // Тактик (epic): 3пк +5% меткости; 5пк — маленькая аптечка (15% HP, КД 50).
+  { name: 'Шлем тактика', rarity: 'epic', slot: 'head', set: 'Тактик', stats: { armor: 8.25, maxHp: 165, block: 0.165, evasion: 0.0017, accuracy: 0.0017, stamina: 1.65, regen: 0.5 } },
+  { name: 'Броня тактика', rarity: 'epic', slot: 'armor', set: 'Тактик', stats: { armor: 17, maxHp: 340, block: 0.34, evasion: 0.0034, accuracy: 0.0034, stamina: 3.4, regen: 1 } },
+  { name: 'Штаны тактика', rarity: 'epic', slot: 'pants', set: 'Тактик', stats: { armor: 8.25, maxHp: 165, block: 0.165, evasion: 0.0017, accuracy: 0.0017, stamina: 1.65, regen: 0.5 } },
+  { name: 'Перчатки тактика', rarity: 'epic', slot: 'gloves', set: 'Тактик', stats: { armor: 8.25, maxHp: 165, block: 0.165, evasion: 0.0017, accuracy: 0.0017, stamina: 1.65, regen: 0.5 } },
+  { name: 'Ботинки тактика', rarity: 'epic', slot: 'boots', set: 'Тактик', stats: { armor: 8.25, maxHp: 165, block: 0.165, evasion: 0.0017, accuracy: 0.0017, stamina: 1.65, regen: 0.5 } },
+  // Штурмовик (superepic): 3пк +20 урона; 5пк +15% крит.
+  { name: 'Шлем штурмовика', rarity: 'superepic', slot: 'head', set: 'Штурмовик', stats: { armor: 9.875, maxHp: 198, block: 0.2475, evasion: 0.0017, accuracy: 0.0017, stamina: 1.975, regen: 0.825 } },
+  { name: 'Броня штурмовика', rarity: 'superepic', slot: 'armor', set: 'Штурмовик', stats: { armor: 20.5, maxHp: 408, block: 0.51, evasion: 0.0034, accuracy: 0.0034, stamina: 4.1, regen: 1.7 } },
+  { name: 'Штаны штурмовика', rarity: 'superepic', slot: 'pants', set: 'Штурмовик', stats: { armor: 9.875, maxHp: 198, block: 0.2475, evasion: 0.0017, accuracy: 0.0017, stamina: 1.975, regen: 0.825 } },
+  { name: 'Перчатки штурмовика', rarity: 'superepic', slot: 'gloves', set: 'Штурмовик', stats: { armor: 9.875, maxHp: 198, block: 0.2475, evasion: 0.0017, accuracy: 0.0017, stamina: 1.975, regen: 0.825 } },
+  { name: 'Ботинки штурмовика', rarity: 'superepic', slot: 'boots', set: 'Штурмовик', stats: { armor: 9.875, maxHp: 198, block: 0.2475, evasion: 0.0017, accuracy: 0.0017, stamina: 1.975, regen: 0.825 } },
+  // Рейдер (normal): 3пк +10% здоровья; 5пк +8% вампиризма.
+  { name: 'Шлем рейдера', rarity: 'normal', slot: 'head', set: 'Рейдер', stats: { armor: 11.5, maxHp: 297, evasion: 0.0008, stamina: 2.475, speed: -0.0082, accuracy: -0.005 } },
+  { name: 'Броня рейдера', rarity: 'normal', slot: 'armor', set: 'Рейдер', stats: { armor: 24, maxHp: 612, evasion: 0.0017, stamina: 5.1, speed: -0.017, accuracy: -0.01 } },
+  { name: 'Штаны рейдера', rarity: 'normal', slot: 'pants', set: 'Рейдер', stats: { armor: 11.5, maxHp: 297, evasion: 0.0008, stamina: 2.475, speed: -0.0082, accuracy: -0.005 } },
+  { name: 'Перчатки рейдера', rarity: 'normal', slot: 'gloves', set: 'Рейдер', stats: { armor: 11.5, maxHp: 297, evasion: 0.0008, stamina: 2.475, speed: -0.0082, accuracy: -0.005 } },
+  { name: 'Ботинки рейдера', rarity: 'normal', slot: 'boots', set: 'Рейдер', stats: { armor: 11.5, maxHp: 297, evasion: 0.0008, stamina: 2.475, speed: -0.0082, accuracy: -0.005 } },
+  // Экзокостюм (epic): 3пк +10% брони; 5пк — улучшенное второе дыхание (5% HP в ход).
+  { name: 'Экзо-шлем', rarity: 'epic', slot: 'head', set: 'Экзокостюм', stats: { armor: 14.875, maxHp: 280, block: 0.33, regen: 1.65, stamina: 4.95, speed: -0.01, accuracy: -0.0033, evasion: -0.0082 } },
+  { name: 'Экзокостюм', rarity: 'epic', slot: 'armor', set: 'Экзокостюм', stats: { armor: 30.5, maxHp: 580, block: 0.68, regen: 3.4, stamina: 10.2, speed: -0.02, accuracy: -0.0068, evasion: -0.017 } },
+  { name: 'Экзо-штаны', rarity: 'epic', slot: 'pants', set: 'Экзокостюм', stats: { armor: 14.875, maxHp: 280, block: 0.33, regen: 1.65, stamina: 4.95, speed: -0.01, accuracy: -0.0033, evasion: -0.0082 } },
+  { name: 'Экзо-перчатки', rarity: 'epic', slot: 'gloves', set: 'Экзокостюм', stats: { armor: 14.875, maxHp: 280, block: 0.33, regen: 1.65, stamina: 4.95, speed: -0.01, accuracy: -0.0033, evasion: -0.0082 } },
+  { name: 'Экзо-ботинки', rarity: 'epic', slot: 'boots', set: 'Экзокостюм', stats: { armor: 14.875, maxHp: 280, block: 0.33, regen: 1.65, stamina: 4.95, speed: -0.01, accuracy: -0.0033, evasion: -0.0082 } },
+  // Боевая силовая броня (epic): 3пк +10% брони +10% здоровья; 5пк — качественный экзоскелет (−30% входящего, 5 ходов).
+  { name: 'Шлем силовой брони', rarity: 'epic', slot: 'head', set: 'Силовая броня', stats: { armor: 16.5, maxHp: 594, block: 0.5275, regen: 1.975, stamina: 3.3, speed: -0.0198, accuracy: -0.01, evasion: -0.0165 } },
+  { name: 'Силовая броня', rarity: 'epic', slot: 'armor', set: 'Силовая броня', stats: { armor: 34, maxHp: 1224, block: 1.09, regen: 4.1, stamina: 6.8, speed: -0.041, accuracy: -0.02, evasion: -0.034 } },
+  { name: 'Штаны силовой брони', rarity: 'epic', slot: 'pants', set: 'Силовая броня', stats: { armor: 16.5, maxHp: 594, block: 0.5275, regen: 1.975, stamina: 3.3, speed: -0.0198, accuracy: -0.01, evasion: -0.0165 } },
+  { name: 'Перчатки силовой брони', rarity: 'epic', slot: 'gloves', set: 'Силовая броня', stats: { armor: 16.5, maxHp: 594, block: 0.5275, regen: 1.975, stamina: 3.3, speed: -0.0198, accuracy: -0.01, evasion: -0.0165 } },
+  { name: 'Сапоги силовой брони', rarity: 'epic', slot: 'boots', set: 'Силовая броня', stats: { armor: 16.5, maxHp: 594, block: 0.5275, regen: 1.975, stamina: 3.3, speed: -0.0198, accuracy: -0.01, evasion: -0.0165 } },
+  // Джаггернаут (superepic): 3пк — длинный ствол + магазин (тяжёлое); 5пк — ярость джаггернаута.
+  { name: 'Шлем джаггернаута', rarity: 'superepic', slot: 'head', set: 'Джаггернаут', stats: { armor: 33, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.033 } },
+  { name: 'Броня джаггернаута', rarity: 'superepic', slot: 'armor', set: 'Джаггернаут', stats: { armor: 68, maxHp: 1700, block: 1.36, regen: 6.8, stamina: 10.2, speed: -0.068, accuracy: -0.034, evasion: -0.068 } },
+  { name: 'Штаны джаггернаута', rarity: 'superepic', slot: 'pants', set: 'Джаггернаут', stats: { armor: 33, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.033 } },
+  { name: 'Перчатки джаггернаута', rarity: 'superepic', slot: 'gloves', set: 'Джаггернаут', stats: { armor: 33, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.033 } },
+  { name: 'Ботинки джаггернаута', rarity: 'superepic', slot: 'boots', set: 'Джаггернаут', stats: { armor: 33, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.033 } },
+  // Бродяга (normal): без бонусов, без штрафов.
+  { name: 'Шлем бродяги', rarity: 'normal', slot: 'head', set: 'Бродяга', stats: { armor: 7.375, maxHp: 148, block: 0.0825, evasion: 0.0008, stamina: 0.825, regen: 0.165 } },
+  { name: 'Куртка бродяги', rarity: 'normal', slot: 'armor', set: 'Бродяга', stats: { armor: 15.5, maxHp: 308, block: 0.17, evasion: 0.0017, stamina: 1.7, regen: 0.34 } },
+  { name: 'Штаны бродяги', rarity: 'normal', slot: 'pants', set: 'Бродяга', stats: { armor: 7.375, maxHp: 148, block: 0.0825, evasion: 0.0008, stamina: 0.825, regen: 0.165 } },
+  { name: 'Перчатки бродяги', rarity: 'normal', slot: 'gloves', set: 'Бродяга', stats: { armor: 7.375, maxHp: 148, block: 0.0825, evasion: 0.0008, stamina: 0.825, regen: 0.165 } },
+  { name: 'Ботинки бродяги', rarity: 'normal', slot: 'boots', set: 'Бродяга', stats: { armor: 7.375, maxHp: 148, block: 0.0825, evasion: 0.0008, stamina: 0.825, regen: 0.165 } },
+  // Мусорщик (normal): самый слабый, без бонусов.
+  { name: 'Шлем мусорщика', rarity: 'normal', slot: 'head', set: 'Мусорщик', stats: { armor: 5, maxHp: 82, evasion: 0.0008, stamina: 0.5, regen: 0.0825 } },
+  { name: 'Куртка мусорщика', rarity: 'normal', slot: 'armor', set: 'Мусорщик', stats: { armor: 10, maxHp: 172, evasion: 0.0017, stamina: 1, regen: 0.17 } },
+  { name: 'Штаны мусорщика', rarity: 'normal', slot: 'pants', set: 'Мусорщик', stats: { armor: 5, maxHp: 82, evasion: 0.0008, stamina: 0.5, regen: 0.0825 } },
+  { name: 'Перчатки мусорщика', rarity: 'normal', slot: 'gloves', set: 'Мусорщик', stats: { armor: 5, maxHp: 82, evasion: 0.0008, stamina: 0.5, regen: 0.0825 } },
+  { name: 'Ботинки мусорщика', rarity: 'normal', slot: 'boots', set: 'Мусорщик', stats: { armor: 5, maxHp: 82, evasion: 0.0008, stamina: 0.5, regen: 0.0825 } },
+  // Военный (normal): верх normal, без способности.
+  { name: 'Шлем военного', rarity: 'normal', slot: 'head', set: 'Военный', stats: { armor: 9.125, maxHp: 214, block: 0.165, evasion: 0.0017, accuracy: 0.0017, stamina: 1.325, regen: 0.33 } },
+  { name: 'Броня военного', rarity: 'normal', slot: 'armor', set: 'Военный', stats: { armor: 18.5, maxHp: 444, block: 0.34, evasion: 0.0034, accuracy: 0.0034, stamina: 2.7, regen: 0.68 } },
+  { name: 'Штаны военного', rarity: 'normal', slot: 'pants', set: 'Военный', stats: { armor: 9.125, maxHp: 214, block: 0.165, evasion: 0.0017, accuracy: 0.0017, stamina: 1.325, regen: 0.33 } },
+  { name: 'Перчатки военного', rarity: 'normal', slot: 'gloves', set: 'Военный', stats: { armor: 9.125, maxHp: 214, block: 0.165, evasion: 0.0017, accuracy: 0.0017, stamina: 1.325, regen: 0.33 } },
+  { name: 'Ботинки военного', rarity: 'normal', slot: 'boots', set: 'Военный', stats: { armor: 9.125, maxHp: 214, block: 0.165, evasion: 0.0017, accuracy: 0.0017, stamina: 1.325, regen: 0.33 } },
 
   // --- Set Ranged Weapons (not already listed above) ---
   // --- Mods ---
@@ -1236,87 +1081,6 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Баллистический щит', rarity: 'superepic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 14, maxHp: 350, regen: 0.1 } },
 
 
-  // === СЕТ «СТАЛКЕР» (epic) ===
-  { name: 'Шлем сталкера', rarity: 'epic', slot: 'head', stats: { armor: 3, evasion: 0.0016, maxHp: 150 } },
-  { name: 'Броня сталкера', rarity: 'epic', slot: 'armor', stats: { armor: 4, evasion: 0.002, maxHp: 200 } },
-  { name: 'Перчатки сталкера', rarity: 'epic', slot: 'gloves', stats: { armor: 1, evasion: 0.0016, regen: 0.1 } },
-  { name: 'Сапоги сталкера', rarity: 'epic', slot: 'boots', stats: { armor: 1.5, evasion: 0.002, stamina: 0.03 } },
-
-  // === СЕТ «НАЁМНИК» (epic) ===
-  { name: 'Шлем наёмника', rarity: 'epic', slot: 'head', stats: { armor: 2.5 } },
-  { name: 'Броня наёмника', rarity: 'epic', slot: 'armor', stats: { armor: 5, maxHp: 100 } },
-  { name: 'Перчатки наёмника', rarity: 'epic', slot: 'gloves', stats: { armor: 1 } },
-  { name: 'Сапоги наёмника', rarity: 'epic', slot: 'boots', stats: { armor: 1.5, speed: 0.01 } },
-
-  // === СЕТ «ПРИЗРАК» (superepic) ===
-  { name: 'Маска призрака', rarity: 'superepic', slot: 'head', stats: { armor: 1, evasion: 0.0032 } },
-  { name: 'Плащ призрака', rarity: 'superepic', slot: 'armor', stats: { armor: 1.5, evasion: 0.004, speed: 0.02 } },
-  { name: 'Наручи призрака', rarity: 'superepic', slot: 'gloves', stats: { evasion: 0.0016 } },
-  { name: 'Башмаки призрака', rarity: 'superepic', slot: 'boots', stats: { evasion: 0.0032, speed: 0.03, stamina: 0.02 } },
-
-
-  // === ДОПОЛНЕНИЕ «МОНОЛИТ» (epic) ===
-  { name: 'Шлем монолита', rarity: 'epic', slot: 'head', stats: { armor: 3.5, block: 0.08, maxHp: 150 } },
-  { name: 'Нагрудник монолита', rarity: 'epic', slot: 'armor', stats: { armor: 6, block: 0.12, maxHp: 250 } },
-  { name: 'Перчатки монолита', rarity: 'epic', slot: 'gloves', stats: { armor: 2, block: 0.064 } },
-  { name: 'Походные сапоги монолита', rarity: 'epic', slot: 'boots', stats: { armor: 2.5, block: 0.064, stamina: 0.02 } },
-
-  // === ДОПОЛНЕНИЕ «БАНДИТЫ» (epic) ===
-  { name: 'Бандана бандита', rarity: 'epic', slot: 'head', stats: { armor: 1.5, evasion: 0.0016 } },
-  { name: 'Кожаный жилет бандита', rarity: 'epic', slot: 'armor', stats: { armor: 3, evasion: 0.002, maxHp: 120 } },
-  { name: 'Перчатки с шипами', rarity: 'epic', slot: 'gloves', stats: { evasion: 0.0008 } },
-  { name: 'Ковбойские сапоги', rarity: 'epic', slot: 'boots', stats: { armor: 1, evasion: 0.0016, speed: 0.015 } },
-
-  // === STANDALONE (epic, без сета) ===
-  { name: 'Шлем пустынника', rarity: 'epic', slot: 'head', stats: { armor: 3, regen: 0.05, maxHp: 120 } },
-  { name: 'Роба отшельника', rarity: 'epic', slot: 'armor', stats: { armor: 4, regen: 0.1, maxHp: 200 } },
-  { name: 'Рукавицы кузнеца', rarity: 'epic', slot: 'gloves', stats: { armor: 2, block: 0.04 } },
-  { name: 'Сапоги скорохода', rarity: 'epic', slot: 'boots', stats: { armor: 1, speed: 0.04, evasion: 0.0008 } },
-
-  // === STANDALONE (superepic, без сета) ===
-  { name: 'Корона безумца', rarity: 'superepic', slot: 'head', stats: { armor: 2.5, maxHp: 100 } },
-  { name: 'Панцирь мутанта', rarity: 'superepic', slot: 'armor', stats: { armor: 9, maxHp: 400, regen: 0.1 } },
-  { name: 'Лапы химеры', rarity: 'superepic', slot: 'gloves', stats: { armor: 1.5 } },
-  { name: 'Копыта демона', rarity: 'superepic', slot: 'boots', stats: { armor: 2.5, speed: 0.02, block: 0.08, stamina: 0.03 } },
-
-  // === ШТАНЫ (слот pants) ===
-  { name: 'Штаны сталкера', rarity: 'normal', slot: 'pants', stats: { armor: 1.5, maxHp: 80 } },
-  { name: 'Камуфляжные штаны', rarity: 'normal', slot: 'pants', stats: { armor: 2.5, evasion: 0.001, maxHp: 120 } },
-  { name: 'Укреплённые штаны', rarity: 'epic', slot: 'pants', stats: { armor: 4, maxHp: 200, speed: -0.01 } },
-  { name: 'Штаны призрака', rarity: 'superepic', slot: 'pants', stats: { armor: 3, evasion: 0.002, speed: 0.01 } },
-  { name: 'Экзо-штаны', rarity: 'superepic', slot: 'pants', stats: { armor: 6, maxHp: 350, block: 0.24 } },
-
-  // === УНИКИ (броня): огромная защита + фирменный перк, штраф -100% скорости ===
-  { name: 'Очки ночного видения «Филин»', rarity: 'superepic', slot: 'head', stats: { armor: 3, accuracy: 0.08, speed: -0.3 }, unique: true },
-  { name: 'Шлем «Джаггернаут»', rarity: 'superepic', slot: 'head', stats: { armor: 12.5, maxHp: 400, speed: -0.1 }, unique: true },
-  { name: 'Капюшон «Тень Зоны»', rarity: 'superepic', slot: 'head', stats: { armor: 4, evasion: -0.2, speed: -0.2 }, unique: true },
-  { name: 'Корона аномалий', rarity: 'superepic', slot: 'head', stats: { armor: 6, regen: 2, accuracy: 0.05, speed: -0.3 }, unique: true },
-  { name: 'Тактический визор «Око»', rarity: 'superepic', slot: 'head', stats: { armor: 5, accuracy: 0.12, speed: -0.1 }, unique: true },
-  { name: 'Шлем «Гром»', rarity: 'superepic', slot: 'head', stats: { armor: 9, block: 0.8, speed: -0.2, evasion: -0.2 }, unique: true },
-  { name: 'Панцирь болотника', rarity: 'superepic', slot: 'armor', stats: { armor: 30, maxHp: 500, speed: -0.3 }, unique: true },
-  { name: 'Броня «Стена»', rarity: 'superepic', slot: 'armor', stats: { armor: 20, block: 1.2, speed: -0.1 }, unique: true },
-  { name: 'Жилет «Феникс»', rarity: 'superepic', slot: 'armor', stats: { armor: 12.5, regen: 3, maxHp: 300, speed: -0.2, evasion: -0.2 }, unique: true },
-  { name: 'Скафандр «Восток»', rarity: 'superepic', slot: 'armor', stats: { armor: 22.5, evasion: 0.005, regen: 1, speed: -0.3 }, unique: true },
-  { name: 'Кольчуга «Ратник»', rarity: 'superepic', slot: 'armor', stats: { armor: 15, block: 0.8, maxHp: 200, speed: -0.1 }, unique: true },
-  { name: 'Плащ «Мираж»', rarity: 'superepic', slot: 'armor', stats: { armor: 7.5, evasion: -0.2, speed: -0.2 }, unique: true },
-  { name: 'Штаны «Титан»', rarity: 'superepic', slot: 'pants', stats: { armor: 17.5, maxHp: 300, speed: -0.3 }, unique: true },
-  { name: 'Поножи «Бастион»', rarity: 'superepic', slot: 'pants', stats: { armor: 11, block: 0.64, speed: -0.1 }, unique: true },
-  { name: 'Шаровары «Ветер»', rarity: 'superepic', slot: 'pants', stats: { armor: 5, evasion: -0.2, speed: -0.2 }, unique: true },
-  { name: 'Набедренники «Гром»', rarity: 'superepic', slot: 'pants', stats: { armor: 9, maxHp: 150, speed: -0.3 }, unique: true },
-  { name: 'Штаны «Хамелеон»', rarity: 'superepic', slot: 'pants', stats: { armor: 10, evasion: 0.008, regen: 1, speed: -0.1 }, unique: true },
-  { name: 'Поножи «Каратель»', rarity: 'superepic', slot: 'pants', stats: { armor: 13, block: 0.48, speed: -0.2, evasion: -0.2 }, unique: true },
-  { name: 'Перчатки «Кузнец Зоны»', rarity: 'superepic', slot: 'gloves', stats: { armor: 6, block: 0.64, speed: -0.3 }, unique: true },
-  { name: 'Краги «Голем»', rarity: 'superepic', slot: 'gloves', stats: { armor: 10, maxHp: 150, speed: -0.1 }, unique: true },
-  { name: 'Перчатки «Тень»', rarity: 'superepic', slot: 'gloves', stats: { armor: 4, evasion: -0.2, speed: -0.2 }, unique: true },
-  { name: 'Рукавицы «Молот»', rarity: 'superepic', slot: 'gloves', stats: { armor: 7, block: 0.48, regen: 0.5, speed: -0.3 }, unique: true },
-  { name: 'Перчатки «Сапёр»', rarity: 'superepic', slot: 'gloves', stats: { armor: 5, regen: 1, speed: -0.1 }, unique: true },
-  { name: 'Краги «Титан»', rarity: 'superepic', slot: 'gloves', stats: { armor: 12, block: 0.8, speed: -0.2, evasion: -0.2 }, unique: true },
-  { name: 'Сапоги «Сталкер»', rarity: 'superepic', slot: 'boots', stats: { armor: 6, evasion: 0.006, speed: -0.3 }, unique: true },
-  { name: 'Берцы «Центурион»', rarity: 'superepic', slot: 'boots', stats: { armor: 11, block: 0.64, speed: -0.1 }, unique: true },
-  { name: 'Ботфорты «Призрак»', rarity: 'superepic', slot: 'boots', stats: { armor: 5, evasion: -0.2, speed: -0.2 }, unique: true },
-  { name: 'Сапоги «Броненосец»', rarity: 'superepic', slot: 'boots', stats: { armor: 9, maxHp: 200, speed: -0.3 }, unique: true },
-  { name: 'Ботинки «Скаут»', rarity: 'superepic', slot: 'boots', stats: { armor: 4, evasion: 0.007, regen: 0.5, speed: -0.1 }, unique: true },
-  { name: 'Сапоги «Джаггернаут»', rarity: 'superepic', slot: 'boots', stats: { armor: 14, maxHp: 350, speed: -0.2, evasion: -0.2 }, unique: true },
   { name: 'Пистолет «Вампир»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 6, vampir: 0.08, accuracy: 0.02 }, ammoCapacity: 8, unique: true },
   { name: 'Пистолет «Шершень»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 5, speed: 0.15, crit: 0.03 }, ammoCapacity: 12, unique: true },
   { name: 'Пистолет «Дырокол»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 7, punching: 0.1, accuracy: -0.2 }, ammoCapacity: 8, unique: true },
@@ -1338,4 +1102,56 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Кинжал «Укол»', rarity: 'superepic', slot: 'weapon1', stats: { damage: 6, crit: 0.15, speed: 0.15, punching: 0.08 }, unique: true },
   { name: 'Топор «Палач»', rarity: 'superepic', slot: 'weapon1', stats: { damage: 16, punching: 0.15, vampir: 0.05, speed: -0.2 }, unique: true },
 ];
+
+/** Бонус сета: flat — плоские статы; mults — множители (применяются после сумм);
+ *  ability — id дарованной боевой способности (панель арены); passives — id пассивок. */
+export interface SetTierBonus {
+  count: number;
+  flat?: Record<string, number>;
+  mults?: Partial<Record<'damage' | 'maxHp' | 'armor', number>>;
+  ability?: string;
+  passives?: string[];
+}
+
+export const SET_BONUSES: Record<string, SetTierBonus[]> = {
+  'Призрак': [
+    { count: 3, flat: { evasion: 0.05, punching: 0.10 } },
+    { count: 5, ability: 'setb_ammo' },
+  ],
+  'Разведчик': [
+    { count: 3, flat: { maxStamina: 100 } },
+    { count: 5, flat: { maxStamina: 150 } },
+  ],
+  'Рейнджер': [
+    { count: 3, flat: { crit: 0.05 }, mults: { damage: 1.05 } },
+    { count: 5, ability: 'setb_camo' },
+  ],
+  'Тактик': [
+    { count: 3, flat: { accuracy: 0.05 } },
+    { count: 5, ability: 'setb_medkit' },
+  ],
+  'Штурмовик': [
+    { count: 3, flat: { damage: 20 } },
+    { count: 5, flat: { crit: 0.15 } },
+  ],
+  'Рейдер': [
+    { count: 3, mults: { maxHp: 1.10 } },
+    { count: 5, flat: { vampir: 0.08 } },
+  ],
+  'Экзокостюм': [
+    { count: 3, mults: { armor: 1.10 } },
+    { count: 5, passives: ['set_second_wind'] },
+  ],
+  'Силовая броня': [
+    { count: 3, mults: { armor: 1.10, maxHp: 1.10 } },
+    { count: 5, ability: 'setb_exo' },
+  ],
+  'Джаггернаут': [
+    { count: 3, passives: ['sht_t7_rgheavy', 'sht_t7_magheavy'] },
+    { count: 5, ability: 'setb_rage' },
+  ],
+  'Бродяга': [],
+  'Мусорщик': [],
+  'Военный': [],
+};
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { usePlayerStore } from './playerStore';
+import { usePlayerStore, passiveRank, setPartsOf, setCountsOf } from './playerStore';
 import { gunSlotForWeapon } from './playerStore';
 import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
@@ -1753,7 +1753,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const { cls } = gunClassForShooter(gun);
       if (cls === 'auto' && (ps.skills['sht_t7_rgauto'] || 0) > 0) return 1;
       if (cls === 'pistol' && (ps.skills['sht_t7_rgpist'] || 0) > 0) return 1;
-      if (cls === 'heavy' && (ps.skills['sht_t7_rgheavy'] || 0) > 0) return 1;
+      if (cls === 'heavy' && passiveRank('sht_t7_rgheavy') > 0) return 1;
       return 0;
     })();
 
@@ -4059,7 +4059,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const { cls } = gunClassForShooter(ps.getActiveWeapon());
     if (cls === 'auto' && (ps.skills['sht_t7_rgauto'] || 0) > 0) return 1;
     if (cls === 'pistol' && (ps.skills['sht_t7_rgpist'] || 0) > 0) return 1;
-    if (cls === 'heavy' && (ps.skills['sht_t7_rgheavy'] || 0) > 0) return 1;
+    if (cls === 'heavy' && passiveRank('sht_t7_rgheavy') > 0) return 1;
     return 0;
   },
 
@@ -4343,13 +4343,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Tick player effects per turn instead of per real second
     usePlayerStore.getState().tickEffects();
     // Милишник Т6 «Второе дыхание»: пассивный реген 2.5% HP в ход за ранг.
+    // Улучшенное (сет «Экзокостюм», 5 вещей): +5% HP в ход сверху.
     {
       const pst = usePlayerStore.getState();
       const regenRank = pst.skills['mln_t6_regen'] || 0;
-      if (regenRank > 0) {
+      const setBonus = setPartsOf(setCountsOf(pst.equipment as any)).passives.includes('set_second_wind') ? 0.05 : 0;
+      if (regenRank > 0 || setBonus > 0) {
         const cur = pst.stats.currentHp;
         const max = pst.stats.maxHp;
-        const add = Math.round(max * 0.025 * regenRank);
+        const add = Math.round(max * (0.025 * regenRank + setBonus));
         if (cur < max && add > 0) {
           usePlayerStore.setState((st: any) => ({ stats: { ...st.stats, currentHp: Math.min(max, cur + add) } }));
           get().addPopup(get().playerPos.x, get().playerPos.y, `+${add} 💚`, 'HEAL');
