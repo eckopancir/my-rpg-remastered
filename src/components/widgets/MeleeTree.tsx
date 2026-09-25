@@ -220,7 +220,7 @@ export const MeleeTree = () => {
             🛡️ МИЛИШНИК
           </div>
           <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 8, lineHeight: 1.5 }}>
-            Надетый щит: <b style={{ color: '#60a5fa' }}>+25% шанс блока</b> · Все активные способности: КД 50
+            Надетый щит: <b style={{ color: '#60a5fa' }}>+20% шанс блока</b> · Все активные способности: КД 50
           </div>
           {MELEE_TIERS.map((t) => (
             <MeleeTierBlock key={t} tier={t} label={`ТИР ${t}`} onHover={onHover} onLeave={onLeave} />

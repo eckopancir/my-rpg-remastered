@@ -49,7 +49,7 @@ export const MELEE_ABILITIES: MeleeAbilityDef[] = [
   {
     id: 'mln_shield_use', column: 'melee', tier: 0, name: 'Ношение щита', kind: 'passive',
     maxRanks: 1, gate: 0, freeTake: true, apCost: 0, cooldown: 0, icon: '🛡️',
-    mechanic: 'Открывает слот щита под оружием ближнего боя. Щит даёт +25% шанс блока.',
+    mechanic: 'Открывает слот щита под оружием ближнего боя. Щит даёт +20% шанс блока.',
   },
   {
     id: 'mln_shotgun_stun', column: 'melee', tier: 0, name: 'Дробящий выстрел', kind: 'passive',
