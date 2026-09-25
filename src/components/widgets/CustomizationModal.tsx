@@ -53,6 +53,16 @@ const SLOT_LABELS: Record<string, string> = {
 
 const DISPLAY_W = 520;
 const DISPLAY_H = 430;
+const MOD_SLOT_SIZE = 80;
+
+// Стволы, смотрящие в другую сторону: их слоты НЕ зеркалим.
+const NO_MIRROR_GUNS = new Set([
+  'vector', 'ak-47', 'galil ace', 'rec7', 'сайга-мк', 'скс',
+]);
+
+// Зеркалим слоты по горизонтали (оружие на арте развёрнуто стволом влево).
+const mirrorSlots = (slots: ModSlotPos[]): ModSlotPos[] =>
+  slots.map((s) => ({ ...s, left: DISPLAY_W - s.left - MOD_SLOT_SIZE }));
 
 export const CustomizationModal = ({ item, slot, onClose }: Props) => {
   const inventoryItems = useInventoryStore((s) => s.items);
@@ -71,7 +81,10 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
   const slotsArray: ModSlotPos[] = (() => {
     const itemType = liveItem?.slot;
     if (itemType === 'weapon1') return COLD_WEAPON_SLOT_POSITIONS;
-    if (itemType === 'weapon2') return FIREARM_SLOT_POSITIONS;
+    if (itemType === 'weapon2') {
+      const facingRight = NO_MIRROR_GUNS.has((liveItem?.name || '').toLowerCase());
+      return facingRight ? FIREARM_SLOT_POSITIONS : mirrorSlots(FIREARM_SLOT_POSITIONS);
+    }
     if (['head', 'armor', 'pants', 'gloves', 'boots'].includes(itemType || '')) return ARMOR_MOD_SLOTS;
     return [];
   })();
