@@ -9,14 +9,14 @@ export interface AppliedScheme {
 /** Статы, доступные сферам (% и плоская стихия). */
 export const SCHEME_STATS = [
   'damage', 'armor', 'crit', 'speed', 'accuracy',
-  'evasion', 'block', 'vampir', 'punching', 'regen', 'maxHp',
+  'evasion', 'block', 'vampir', 'punching', 'regen', 'maxHp', 'stamina',
   'dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro',
 ];
 
 export const SCHEME_STAT_LABELS: Record<string, string> = {
   damage: 'Урон', armor: 'Броня', crit: 'Крит. шанс', speed: 'Скорость',
   accuracy: 'Точность', evasion: 'Уклонение', block: 'Блок',
-  vampir: 'Вампиризм', punching: 'Пробитие', regen: 'Регенерация', maxHp: 'Макс. HP',
+  vampir: 'Вампиризм', punching: 'Пробитие', regen: 'Регенерация', maxHp: 'Макс. HP', stamina: 'Выносливость',
   dpsEmi: 'ЭМИ урон', dpsFire: 'Огненный урон', dpsToxis: 'Токсичный урон', dpsExtro: 'Экстро урон',
 };
 
@@ -32,8 +32,8 @@ const QUALITY_INDEX: Record<string, number> = {
   'Смертоносный': 4, 'Легендарный': 5, 'Божественный': 6,
 };
 
-/** Защитные (не атакующие) статы сфер: броня, уклон, блок, вамп, реген, HP. */
-export const SCHEME_DEFENSIVE_STATS = new Set(['armor', 'evasion', 'block', 'vampir', 'regen', 'maxHp']);
+/** Защитные (не атакующие) статы сфер: броня, уклон, блок, вамп, реген, HP, выносливость. */
+export const SCHEME_DEFENSIVE_STATS = new Set(['armor', 'evasion', 'block', 'vampir', 'regen', 'maxHp', 'stamina']);
 
 /** % бонуса сферы по стату и редкости сферы. Защитные дают в 3 раза меньше
  *  (божественная была 50% → стала ~16.7%; броня 25% → ~8.3%). Атакующие без изменений. */

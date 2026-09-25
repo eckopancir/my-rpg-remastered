@@ -171,7 +171,7 @@ const ARMOR_POOL_SLOTS = new Set(['head', 'armor', 'pants', 'gloves', 'boots', '
 
 const WEAPON_SPHERE_PCT = ['damage', 'crit', 'speed', 'punching', 'accuracy', 'vampir'];
 const WEAPON_SPHERE_FLAT = ['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro'];
-const ARMOR_SPHERE_PCT = ['armor', 'evasion', 'block', 'vampir', 'regen', 'maxHp'];
+const ARMOR_SPHERE_PCT = ['armor', 'evasion', 'block', 'vampir', 'regen', 'maxHp', 'stamina'];
 
 /**
  * Предустановленные сферы с дропа: оружие 25%/10%/2% (1/2/3 шт.),

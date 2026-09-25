@@ -77,7 +77,7 @@ const SCHEME_IMAGE_MAP: Record<string, string> = {
   crit: 'scheme_crit', speed: 'scheme_crit', accuracy: 'scheme_crit',
   armor: 'scheme_armor', evasion: 'scheme_armor',
   damage: 'scheme_damage', vampir: 'scheme_damage', block: 'scheme_damage',
-  regen: 'scheme_regen', punching: 'scheme_regen', maxHp: 'scheme_regen',
+  regen: 'scheme_regen', punching: 'scheme_regen', maxHp: 'scheme_regen', stamina: 'scheme_regen',
   dpsfire: 'scheme_damage', dpsemi: 'scheme_armor', dpstoxis: 'scheme_regen', dpsextro: 'scheme_crit',
 };
 

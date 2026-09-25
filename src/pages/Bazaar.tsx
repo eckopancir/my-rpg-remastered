@@ -74,7 +74,7 @@ const STAT_PRICE_W: Record<string, number> = {
   damage: 0.75, armor: 0.75, health: 0.125, regen: 5,
   crit: 125, evasion: 125, block: 125, vampir: 125, accuracy: 125, speed: 125,
   punching: 0.75, dpsEmi: 0.75, dpsToxis: 0.75, dpsExtro: 0.75, dpsFire: 0.75,
-  maxHp: 0.125, maxStamina: 0.125,
+  maxHp: 0.125, maxStamina: 0.125, stamina: 0.125,
 };
 
 const statPrice = (stats: Record<string, number>): number => {

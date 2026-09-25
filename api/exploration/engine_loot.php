@@ -249,14 +249,14 @@ function rollPreinstalledSpheres($slot, $socketSlots, $stats) {
   if ($n <= 0) return [];
   $pctKeys = $isW
     ? ['damage', 'crit', 'speed', 'punching', 'accuracy', 'vampir']
-    : ['armor', 'evasion', 'block', 'vampir', 'regen', 'health'];
+    : ['armor', 'evasion', 'block', 'vampir', 'regen', 'health', 'stamina'];
   $flatKeys = $isW ? ['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro'] : [];
   $pool = [];
   foreach ($pctKeys as $k) { if (($stats[$k] ?? 0) > 0) $pool[] = $k; }
   foreach ($flatKeys as $k) $pool[] = $k;
   if (empty($pool)) return [];
   $qnames = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
-  $defensive = ['armor' => 1, 'evasion' => 1, 'block' => 1, 'vampir' => 1, 'regen' => 1, 'health' => 1, 'maxHp' => 1];
+  $defensive = ['armor' => 1, 'evasion' => 1, 'block' => 1, 'vampir' => 1, 'regen' => 1, 'health' => 1, 'maxHp' => 1, 'stamina' => 1];
   $tiers = json_decode(QUALITY_TIERS, true);
   $out = [];
   for ($i = 0; $i < $n; $i++) {
