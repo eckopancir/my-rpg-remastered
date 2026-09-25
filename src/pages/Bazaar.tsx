@@ -44,6 +44,8 @@ interface ShopItem {
   ammoGroup?: string;
   ammoCapacity?: number;
   mods?: Record<string, unknown>;
+  socketSlots?: number;
+  sockets?: { stat: string; pct: number }[];
   set?: string;
   damage?: string;
 }
@@ -98,8 +100,10 @@ const generateCategoryItem = (level: number, validSlots: string[], idx: number):
     const single = generateItem(GAME_ITEMS, level, null, null, targetSlot);
     if (single) {
       // Цена: уровень×30 + случайность + фикс за редкость + вес статов, всё × качество (крутая шкала).
+      // Вставленные сферы: +10% за каждую (как в продаже).
       const basePrice = level * 30 + Math.floor(Math.random() * 30);
       const qualityMultiplier = GEAR_QUALITY_MULT[single.quality] || 1;
+      const installed = Array.isArray((single as any).sockets) ? (single as any).sockets.length : 0;
       return {
         id: single.id + '_cat_' + idx + '_' + Date.now(),
         name: single.name,
@@ -108,13 +112,15 @@ const generateCategoryItem = (level: number, validSlots: string[], idx: number):
         rarity: single.rarity,
         quality: single.quality,
         qualityColor: single.qualityColor || 'white',
-        price: Math.floor((basePrice + rarityFlat(single.rarity, level) + statPrice(single.stats || {})) * qualityMultiplier),
+        price: Math.floor((basePrice + rarityFlat(single.rarity, level) + statPrice(single.stats || {})) * qualityMultiplier * (1 + 0.1 * installed)),
         stats: single.stats || {},
         slot: single.slot,
         type: single.type,
         abilityId: single.abilityId,
         ammoCapacity: (single as any).ammoCapacity,
         mods: (single as any).mods,
+        socketSlots: (single as any).socketSlots,
+        sockets: Array.isArray((single as any).sockets) ? [...(single as any).sockets] : [],
         set: (single as any).set,
         damage: (single as any).damage,
       };
@@ -479,6 +485,8 @@ export const Bazaar = () => {
           ammoGroup: (shopItem as any).ammoGroup,
           ammoCapacity: (shopItem as any).ammoCapacity,
           mods: (shopItem as any).mods,
+          socketSlots: (shopItem as any).socketSlots,
+          sockets: Array.isArray((shopItem as any).sockets) ? [...(shopItem as any).sockets] : [],
           set: (shopItem as any).set,
           damage: (shopItem as any).damage,
         });
