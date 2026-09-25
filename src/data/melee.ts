@@ -86,7 +86,7 @@ export const MELEE_ABILITIES: MeleeAbilityDef[] = [
   { id: 'mln_t5_punch', column: 'melee', tier: 5, name: 'МОЩНОЕ пробитие', kind: 'stat', maxRanks: 5, gate: 0, exclusiveWith: ['mln_t5_vamp'], apCost: 0, cooldown: 0, icon: '🔩', statsPerRank: [R('punching', 0.08, '+8% пробитие'), R('crit', 0.02, '+2% крит')] },
 
   // ---------- ТИР 6 (нужно 30 из Т1–5) ----------
-  { id: 'mln_t6_block', column: 'melee', tier: 6, name: '+2.5% шанс блока', kind: 'stat', maxRanks: 2, gate: 0, apCost: 0, cooldown: 0, icon: '🛡️', statsPerRank: [R('block', 0.25, '+2.5% шанс блока')] },
+  { id: 'mln_t6_block', column: 'melee', tier: 6, name: '+2.5% шанс блока', kind: 'stat', maxRanks: 2, gate: 0, apCost: 0, cooldown: 0, icon: '🛡️', statsPerRank: [R('block', 2.5, '+2.5% шанс блока')] },
   {
     id: 'mln_t6_cheap', column: 'melee', tier: 6, name: 'Холодный расчёт', kind: 'passive',
     maxRanks: 2, gate: 0, apCost: 0, cooldown: 0, icon: '❄️',
@@ -215,6 +215,12 @@ export const meleeRankText = (def: MeleeAbilityDef, rank: number): string => {
     return def.statsPerRank.map((s) => {
       if (s.stat === 'meleeDamage' || s.stat === 'shotgunDamage' || s.stat === 'damage' || s.stat === 'armor' || s.stat === 'maxHp' || s.stat === 'maxStamina') {
         return `+${s.value * rank} ${s.text.replace(/^[+-][\d.]+%?\s*/, '')}`;
+      }
+      // Блок — прямые проценты (без ×100).
+      if (s.stat === 'block') {
+        const total = s.value * rank;
+        const label = s.text.replace(/^[+-][\d.]+%?\s*/, '');
+        return `+${total}% ${label}`;
       }
       const total = s.value * rank;
       const shown = `${(total * 100).toFixed(total * 100 >= 10 ? 0 : 1)}%`;

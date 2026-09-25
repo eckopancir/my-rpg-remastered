@@ -40,19 +40,19 @@ export const ENEMY_BASE_STATS: Record<string, EnemyBaseDefinition> = {
   },
   Роботы: {
     health: 500, damage: 10, dps: 10, speed: 0.12, crit: 0.05, armor: 4, evasion: 0.05,
-    block: 0.15, punching: 0.1, vampir: 0.001, accuracy: 1.0, expRewardMultiplier: 1.1,
+    block: 1.5, punching: 0.1, vampir: 0.001, accuracy: 1.0, expRewardMultiplier: 1.1,
     faction: 'Роботы', soundAttack: 'shotenemy', nowModel: 'g2', dead: 'dead', avatar: 'enemy', level: 1,
   },
   'Военные (tank)': {
     health: 400, damage: 6, dps: 6, speed: 0, crit: 0, armor: 5, evasion: 0.02,
-    regen: 2, block: 0.05, punching: 0, accuracy: 1.0, vampir: 0,
+    regen: 2, block: 0.5, punching: 0, accuracy: 1.0, vampir: 0,
     expRewardMultiplier: 2, rangeDistance: 5, runAp: 4, shotPrice: 4,
     skillUse: ['ram'], bigModel: '150%', faction: 'Военные',
     soundAttack: 'shotenemy', nowModel: 'tank', dead: 'dead', avatar: 'tank', level: 3,
   },
   'Военные (melee)': {
     health: 220, damage: 12, dps: 12, speed: 0.03, crit: 0.02, armor: 3, evasion: 0.02,
-    regen: 0, block: 0.02, punching: 0, accuracy: 0.85, vampir: 0.02,
+    regen: 0, block: 0.2, punching: 0, accuracy: 0.85, vampir: 0.02,
     expRewardMultiplier: 1.5, rangeDistance: 1, runAp: 4, shotPrice: 2,
     skillUse: ['ram'], bigModel: '110%', faction: 'Военные',
     soundAttack: 'melee', nowModel: 'melee', dead: 'dead', avatar: 'melee', level: 2,
@@ -73,7 +73,7 @@ export const ENEMY_BASE_STATS: Record<string, EnemyBaseDefinition> = {
   },
   'Военные (original)': {
     health: 200, damage: 10, dps: 10, speed: 0.02, crit: 0.02, armor: 2,
-    evasion: 0.01, regen: 0, block: 0.02, punching: 0.01, accuracy: 1.1, vampir: 0.02,
+    evasion: 0.01, regen: 0, block: 0.2, punching: 0.01, accuracy: 1.1, vampir: 0.02,
     expRewardMultiplier: 1, rangeDistance: 9, runAp: 6, shotPrice: 2,
     skillUse: ['grenade', 'stimulant'], bigModel: '100%', faction: 'Военные',
     soundAttack: 'pistol', nowModel: 'military2', dead: 'dead', avatar: 'military2', level: 2,
@@ -87,7 +87,7 @@ export const ENEMY_BASE_STATS: Record<string, EnemyBaseDefinition> = {
   },
   'Военные (boss)': {
     health: 1032, damage: 15, dps: 15, speed: 0.02, crit: 0.08, armor: 4, evasion: 0.03,
-    regen: 2, block: 0.03, punching: 0.02, accuracy: 0.8, vampir: 0.02,
+    regen: 2, block: 0.3, punching: 0.02, accuracy: 0.8, vampir: 0.02,
     expRewardMultiplier: 5, rangeDistance: 8, runAp: 5, shotPrice: 1,
     skillUse: ['madness', 'rage'], bigModel: '130%', faction: 'Военные',
     soundAttack: 'm134', nowModel: 'military3', dead: 'dead', avatar: 'military3', level: 5,

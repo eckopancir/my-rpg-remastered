@@ -108,7 +108,7 @@ export const Battle = () => {
   const myTerrainText = [
     myTerrain.evasion > 0 ? `🌀+${Math.round(myTerrain.evasion * 100)}%` : '',
     myTerrain.armor > 0 ? `🛡️+${Math.round(myTerrain.armor * 100)}%` : '',
-    myTerrain.block > 0 ? `🧱+${Math.round(myTerrain.block * 10)}%` : '',
+    myTerrain.block > 0 ? `🧱+${Math.round(myTerrain.block)}%` : '',
   ].filter(Boolean).join(' ');
   const isVictory = useCombatGridStore((s) => s.isVictory);
   const isDefeat = useCombatGridStore((s) => s.isDefeat);
@@ -668,7 +668,7 @@ export const Battle = () => {
               Math.round(hoverTarget.maxHp / 10) +
               Math.round(hoverTarget.armor) * 2 +
               Math.round((hoverTarget.evasion || 0) * 100) * 5 +
-              Math.round((hoverTarget.block || 0) * 10) * 3 +
+              Math.round((hoverTarget.block || 0)) * 3 +
               Math.round((hoverTarget.crit || 0) * 100) * 2 +
               Math.round((hoverTarget.punching || 0) * 100) * 2;
             const ratio = ePow / Math.max(1, Math.round(stats.power || 0));
@@ -759,7 +759,7 @@ export const Battle = () => {
                 const etext = [
                   et.evasion > 0 ? `🌀+${Math.round(et.evasion * 100)}%` : '',
                   et.armor > 0 ? `🛡️+${Math.round(et.armor * 100)}%` : '',
-                  et.block > 0 ? `🧱+${Math.round(et.block * 10)}%` : '',
+                  et.block > 0 ? `🧱+${Math.round(et.block)}%` : '',
                 ].filter(Boolean).join(' ');
                 return etext ? (
                   <div title={et.sources.join('; ')} style={{ fontSize: 11, color: '#4ade80', padding: '0 12px 8px' }}>

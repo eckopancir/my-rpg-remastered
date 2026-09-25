@@ -255,6 +255,11 @@ export const sniperRankText = (def: SniperAbilityDef, rank: number): string => {
   if (def.statsPerRank) {
     return def.statsPerRank.map((s) => {
       const total = s.value * rank;
+      // Блок — прямые проценты (без ×100).
+      if (s.stat === 'block') {
+        const label = s.text.replace(/^[+-][\d.]+%?\s*/, '');
+        return `+${total}% ${label}`;
+      }
       const isPct = ['crit', 'evasion', 'block', 'punching', 'accuracy', 'vampir', 'speed'].includes(s.stat);
       const shown = isPct ? `${(total * 100).toFixed(total * 100 >= 10 ? 0 : 1)}%` : `${total}`;
       const label = s.text.replace(/^[+-][\d.]+%?\s*/, '');
@@ -323,7 +328,7 @@ export function buildSniperBattleAbility(
     case 'snp_a7_glass':
       return { ...base, id: 'snpb_glass', apCost: 0, cooldown: 0, powerRating: 50, effects: [], displayOnly: true };
     case 'snp_d4_nest':
-      return { ...base, id: 'snpb_nest', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'status', id: 'rooted', duration: 5 } as any, { type: 'stat_boost', stat: 'block', value: 0.2 * rank, duration: 5 }] };
+      return { ...base, id: 'snpb_nest', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'status', id: 'rooted', duration: 5 } as any, { type: 'stat_boost', stat: 'block', value: 2.0 * rank, duration: 5 }] };
     case 'snp_d4_camo':
       return { ...base, id: 'snpb_camo', apCost: ap(2), cooldown: 50, powerRating: 60, effects: [{ type: 'stat_boost', stat: 'evasion', value: 0.20 * rank, duration: 2 }] };
     case 'snp_d5_blood':

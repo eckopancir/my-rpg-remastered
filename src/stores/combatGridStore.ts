@@ -788,9 +788,9 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     sound = 'crit';
   }
 
-  // 2) БЛОК после крита: chance = blockValue × 0.1, кап 50%. При срабатывании — 100% поглощение.
+  // 2) БЛОК после крита: block — прямые проценты, кап 50%. При срабатывании — 100% поглощение.
   const blockVal = target.block || 0;
-  const blockChance = Math.min(blockVal * 0.1, 0.5);
+  const blockChance = Math.min(blockVal / 100, 0.5);
   const isBlocked = blockChance > 0 && Math.random() < blockChance;
   if (isBlocked) {
     dmg = 0;

@@ -344,7 +344,7 @@ const sumMultBoosts = (effects: ActiveEffect[]): Partial<Record<string, number>>
  * Не зависит от надетого и величины характеристик (линейна).
  * Стихии суммируются ВСЕ (старый max() только по максимальной — баг, убран).
  * Процентные статы (крит/скорость/точность/уклон/пробитие/вамп) — за 0.01;
- * блок — за 1% шанса (стат × 10); HP — за 100; остальное — за 1.
+ * блок — за 1% (прямые проценты, кап 50); HP — за 100; остальное — за 1.
  */
 export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: number; defensiveScore: number } => {
   const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
@@ -357,7 +357,7 @@ export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: num
     n(stats.punching) * 100 * 0.6;
   const defensiveScore =
     n(stats.evasion) * 100 * 6.0 +
-    n(stats.block) * 10 * 10.0 +
+    n(stats.block) * 10.0 +
     n(stats.armor) * 0.3 +
     n(stats.maxHp) / 100 * 1.0 +
     n(stats.vampir) * 100 * 0.85 +
@@ -522,7 +522,7 @@ export const usePlayerStore = create<PlayerStore>()(
           armor: Math.max(0, BASE_STATS.armor + equipBonus.armor + effectBonus.armor + skillBonus.armor + setBonus.armor),
           regen: Math.max(0, BASE_STATS.regen + equipBonus.regen + effectBonus.regen + skillBonus.regen + setBonus.regen),
           evasion: Math.min(0.9, Math.max(0, BASE_STATS.evasion + equipBonus.evasion + effectBonus.evasion + skillBonus.evasion + setBonus.evasion)),
-          block: Math.min(5.0, Math.max(0, BASE_STATS.block + equipBonus.block + effectBonus.block + skillBonus.block + setBonus.block)),
+          block: Math.min(50, Math.max(0, BASE_STATS.block + equipBonus.block + effectBonus.block + skillBonus.block + setBonus.block)),
           punching: Math.max(0, BASE_STATS.punching + equipBonus.punching + effectBonus.punching + skillBonus.punching + setBonus.punching),
           accuracy: Math.min(2, Math.max(0.1, BASE_STATS.accuracy + equipBonus.accuracy + effectBonus.accuracy + skillBonus.accuracy + setBonus.accuracy)),
           vampir: Math.min(5.0, Math.max(0, BASE_STATS.vampir + equipBonus.vampir + effectBonus.vampir + skillBonus.vampir + setBonus.vampir)),
@@ -560,10 +560,10 @@ export const usePlayerStore = create<PlayerStore>()(
           }
         }
 
-        // Щит милишника: +2.5 блока (25% шанс) при надетом щите.
+        // Щит милишника: +20 блока при надетом щите (фикс, кап 50%).
         // Фикс вне скейла уровня/редкости: редкость влияет только на доборочные статы.
         if (s.equipment.shield) {
-          newStats.block = Math.min(5.0, newStats.block + 2.5);
+          newStats.block = Math.min(50, newStats.block + 20);
         }
 
         // Power rating
@@ -608,7 +608,7 @@ export const usePlayerStore = create<PlayerStore>()(
           woStats.armor = Math.max(0, woStats.armor);
           woStats.regen = Math.max(0, woStats.regen);
           woStats.evasion = Math.min(0.9, Math.max(0, woStats.evasion));
-          woStats.block = Math.min(5.0, Math.max(0, woStats.block));
+          woStats.block = Math.min(50, Math.max(0, woStats.block));
           woStats.punching = Math.max(0, woStats.punching);
           woStats.accuracy = Math.min(2, Math.max(0.1, woStats.accuracy));
           woStats.vampir = Math.min(5.0, Math.max(0, woStats.vampir));

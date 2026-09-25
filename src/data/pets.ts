@@ -70,7 +70,7 @@ export const PET_ABILITIES: PetAbilityDef[] = [
   { id: 'pb_t3_paw', branch: 'bear', tier: 3, name: 'Тяжёлая лапа', icon: '🐾', image: '3.1', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pb_t3_roar'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 6 ходов ×2 + стан.' },
   { id: 'pb_t3_roar', branch: 'bear', tier: 3, name: 'Дикий рёв', icon: '📢', image: '3.2', kind: 'passive', maxRanks: 1, gate: 5, exclusiveWith: ['pb_t3_paw'], petApCost: 0, cooldown: 0, mechanic: 'Пассив: каждые 8 ходов −20% меткости врагам в 10 кл. на 1 ход.' },
   { id: 'pb_t4_def', branch: 'bear', tier: 4, name: 'Медвежья оборона', icon: '🛡️', image: '4.1', kind: 'stat', maxRanks: 5, gate: 5, petApCost: 0, cooldown: 0, statsPerRank: [R('pctHostArmor', 0.15, '+15% брони хозяина')], mechanic: 'Пассив: +15% брони хозяина за ранг.' },
-  { id: 'pb_t5_thick', branch: 'bear', tier: 5, name: 'Толстая кожа', icon: '🦏', image: '5.1', kind: 'stat', maxRanks: 5, gate: 5, exclusiveWith: ['pb_t5_ursok'], petApCost: 0, cooldown: 0, statsPerRank: [R('block', 0.3, '+3% блока')], mechanic: 'Пассив: +3% блока за ранг (кап 50%).' },
+  { id: 'pb_t5_thick', branch: 'bear', tier: 5, name: 'Толстая кожа', icon: '🦏', image: '5.1', kind: 'stat', maxRanks: 5, gate: 5, exclusiveWith: ['pb_t5_ursok'], petApCost: 0, cooldown: 0, statsPerRank: [R('block', 3.0, '+3% блока')], mechanic: 'Пассив: +3% блока за ранг (кап 50%).' },
   { id: 'pb_t5_ursok', branch: 'bear', tier: 5, name: 'Ярость Урсока', icon: '🐻', image: '5.2', kind: 'stat', maxRanks: 5, gate: 5, exclusiveWith: ['pb_t5_thick'], petApCost: 0, cooldown: 0, statsPerRank: [R('armorPerTurn', 0.2, '+0.2 брони/ход')], mechanic: 'Пассив: каждый ход +0.2 брони (стакается).' },
   { id: 'pb_t6_restore', branch: 'bear', tier: 6, name: 'Неистовое восстановление', icon: '💚', image: '6.1', kind: 'active', maxRanks: 1, gate: 4, exclusiveWith: ['pb_t6_regen'], petApCost: 0, cooldown: 50, mechanic: 'Лечит только медведя 25% HP каждый ход 3 хода. КД 50, 2 AP игрока.' },
   { id: 'pb_t6_regen', branch: 'bear', tier: 6, name: 'Медвежья регенерация', icon: '💗', image: '6.2', kind: 'passive', maxRanks: 1, gate: 4, exclusiveWith: ['pb_t6_restore'], petApCost: 0, cooldown: 0, statsPerRank: [R('regen', 0.03, '+3% реген')], mechanic: 'Пассив: реген 2%→5% (улучшает базу).' },
@@ -242,6 +242,8 @@ export const petRankText = (def: PetAbilityDef, rank: number): string => {
       if (s.stat === 'pctHostArmor') return `+${Math.round(s.value * rank * 100)}% брони хозяина`;
       if (s.stat === 'critPerTurn') return `+${(s.value * rank * 100).toFixed(1).replace('.', ',')}% крита/ход`;
       if (s.stat === 'punching') return `+${Math.round(s.value * rank * 100)}% ${petStatLabel(s.stat)}`;
+      // Блок — прямые проценты (без ×100).
+      if (s.stat === 'block') return `+${s.value * rank}% ${petStatLabel(s.stat)}`;
       if (s.stat === 'maxHp' || s.stat === 'damage' || (s.stat === 'armor' && s.value >= 1) || s.stat === 'armorPerTurn') return `+${(s.value * rank).toString().replace('.', ',')} ${petStatLabel(s.stat)}`;
       if (s.stat === 'regen' && s.value >= 1) return `+${s.value * rank} ${petStatLabel(s.stat)}`;
       if (s.stat === 'armor' && s.value < 1) return `+${Math.round(s.value * rank * 100)}% ${petStatLabel(s.stat)}`;
@@ -450,10 +452,10 @@ export function petBaseStats(
   kind: PetKind, levelMult: number, playerDamage: number, playerMaxHp: number, bonus: PetStatBonus, playerArmor: number = 0, playerSpeed: number = 0, playerMeleeDamage: number = 0,
 ): PetBaseNumbers {
   const base = kind === 'bear'
-    ? { hp: 600, dmgFrac: 0.25, armor: 4, eva: 0.05, block: 0.1, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0 }
+    ? { hp: 600, dmgFrac: 0.25, armor: 4, eva: 0.05, block: 1.0, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0 }
     : kind === 'wolf'
-      ? { hp: 350, dmgFrac: 0.2, armor: 1, eva: 0.15, block: 0.02, crit: 0.05, acc: 0.95, spd: 0.1, vamp: 0.05, reg: 0 }
-      : { hp: 450, dmgFrac: 0.25, armor: 2, eva: 0.08, block: 0.05, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0.01 };
+      ? { hp: 350, dmgFrac: 0.2, armor: 1, eva: 0.15, block: 0.2, crit: 0.05, acc: 0.95, spd: 0.1, vamp: 0.05, reg: 0 }
+      : { hp: 450, dmgFrac: 0.25, armor: 2, eva: 0.08, block: 0.5, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0.01 };
   const hostArmorBonus = (bonus.pctHostArmor || 0) * playerArmor;
   const maxHp = Math.round(
     (base.hp * levelMult + bonus.maxHp + playerMaxHp * bonus.pctPlayerHp) * (1 + bonus.pctBaseHp),

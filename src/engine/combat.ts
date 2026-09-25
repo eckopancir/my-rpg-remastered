@@ -142,7 +142,7 @@ export const calculateCombatStep = (
       messages.push(`💥 КРИТ x${critMult}!`);
     }
 
-    const enemyBlockChance = Math.min(enemy.block * 0.1, 0.5);
+    const enemyBlockChance = Math.min(enemy.block / 100, 0.5);
     if (enemyBlockChance > 0 && Math.random() < enemyBlockChance) {
       enemyBlocks++;
       enemyDmgBlocked += dmg;
@@ -183,7 +183,7 @@ export const calculateCombatStep = (
       messages.push(`💥 Враг критует x${critMult}!`);
     }
 
-    const playerBlockChance = Math.min(player.block * 0.1, 0.5);
+    const playerBlockChance = Math.min(player.block / 100, 0.5);
     if (playerBlockChance > 0 && Math.random() < playerBlockChance) {
       playerBlocks++;
       playerDmgBlocked += dmg;

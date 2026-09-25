@@ -14,7 +14,7 @@ const BLOCK_NEAR = new Set(['o8', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16
 
 export const EVASION_WOODS_BONUS = 0.05;
 export const ARMOR_NEAR_BONUS = 0.05;
-export const BLOCK_NEAR_BONUS = 0.25;
+export const BLOCK_NEAR_BONUS = 2.5;
 
 export interface TerrainBonus {
   evasion: number;
@@ -120,7 +120,7 @@ export const terrainSummary = (
   const parts: string[] = [];
   if (b.evasion > 0) parts.push(`🌀+${Math.round(b.evasion * 100)}%`);
   if (b.armor > 0) parts.push(`🛡️+${Math.round(b.armor * 100)}%`);
-  if (b.block > 0) parts.push(`🧱+${Math.round(b.block * 10)}%`);
+  if (b.block > 0) parts.push(`🧱+${Math.round(b.block)}%`);
   if (parts.length === 0) return { text: '📍 —', detail: `(${pos.x},${pos.y}): укрытий рядом нет` };
   return {
     text: `📍 ${parts.join(' ')}`,

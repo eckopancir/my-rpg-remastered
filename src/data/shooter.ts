@@ -275,6 +275,12 @@ export const shooterRankText = (def: ShooterAbilityDef, rank: number): string =>
       if (['autoDamage', 'pistolDamage', 'heavyDamage', 'damage', 'armor', 'maxHp', 'maxStamina'].includes(s.stat)) {
         return `+${s.value * rank} ${s.text.replace(/^[+-][\d.]+%?\s*/, '')}`;
       }
+      // Блок — прямые проценты (без ×100).
+      if (s.stat === 'block') {
+        const total = s.value * rank;
+        const label = s.text.replace(/^[+-][\d.]+%?\s*/, '');
+        return `+${total}% ${label}`;
+      }
       const total = s.value * rank;
       const shown = `${(total * 100).toFixed(total * 100 >= 10 ? 0 : 1)}%`;
       const label = s.text.replace(/^[+-][\d.]+%?\s*/, '');

@@ -246,7 +246,7 @@ const PCT_KEYS = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 
 // Формат штрафа экипировки для подписи рядом: "-3%".
 const fmtPenalty = (k: string, d: number): string => {
   const a = Math.abs(d);
-  if (k === 'block') return `${(a * 10).toFixed(a >= 0.1 ? 1 : 2)}%`;
+  if (k === 'block') return `${a.toFixed(a >= 10 ? 1 : 2)}%`;
   if (PCT_KEYS.includes(k)) {
     const p = a * 100;
     return `${p >= 10 ? p.toFixed(0) : p.toFixed(1).replace(/\.0$/, '')}%`;
@@ -259,7 +259,7 @@ const statValue = (k: string, v: number): { label: string; val: string; color: s
     // Прячем только базовую точность 0.1 без бонусов — шум.
     if (k === 'accuracy' && v === 0.1) return null;
     const label = STAT_LABELS[k] || k;
-    const val = k === 'block' ? `${(v * 10).toFixed(v >= 0.1 ? 1 : 2)}%` : PCT_KEYS.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
+    const val = k === 'block' ? `${v.toFixed(Math.abs(v) >= 10 ? 1 : 2)}%` : PCT_KEYS.includes(k) ? `${(v * 100).toFixed(v >= 0.1 ? 1 : 2)}%` : (v >= 1 ? v.toFixed(1) : v.toFixed(3));
     const color = STAT_TT_COLORS[k] || '#d1d5db';
     return { label, val, color };
   };

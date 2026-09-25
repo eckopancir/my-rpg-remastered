@@ -55,8 +55,9 @@ export const PetStatsTooltip = ({
   );
 };
 
-/** Формат строки стата: доли — в %, плоские — как есть. */
+/** Формат строки стата: доли — в %, блок — прямой % (уже проценты), плоские — как есть. */
 export const fmtPetStat = (key: string, v: number): string => {
+  if (key === 'block') return `${Math.round(v * 10) / 10}%`;
   if (['evasion', 'crit', 'vampir', 'speed', 'regen', 'punching'].includes(key)) {
     const pct = v * 100;
     return `${pct >= 10 ? Math.round(pct) : pct.toFixed(1)}%`;

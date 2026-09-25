@@ -88,6 +88,8 @@ const formatStat = (k: string, v: number): string => {
   const val = typeof v === 'number' ? (absVal >= 1 ? absVal.toFixed(1) : absVal.toFixed(3)) : v;
   if (v === 0) return '';
   const sign = v > 0 ? '+' : '-';
+  // Блок — прямые проценты.
+  if (k === 'block') return `${label}: ${sign}${typeof v === 'number' ? absVal.toFixed(1) : v}%`;
   return `${label}: ${sign}${val}`;
 };
 

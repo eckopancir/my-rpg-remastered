@@ -188,7 +188,7 @@ export const ALL_ABILITIES: AccessoryAbility[] = [
     id: 'block_stance', name: 'Стойка блока', icon: '🛡️',
     description: '+35% блока, −1 AP на 10 ходов.',
     apCost: 2, cooldown: 10,
-    effects: [{ type: 'stat_boost', stat: 'block', value: 0.35, duration: 10 }],
+    effects: [{ type: 'stat_boost', stat: 'block', value: 35, duration: 10 }],
     powerRating: 35,
   },
   {
