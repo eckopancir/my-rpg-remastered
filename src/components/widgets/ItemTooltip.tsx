@@ -338,7 +338,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         return (
           <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
             <img src={iconBullets} alt="" style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(1.2)' }} />
-            <span>Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)} · {mq}{mm > 1 ? ` (+${Math.round((mm - 1) * 100)}%)` : ''}</span>
+            <span>Патроны {ammoGroupName(ammoTypeForWeapon(item)).toLowerCase()} {item.loadedAmmo ?? 0}/{effectiveAmmoCapacity(item)} · {mq}{mm > 1 ? ` (+${Math.round((mm - 1) * 100)}%)` : ''}{(item.reloadAp || 1) > 1 ? ` · 🔁 ${item.reloadAp} AP` : ''}</span>
           </div>
         );
       })()}

@@ -4071,14 +4071,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const state = get();
     if (state.turn !== 'player') return;
     const freeReload = state.freeReloadTurns > 0;
-    if (!freeReload && state.ap < 1) { get().addMessage('❌ Нужно 1 AP для перезарядки'); return; }
-    if (state.ammo >= state.maxAmmo) { get().addMessage('✅ Патроны полны'); return; }
     // Дозарядка из запаса: без оружия — бесплатно (кулаки), иначе — патроны группы.
     // Магазин — у АКТИВНОГО оружия (Q — смена).
     const w2 = usePlayerStore.getState().getActiveWeapon();
     const wslot = usePlayerStore.getState().activeWeaponSlot;
+    // Стоимость перезарядки: у пулемётов 5 AP (лента), у остальных 1 AP.
+    const reloadCost = freeReload ? 0 : ((w2 as any)?.reloadAp || 1);
+    if (!freeReload && state.ap < reloadCost) { get().addMessage(`❌ Нужно ${reloadCost} AP для перезарядки`); return; }
+    if (state.ammo >= state.maxAmmo) { get().addMessage('✅ Патроны полны'); return; }
     if (!w2 || !w2.ammoCapacity) {
-      set((s) => ({ ap: freeReload ? s.ap : s.ap - 1, ammo: s.maxAmmo, message: freeReload ? '🔁 Перезарядился (0 AP)' : '🔁 Перезарядился (AP -1)' }));
+      set((s) => ({ ap: s.ap - reloadCost, ammo: s.maxAmmo, message: freeReload ? '🔁 Перезарядился (0 AP)' : `🔁 Перезарядился (AP -${reloadCost})` }));
       get().addPopup(state.playerPos.x, state.playerPos.y, '🔁 ПЕРЕЗАРЯДКА', 'RELOAD');
       return;
     }
@@ -4107,7 +4109,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         },
       };
     });
-    set((s) => ({ ap: freeReload ? s.ap : s.ap - 1, ammo: s.ammo + took, message: freeReload ? `🔁 +${took} (0 AP)` : `🔁 +${took} (AP -1)` }));
+    set((s) => ({ ap: s.ap - reloadCost, ammo: s.ammo + took, message: freeReload ? `🔁 +${took} (0 AP)` : `🔁 +${took} (AP -${reloadCost})` }));
     // Магазин в оружии = итог после дозарядки (не инкремент: в бою тратился state.ammo).
     const magAfter = get().ammo;
     usePlayerStore.setState((st: any) => ({

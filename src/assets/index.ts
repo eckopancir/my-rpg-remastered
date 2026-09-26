@@ -262,12 +262,22 @@ const SET_ARMOR_IMAGE_MAP: Record<string, string> = {
   'перчаткидикаря': 'вампир перчатки-photoroom',
   'ботинкидикаря': 'вампир ботинки-photoroom',
 };
+/** Арты пулемётов по нормализованному имени (фuzzy-матчинг их не ловит). */
+const MG_WEAPON_IMAGE_MAP: Record<string, string> = {
+  'm60': 'm60-photoroom',
+  'pkm': 'pkm-photoroom',
+  'm249saw': 'm249 saw-photoroom',
+  'm134minigun': 'миниган-photoroom',
+  'пкппеченег': 'пкп печенег-photoroom',
+  'm240': 'm240-photoroom',
+};
 /** Новые автоматы (20 шт.): их арты показываем крупнее —
  *  в тултипе +33% (180→240), в инвентаре +20% (44→53). */
 const LARGE_ART_WEAPONS = new Set([
   'uzi', 'thompson', 'ak-47', 'm16a4', 'famas', 'aug', 'scar-l', 'fn p90',
   'm5', 'vector', 'скс', 'winchester 1894', 'сайга-мк', 'cz 805 bren',
   'fn f2000', 'galil ace', 'arx-160', 'rec7', 'scar-h', 'аш-12',
+  'm60', 'pkm', 'm249 saw', 'пкп «печенег»', 'm240', 'm134 minigun',
 ]);
 
 export const isLargeArtWeapon = (name?: string): boolean =>
@@ -293,6 +303,9 @@ export const getItemImage = (name?: string, displayName?: string, slot?: string,
   // Арты комплектов брони — по точному имени вещи.
   const setKey = SET_ARMOR_IMAGE_MAP[lookup];
   if (setKey) return itemImageMap.get(setKey);
+  // Арты пулемётов — по точному имени ствола.
+  const mgKey = MG_WEAPON_IMAGE_MAP[lookup];
+  if (mgKey) return itemImageMap.get(mgKey);
   // Точное совпадение имени файла — приоритет (арты стволов и именные спрайты).
   // Иначе lookup с цифрами уезжает на numbered-файлы ('ak47' -> '4.png').
   const exact = itemImageMap.get(lookup);

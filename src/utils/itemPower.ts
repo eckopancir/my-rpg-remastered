@@ -14,10 +14,11 @@ const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
 
 /**
  * Средний темп стрельбы (выстрелов/ход) за 5 ходов: 5 AP, выстрел 1 AP,
- * перезарядка 1 AP при пустом магазине, запас бесконечный.
+ * перезарядка reloadAp AP при пустом магазине (у пулемётов 5 — лента),
+ * запас бесконечный.
  * Магазин 1 → 3.0; 2 → 4.0; 5/10 → 4.8; 30 → 5.0; без магазина (ближний бой) → 5.0.
  */
-export const sustainedShotsPerTurn = (ammoCapacity?: number): number => {
+export const sustainedShotsPerTurn = (ammoCapacity?: number, reloadAp = 1): number => {
   const TURNS = 5;
   const AP = 5;
   let total = 0;
@@ -28,8 +29,9 @@ export const sustainedShotsPerTurn = (ammoCapacity?: number): number => {
     let m = infinite ? AP : mag;
     while (ap >= 1) {
       if (!infinite && m <= 0) {
-        // Перезарядка за 1 AP; если AP нет — ход окончен.
-        ap -= 1;
+        // Перезарядка; если AP нет — ход окончен.
+        if (ap < reloadAp) break;
+        ap -= reloadAp;
         m = ammoCapacity as number;
         continue;
       }
@@ -48,7 +50,7 @@ export const calcItemPower = (item: Item): number => {
   // (база + моды + сферы). Не зависит от надетого — цифра стабильна везде.
   // Огнестрел: урон в sustained-эквиваленте (темп с перезарядками).
   const sustainedFactor = item.slot === 'weapon2' && item.ammoCapacity
-    ? sustainedShotsPerTurn(effectiveAmmoCapacity(item)) / 5
+    ? sustainedShotsPerTurn(effectiveAmmoCapacity(item), item.reloadAp || 1) / 5
     : 1;
   const combined: Record<string, number> = effectiveItemStats(item);
   // Моды показывают статы со скейлом уровня (как тултип) — мощность считаем с ним же.

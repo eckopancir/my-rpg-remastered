@@ -64,6 +64,12 @@ export interface ItemDefinition {
   abilityId?: string;
   ammoCapacity?: number;
   unique?: boolean;
+  // Огнестрел: явная группа патронов (иначе — автоопределение по имени).
+  ammoType?: string;
+  // Огнестрел: стоимость перезарядки в AP (по умолчанию 1).
+  reloadAp?: number;
+  // Огнестрел: явная дальность (иначе — по группе патронов).
+  range?: number;
 }
 
 export interface GeneratedItem {
@@ -87,6 +93,12 @@ export interface GeneratedItem {
   abilityId?: string;
   ammoCapacity?: number;
   unique?: boolean;
+  // Огнестрел: явная группа патронов (иначе — автоопределение по имени).
+  ammoType?: string;
+  // Огнестрел: стоимость перезарядки в AP (по умолчанию 1).
+  reloadAp?: number;
+  // Огнестрел: явная дальность (иначе — по группе патронов).
+  range?: number;
 }
 
 const assignRandomAbility = (item: GeneratedItem) => {
