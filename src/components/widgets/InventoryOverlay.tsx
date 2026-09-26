@@ -12,6 +12,7 @@ import { ChestOpening } from './ChestOpening';
 import { chestImageFor } from '../../data/chests';
 import { getConsumableIcon } from '../../data/consumables';
 import { calcItemPower } from '../../utils/itemPower';
+import { effectiveItemStats, modLevelMult } from '../../utils/itemStats';
 import { getSellPrice } from '../../utils/sellPrice';
 
 const cellSize = 48;
@@ -107,12 +108,14 @@ const STAT_ALIASES: Record<string, string[]> = {
 
 const getStatValue = (item: Item, stat: string): number => {  if (stat === 'level') return item.level || 1;
   if (stat === 'price') return item.price || getSellPrice(item);
-  const stats = item.stats || {};
+  // Как в тултипе: эффективные статы (моды + сферы), standalone-моды — со скейлом уровня.
+  const eff = effectiveItemStats(item);
+  const modMult = item.type === 'mod' ? modLevelMult(item) : 1;
   const keys = STAT_ALIASES[stat] || [stat];
   for (const key of keys) {
-    const v = stats[key];
+    const v = eff[key];
     const val = typeof v === 'object' ? ((v as any)?.base || 0) : (v || 0);
-    if (val) return val;
+    if (val) return val * modMult;
   }
   return 0;
 };
