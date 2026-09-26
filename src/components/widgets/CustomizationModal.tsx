@@ -214,13 +214,16 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
             backgroundPosition: 'center',
           }}>
 
-          {liveItem && (
+          {liveItem && (() => {
+            // Броня в кастомизации — на 30% меньше оружия.
+            const isArmor = ['head', 'armor', 'pants', 'gloves', 'boots'].includes(liveItem.slot || '');
+            return (
             <div style={{
               position: 'relative',
               width: DISPLAY_W, height: DISPLAY_H,
               maxWidth: '100%', margin: '0 auto',
               backgroundImage: itemImg ? `url(${itemImg})` : 'none',
-              backgroundSize: 'contain',
+              backgroundSize: isArmor ? '70%' : 'contain',
               backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center',
             }}>
@@ -273,7 +276,8 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
                 );
               })}
             </div>
-          )}
+            );
+          })()}
 
           <p style={{ marginTop: 14, color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center', margin: 0 }}>
             Перетащи мод из инвентаря в слот. Нажми на слот с модом, чтобы снять.

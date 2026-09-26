@@ -784,7 +784,7 @@ export const Craft = () => {
                 >
                   {reforgeWeapon ? (
                     <>
-                      {(() => { const url = reforgeWeapon.image || getItemImage(reforgeWeapon.name, reforgeWeapon.displayName, reforgeWeapon.slot, reforgeWeapon.type); const isW = reforgeWeapon.slot === 'weapon1' || reforgeWeapon.slot === 'weapon2' || String(reforgeWeapon.slot || '').startsWith('gun_'); const sz = isW ? 56 : 39; return url ? <img src={url} alt="" style={{ width: sz, height: sz, objectFit: 'contain' }} draggable={false} /> : <span style={{ fontSize: 30 }}>{SlotIcon(reforgeWeapon)}</span>; })()}
+                      {(() => { const url = reforgeWeapon.image || getItemImage(reforgeWeapon.name, reforgeWeapon.displayName, reforgeWeapon.slot, reforgeWeapon.type); return url ? <img src={url} alt="" style={{ width: 56, height: 56, objectFit: 'contain' }} draggable={false} /> : <span style={{ fontSize: 30 }}>{SlotIcon(reforgeWeapon)}</span>; })()}
                       <span style={{ color: reforgeWeapon.qualityColor || '#aaa', lineHeight: 1.1, fontSize: 10, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {reforgeWeapon.displayName || reforgeWeapon.name}
                       </span>
