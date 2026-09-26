@@ -4233,13 +4233,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const ps = usePlayerStore.getState();
         const bonus = petBranchBonuses((pet.petKind as PetKind) || 'bear', ps.skills);
         const regenFrac = 0.02 + (bonus.regen || 0);
+        // Плоский реген из статов зверя (ростовая кривая медведя): HP/ход сверху.
+        const regenFlat = Math.round((pet as any).regen || 0);
         // Ярость Урсока: +0.2 брони каждый ход, стакается — напрямую к броне.
         // Вой волка: +0.2% крита за ранг каждый ход, стакается — напрямую к криту.
         const ursokPerTurn = bonus.armorPerTurn || 0;
         const howlPerTurn = bonus.critPerTurn || 0;
         const hotFrac = (pet.petBuffs || []).filter((b: any) => b.stat === 'hotHeal').reduce((s: number, b: any) => s + (b.value || 0), 0);
         let buffs = (pet.petBuffs || []).map((b: any) => ({ ...b, remaining: b.remaining - 1 })).filter((b: any) => b.remaining > 0);
-        const heal = Math.round((pet.maxHp || 0) * regenFrac) + Math.round((pet.maxHp || 0) * hotFrac);
+        const heal = Math.round((pet.maxHp || 0) * regenFrac) + Math.round((pet.maxHp || 0) * hotFrac) + regenFlat;
         let npos = pet.pos;
         let nrot = pet.rotation;
         // Без ИИ — ходит за хозяином; с ИИ — к врагу (follow выкл).
