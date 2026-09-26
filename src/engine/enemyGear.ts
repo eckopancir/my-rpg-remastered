@@ -1,5 +1,6 @@
 import { GAME_ITEMS } from '../data/GameItems';
 import { generateItem, type ItemDefinition } from './items';
+import { effectiveItemStats } from '../utils/itemStats';
 import { ammoTypeForWeapon } from '../data/ammo';
 import { CARD_RARITY_TIERS } from '../data/encounters';
 
@@ -64,11 +65,18 @@ export const generateEnemyGear = (
   return gear;
 };
 
-/** Сумма базовых статов надетого (без сфер/модов — предсказуемо для боя). */
+/** Сумма ЭФФЕКТИВНЫХ статов надетого (база + предустановленные сферы) —
+ *  ровно то, что показывает тултип вещи. Враг 1в1 считается как мы. */
 export const sumGearStats = (gear: any[]): Record<string, number> => {
   const out: Record<string, number> = {};
   for (const g of gear || []) {
-    const stats = (g?.stats || {}) as Record<string, number>;
+    if (!g) continue;
+    let stats: Record<string, number>;
+    try {
+      stats = effectiveItemStats(g);
+    } catch {
+      stats = ((g as any)?.stats || {}) as Record<string, number>;
+    }
     for (const k of Object.keys(stats)) {
       const v = stats[k];
       if (typeof v !== 'number') continue;
