@@ -215,18 +215,23 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
           }}>
 
           {liveItem && (() => {
-            // Броня в кастомизации — на 30% меньше оружия.
+            // Броня в кастомизации — картинка на 30% меньше оружия:
+            // центрированный img 70% бокса (background-процент для
+            // портретных артов даёт перелёт по высоте).
             const isArmor = ['head', 'armor', 'pants', 'gloves', 'boots'].includes(liveItem.slot || '');
             return (
             <div style={{
               position: 'relative',
               width: DISPLAY_W, height: DISPLAY_H,
               maxWidth: '100%', margin: '0 auto',
-              backgroundImage: itemImg ? `url(${itemImg})` : 'none',
-              backgroundSize: isArmor ? '70%' : 'contain',
+              backgroundImage: !isArmor && itemImg ? `url(${itemImg})` : 'none',
+              backgroundSize: 'contain',
               backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center',
             }}>
+              {isArmor && itemImg && (
+                <img src={itemImg} alt="" draggable={false} style={{ position: 'absolute', left: '15%', top: '15%', width: '70%', height: '70%', objectFit: 'contain', pointerEvents: 'none' }} />
+              )}
               {slotsArray.map(({ id, name, top, left }) => {
                 const modItem = liveItem.mods?.[id];
                 const isCompatible = !!draggedMod && draggedMod.slot === id && !dragOverSlot;
