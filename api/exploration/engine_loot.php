@@ -145,6 +145,11 @@ function getGameItems() {
     ['name' => 'Штаны учёного', 'rarity' => 'superepic', 'slot' => 'pants', 'set' => 'Учёный', 'stats' => ['armor' => 13.2, 'health' => 412, 'regen' => 6.6, 'stamina' => 5.75, 'evasion' => -0.0165]],
     ['name' => 'Перчатки учёного', 'rarity' => 'superepic', 'slot' => 'gloves', 'set' => 'Учёный', 'stats' => ['armor' => 13.2, 'health' => 412, 'regen' => 6.6, 'stamina' => 5.75, 'evasion' => -0.0165]],
     ['name' => 'Ботинки учёного', 'rarity' => 'superepic', 'slot' => 'boots', 'set' => 'Учёный', 'stats' => ['armor' => 13.2, 'health' => 412, 'regen' => 6.6, 'stamina' => 5.75, 'evasion' => -0.0165]],
+    ['name' => 'Шлем дикаря', 'rarity' => 'normal', 'slot' => 'head', 'set' => 'Дикарь', 'stats' => ['armor' => 5.775, 'health' => 165, 'vampir' => 0.02, 'stamina' => 1.65]],
+    ['name' => 'Броня дикаря', 'rarity' => 'normal', 'slot' => 'armor', 'set' => 'Дикарь', 'stats' => ['armor' => 11.9, 'health' => 340, 'vampir' => 0.04, 'stamina' => 3.4]],
+    ['name' => 'Штаны дикаря', 'rarity' => 'normal', 'slot' => 'pants', 'set' => 'Дикарь', 'stats' => ['armor' => 5.775, 'health' => 165, 'vampir' => 0.02, 'stamina' => 1.65]],
+    ['name' => 'Перчатки дикаря', 'rarity' => 'normal', 'slot' => 'gloves', 'set' => 'Дикарь', 'stats' => ['armor' => 5.775, 'health' => 165, 'vampir' => 0.02, 'stamina' => 1.65]],
+    ['name' => 'Ботинки дикаря', 'rarity' => 'normal', 'slot' => 'boots', 'set' => 'Дикарь', 'stats' => ['armor' => 5.775, 'health' => 165, 'vampir' => 0.02, 'stamina' => 1.65]],
 
     // Ammo
     ['name' => 'Обычные патроны',         'rarity' => 'normal',    'slot' => 'ammo', 'stats' => ['damage' => 2]],
