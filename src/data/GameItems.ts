@@ -423,6 +423,12 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Штаны лесничего', rarity: 'normal', slot: 'pants', set: 'Лесничий', stats: { armor: 3.3, maxHp: 57.75, evasion: 0.0005, stamina: 0.33, regen: 0.0495 } },
   { name: 'Перчатки лесничего', rarity: 'normal', slot: 'gloves', set: 'Лесничий', stats: { armor: 3.3, maxHp: 57.75, evasion: 0.0005, stamina: 0.33, regen: 0.0495 } },
   { name: 'Ботинки лесничего', rarity: 'normal', slot: 'boots', set: 'Лесничий', stats: { armor: 3.3, maxHp: 57.75, evasion: 0.0005, stamina: 0.33, regen: 0.0495 } },
+  // Учёный (superepic, СЕВА): броня 80 суммарно; безумный реген 40 + стамина 35; дебаф −10% уклонения.
+  { name: 'Шлем учёного', rarity: 'superepic', slot: 'head', set: 'Учёный', stats: { armor: 13.2, maxHp: 412, regen: 6.6, stamina: 5.75, evasion: -0.0165 } },
+  { name: 'Броня учёного', rarity: 'superepic', slot: 'armor', set: 'Учёный', stats: { armor: 27.2, maxHp: 850, regen: 13.6, stamina: 12, evasion: -0.034 } },
+  { name: 'Штаны учёного', rarity: 'superepic', slot: 'pants', set: 'Учёный', stats: { armor: 13.2, maxHp: 412, regen: 6.6, stamina: 5.75, evasion: -0.0165 } },
+  { name: 'Перчатки учёного', rarity: 'superepic', slot: 'gloves', set: 'Учёный', stats: { armor: 13.2, maxHp: 412, regen: 6.6, stamina: 5.75, evasion: -0.0165 } },
+  { name: 'Ботинки учёного', rarity: 'superepic', slot: 'boots', set: 'Учёный', stats: { armor: 13.2, maxHp: 412, regen: 6.6, stamina: 5.75, evasion: -0.0165 } },
 
   // --- Set Ranged Weapons (not already listed above) ---
   // --- Mods ---
@@ -1167,5 +1173,6 @@ export const SET_BONUSES: Record<string, SetTierBonus[]> = {
     { count: 3, petGuard: true },
     { count: 5, petShareBear: 0.5, petShareWolf: 0.3 },
   ],
+  'Учёный': [],
 };
 
