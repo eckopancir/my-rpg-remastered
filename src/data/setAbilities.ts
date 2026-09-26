@@ -2,11 +2,11 @@ import type { AccessoryAbility } from '../types/abilities';
 
 /** Боевые способности, дарованные сетами брони (панель арены, КД как у классовых). */
 export const SET_ABILITY_DEFS: Record<string, AccessoryAbility> = {
-  setb_ammo: {
-    id: 'setb_ammo', name: 'Улучшенные бронебойные патроны', icon: '🔩',
-    description: 'Пробитие +300% на 1 ход. КД 50. Дарует сет «Призрак» (5 вещей).',
+  setb_ghost: {
+    id: 'setb_ghost', name: 'Хамелеон', icon: '🦎',
+    description: 'Невидимость на 3 хода. Враги вас теряют. КД 50. Дарует сет «Призрак» (5 вещей).',
     apCost: 2, cooldown: 50, powerRating: 65,
-    effects: [{ type: 'stat_boost', stat: 'punching', value: 3.0, duration: 1 }],
+    effects: [{ type: 'status', id: 'invisibility', duration: 3 }],
   } as AccessoryAbility,
   setb_camo: {
     id: 'setb_camo', name: 'Улучшенная маскировка', icon: '👤',
@@ -34,6 +34,12 @@ export const SET_ABILITY_DEFS: Record<string, AccessoryAbility> = {
       { type: 'stat_boost_mult', stat: 'damage', value: 0.5, duration: 3 },
       { type: 'stat_boost_mult', stat: 'regen', value: 1, duration: 3 },
     ],
+  } as AccessoryAbility,
+  setb_defib: {
+    id: 'setb_defib', name: 'Дефибриллятор', icon: '⚡',
+    description: 'Жертвует 90% HP, даёт бессмертие на 3 хода. КД 50. Дарует сет «Учёный» (5 вещей).',
+    apCost: 1, cooldown: 50, powerRating: 50,
+    effects: [],
   } as AccessoryAbility,
 };
 

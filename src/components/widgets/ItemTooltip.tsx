@@ -413,6 +413,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
                     if (tier.ability && SET_ABILITY_DEFS[tier.ability]) parts.push(`✦ ${SET_ABILITY_DEFS[tier.ability].name}`);
                     if (tier.passives) parts.push(...tier.passives.map((p) => `✦ ${SET_PASSIVE_LABELS[p] || p}`));
                     if (tier.petGuard) parts.push('✦ Страж зверя: при HP<30% −80% урона 3 хода');
+                    if (tier.lowHpRegen) parts.push(`✦ При HP<${Math.round(tier.lowHpRegen.threshold * 100)}% реген ×${tier.lowHpRegen.mult}`);
                     if (tier.petShareBear) parts.push(`✦ Медведю ${Math.round(tier.petShareBear * 100)}% урона ближнего оружия`);
                     if (tier.petShareWolf) parts.push(`✦ Волку ${Math.round(tier.petShareWolf * 100)}% HP хозяина`);
                     const isAchieved = equippedSetCount >= tier.count;

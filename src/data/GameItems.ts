@@ -348,11 +348,11 @@ export const GAME_ITEMS: ItemDefinition[] = [,
 
   // === КОМПЛЕКТЫ БРОНИ (12 сетов × 5 вещей; цифры — база 1 ур.) ===
   // Призрак (superepic, сет для снайпера): 3пк +5% укл +10% пробит; 5пк — бронебой 300% на ход.
-  { name: 'Капюшон призрака', rarity: 'superepic', slot: 'head', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
-  { name: 'Плащ призрака', rarity: 'superepic', slot: 'armor', set: 'Призрак', stats: { armor: 12, maxHp: 172, evasion: 0.0204, crit: 0.0136, speed: 0.0172, accuracy: 0.01, stamina: 5.1 } },
-  { name: 'Штаны призрака', rarity: 'superepic', slot: 'pants', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
-  { name: 'Наручи призрака', rarity: 'superepic', slot: 'gloves', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
-  { name: 'Башмаки призрака', rarity: 'superepic', slot: 'boots', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Капюшон призрака', rarity: 'superepic', slot: 'head', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.01, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Плащ призрака', rarity: 'superepic', slot: 'armor', set: 'Призрак', stats: { armor: 12, maxHp: 172, evasion: 0.0204, crit: 0.02, speed: 0.0172, accuracy: 0.01, stamina: 5.1 } },
+  { name: 'Штаны призрака', rarity: 'superepic', slot: 'pants', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.01, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Наручи призрака', rarity: 'superepic', slot: 'gloves', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.01, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Башмаки призрака', rarity: 'superepic', slot: 'boots', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.01, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
   // Разведчик (normal): 3пк +100 выносливости; 5пк +150 выносливости.
   { name: 'Шлем разведчика', rarity: 'normal', slot: 'head', set: 'Разведчик', stats: { armor: 5.75, maxHp: 107, evasion: 0.0041, speed: 0.005, accuracy: 0.0033, stamina: 3.3, regen: 0.5 } },
   { name: 'Куртка разведчика', rarity: 'normal', slot: 'armor', set: 'Разведчик', stats: { armor: 12, maxHp: 222, evasion: 0.0085, speed: 0.01, accuracy: 0.0068, stamina: 6.8, regen: 1 } },
@@ -396,11 +396,11 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Перчатки силовой брони', rarity: 'epic', slot: 'gloves', set: 'Силовая броня', stats: { armor: 16.5, maxHp: 594, block: 0.5275, regen: 1.975, stamina: 3.3, speed: -0.0198, accuracy: -0.01, evasion: -0.0165 } },
   { name: 'Сапоги силовой брони', rarity: 'epic', slot: 'boots', set: 'Силовая броня', stats: { armor: 16.5, maxHp: 594, block: 0.5275, regen: 1.975, stamina: 3.3, speed: -0.0198, accuracy: -0.01, evasion: -0.0165 } },
   // Джаггернаут (superepic): 3пк — длинный ствол + магазин (тяжёлое); 5пк — ярость джаггернаута.
-  { name: 'Шлем джаггернаута', rarity: 'superepic', slot: 'head', set: 'Джаггернаут', stats: { armor: 20.625, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.033 } },
-  { name: 'Броня джаггернаута', rarity: 'superepic', slot: 'armor', set: 'Джаггернаут', stats: { armor: 42.5, maxHp: 1700, block: 1.36, regen: 6.8, stamina: 10.2, speed: -0.068, accuracy: -0.034, evasion: -0.068 } },
-  { name: 'Штаны джаггернаута', rarity: 'superepic', slot: 'pants', set: 'Джаггернаут', stats: { armor: 20.625, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.033 } },
-  { name: 'Перчатки джаггернаута', rarity: 'superepic', slot: 'gloves', set: 'Джаггернаут', stats: { armor: 20.625, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.033 } },
-  { name: 'Ботинки джаггернаута', rarity: 'superepic', slot: 'boots', set: 'Джаггернаут', stats: { armor: 20.625, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.033 } },
+  { name: 'Шлем джаггернаута', rarity: 'superepic', slot: 'head', set: 'Джаггернаут', stats: { armor: 20.625, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.05 } },
+  { name: 'Броня джаггернаута', rarity: 'superepic', slot: 'armor', set: 'Джаггернаут', stats: { armor: 42.5, maxHp: 1700, block: 1.36, regen: 6.8, stamina: 10.2, speed: -0.068, accuracy: -0.034, evasion: -0.1 } },
+  { name: 'Штаны джаггернаута', rarity: 'superepic', slot: 'pants', set: 'Джаггернаут', stats: { armor: 20.625, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.05 } },
+  { name: 'Перчатки джаггернаута', rarity: 'superepic', slot: 'gloves', set: 'Джаггернаут', stats: { armor: 20.625, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.05 } },
+  { name: 'Ботинки джаггернаута', rarity: 'superepic', slot: 'boots', set: 'Джаггернаут', stats: { armor: 20.625, maxHp: 825, block: 0.66, regen: 3.3, stamina: 4.95, speed: -0.033, accuracy: -0.0165, evasion: -0.05 } },
   // Бродяга (normal): без бонусов, без штрафов.
   { name: 'Шлем бродяги', rarity: 'normal', slot: 'head', set: 'Бродяга', stats: { armor: 7.375, maxHp: 148, block: 0.0825, evasion: 0.0008, stamina: 0.825, regen: 0.165 } },
   { name: 'Куртка бродяги', rarity: 'normal', slot: 'armor', set: 'Бродяга', stats: { armor: 15.5, maxHp: 308, block: 0.17, evasion: 0.0017, stamina: 1.7, regen: 0.34 } },
@@ -1137,12 +1137,14 @@ export interface SetTierBonus {
   petGuard?: boolean;
   petShareBear?: number;
   petShareWolf?: number;
+  /** Условный реген: при HP ниже порога (доля maxHp) реген ×mult. */
+  lowHpRegen?: { threshold: number; mult: number };
 }
 
 export const SET_BONUSES: Record<string, SetTierBonus[]> = {
   'Призрак': [
     { count: 3, flat: { evasion: 0.05, punching: 0.10 } },
-    { count: 5, ability: 'setb_ammo' },
+    { count: 5, ability: 'setb_ghost' },
   ],
   'Разведчик': [
     { count: 3, flat: { maxStamina: 100 } },
@@ -1183,7 +1185,10 @@ export const SET_BONUSES: Record<string, SetTierBonus[]> = {
     { count: 3, petGuard: true },
     { count: 5, petShareBear: 0.5, petShareWolf: 0.3 },
   ],
-  'Учёный': [],
+  'Учёный': [
+    { count: 3, lowHpRegen: { threshold: 0.25, mult: 2 } },
+    { count: 5, ability: 'setb_defib' },
+  ],
   'Дикарь': [
     { count: 3, mults: { maxHp: 1.10 } },
     { count: 5, flat: { vampir: 0.06 } },

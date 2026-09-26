@@ -298,6 +298,9 @@ export interface SetParts {
   petGuard: boolean;
   petShareBear: number;
   petShareWolf: number;
+  /** Условный реген: порог доли HP + множитель (макс. из тиров). */
+  lowHpRegenThreshold: number;
+  lowHpRegenMult: number;
 }
 
 /** Активные тиры сета: тиры кумулятивны (на 5 вещах работают и 3пк, и 5пк). */
@@ -309,6 +312,8 @@ export const setPartsOf = (counts: Record<string, number>): SetParts => {
   let petGuard = false;
   let petShareBear = 0;
   let petShareWolf = 0;
+  let lowHpRegenThreshold = 1;
+  let lowHpRegenMult = 1;
   for (const [setName, count] of Object.entries(counts)) {
     const tiers = SET_BONUSES[setName];
     if (!tiers) continue;
@@ -321,9 +326,13 @@ export const setPartsOf = (counts: Record<string, number>): SetParts => {
       if (tier.petGuard) petGuard = true;
       if (tier.petShareBear) petShareBear = Math.max(petShareBear, tier.petShareBear);
       if (tier.petShareWolf) petShareWolf = Math.max(petShareWolf, tier.petShareWolf);
+      if (tier.lowHpRegen) {
+        lowHpRegenMult = Math.max(lowHpRegenMult, tier.lowHpRegen.mult);
+        lowHpRegenThreshold = Math.min(lowHpRegenThreshold, tier.lowHpRegen.threshold);
+      }
     }
   }
-  return { flat, mults, abilities, passives, petGuard, petShareBear, petShareWolf };
+  return { flat, mults, abilities, passives, petGuard, petShareBear, petShareWolf, lowHpRegenThreshold, lowHpRegenMult };
 };
 
 /** Ранг пассивки: очки навыков + дарованная сетом (считается за 1). */
@@ -331,6 +340,16 @@ export const passiveRank = (id: string): number => {
   const s = usePlayerStore.getState();
   const fromSet = setPartsOf(setCountsOf(s.equipment as any)).passives.includes(id) ? 1 : 0;
   return (s.skills[id] || 0) + fromSet;
+};
+
+/** Множитель регена от сетов: Учёный 3пк — при HP ниже порога реген ×mult, иначе 1. */
+export const lowHpRegenMult = (): number => {
+  const s = usePlayerStore.getState();
+  const parts = setPartsOf(setCountsOf(s.equipment as any));
+  if (parts.lowHpRegenMult <= 1) return 1;
+  const max = s.stats.maxHp || 1;
+  if ((s.stats.currentHp || 0) < max * parts.lowHpRegenThreshold) return parts.lowHpRegenMult;
+  return 1;
 };
 
 const sumItemStats = (items: (Item | null)[]): PlayerStats => {  const total = { ...EMPTY_STATS };
@@ -2278,14 +2297,15 @@ export const usePlayerStore = create<PlayerStore>()(
       restTick: () => {
         const s = get();
         if (s.stats.currentHp >= s.stats.maxHp && s.stats.stamina >= s.stats.maxStamina) return true;
-        const regenUsed = s.stats.regen;
+        // Сет «Учёный» 3пк: при HP<25% реген удваивается (и на отдыхе).
+        const regenUsed = s.stats.regen * lowHpRegenMult();
         const hpBefore = s.stats.currentHp;
         const hpAfter = Math.min(s.stats.maxHp, hpBefore + regenUsed * 3 + 5);
         console.log('[REST_TICK_FN]', { before: hpBefore, regenUsed, formula: `${regenUsed}*3+5=${regenUsed*3+5}`, after: hpAfter, maxHp: s.stats.maxHp, ts: Date.now() });
         set((state) => ({
           stats: {
             ...state.stats,
-            currentHp: Math.min(state.stats.maxHp, state.stats.currentHp + state.stats.regen * 3 + 5),
+            currentHp: Math.min(state.stats.maxHp, state.stats.currentHp + state.stats.regen * lowHpRegenMult() * 3 + 5),
             stamina: Math.min(state.stats.maxStamina, state.stats.stamina + 2),
           },
         }));

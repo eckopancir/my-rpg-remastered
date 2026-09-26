@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { usePlayerStore, passiveRank, setPartsOf, setCountsOf } from './playerStore';
+import { usePlayerStore, passiveRank, setPartsOf, setCountsOf, lowHpRegenMult } from './playerStore';
 import { gunSlotForWeapon } from './playerStore';
 import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
@@ -2745,8 +2745,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       get().addBattleLog(`🌈 ${ability.name}: +50% стихийного урона пистолета на 10 ходов`);
     }
 
-    // Second wind: sacrifice 90% HP, gain immortality for 3 turns
-    if (ability.id === 'second_wind') {
+    // Second wind: sacrifice 90% HP, gain immortality for 3 turns.
+    // Сет «Учёный» (5 вещей) дарует то же через Дефибриллятор.
+    if (ability.id === 'second_wind' || ability.id === 'setb_defib') {
       const player = usePlayerStore.getState();
       const newHp = Math.round(player.stats.maxHp * 0.1);
       const sacrifice = player.stats.currentHp - newHp;
@@ -3667,16 +3668,18 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Выстрел услышали все в радиусе 20 от жертвы — бегут в бой.
     get().aggroWave(enemy.pos);
 
-    // Vamp + regen
+    // Vamp + regen (сет «Учёный» 3пк: при HP<25% реген удваивается).
+    const regenMult = lowHpRegenMult();
+    const regenHeal = (player.stats.regen || 0) * regenMult;
     usePlayerStore.setState((st) => ({
       stats: {
         ...st.stats,
-        currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vampHeal + (player.stats.regen || 0)),
+        currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vampHeal + regenHeal),
       },
     }));
 
     if (vampHeal > 0) get().addPopup(state.playerPos.x, state.playerPos.y, `+${vampHeal} 🩸`, 'VAMP');
-    if ((player.stats.regen || 0) > 0) get().addPopup(state.playerPos.x, state.playerPos.y, `+${Math.round(player.stats.regen || 0)} HP`, 'HEAL');
+    if (regenHeal > 0) get().addPopup(state.playerPos.x, state.playerPos.y, `+${Math.round(regenHeal)} HP`, 'HEAL');
 
     // Extra shots from speed (no AP/ammo cost). Боевой раж стрелка складывается сюда же.
     const bonusShots = calcExtraShots((player.stats.speed || 0) + (get().bonusSpeed || 0));
