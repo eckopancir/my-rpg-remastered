@@ -416,9 +416,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
                     if (tier.petShareBear) parts.push(`✦ Медведю ${Math.round(tier.petShareBear * 100)}% урона ближнего оружия`);
                     if (tier.petShareWolf) parts.push(`✦ Волку ${Math.round(tier.petShareWolf * 100)}% HP хозяина`);
                     const isAchieved = equippedSetCount >= tier.count;
-                    const isMax = idx === SET_BONUSES[item.set].length - 1;
                     return (
-                      <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : isMax ? '#c084fc' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4, wordBreak: 'break-word' }}>
+                      <div key={idx} style={{ fontSize: 10, color: isAchieved ? '#4ade80' : 'rgba(255,255,255,0.35)', marginTop: 2, lineHeight: 1.4, wordBreak: 'break-word' }}>
                         {isAchieved ? '◆ ' : '◇ '}({tier.count}) {parts.join(', ')}
                       </div>
                     );
