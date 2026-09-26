@@ -253,7 +253,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           })()}
         </div>
       )}
-        <div style={{ padding: '8px 14px 12px' }}>
+        <div style={{ padding: '4px 14px 2px' }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: hex, lineHeight: 1.2, textShadow: '0 1px 0 rgba(0,0,0,0.6)', textAlign: 'center', whiteSpace: 'nowrap' }}>
           {item.displayName || item.name}
         </div>
@@ -262,7 +262,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
             УНИК
           </div>
         )}
-        <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.45)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 2, fontSize: 11, color: 'rgba(255,255,255,0.45)', flexWrap: 'wrap' }}>
           <span>Lv.{item.level || 1}</span>
           {item.slot && <span>• {item.slot === 'weapon2' ? weaponClassOf(item) : (SLOT_LABELS[item.slot] || item.slot)}</span>}
           {item.slot && MOD_SLOTS_MAP[item.slot] && <span>• ⚙ {item.mods ? Object.keys(item.mods).length : 0}/{MOD_SLOTS_MAP[item.slot].length}</span>}
@@ -377,7 +377,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         );
       })()}
       {/* divider like screenshot */}
-      <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '10px 0 10px' }} />
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '2px 0 6px' }} />
 
       {/* set bonuses — спойлер */}
       {item.set && SET_BONUSES[item.set] && SET_BONUSES[item.set].length > 0 && (() => {
