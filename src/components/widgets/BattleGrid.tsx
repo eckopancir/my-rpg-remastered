@@ -190,9 +190,9 @@ export const BattleGrid = () => {
       volleySeq.current += 1;
       setVolleyKey(volleySeq.current);
       setVolley(shotLine);
-    }
-    if (shotLine && !prevShotLine.current) {
       // Звук выстрела — от класса оружия (из данных игры); иначе старый shot1/2.
+      // Играет на КАЖДЫЙ новый shotLine (включая бонус-выстрелы за скорость),
+      // а не только по фронту null→set — таймеры залпов иначе глушат друг друга.
       playSound((shotLine.sound || (Math.random() > 0.5 ? 'shot1' : 'shot2')) as any);
     }
     prevShotLine.current = shotLine;

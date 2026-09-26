@@ -1450,6 +1450,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const scaledHealth = Math.round(base.health * totalMult * BASE_F + (gb.maxHp || 0) * 0.5);
       const scaledDamage = Math.round(base.damage * totalMult * BASE_F + (gb.damage || 0) * cardMult);
       const newSpeed = base.speed * totalMult + (gb.speed || 0);
+      // Дистанция боя — по надетому стволу (дробь близко, снайперка далеко).
+      const gearWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
+      const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
       const spawnX = Math.min(GRID - 3, Math.max(1, GRID - 3 - (i % 4) * 2));
       // Кламп в карту: иначе индекс 9+ улетает за край (y до 55 при сетке 32)
       // и «остался 1 противник» висит вечно.
@@ -1490,7 +1493,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         dead: false,
         runAp: base.runAp || 4,
         rotation: 270,
-        rangeDistance: base.rangeDistance || 7,
+        rangeDistance: gearRange || base.rangeDistance || 7,
         shotPrice: base.shotPrice || 1,
         skillUse: abilities,
         cooldowns: {},
@@ -2112,6 +2115,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           if (pick.currentHp <= 0) {
             pick.dead = true;
             pick.isHit = false;
+            pick.gear = rollGearBreakage((pick as any).gear || []);
             get().addBattleLog(`💀 ${pick.name} уничтожен!`);
           }
           if (i === 19) set({ enemies: [...get().enemies] });
@@ -2152,6 +2156,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           if (pick.currentHp <= 0) {
             pick.dead = true;
             pick.isHit = false;
+            pick.gear = rollGearBreakage((pick as any).gear || []);
             get().addBattleLog(`💀 ${pick.name} уничтожен!`);
           }
           if (i === shots - 1) set({ enemies: [...get().enemies] });
@@ -2328,6 +2333,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               get().addPopup(tgt.pos.x, tgt.pos.y, `-${rawDmg} 🎯`, 'DMG');
               if (tgt.currentHp <= 0) {
                 tgt.dead = true; tgt.isHit = false;
+                tgt.gear = rollGearBreakage((tgt as any).gear || []);
                 get().addBattleLog(`💀 ${tgt.name} уничтожен!`);
               }
               get().triggerShake();
@@ -2357,7 +2363,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                   e.currentHp = Math.max(0, e.currentHp - splashDmg);
                   e.isHit = true;
                   get().addPopup(e.pos.x, e.pos.y, `-${splashDmg} 💥`, 'DMG');
-                  if (e.currentHp <= 0) { e.dead = true; e.isHit = false; get().addBattleLog(`💀 ${e.name} уничтожен!`); }
+                  if (e.currentHp <= 0) { e.dead = true; e.isHit = false; e.gear = rollGearBreakage((e as any).gear || []); get().addBattleLog(`💀 ${e.name} уничтожен!`); }
                 }
               });
               set({ enemies: [...s.enemies] });
@@ -2387,6 +2393,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             get().addBattleLog(`💀 ${ability.name}: ${tgt.name} теряет ${pctDmg} HP`);
             if (tgt.currentHp <= 0) {
               tgt.dead = true; tgt.isHit = false;
+              tgt.gear = rollGearBreakage((tgt as any).gear || []);
               get().addBattleLog(`💀 ${tgt.name} уничтожен!`);
             }
             set({ enemies: [...s.enemies] });
@@ -2419,6 +2426,42 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                       e.dead = true; e.isHit = false;
                       get().addBattleLog(`💀 ${e.name} уничтожен!`);
                     }
+                  }
+                }
+                return e;
+              });
+              set({ enemies });
+              get().triggerShake();
+              // Add explosion global effect
+              set((st: any) => ({
+                globalEffects: [...st.globalEffects, { type: 'GRENADE' as const, pos: { ...targetEnemy.pos }, damage: 0, timer: 2 }],
+              }));
+              setTimeout(() => set((st: any) => ({ globalEffects: st.globalEffects.filter((g: any) => g.timer > 1) })), 2000);
+            }, 2000);
+            continue;
+          }
+
+          // Стрелок Т0 «Осколочная граната»: полёт + взрыв как у расходника.
+          if (ability.id === 'shtb_grenade') {
+            playCombatSound('grenadegun', 0.4);
+            set({ flyingGrenade: { from: state.playerPos, to: targetEnemy.pos } });
+            get().addBattleLog(`💣 ${ability.name}: бросок...`);
+            setTimeout(() => {
+              const s = get();
+              set({ flyingGrenade: null });
+              const radius = Math.ceil(Math.sqrt(2) / 2);
+              const enemies = s.enemies.map((e: GridEnemy) => {
+                if (e.dead) return e;
+                const dist = Math.abs(e.pos.x - targetEnemy.pos.x) + Math.abs(e.pos.y - targetEnemy.pos.y);
+                if (dist <= radius) {
+                  const finalDmg = Math.round(dmg * (1 - dist * 0.15));
+                  e.currentHp = Math.max(0, e.currentHp - finalDmg);
+                  get().addPopup(e.pos.x, e.pos.y, `-${finalDmg}`, 'DMG');
+                  if (e.currentHp <= 0) {
+                    e.dead = true;
+                    (e as any).gear = rollGearBreakage((e as any).gear || []); e.isHit = false;
+                    e.gear = rollGearBreakage((e as any).gear || []);
+                    get().addBattleLog(`💀 ${e.name} уничтожен!`);
                   }
                 }
                 return e;
@@ -2508,6 +2551,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             if (targetEnemy.currentHp <= 0) {
               targetEnemy.dead = true;
               targetEnemy.isHit = false;
+              (targetEnemy as any).gear = rollGearBreakage((targetEnemy as any).gear || []);
               get().addBattleLog(`💀 ${targetEnemy.name} уничтожен!`);
             }
           }
@@ -3576,7 +3620,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           enemies: s2.enemies.map((e) => {
             if (hitIds.has(e.id) && !e.dead && e.currentHp <= 0) {
               killed += 1;
-              return { ...e, dead: true, isHit: false };
+              return { ...e, dead: true, isHit: false, gear: rollGearBreakage((e as any).gear || []) };
             }
             return e;
           }),
@@ -3981,6 +4025,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const waveHealth = Math.round(base.scaledHealth * BASE_F + (gb.maxHp || 0) * 0.5);
       const waveDamage = Math.round(base.scaledDamage * BASE_F + (gb.damage || 0) * cardMult);
       const waveSpeed = base.scaledSpeed + (gb.speed || 0);
+      // Дистанция волны — по надетому стволу.
+      const waveWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
+      const waveRange = waveWeapon ? weaponRangeProfile(waveWeapon).range : 0;
       // Позывной без повторов с живыми в бою (включая свою же волну).
       const used = new Set([...state.enemies, ...newEnemies].map((e) => (e as GridEnemy).callsign));
       const free = CALLSIGNS.filter((c) => !used.has(c));
@@ -4020,7 +4067,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         dead: false,
         runAp: base.runAp || 4,
         rotation: 270,
-        rangeDistance: base.rangeDistance || 7,
+        rangeDistance: waveRange || base.rangeDistance || 7,
         shotPrice: base.shotPrice || 1,
         skillUse: [],
         cooldowns: {},

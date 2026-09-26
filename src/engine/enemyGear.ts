@@ -44,6 +44,9 @@ export const generateEnemyGear = (
 ): any[] => {
   const gear: any[] = [];
   const spec = weaponSpecFor(factionKey);
+  // Кап качества: максимум Раритетный (боссам — полная лотерея).
+  // Иначе смертоносное/божественное падает с каждого второго трупа.
+  const maxQuality = (factionKey || '').includes('boss') ? null : 'Раритетный';
   try {
     const pool = (GAME_ITEMS as ItemDefinition[]).filter(
       (d) => d && d.slot === spec.slot && (!spec.group || groupOf(d) === spec.group),
@@ -52,14 +55,14 @@ export const generateEnemyGear = (
       ? pool
       : (GAME_ITEMS as ItemDefinition[]).filter((d) => d && d.slot === spec.slot);
     if (src.length > 0) {
-      const w: any = generateItem(src as any, playerLevel, forceRarity as any, null, spec.slot);
+      const w: any = generateItem(src as any, playerLevel, forceRarity as any, null, spec.slot, maxQuality);
       if (w && typeof w.ammoCapacity === 'number') w.loadedAmmo = w.ammoCapacity;
       gear.push(w);
     }
   } catch { /* ignore */ }
   for (const slot of ENEMY_CLOTH_SLOTS) {
     try {
-      gear.push(generateItem(GAME_ITEMS as any, playerLevel, forceRarity as any, null, slot));
+      gear.push(generateItem(GAME_ITEMS as any, playerLevel, forceRarity as any, null, slot, maxQuality));
     } catch { /* ignore */ }
   }
   return gear;

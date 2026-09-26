@@ -243,6 +243,9 @@ export const generateItem = (
   guaranteedRarity: RarityKey | null = null,
   guaranteedQualityName: string | null = null,
   slotFilter?: string,
+  // Потолок качества (гир врагов: максимум Раритетный — смертоносное
+  // и выше им не падает, иначе божественное сыплется пачками).
+  maxQualityName: string | null = null,
 ): GeneratedItem => {
   let selectedRarity: string;
   if (guaranteedRarity) {
@@ -293,6 +296,12 @@ export const generateItem = (
   }
   if (!qualityTier) {
     qualityTier = getItemQuality();
+  }
+  // Потолок качества: выше maxQualityName не роллим.
+  if (maxQualityName) {
+    const maxIdx = QUALITY_TIERS.findIndex((t) => t.name === maxQualityName);
+    const curIdx = QUALITY_TIERS.findIndex((t) => t.name === qualityTier?.name);
+    if (maxIdx >= 0 && curIdx > maxIdx) qualityTier = QUALITY_TIERS[maxIdx];
   }
 
   generatedItem.quality = qualityTier.name;

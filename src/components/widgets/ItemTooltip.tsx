@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { getItemImage, images, crystalImages, getSchemeImage, isLargeArtWeapon } from '../../assets/index';
 import iconBullets from '../../assets/images/ui/icon-bullets.png';
 import iconScope from '../../assets/images/ui/icon-scope.png';
@@ -191,7 +192,9 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     'Эпический': '#a855f7', 'Смертоносный': '#ef4444', 'Легендарный': '#fbbf24', 'Божественный': '#22d3ee',
   };
   const hex = QUALITY_HEX_MAP[item.quality || ''] || (qc.startsWith('#') ? qc : '#a0a0a0');
-  return (
+  // Портал в body: тултип поверх всех окон (модалки со своими
+  // stacking-контекстами иначе перекрывают сравнение).
+  return createPortal(
     <>
     {showCompare && !nested && (
       <ItemTooltip item={compareItem} x={compareX} y={compareY} nested />
@@ -551,7 +554,8 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       )}
       </div>
     </div>
-    </>
+    </>,
+    document.body,
   );
 };
 
