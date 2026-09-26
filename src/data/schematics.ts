@@ -117,14 +117,15 @@ export const schematicBonusOf = (item: Pick<Item, 'sockets'>): Record<string, nu
 /** Скейл статов от уровня (как при генерации): ×(1 + (lvl-1)*0.1). */
 export const levelStatMult = (level: number): number => 1 + (Math.max(1, level) - 1) * 0.1;
 
-/** Пересчёт статов предмета на новый уровень из базы 1 ур. Штрафы плоские. */
+/** Пересчёт статов предмета на новый уровень из базы 100 ур. Штрафы растут с уровнем (не плоские). */
 export const statsForLevel = (base1: Record<string, number>, newLevel: number): Record<string, number> => {
   const mult = levelStatMult(newLevel);
+  const lvl100 = levelStatMult(100);
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(base1)) {
     if (typeof v !== 'number') continue;
-    if (v < 0) { out[k] = v; continue; }
-    const scaled = v * mult;
+    const ref = v < 0 ? v / lvl100 : v;
+    const scaled = ref * mult;
     out[k] = Math.abs(v) < 1 ? Math.round(scaled * 10000) / 10000 : Math.round(scaled);
   }
   return out;

@@ -348,11 +348,11 @@ export const GAME_ITEMS: ItemDefinition[] = [,
 
   // === КОМПЛЕКТЫ БРОНИ (12 сетов × 5 вещей; цифры — база 1 ур.) ===
   // Призрак (superepic, сет для снайпера): 3пк +5% укл +10% пробит; 5пк — бронебой 300% на ход.
-  { name: 'Капюшон призрака', rarity: 'superepic', slot: 'head', set: 'Призрак', stats: { armor: 5, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
-  { name: 'Плащ призрака', rarity: 'superepic', slot: 'armor', set: 'Призрак', stats: { armor: 10, maxHp: 172, evasion: 0.0204, crit: 0.0136, speed: 0.0172, accuracy: 0.01, stamina: 5.1 } },
-  { name: 'Штаны призрака', rarity: 'superepic', slot: 'pants', set: 'Призрак', stats: { armor: 5, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
-  { name: 'Наручи призрака', rarity: 'superepic', slot: 'gloves', set: 'Призрак', stats: { armor: 5, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
-  { name: 'Башмаки призрака', rarity: 'superepic', slot: 'boots', set: 'Призрак', stats: { armor: 5, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Капюшон призрака', rarity: 'superepic', slot: 'head', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Плащ призрака', rarity: 'superepic', slot: 'armor', set: 'Призрак', stats: { armor: 12, maxHp: 172, evasion: 0.0204, crit: 0.0136, speed: 0.0172, accuracy: 0.01, stamina: 5.1 } },
+  { name: 'Штаны призрака', rarity: 'superepic', slot: 'pants', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Наручи призрака', rarity: 'superepic', slot: 'gloves', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
+  { name: 'Башмаки призрака', rarity: 'superepic', slot: 'boots', set: 'Призрак', stats: { armor: 6, maxHp: 82, evasion: 0.0099, crit: 0.0066, speed: 0.0082, accuracy: 0.005, stamina: 2.475 } },
   // Разведчик (normal): 3пк +100 выносливости; 5пк +150 выносливости.
   { name: 'Шлем разведчика', rarity: 'normal', slot: 'head', set: 'Разведчик', stats: { armor: 5.75, maxHp: 107, evasion: 0.0041, speed: 0.005, accuracy: 0.0033, stamina: 3.3, regen: 0.5 } },
   { name: 'Куртка разведчика', rarity: 'normal', slot: 'armor', set: 'Разведчик', stats: { armor: 12, maxHp: 222, evasion: 0.0085, speed: 0.01, accuracy: 0.0068, stamina: 6.8, regen: 1 } },

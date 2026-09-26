@@ -75,11 +75,11 @@ function getGameItems() {
     ['name' => 'Снайперская винтовка','rarity' => 'epic',  'slot' => 'weapon2', 'stats' => ['damage' => 22, 'crit' => 0.08], 'ammoCapacity' => 5],
 
     // Armor sets (12 комплектов × 5; PHP-статы: health вместо maxHp)
-    ['name' => 'Капюшон призрака', 'rarity' => 'superepic', 'slot' => 'head', 'set' => 'Призрак', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
-    ['name' => 'Плащ призрака', 'rarity' => 'superepic', 'slot' => 'armor', 'set' => 'Призрак', 'stats' => ['armor' => 10, 'health' => 172, 'evasion' => 0.0204, 'crit' => 0.0136, 'speed' => 0.0172, 'accuracy' => 0.01, 'stamina' => 5.1]],
-    ['name' => 'Штаны призрака', 'rarity' => 'superepic', 'slot' => 'pants', 'set' => 'Призрак', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
-    ['name' => 'Наручи призрака', 'rarity' => 'superepic', 'slot' => 'gloves', 'set' => 'Призрак', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
-    ['name' => 'Башмаки призрака', 'rarity' => 'superepic', 'slot' => 'boots', 'set' => 'Призрак', 'stats' => ['armor' => 5, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Капюшон призрака', 'rarity' => 'superepic', 'slot' => 'head', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Плащ призрака', 'rarity' => 'superepic', 'slot' => 'armor', 'set' => 'Призрак', 'stats' => ['armor' => 12, 'health' => 172, 'evasion' => 0.0204, 'crit' => 0.0136, 'speed' => 0.0172, 'accuracy' => 0.01, 'stamina' => 5.1]],
+    ['name' => 'Штаны призрака', 'rarity' => 'superepic', 'slot' => 'pants', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Наручи призрака', 'rarity' => 'superepic', 'slot' => 'gloves', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Башмаки призрака', 'rarity' => 'superepic', 'slot' => 'boots', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.0066, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
     ['name' => 'Шлем разведчика', 'rarity' => 'normal', 'slot' => 'head', 'set' => 'Разведчик', 'stats' => ['armor' => 5.75, 'health' => 107, 'evasion' => 0.0041, 'speed' => 0.005, 'accuracy' => 0.0033, 'stamina' => 3.3, 'regen' => 0.5]],
     ['name' => 'Куртка разведчика', 'rarity' => 'normal', 'slot' => 'armor', 'set' => 'Разведчик', 'stats' => ['armor' => 12, 'health' => 222, 'evasion' => 0.0085, 'speed' => 0.01, 'accuracy' => 0.0068, 'stamina' => 6.8, 'regen' => 1]],
     ['name' => 'Штаны разведчика', 'rarity' => 'normal', 'slot' => 'pants', 'set' => 'Разведчик', 'stats' => ['armor' => 5.75, 'health' => 107, 'evasion' => 0.0041, 'speed' => 0.005, 'accuracy' => 0.0033, 'stamina' => 3.3, 'regen' => 0.5]],
@@ -260,9 +260,13 @@ function generateItem($playerLevel, $guaranteedRarity = null, $slotFilter = null
     $finalStats[$statKey] = ($finalStats[$statKey] ?? 0) + $bonusVal;
   }
 
-  // Scale base stats by level (штрафы не растут — только положительные статы).
+  // База = значения 100 ур.: плюсы и штрафы скейлятся множителем уровня,
+  // штрафы — от базы/5.95 (на 1 ур. маленькие, на 100 — прописанные, не зануляются).
+  $lvl100mult = 1 + 99 * 0.05;
   foreach ($finalStats as $k => $v) {
-    if ($v > 0) $v = $v * $levelMult;
+    $orig = ($base['stats'] ?? [])[$k] ?? 0;
+    if ($orig > 0) $v = ($v - $orig) + $orig * $levelMult;
+    elseif ($orig < 0) $v = ($v - $orig) + ($orig / $lvl100mult) * $levelMult;
     $finalStats[$k] = round($v, 3);
   }
 

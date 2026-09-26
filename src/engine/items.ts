@@ -167,8 +167,19 @@ let _idCounter = 0;
 
 const uniqueId = () => String(Date.now()) + '_' + (++_idCounter) + '_' + Math.random().toString(36).slice(2, 8);
 
-// Скалирование как раньше: ВСЕ базовые статы растут с уровнем.
-// Штрафы (отрицательные) при этом НЕ растут и НЕ зануляются.
+// Скалирование: база предмета = значения 100 ур.
+// Плюсы растут с 1 ур. (×(1 + (lvl-1)*0.05)), штрафы — тоже:
+// на 1 ур. маленькие (÷5.95), на 100 — прописанные, дальше растут.
+// Штрафы при этом НЕ зануляются.
+// Множитель сотки: 1 + 99*0.05 = 5.95.
+export const LEVEL_100_MULT = 1 + 99 * 0.05;
+
+/** Скейл базового стата на уровень: плюсы от базы, штрафы от базы/5.95. */
+export const scaledBaseStat = (base: number, playerLevel: number): number => {
+  const mult = 1 + (playerLevel - 1) * 0.05;
+  const ref = base > 0 ? base : base / LEVEL_100_MULT;
+  return ref * mult;
+};
 
 // Стихийный урон может появиться на оружии с уровнем, даже если его
 // не было в базе. Выносливость — только на броне (слот armor-класса).
@@ -382,9 +393,8 @@ export const generateItem = (
       const originalBaseStat = baseItem.stats[statKey] || 0;
       // Моды хранят базу: скейлит рантайм по уровню мода. Тут не масштабируем.
       if (generatedItem.slot.startsWith('mod_')) break;
-      if (originalBaseStat !== 0 && originalBaseStat > 0) {
-        const levelMultiplier = 1 + (playerLevel - 1) * 0.05;
-        finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
+      if (originalBaseStat !== 0) {
+        finalStats[statKey] += scaledBaseStat(originalBaseStat, playerLevel) - originalBaseStat;
       }
       // Штрафы (отрицательные) сохраняются — не зануляем.
       finalStats[statKey] = parseFloat(finalStats[statKey].toFixed(3));
@@ -397,12 +407,10 @@ export const generateItem = (
     const originalBaseStat = baseItem.stats[statKey] || 0;
     // Моды хранят базу: скейлит рантайм по уровню мода. Тут не масштабируем.
     if (generatedItem.slot.startsWith('mod_')) break;
-    // Штрафы не растут с уровнем (остаются как в базе) и не зануляются.
-    if (originalBaseStat !== 0 && originalBaseStat > 0) {
-      const levelMultiplier = 1 + (playerLevel - 1) * 0.05;
-      finalStats[statKey] += originalBaseStat * levelMultiplier - originalBaseStat;
+    // Плюсы и штрафы скейлятся от базы 100 ур. (штрафы — не зануляем).
+    if (originalBaseStat !== 0) {
+      finalStats[statKey] += scaledBaseStat(originalBaseStat, playerLevel) - originalBaseStat;
     }
-    // Штрафы (отрицательные) сохраняются — не зануляем.
     finalStats[statKey] = parseFloat(finalStats[statKey].toFixed(3));
   }
 
