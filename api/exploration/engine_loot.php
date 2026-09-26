@@ -75,11 +75,11 @@ function getGameItems() {
     ['name' => 'Снайперская винтовка','rarity' => 'epic',  'slot' => 'weapon2', 'stats' => ['damage' => 22, 'crit' => 0.08], 'ammoCapacity' => 5],
 
     // Armor sets (12 комплектов × 5; PHP-статы: health вместо maxHp)
-    ['name' => 'Капюшон призрака', 'rarity' => 'superepic', 'slot' => 'head', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.01, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
-    ['name' => 'Плащ призрака', 'rarity' => 'superepic', 'slot' => 'armor', 'set' => 'Призрак', 'stats' => ['armor' => 12, 'health' => 172, 'evasion' => 0.0204, 'crit' => 0.02, 'speed' => 0.0172, 'accuracy' => 0.01, 'stamina' => 5.1]],
-    ['name' => 'Штаны призрака', 'rarity' => 'superepic', 'slot' => 'pants', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.01, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
-    ['name' => 'Наручи призрака', 'rarity' => 'superepic', 'slot' => 'gloves', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.01, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
-    ['name' => 'Башмаки призрака', 'rarity' => 'superepic', 'slot' => 'boots', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0099, 'crit' => 0.01, 'speed' => 0.0082, 'accuracy' => 0.005, 'stamina' => 2.475]],
+    ['name' => 'Капюшон призрака', 'rarity' => 'superepic', 'slot' => 'head', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0149, 'crit' => 0.0149, 'speed' => 0.0082, 'accuracy' => 0.0132, 'stamina' => 2.475]],
+    ['name' => 'Плащ призрака', 'rarity' => 'superepic', 'slot' => 'armor', 'set' => 'Призрак', 'stats' => ['armor' => 12, 'health' => 172, 'evasion' => 0.0306, 'crit' => 0.0306, 'speed' => 0.0172, 'accuracy' => 0.0272, 'stamina' => 5.1]],
+    ['name' => 'Штаны призрака', 'rarity' => 'superepic', 'slot' => 'pants', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0149, 'crit' => 0.0149, 'speed' => 0.0082, 'accuracy' => 0.0132, 'stamina' => 2.475]],
+    ['name' => 'Наручи призрака', 'rarity' => 'superepic', 'slot' => 'gloves', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0149, 'crit' => 0.0149, 'speed' => 0.0082, 'accuracy' => 0.0132, 'stamina' => 2.475]],
+    ['name' => 'Башмаки призрака', 'rarity' => 'superepic', 'slot' => 'boots', 'set' => 'Призрак', 'stats' => ['armor' => 6, 'health' => 82, 'evasion' => 0.0149, 'crit' => 0.0149, 'speed' => 0.0082, 'accuracy' => 0.0132, 'stamina' => 2.475]],
     ['name' => 'Шлем разведчика', 'rarity' => 'normal', 'slot' => 'head', 'set' => 'Разведчик', 'stats' => ['armor' => 5.75, 'health' => 107, 'evasion' => 0.0041, 'speed' => 0.005, 'accuracy' => 0.0033, 'stamina' => 3.3, 'regen' => 0.5]],
     ['name' => 'Куртка разведчика', 'rarity' => 'normal', 'slot' => 'armor', 'set' => 'Разведчик', 'stats' => ['armor' => 12, 'health' => 222, 'evasion' => 0.0085, 'speed' => 0.01, 'accuracy' => 0.0068, 'stamina' => 6.8, 'regen' => 1]],
     ['name' => 'Штаны разведчика', 'rarity' => 'normal', 'slot' => 'pants', 'set' => 'Разведчик', 'stats' => ['armor' => 5.75, 'health' => 107, 'evasion' => 0.0041, 'speed' => 0.005, 'accuracy' => 0.0033, 'stamina' => 3.3, 'regen' => 0.5]],
