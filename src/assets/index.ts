@@ -277,11 +277,16 @@ const LARGE_ART_WEAPONS = new Set([
   'uzi', 'thompson', 'ak-47', 'm16a4', 'famas', 'aug', 'scar-l', 'fn p90',
   'm5', 'vector', 'скс', 'winchester 1894', 'сайга-мк', 'cz 805 bren',
   'fn f2000', 'galil ace', 'arx-160', 'rec7', 'scar-h', 'аш-12',
-  'm60', 'pkm', 'm249 saw', 'пкп «печенег»', 'm240', 'm134 minigun',
 ]);
 
 export const isLargeArtWeapon = (name?: string): boolean =>
   LARGE_ART_WEAPONS.has((name || '').toLowerCase());
+
+/** Пулемёты: в тултипе показываем на 30% меньше крупных (240→168). */
+export const isMgArtWeapon = (name?: string): boolean => {
+  const lookup = (name || '').toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+  return lookup in MG_WEAPON_IMAGE_MAP;
+};
 
 export const getItemImage = (name?: string, displayName?: string, slot?: string, type?: string): string | undefined => {
   // Щиты пока без арта — рисуются эмодзи (item.icon).
