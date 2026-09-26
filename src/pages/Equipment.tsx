@@ -677,9 +677,6 @@ export const Equipment = () => {
           draggable={!!item}
           onDragStart={(e) => { if (item) { e.dataTransfer.setData('text/plain', `equip:${slot}`); useUiStore.getState().setDraggedItemId(`equip:${slot}`); } }}
           onDragEnd={() => useUiStore.getState().setDraggedItemId(null)}
-          title={item
-            ? `${caption} — тяни в инвентарь, чтобы снять${isGun && item.ammoCapacity ? ` · патроны ${item.loadedAmmo || 0}/${effectiveAmmoCapacity(item)}` : ''}${isGun ? ' · клик — выбрать активным' : ''}`
-            : caption}
           style={{
             width: slotW,
             height: slotH,
