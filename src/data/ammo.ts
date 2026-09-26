@@ -66,7 +66,7 @@ export const ammoTypeForWeapon = (weapon: { name?: string; ammoType?: string }):
   const n = (weapon.name || '').toLowerCase();
   if (/пистолет|глок|beretta|usp|five-seven|стечкин|stechkin|colt|наган|макаров/.test(n)) return 'pistol';
   if (/мосин|свд|l96|barrett|винторез|птрс|снайпер|предел|оракул/.test(n)) return 'sniper';
-  if (/дробовик|обрез|осада|аннигилятор|remington|spas|aa-12|двустволка/.test(n)) return 'shell';
+  if (/дробовик|обрез|осада|аннигилятор|remington|spas|aa-12|двустволка|striker|ksg|uts-|benelli|ithaca|mossberg|dp-12/.test(n)) return 'shell';
   if (/m134|m60|m249|pkm|миниган|пулем/.test(n)) return 'mg';
   if (/эми|термальн|терма|гравитац|разрядник|импульс|плазм|огнемет|огнемёт|квант|базука|рельсов|рпг|гп-25|гранатомёт|лазер|мультилазер|аннигилятор/.test(n)) return 'energy';
   return 'rifle';
@@ -115,7 +115,7 @@ const magazineWeaponClass = (weapon: { name?: string; ammoType?: string }): stri
   const n = (weapon.name || '').toLowerCase();
   if (/мосин|свд|l96|barrett|винторез|птрс|снайпер|предел|оракул/.test(n)) return 'sniper';
   if (/базук|рпг|гп-25|гранатом|milkor|m79|огнемет|огнемёт|flame/.test(n)) return 'heavy';
-  if (/дробовик|обрез|spas|aa-12|remington|двустволка|осада/.test(n)) return 'shotgun';
+  if (/дробовик|обрез|spas|aa-12|remington|двустволка|осада|striker|ksg|uts-|benelli|ithaca|mossberg|dp-12/.test(n)) return 'shotgun';
   const g = ammoTypeForWeapon(weapon);
   if (g === 'pistol') return 'pistol';
   if (g === 'sniper') return 'sniper';
@@ -170,12 +170,15 @@ export interface WeaponRangeProfile {
 export const weaponRangeProfile = (weapon: { name?: string; ammoType?: string }): WeaponRangeProfile => {
   // Ближний бой (и кулаки): радиус клетка вокруг, бьёт 3 клетки спереди.
   if ((weapon as any).slot === 'weapon1' || (weapon as any).isFists) return { range: 1.5 };
+  const n = (weapon.name || '').toLowerCase();
+  // Дробь всегда бьёт конусом — даже с явной дальностью на предмете.
+  const isShotgun = /огнемет|огнемёт|flame|дробовик|обрез|spas|aa-12|remington|двустволка|осада|striker|ksg|uts-|benelli|ithaca|mossberg|dp-12/.test(n)
+    || ammoTypeForWeapon(weapon) === 'shell';
   // Явная дальность на предмете (новые стволы) — приоритет над эвристиками.
   const explicit = (weapon as any).range;
-  if (typeof explicit === 'number' && explicit > 0) return { range: explicit };
-  const n = (weapon.name || '').toLowerCase();
+  if (typeof explicit === 'number' && explicit > 0) return isShotgun ? { range: explicit, cone: true } : { range: explicit };
   if (/базук|рпг|гп-25|гранатом|milkor|m79/.test(n)) return { range: 10, aoe: 1 };
-  if (/огнемет|огнемёт|flame|дробовик|обрез|spas|aa-12|remington|двустволка|осада/.test(n)) return { range: 5, cone: true };
+  if (isShotgun) return { range: 5, cone: true };
   const g = ammoTypeForWeapon(weapon);
   if (g === 'sniper') return { range: 12 };
   if (g === 'pistol') return { range: 8 };
