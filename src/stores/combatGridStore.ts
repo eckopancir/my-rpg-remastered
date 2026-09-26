@@ -4,6 +4,7 @@ import { gunSlotForWeapon } from './playerStore';
 import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
+import { generateEnemyGear, sumGearStats, rollGearBreakage, cardTierMult } from '../engine/enemyGear';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
@@ -62,6 +63,8 @@ export interface GridEnemy {
   isSpinning: boolean;
   loot: any[];
   looted: boolean;
+  // Надетая экипировка (ствол + 5 слотов одежды), лутается с трупа.
+  gear?: any[];
   lastSeenPlayerPos?: { x: number; y: number };
   speed?: number;
   soundAttack?: string;
@@ -1107,7 +1110,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: st.ap - 2,
       enemies: st.enemies.map((e) =>
         e.id === victim.id
-          ? { ...e, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, loot: freshLoot, looted: false, pos: corpsePos }
+          ? { ...e, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, loot: freshLoot, looted: false, pos: corpsePos, gear: rollGearBreakage(e.gear || []) }
           : e),
       message: `🔪 Скрытное убийство: ${victim.name}`,
       selectedEnemy: null,
@@ -1132,7 +1135,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         rank: rankOfEnemy((captive as any).factionKey, captive.name),
       });
     } catch { /* ignore */ }
-    const done = { ...captive, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, surrendering: false, loot: freshLoot, looted: false };
+    const done = { ...captive, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, surrendering: false, loot: freshLoot, looted: false, gear: rollGearBreakage(captive.gear || []) };
     set((st) => ({
       enemies: st.enemies.map((e) => (e.id === id ? done : e)),
       lootingEnemy: done,
@@ -1276,7 +1279,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           // Нейтрал: свой лут не затираем, мести нет.
           next = (next as any).isNeutral
             ? { ...next, dead: true, isHit: false }
-            : { ...next, dead: true, loot: freshLoot, looted: false, isHit: false };
+            : { ...next, dead: true, loot: freshLoot, looted: false, isHit: false, gear: rollGearBreakage(next.gear || []) };
           get().addBattleLog(`💀 ${next.name} сгорел!`);
           get().addMessage(`💀 ${next.name} сгорел! Кликни для лута`);
           if (!(next as any).isNeutral) get().triggerRevengeDialogues(next.pos, (next as any).callsign);
@@ -1426,13 +1429,27 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       callsignIdx++;
       return c;
     };
+    // Усилитель надетого по тиру карточки (t0 +0%, далее +20% за тир).
+    // Действует только на урон: тир = агрессия. Броня/HP — как надето,
+    // иначе на высоких тирах вырастают DR-стены.
+    const cardMult = cardTierMult(cardRewards?.cardRarityName);
+    // Доли базы и шмота (кривые разные: база ×0.2/ур., шмот ×0.05/ур.):
+    // HP 0.35/0.5, броня 0.35/0.35, урон 0.35/×тир — ближе всего к старым средним.
+    const BASE_F = 0.35;
     for (let i = 0; i < enemyCount; i++) {
       const factionKey = cardEnemyKeys ? cardEnemyKeys[i] : factionKeysPool[Math.floor(Math.random() * factionKeysPool.length)];
       const base = ENEMY_BASE_STATS[factionKey];
       if (!base) continue;
       const totalMult = levelMult * extraMult;
-      const scaledHealth = Math.round(base.health * totalMult);
-      const scaledDamage = Math.round(base.damage * totalMult);
+      // Экипировка обычной генерацией лута (ствол по архетипу + одежда).
+      // Союзникам/нейтралам не положена. Боссы — минимум эпик.
+      const noGear = base.faction === 'Союзник' || base.faction === 'Нейтралы';
+      const bossGear = factionKey.includes('boss');
+      const gear = noGear ? [] : generateEnemyGear(factionKey, player.level, bossGear ? 'epic' : null);
+      const gb = sumGearStats(gear);
+      const scaledHealth = Math.round(base.health * totalMult * BASE_F + (gb.maxHp || 0) * 0.5);
+      const scaledDamage = Math.round(base.damage * totalMult * BASE_F + (gb.damage || 0) * cardMult);
+      const newSpeed = base.speed * totalMult + (gb.speed || 0);
       const spawnX = Math.min(GRID - 3, Math.max(1, GRID - 3 - (i % 4) * 2));
       // Кламп в карту: иначе индекс 9+ улетает за край (y до 55 при сетке 32)
       // и «остался 1 противник» висит вечно.
@@ -1453,21 +1470,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         id: i,
         name: factionKey,
         faction: base.faction || 'Неизвестно',
-        dps: scaledDamage * (1 + (base.speed * totalMult || 0)),
-        speed: base.speed * totalMult,
+        dps: scaledDamage * (1 + (newSpeed || 0)),
+        speed: newSpeed,
         currentHp: scaledHealth,
         maxHp: scaledHealth,
         health: base.health,
         damage: scaledDamage,
-        armor: Math.round(base.armor * totalMult),
-        accuracy: Math.min(2, base.accuracy + accuracyAdd),
-        evasion: Math.min(1, base.evasion * totalMult),
-        block: base.block * totalMult,
-        punching: base.punching * totalMult,
+        armor: Math.round(base.armor * totalMult * BASE_F) + Math.round((gb.armor || 0) * 0.35),
+        accuracy: Math.min(2, base.accuracy + accuracyAdd + (gb.accuracy || 0)),
+        evasion: Math.min(1, base.evasion * totalMult + (gb.evasion || 0)),
+        block: base.block * totalMult + (gb.block || 0),
+        punching: base.punching * totalMult + (gb.punching || 0),
         // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
-        vampir: base.vampir,
-        crit: base.crit * totalMult,
-        regen: (base.regen || 0) * totalMult,
+        vampir: base.vampir + (gb.vampir || 0),
+        crit: base.crit * totalMult + (gb.crit || 0),
+        regen: (base.regen || 0) * totalMult + (gb.regen || 0),
         pos: { x: spawnX, y: spawnY },
         isHit: false,
         dead: false,
@@ -1487,6 +1504,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         isSpinning: false,
         loot: enemyLoot,
         looted: false,
+        gear,
         soundAttack: base.soundAttack || 'shotenemy',
         nowModel: base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',
@@ -3802,7 +3820,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }
         set((s2) => ({
           enemies: s2.enemies.map((e) =>
-            e.id === enemyId ? { ...e, dead: true, loot: keepNeutralLoot ? (e.loot || []) : freshLoot, looted: false, pos: corpsePos } : e
+            e.id === enemyId ? { ...e, dead: true, loot: keepNeutralLoot ? (e.loot || []) : freshLoot, looted: false, pos: corpsePos, gear: rollGearBreakage(e.gear || []) } : e
           ),
           message: `💀 ${updatedEnemy.name} уничтожен! Кликни для лута`,
         }));
@@ -3953,6 +3971,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (let i = 0; i < count; i++) {
       const playerLevel = usePlayerStore.getState().level;
       const base = generateEnemy(playerLevel, 1);
+      // Экипировка волны той же схемой: урон ×тир, броня/HP — как надето.
+      const cardMult = cardTierMult(get().cardRarityName);
+      const BASE_F = 0.35;
+      const noGear = base.faction === 'Союзник' || base.faction === 'Нейтралы';
+      const bossGear = ((base as any).factionKey || '').includes('boss');
+      const gear = noGear ? [] : generateEnemyGear((base as any).factionKey, playerLevel, bossGear ? 'epic' : null);
+      const gb = sumGearStats(gear);
+      const waveHealth = Math.round(base.scaledHealth * BASE_F + (gb.maxHp || 0) * 0.5);
+      const waveDamage = Math.round(base.scaledDamage * BASE_F + (gb.damage || 0) * cardMult);
+      const waveSpeed = base.scaledSpeed + (gb.speed || 0);
       // Позывной без повторов с живыми в бою (включая свою же волну).
       const used = new Set([...state.enemies, ...newEnemies].map((e) => (e as GridEnemy).callsign));
       const free = CALLSIGNS.filter((c) => !used.has(c));
@@ -3973,20 +4001,20 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         id: newId,
         name: base.faction || 'Враг',
         faction: base.faction || 'Неизвестно',
-        dps: base.scaledDamage * (1 + base.scaledSpeed),
-        speed: base.scaledSpeed,
-        currentHp: base.scaledHealth,
-        maxHp: base.scaledHealth,
+        dps: waveDamage * (1 + waveSpeed),
+        speed: waveSpeed,
+        currentHp: waveHealth,
+        maxHp: waveHealth,
         health: base.health,
-        damage: base.scaledDamage,
-        armor: base.scaledArmor,
-        accuracy: base.scaledAccuracy,
-        evasion: base.scaledEvasion,
-        block: base.scaledBlock,
-        punching: base.scaledPunching,
-        vampir: base.scaledVampir,
-        crit: base.scaledCrit,
-        regen: base.scaledRegen,
+        damage: waveDamage,
+        armor: Math.round(base.scaledArmor * BASE_F) + Math.round((gb.armor || 0) * 0.35),
+        accuracy: Math.min(2, base.scaledAccuracy + (gb.accuracy || 0)),
+        evasion: Math.min(1, base.scaledEvasion + (gb.evasion || 0)),
+        block: base.scaledBlock + (gb.block || 0),
+        punching: base.scaledPunching + (gb.punching || 0),
+        vampir: base.scaledVampir + (gb.vampir || 0),
+        crit: base.scaledCrit + (gb.crit || 0),
+        regen: base.scaledRegen + (gb.regen || 0),
         pos: { x: spawnX, y: spawnY },
         isHit: false,
         dead: false,
@@ -4006,6 +4034,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         isSpinning: false,
         loot: [],
         looted: false,
+        gear,
         soundAttack: base.soundAttack || 'shotenemy',
         nowModel: base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',

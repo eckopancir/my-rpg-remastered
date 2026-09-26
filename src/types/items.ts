@@ -61,6 +61,8 @@ export interface Item {
   loadedAmmoBreakdown?: Record<string, number>;
   // Уникальная броня: плашка «УНИК», может нести штраф скорости и перки.
   unique?: boolean;
+  // Лут с врага: вещь сломана при смерти — снять нельзя, только смотреть.
+  broken?: boolean;
   // Перековка: гнёзда под сферы (максимум) и вставленные сферы.
   socketSlots?: number;
   sockets?: { stat: string; pct: number }[];

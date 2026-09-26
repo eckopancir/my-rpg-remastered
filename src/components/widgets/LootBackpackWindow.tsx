@@ -124,7 +124,11 @@ const Cell = ({ item, hidden, searching, onSearch, onDrop, onDragStart, onDouble
 };
 
 export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | string; onClose: () => void }) => {
-  const enemy = useCombatGridStore((s) => s.enemies.find((e: any) => e.id === enemyId));
+  const enemies = useCombatGridStore((s) => s.enemies);
+  const lootingSnap = useCombatGridStore((s) => s.lootingEnemy);
+  // Сборный обыск ('combined-loot') в enemies[] отсутствует — читаем снапшот.
+  const enemy = enemyId === 'combined-loot' ? lootingSnap : enemies.find((e: any) => e.id === enemyId);
+  const isCombined = enemyId === 'combined-loot';
   const pack = usePlayerStore((s) => s.equipment.backpack);
   const backpackGrid = usePlayerStore((s) => s.backpackGrid);
   const { playClick, playSound } = useSound();
@@ -151,11 +155,56 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   const packSlots = backpackSlotsFor(pack);
   const loot: any[] = (enemy?.loot ?? []).slice(0, CORPSE_SLOTS);
+  // Экипировка трупа (надетое). В сборном виде — с parentEnemyId для возврата.
+  const gearView: any[] = (enemy as any)?.gear ?? [];
+
+  const stripParent = (g: any) => {
+    if (!g || typeof g !== 'object') return g;
+    const { parentEnemyId, ...rest } = g as any;
+    return rest;
+  };
+
+  // Разложить сборный список назад по исходным трупам (включая опустевшие).
+  const distributeBack = (newItems: any[], kind: 'loot' | 'gear') => {
+    const cur = kind === 'loot' ? loot : gearView;
+    const parents = new Set<string | number>();
+    for (const it of cur) {
+      const pid = (it as any)?.parentEnemyId;
+      if (pid !== undefined && pid !== null) parents.add(pid);
+    }
+    const byParent = new Map<string | number, any[]>();
+    for (const pid of parents) byParent.set(pid, []);
+    for (const it of newItems) {
+      const pid = (it as any)?.parentEnemyId;
+      if (pid === undefined || pid === null) continue;
+      if (!byParent.has(pid)) byParent.set(pid, []);
+      byParent.get(pid)!.push(kind === 'gear' ? stripParent(it) : it);
+    }
+    useCombatGridStore.setState((s: any) => ({
+      enemies: s.enemies.map((e: any) => (byParent.has(e.id) ? { ...e, [kind]: byParent.get(e.id) } : e)),
+      lootingEnemy: s.lootingEnemy && s.lootingEnemy.id === 'combined-loot'
+        ? { ...s.lootingEnemy, [kind]: newItems } : s.lootingEnemy,
+    }));
+  };
 
   const refreshEnemyLoot = (newLoot: any[]) => {
-    useCombatGridStore.setState((s: any) => ({
-      enemies: s.enemies.map((e: any) => (e.id === enemyId ? { ...e, loot: newLoot } : e)),
-    }));
+    if (!isCombined) {
+      useCombatGridStore.setState((s: any) => ({
+        enemies: s.enemies.map((e: any) => (e.id === enemyId ? { ...e, loot: newLoot } : e)),
+      }));
+      return;
+    }
+    distributeBack(newLoot, 'loot');
+  };
+
+  const refreshGearView = (newGear: any[]) => {
+    if (!isCombined) {
+      useCombatGridStore.setState((s: any) => ({
+        enemies: s.enemies.map((e: any) => (e.id === enemyId ? { ...e, gear: newGear.map(stripParent) } : e)),
+      }));
+      return;
+    }
+    distributeBack(newGear, 'gear');
   };
 
   const say = (msg: string) => useCombatGridStore.getState().addMessage(msg);
@@ -195,6 +244,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
 
   // Свой рюкзак -> труп.
   const putToCorpse = (itemId: string) => {
+    if (isCombined) { say('❌ В общий обыск — только забирать!'); return; }
     if (loot.length >= CORPSE_SLOTS) { say('❌ Рюкзак трупа полон!'); return; }
     const item = backpackGrid.items.find((i) => i.id === itemId);
     if (!item) return;
@@ -206,6 +256,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   const onCorpseDrop = (rawId: string) => {
     const id = rawId || useUiStore.getState().draggedItemId || '';
     useUiStore.getState().setDraggedItemId(null);
+    if (id.startsWith('gear:')) { stashGearToCorpse(id.slice(5)); return; }
     if (!id.startsWith('pack:')) return;
     putToCorpse(id.slice(5));
   };
@@ -213,8 +264,34 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   const onPackDrop = (rawId: string) => {
     const id = rawId || useUiStore.getState().draggedItemId || '';
     useUiStore.getState().setDraggedItemId(null);
+    if (id.startsWith('gear:')) { takeGearToPack(id.slice(5)); return; }
     if (!id.startsWith('corpse:')) return;
     takeFromCorpse(id.slice(7));
+  };
+
+  // Экипировка трупа -> свой рюкзак (сломанное не снимается).
+  const takeGearToPack = (gearId: string) => {
+    const g = gearView.find((x: any) => x.id === gearId);
+    if (!g) return;
+    if ((g as any).broken) { say('🔧 Сломано — снять нельзя!'); return; }
+    if (!pack) { say('❌ Нет рюкзака!'); return; }
+    const clean = { ...stripParent(g), revealed: true };
+    const { grid: newGrid, moved } = tryInsertIntoGrid(backpackGrid, clean);
+    if (!moved) { say('❌ Свой рюкзак полон! Освободи место.'); return; }
+    refreshGearView(gearView.filter((x: any) => x.id !== gearId));
+    usePlayerStore.setState({ backpackGrid: newGrid });
+    playSound('laying-out-a-travel-mat', 0.5);
+  };
+
+  // Экипировка трупа -> рюкзак трупа (только одиночный труп).
+  const stashGearToCorpse = (gearId: string) => {
+    if (isCombined) { say('❌ В общий обыск — только забирать!'); return; }
+    const g = gearView.find((x: any) => x.id === gearId);
+    if (!g || (g as any).broken) return;
+    if (loot.length >= CORPSE_SLOTS) { say('❌ Рюкзак трупа полон!'); return; }
+    refreshEnemyLoot([...loot, { ...stripParent(g), revealed: true }]);
+    refreshGearView(gearView.filter((x: any) => x.id !== gearId));
+    playSound('laying-out-a-travel-mat', 0.5);
   };
 
   const takeAll = () => {
@@ -229,6 +306,19 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
       usePlayerStore.setState({ backpackGrid: newGrid });
       movedAny = true;
     }
+    // Целый гир — тоже забираем.
+    let curGear = [...gearView];
+    for (const g of [...curGear]) {
+      if ((g as any).broken) continue;
+      if (!pack) { say('❌ Нет рюкзака!'); return; }
+      const clean = { ...stripParent(g), revealed: true };
+      const { grid: newGrid, moved } = tryInsertIntoGrid(usePlayerStore.getState().backpackGrid, clean);
+      if (!moved) break;
+      curGear = curGear.filter((x: any) => x.id !== (g as any).id);
+      usePlayerStore.setState({ backpackGrid: newGrid });
+      movedAny = true;
+    }
+    refreshGearView(curGear);
     refreshEnemyLoot(cur);
     if (movedAny) playSound('laying-out-a-travel-mat', 0.5);
     else say('❌ Свой рюкзак полон! Освободи место.');
@@ -242,6 +332,12 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   const moveHint = (e: React.MouseEvent) => setHint((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t));
   const hiddenCount = loot.filter((i: any) => !(i as any).revealed).length;
   const enemyImg = getEnemyImage(enemy.faction, enemy.name);
+
+  // Фиксированные слоты экипировки трупа.
+  const gearCellFor = (key: string): any | null => {
+    if (key === 'weapon') return gearView.find((x: any) => x.slot === 'weapon1' || x.slot === 'weapon2') || null;
+    return gearView.find((x: any) => x.slot === key) || null;
+  };
 
   // Auto-assign grid positions for corpse loot items (2×2 for weapons/armor)
   const corpseGridCols = 5;
@@ -302,7 +398,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
           <span onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
         </WapHeader>
         <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8 }}>
-          Тяни к себе · лишнее — обратно трупу · двойной клик — взять · скрытое — клик обыскать (1с) · оружие/броня 2×2
+          Тяни к себе · лишнее — обратно трупу · двойной клик — взять · скрытое — клик обыскать (1с) · оружие/броня 2×2 · гир трупа — ниже
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
           {/* СЛЕВА: наш рюкзак (grid) */}
@@ -389,6 +485,52 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                 );
               })}
             </div>
+            {/* Экипировка трупа: надетое (сломанное — только смотреть). */}
+            {gearView.length > 0 && (
+              <div style={{ marginTop: 2 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  🛡️ Экипировка <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 10 }}>· двойной клик — себе · тяни в рюкзаки · 🔧 не снимается</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(6, ${cellPx}px)`, gap: 4, justifyContent: 'start' }}>
+                  {[
+                    { key: 'weapon', label: 'Оружие' },
+                    { key: 'head', label: 'Шлем' },
+                    { key: 'armor', label: 'Броня' },
+                    { key: 'pants', label: 'Штаны' },
+                    { key: 'gloves', label: 'Перчатки' },
+                    { key: 'boots', label: 'Ботинки' },
+                  ].map((c) => {
+                    const g = gearCellFor(c.key);
+                    return (
+                      <div key={c.key} title={c.label} style={{ position: 'relative' }}>
+                        <Cell
+                          item={g}
+                          onDrop={() => {}}
+                          onDragStart={(id, e) => {
+                            if ((g as any)?.broken) { e.preventDefault(); return; }
+                            e.dataTransfer.setData('text/plain', `gear:${id}`);
+                            useUiStore.getState().setDraggedItemId(`gear:${id}`);
+                          }}
+                          onDoubleClick={() => { if (g) takeGearToPack(g.id); }}
+                          onHover={g ? showTip(g) : () => {}}
+                          onMove={moveTip}
+                          onLeave={() => setTip(null)}
+                        />
+                        {(g as any)?.broken && (
+                          <div style={{
+                            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(248,113,113,0.6)',
+                            borderRadius: 3, fontSize: 9, fontWeight: 800, color: '#f87171', pointerEvents: 'none',
+                          }}>
+                            🔧 СЛОМ.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>

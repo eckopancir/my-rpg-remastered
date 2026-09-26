@@ -433,7 +433,7 @@ export const BattleGrid = () => {
       return;
     }
     // Combined loot from multiple corpses on same cell
-    const deadOnCell = enemies.filter((e) => e.dead && e.loot && e.loot.length > 0 && e.pos.x === x && e.pos.y === y);
+    const deadOnCell = enemies.filter((e) => e.dead && ((e.loot && e.loot.length > 0) || ((e as any).gear && (e as any).gear.length > 0)) && e.pos.x === x && e.pos.y === y);
     // Must be within 1 cell to loot (like original)
     if (deadOnCell.length > 0) {
       const lootDist = getDist(playerPos, { x, y });
@@ -447,6 +447,7 @@ export const BattleGrid = () => {
         setLootingEnemy(deadOnCell[0]);
       } else {
         const combinedLoot = deadOnCell.flatMap((e) => e.loot.map((item) => ({ ...item, parentEnemyId: e.id })));
+        const combinedGear = deadOnCell.flatMap((e) => ((e as any).gear || []).map((item: any) => ({ ...item, parentEnemyId: e.id })));
         setLootingEnemy({
           id: 'combined-loot',
           name: 'Обыск тел',
@@ -459,6 +460,7 @@ export const BattleGrid = () => {
           invisTurns: 0, baseEvasion: 0, isEnraged: false,
           rageTurns: 0, hasSummoned: false, bigModel: '100%',
           isSpinning: false, loot: combinedLoot, looted: false,
+          gear: combinedGear,
         } as GridEnemy);
       }
       return;

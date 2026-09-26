@@ -262,6 +262,11 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
             УНИК
           </div>
         )}
+        {(item as any).broken && (
+          <div style={{ display: 'inline-block', marginTop: 6, fontSize: 9, fontWeight: 800, letterSpacing: 1.6, color: '#f87171', background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 4, padding: '2px 6px' }}>
+            🔧 СЛОМАНО — снять нельзя
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, marginTop: 2, fontSize: 11, color: 'rgba(255,255,255,0.45)', flexWrap: 'wrap' }}>
           <span>Lv.{item.level || 1}</span>
           {item.slot && <span>• {item.slot === 'weapon2' ? weaponClassOf(item) : (SLOT_LABELS[item.slot] || item.slot)}</span>}

@@ -98,6 +98,7 @@ export const generateEnemy = (
   playerLevel: number,
   difficultyModifier: number = 0,
 ): EnemyBaseDefinition & {
+  factionKey: string;
   currentHp: number; scaledDamage: number; scaledHealth: number;
   scaledArmor: number; scaledRegen: number; scaledSpeed: number;
   scaledCrit: number; scaledEvasion: number; scaledBlock: number;
@@ -114,6 +115,7 @@ export const generateEnemy = (
 
   return {
     ...base,
+    factionKey,
     currentHp: Math.round(base.health * totalMult),
     scaledHealth: Math.round(base.health * totalMult),
     scaledDamage: Math.round(base.damage * totalMult),

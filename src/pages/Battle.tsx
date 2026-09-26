@@ -5,6 +5,7 @@ import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { BattleGrid } from '../components/widgets/BattleGrid';
+import { EnemyGearModal } from '../components/widgets/EnemyGearModal';
 import { CookingMenu } from '../components/widgets/CookingMenu';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
@@ -152,6 +153,8 @@ export const Battle = () => {
 
   // Hovered enemy for Intel panel
   const [hoveredEnemy, setHoveredEnemy] = useState<typeof enemies[0] | null>(null);
+  // Осмотр экипировки врага из правой панели.
+  const [gearInspectId, setGearInspectId] = useState<number | string | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
   const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
@@ -645,6 +648,9 @@ export const Battle = () => {
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <BattleGrid />
         <CookingMenu />
+        {gearInspectId !== null && (
+          <EnemyGearModal enemyId={gearInspectId} onClose={() => setGearInspectId(null)} />
+        )}
         {/* Vignette */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,
@@ -812,6 +818,19 @@ export const Battle = () => {
                   </div>
                 </div>
               )}
+              {/* Экипировка врага — осмотр */}
+              <div style={{ padding: '0 12px 12px' }}>
+                <div
+                  onClick={() => setGearInspectId((hoverTarget as any).id)}
+                  style={{
+                    padding: '6px 10px', fontSize: 12, fontWeight: 700, textAlign: 'center',
+                    cursor: 'pointer', borderRadius: 6, color: '#fbbf24',
+                    border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.06)',
+                  }}
+                >
+                  🛡️ Экипировка
+                </div>
+              </div>
             </div>
             );
           })() : (
