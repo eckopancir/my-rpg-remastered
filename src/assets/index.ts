@@ -369,4 +369,5 @@ export const images = {
   bullet: battleImageMap.get('bullet'),
   unloadMag: uiImageMap.get('screenshot_70-photoroom'),
   backpackLock: uiImageMap.get('screenshot_71-photoroom'),
+  armorWorkshop: uiImageMap.get('armorcustom'),
 };

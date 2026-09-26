@@ -123,6 +123,9 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
   };
 
   const itemImg = liveItem ? getItemImage(liveItem.name, liveItem.displayName, liveItem.slot, (liveItem as any).type) : undefined;
+  // Фон кастомизации: оружие — мастерская, броня — оружейная стойка.
+  const isArmorSlot = !!liveItem && ['head', 'armor', 'pants', 'gloves', 'boots'].includes(liveItem.slot || '');
+  const workshopBg = isArmorSlot ? (images as any).armorWorkshop : images.workshop;
 
   // Осмотр оружия: пробел — крупный план картинки на весь экран (как inspect в играх).
   const [inspecting, setInspecting] = useState(false);
@@ -209,7 +212,7 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
           <div style={{
             background: 'rgba(8,8,14,0.4)',
             borderRadius: 8, padding: 12,
-            backgroundImage: images.workshop ? `url(${images.workshop})` : 'none',
+            backgroundImage: workshopBg ? `url(${workshopBg})` : 'none',
             backgroundSize: '92%',
             backgroundPosition: 'center',
           }}>
@@ -218,7 +221,7 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
             // Броня в кастомизации — картинка на 30% меньше оружия:
             // центрированный img 70% бокса (background-процент для
             // портретных артов даёт перелёт по высоте).
-            const isArmor = ['head', 'armor', 'pants', 'gloves', 'boots'].includes(liveItem.slot || '');
+            const isArmor = isArmorSlot;
             return (
             <div style={{
               position: 'relative',
