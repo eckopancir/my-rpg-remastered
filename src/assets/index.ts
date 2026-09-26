@@ -184,6 +184,14 @@ export const getBulletImage = (packName?: string): string | undefined => {
   return itemImageMap.get('ammo_rifle');
 };
 
+/** Арты комплектов брони по нормализованному имени (как lookup в getItemImage). */
+const SET_ARMOR_IMAGE_MAP: Record<string, string> = {
+  'капюшонпризрака': 'ghost_head',
+  'плащпризрака': 'ghost_armor',
+  'штаныпризрака': 'ghost_pants',
+  'наручипризрака': 'ghost_gloves',
+  'башмакипризрака': 'ghost_boots',
+};
 /** Новые автоматы (20 шт.): их арты показываем крупнее —
  *  в тултипе +33% (180→240), в инвентаре +20% (44→53). */
 const LARGE_ART_WEAPONS = new Set([
@@ -212,6 +220,9 @@ export const getItemImage = (name?: string, displayName?: string, slot?: string,
   if (resKey) return itemImageMap.get(resKey);
   const modKey = MOD_IMAGE_MAP[lookup];
   if (modKey) return itemImageMap.get(modKey);
+  // Арты комплектов брони — по точному имени вещи.
+  const setKey = SET_ARMOR_IMAGE_MAP[lookup];
+  if (setKey) return itemImageMap.get(setKey);
   // Точное совпадение имени файла — приоритет (арты стволов и именные спрайты).
   // Иначе lookup с цифрами уезжает на numbered-файлы ('ak47' -> '4.png').
   const exact = itemImageMap.get(lookup);
