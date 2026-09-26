@@ -1,4 +1,4 @@
-import { getItemImage, images, crystalImages, getSchemeImage, isLargeArtWeapon, isMgArtWeapon } from '../../assets/index';
+import { getItemImage, images, crystalImages, getSchemeImage, isLargeArtWeapon, isMgArtWeapon, isMgSmallArtWeapon } from '../../assets/index';
 import iconBullets from '../../assets/images/ui/icon-bullets.png';
 import iconScope from '../../assets/images/ui/icon-scope.png';
 import { getConsumableIcon } from '../../data/consumables';
@@ -230,7 +230,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       {(imgUrl || foodIcon || shieldIcon) && (
         <div style={{ textAlign: 'center', padding: '4px 14px 0', position: 'relative' }}>
           {imgUrl ? (
-            <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : isLargeArtWeapon(item.name) ? 240 : isMgArtWeapon(item.name) ? 168 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
+            <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : isLargeArtWeapon(item.name) ? 240 : isMgSmallArtWeapon(item.name) ? 118 : isMgArtWeapon(item.name) ? 168 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
           ) : (
             <span style={{ fontSize: 72, lineHeight: 1.2 }}>{foodIcon || shieldIcon}</span>
           )}

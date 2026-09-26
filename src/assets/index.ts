@@ -288,6 +288,12 @@ export const isMgArtWeapon = (name?: string): boolean => {
   return lookup in MG_WEAPON_IMAGE_MAP;
 };
 
+/** PKM, M249 и M240 — ещё на 30% меньше (168→118). */
+const MG_SMALL_ART_WEAPONS = new Set(['pkm', 'm249saw', 'm240']);
+
+export const isMgSmallArtWeapon = (name?: string): boolean =>
+  MG_SMALL_ART_WEAPONS.has((name || '').toLowerCase().replace(/[^a-zа-яё0-9]/g, ''));
+
 export const getItemImage = (name?: string, displayName?: string, slot?: string, type?: string): string | undefined => {
   // Щиты пока без арта — рисуются эмодзи (item.icon).
   if (slot === 'shield') return undefined;
