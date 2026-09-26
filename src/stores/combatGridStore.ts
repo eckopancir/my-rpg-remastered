@@ -1774,7 +1774,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (petKind === 'wolf' && set5.petShareWolf > 0) bonus.pctPlayerHp = Math.max(bonus.pctPlayerHp || 0, set5.petShareWolf);
         const meleeItem = (ps.equipment as any)?.weapon1;
         const meleeDmg = meleeItem ? (effectiveItemStats(meleeItem).damage || 0) : 0;
-        const nums = petBaseStats(petKind, lvlMult, ps.stats.damage || 5, ps.stats.maxHp || 100, bonus, ps.stats.armor || 0, ps.stats.speed || 0, meleeDmg);
+        const nums = petBaseStats(petKind, lvlMult, ps.stats.damage || 5, ps.stats.maxHp || 100, bonus, ps.stats.armor || 0, ps.stats.speed || 0, meleeDmg, Math.max(1, ps.level));
         // Сытость: голодный −90% HP, проголодался −30% (null = данных нет, считаем сытым).
         const satRaw = ps.petSatiety;
         const satNow = satRaw ? petSatietyAt(satRaw.value, satRaw.updatedAt, Date.now()) : 100;

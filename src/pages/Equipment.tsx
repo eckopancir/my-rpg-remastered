@@ -145,7 +145,7 @@ const PetSlotRow = () => {
         const bonus = petBranchBonuses(petTip.kind, playerSkills);
         const meleeItem = (usePlayerStore.getState().equipment as any)?.weapon1;
         const meleeDmg = meleeItem ? (effectiveItemStats(meleeItem).damage || 0) : 0;
-        const nums = petBaseStats(petTip.kind, lvlMult, playerDamage || 5, playerMaxHp || 100, bonus, playerArmorEq || 0, playerSpeed || 0, meleeDmg);
+        const nums = petBaseStats(petTip.kind, lvlMult, playerDamage || 5, playerMaxHp || 100, bonus, playerArmorEq || 0, playerSpeed || 0, meleeDmg, Math.max(1, playerLevel));
         const b = (k: keyof typeof bonus): number => (bonus as any)[k] || 0;
         const rows: PetStatRow[] = [
           { label: 'HP', value: fmtPetStat('maxHp', nums.maxHp) },

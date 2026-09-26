@@ -447,14 +447,17 @@ export interface PetBaseNumbers {
 /**
  * Базовые статы зверя: скейл от уровня + доля урона/HP игрока + бонусы ветки.
  * Доли (вамп/скорость/реген) не мультиплицируются.
+ * Ростовые кривые (t = 0 на 1 ур., 1 на 100 ур.):
+ * медведь — броня до 1000, реген до 300; волк — вамп/уклон до 0.4, меткость до 1.5, крит до 0.25, скорость до 0.3.
  */
 export function petBaseStats(
-  kind: PetKind, levelMult: number, playerDamage: number, playerMaxHp: number, bonus: PetStatBonus, playerArmor: number = 0, playerSpeed: number = 0, playerMeleeDamage: number = 0,
+  kind: PetKind, levelMult: number, playerDamage: number, playerMaxHp: number, bonus: PetStatBonus, playerArmor: number = 0, playerSpeed: number = 0, playerMeleeDamage: number = 0, petLevel: number = 1,
 ): PetBaseNumbers {
+  const t = Math.max(0, Math.max(1, petLevel) - 1) / 99;
   const base = kind === 'bear'
-    ? { hp: 600, dmgFrac: 0.25, armor: 4, eva: 0.05, block: 10, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0 }
+    ? { hp: 600, dmgFrac: 0.25, armor: 4 + 996 * t, eva: 0.05, block: 10, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 300 * t }
     : kind === 'wolf'
-      ? { hp: 350, dmgFrac: 0.2, armor: 1, eva: 0.15, block: 2, crit: 0.05, acc: 0.95, spd: 0.1, vamp: 0.05, reg: 0 }
+      ? { hp: 350, dmgFrac: 0.2, armor: 1, eva: 0.15 + 0.25 * t, block: 2, crit: 0.05 + 0.20 * t, acc: 0.95 + 0.55 * t, spd: 0.1 + 0.20 * t, vamp: 0.05 + 0.35 * t, reg: 0 }
       : { hp: 450, dmgFrac: 0.25, armor: 2, eva: 0.08, block: 5, crit: 0.05, acc: 0.9, spd: 0, vamp: 0, reg: 0.01 };
   const hostArmorBonus = (bonus.pctHostArmor || 0) * playerArmor;
   const maxHp = Math.round(
