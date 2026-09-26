@@ -199,7 +199,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
     <div
       ref={boxRef}
       style={{
-        position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 9999,
+        position: 'fixed', left: tooltipX, top: tooltipY, zIndex: 11000,
         width: 'fit-content', minWidth: 320,
         background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
         border: '1px solid rgba(255,255,255,0.09)',
