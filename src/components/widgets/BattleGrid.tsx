@@ -206,9 +206,9 @@ export const BattleGrid = () => {
   useEffect(() => {
     if (popups.length > prevPopupsLen.current && popups.length > 0) {
       const last = popups[popups.length - 1];
-      if (last.type === 'CRIT') playSound('crit');
-      else if (last.type === 'EVASION') playSound('evasion');
-      else if (last.type === 'BLOCK') playSound('block');
+      if (last.hits > 0 && last.crit) playSound('crit');
+      else if ((last.statuses || []).some((s) => s.kind === 'EVASION')) playSound('evasion');
+      else if ((last.statuses || []).some((s) => s.kind === 'BLOCK')) playSound('block');
     }
     prevPopupsLen.current = popups.length;
   }, [popups, playSound]);
@@ -991,19 +991,38 @@ export const BattleGrid = () => {
           );
         })}
 
-        {/* Battle popups — offset vertically to avoid stacking */}
+        {/* Battle popups: агрегированные карточки (урон слева, статусы центр, хил справа). */}
         {(() => {
           const posCount = new Map<string, number>();
           return popups.map((pop) => {
             const key = `${Math.round(pop.x)},${Math.round(pop.y)}`;
             const count = posCount.get(key) || 0;
             posCount.set(key, count + 1);
+            const hasDmg = pop.hits > 0;
+            const hasHeal = (pop.heal || 0) > 0 || (pop.vamp || 0) > 0;
+            const sts = (pop.statuses || []).slice(0, 3);
             return (
-              <div key={pop.id} className={`${styles.battlePopup} ${styles[pop.type.toLowerCase()] || styles.normal}`} style={{
+              <div key={pop.id} className={styles.battlePopup} style={{
                 left: `${(pop.x / 31) * 100}%`,
-                top: `calc(${(pop.y / 31) * 100}% + ${count * -24}px)`,
+                top: `calc(${(pop.y / 31) * 100}% + ${count * -44}px)`,
               }}>
-                {pop.text}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  {hasDmg && (
+                    <span style={{ color: pop.crit ? '#fbbf24' : '#f87171', fontWeight: 800 }}>
+                      −{Math.abs(Math.round(pop.dmg))}{pop.hits > 1 ? ` ×${pop.hits}` : ''}{pop.crit ? ' CRIT' : ''}
+                    </span>
+                  )}
+                  {sts.length > 0 && (
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 1, fontSize: '0.85em' }}>
+                      {sts.map((s, i) => <span key={i}>{s.text}</span>)}
+                    </span>
+                  )}
+                  {hasHeal && (
+                    <span style={{ color: '#4ade80', fontWeight: 700 }}>
+                      {(pop.heal || 0) > 0 ? `+${Math.round(pop.heal)} 💚` : ''}{(pop.heal || 0) > 0 && (pop.vamp || 0) > 0 ? ' ' : ''}{(pop.vamp || 0) > 0 ? `+${Math.round(pop.vamp)} 🩸` : ''}
+                    </span>
+                  )}
+                </div>
               </div>
             );
           });

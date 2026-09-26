@@ -132,13 +132,39 @@ export interface GridObstacle {
   imgIndex?: number;
 }
 
+/** Агрегированная карточка попапов (WoW-стиль): слева урон, справа хил, центр статусы. */
 export interface BattlePopup {
   id: string;
   x: number;
   y: number;
-  text: string;
-  type: string;
+  // Левая полоса: суммарный урон (знак минус), число попаданий, был ли крит.
+  dmg: number;
+  hits: number;
+  crit: boolean;
+  // Правая полоса: реген и вампиризм отдельно.
+  heal: number;
+  vamp: number;
+  // Центр: статусы (максимум 3).
+  statuses: Array<{ text: string; kind: string }>;
+  updatedAt: number;
 }
+
+// Окно агрегации попапов на клетке: пока летит — суммируем урон и хил.
+const POPUP_AGG_MS = 3500;
+// Максимум карточек на одной клетке.
+const POPUP_CARDS_PER_CELL = 3;
+// Полосы урона (лево) и хила (право).
+const DMG_LANES = new Set(['DMG', 'CRIT', 'DAMAGE']);
+const HEAL_LANES: Record<string, 'heal' | 'vamp'> = { HEAL: 'heal', VAMP: 'vamp' };
+// Статусы, дублируемые в лог боя.
+const LOGGED_STATUS = new Set(['SPECIAL', 'DEBUFF', 'ERROR']);
+
+const popupTimers = new Map<string, number>();
+
+const parsePopupNumber = (text: string): number => {
+  const n = parseInt(String(text).replace(/−/g, '-').replace(/[^0-9-]/g, ''), 10);
+  return Number.isFinite(n) ? n : 0;
+};
 
 export type ShotKind = 'single' | 'burst' | 'spread' | 'boss' | 'heal';
 
@@ -1183,12 +1209,82 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   addPopup: (x, y, text, type = 'NORMAL') => {
     // Настройка «Цифры урона»: числовые попапы (урон/крит/блок) можно скрыть.
-    if ((type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK') && useUiStore.getState().showDamageNumbers === false) return;
-    const id = `popup-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
-    set((s) => ({ popups: [...s.popups, { id, x, y, text, type }] }));
-    setTimeout(() => {
-      set((s) => ({ popups: s.popups.filter((p) => p.id !== id) }));
-    }, 1000);
+    const hideNumbers = useUiStore.getState().showDamageNumbers === false;
+    if (hideNumbers && (type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK')) return;
+    const key = `${Math.round(x)},${Math.round(y)}`;
+    const now = Date.now();
+    const st = get();
+    const sameCell = st.popups.filter(
+      (p) => `${Math.round(p.x)},${Math.round(p.y)}` === key,
+    );
+    let card = sameCell[sameCell.length - 1];
+    if (!card && sameCell.length >= POPUP_CARDS_PER_CELL) return;
+    if (card && sameCell.length > POPUP_CARDS_PER_CELL) {
+      // Лишнее не копим: старейшую карточку клетки гасим.
+      const oldest = sameCell[0];
+      const t = popupTimers.get(oldest.id);
+      if (t) { window.clearTimeout(t); popupTimers.delete(oldest.id); }
+      set((s) => ({ popups: s.popups.filter((p) => p.id !== oldest.id) }));
+      card = sameCell[sameCell.length - 1];
+    }
+    const applyLane = (c: BattlePopup): boolean => {
+      if (DMG_LANES.has(type)) {
+        if (hideNumbers) return false;
+        const n = parsePopupNumber(text);
+        c.dmg += n;
+        c.hits += 1;
+        if (type === 'CRIT') c.crit = true;
+        return true;
+      }
+      const healLane = (HEAL_LANES as Record<string, 'heal' | 'vamp'>)[type];
+      if (healLane) {
+        const n = Math.abs(parsePopupNumber(text));
+        (c as any)[healLane] = ((c as any)[healLane] || 0) + n;
+        return (c as any)[healLane] > 0;
+      }
+      // Центр: статусы (максимум 3, дубли подряд не копим).
+      const last = c.statuses[c.statuses.length - 1];
+      if (!last || last.text !== text) {
+        c.statuses.push({ text, kind: type });
+        if (c.statuses.length > 3) c.statuses.shift();
+      }
+      return true;
+    };
+    if (!card) {
+      const fresh: BattlePopup = {
+        id: `popup-${now}-${Math.random().toString(36).slice(2, 5)}`,
+        x, y, dmg: 0, hits: 0, crit: false, heal: 0, vamp: 0, statuses: [], updatedAt: now,
+      };
+      if (!applyLane(fresh)) return;
+      // Пустая карточка (всё отфильтровано) — не создаём.
+      if (fresh.hits === 0 && fresh.heal === 0 && fresh.vamp === 0 && fresh.statuses.length === 0) return;
+      set((s) => ({ popups: [...s.popups, fresh] }));
+      card = fresh;
+    } else {
+      const next = st.popups.map((p) => {
+        if (p.id !== card!.id) return p;
+        const c: BattlePopup = {
+          ...p,
+          dmg: p.dmg, hits: p.hits, crit: p.crit, heal: p.heal, vamp: p.vamp,
+          statuses: [...p.statuses], updatedAt: now,
+        };
+        applyLane(c);
+        return c;
+      });
+      set({ popups: next });
+    }
+    // Карточка висит 3.5с с последнего обновления.
+    const old = popupTimers.get(card.id);
+    if (old) window.clearTimeout(old);
+    popupTimers.set(
+      card.id,
+      window.setTimeout(() => {
+        popupTimers.delete(card!.id);
+        set((s) => ({ popups: s.popups.filter((p) => p.id !== card!.id) }));
+      }, POPUP_AGG_MS),
+    );
+    // Статусы — дубль в лог боя (урон/хил и так видны цифрами).
+    if (LOGGED_STATUS.has(type)) get().addBattleLog(text);
   },
 
   triggerShake: () => {
