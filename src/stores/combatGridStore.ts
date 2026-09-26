@@ -1479,7 +1479,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         armor: Math.round(base.armor * totalMult * BASE_F) + Math.round((gb.armor || 0) * 0.35),
         accuracy: Math.min(2, base.accuracy + accuracyAdd + (gb.accuracy || 0)),
         evasion: Math.min(1, base.evasion * totalMult + (gb.evasion || 0)),
-        block: base.block * totalMult + (gb.block || 0),
+        block: Math.min(5, base.block * totalMult + (gb.block || 0)),
         punching: base.punching * totalMult + (gb.punching || 0),
         // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
         vampir: base.vampir + (gb.vampir || 0),
@@ -4010,7 +4010,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         armor: Math.round(base.scaledArmor * BASE_F) + Math.round((gb.armor || 0) * 0.35),
         accuracy: Math.min(2, base.scaledAccuracy + (gb.accuracy || 0)),
         evasion: Math.min(1, base.scaledEvasion + (gb.evasion || 0)),
-        block: base.scaledBlock + (gb.block || 0),
+        block: Math.min(5, base.scaledBlock + (gb.block || 0)),
         punching: base.scaledPunching + (gb.punching || 0),
         vampir: base.scaledVampir + (gb.vampir || 0),
         crit: base.scaledCrit + (gb.crit || 0),
