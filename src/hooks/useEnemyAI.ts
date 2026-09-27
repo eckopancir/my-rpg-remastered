@@ -7,6 +7,8 @@ import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { rollGearOnDeath } from '../engine/enemyGear';
+import { generateLoot, rankOfEnemy } from '../engine/loot';
+import { GAME_ITEMS } from '../data/GameItems';
 import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, BOSS_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, STALKER_COMBAT_BARK, STALKER_SPOT_BARK, STALKER_LOOT, pickPhrase } from '../data/enemyChatter';
 
 const isMilitary = (e: any): boolean =>
@@ -861,6 +863,16 @@ export const useEnemyAI = () => {
                   if (targetHostile.currentHp <= 0) {
                     targetHostile.dead = true;
                     targetHostile.isHit = false;
+                    // Добил союзник: лут + поломки, иначе гир цел 100%.
+                    if (!(targetHostile as any).isNeutral) {
+                      try {
+                        targetHostile.loot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+                          rank: rankOfEnemy((targetHostile as any).factionKey, targetHostile.name),
+                        });
+                        targetHostile.looted = false;
+                      } catch { /* ignore */ }
+                      targetHostile.gear = rollGearOnDeath(targetHostile);
+                    }
                     useCombatGridStore.getState().addBattleLog(`💀 ${targetHostile.name} уничтожен мусорщиком!`);
                   }
                 } else {

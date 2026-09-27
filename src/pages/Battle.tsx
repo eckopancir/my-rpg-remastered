@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { BattleGrid } from '../components/widgets/BattleGrid';
 import { EnemyGearModal } from '../components/widgets/EnemyGearModal';
+import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { CookingMenu } from '../components/widgets/CookingMenu';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
@@ -169,6 +170,8 @@ export const Battle = () => {
   const [hoveredEnemy, setHoveredEnemy] = useState<typeof enemies[0] | null>(null);
   // Осмотр экипировки врага из правой панели.
   const [gearInspectId, setGearInspectId] = useState<number | string | null>(null);
+  const [showBackpack, setShowBackpack] = useState(false);
+  const equipBackpack = usePlayerStore((s) => s.equipment.backpack);
   const [showLog, setShowLog] = useState(false);
   const [showPowerBreakdown, setShowPowerBreakdown] = useState(false);
   const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
@@ -402,8 +405,8 @@ export const Battle = () => {
               </div>
             )}
 
-            {/* Action buttons — компактная сетка */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+            {/* Action buttons — по одной на линию */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 4 }}>
               <div
                 onClick={() => {
                   if (nearCampfire) {
@@ -507,10 +510,28 @@ export const Battle = () => {
                 </div>
               )}
 
+              {/* Рюкзак в бою: открыть/смотреть содержимое */}
+              <div
+                onClick={() => { playClick(); setShowBackpack(true); }}
+                style={{
+                  padding: '4px 6px', borderRadius: 5,
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(255,255,255,0.03)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: 11, fontWeight: 600,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
+                  minWidth: 0,
+                }}
+                title={equipBackpack ? (equipBackpack.displayName || equipBackpack.name) : 'Нет рюкзака'}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🎒 {equipBackpack ? (equipBackpack.displayName || equipBackpack.name) : 'Нет рюкзака'} · {packContents.length}</span>
+                <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>B</span>
+              </div>
+
               <div
                 onClick={() => { playClick(); handleEnemyAttack(); }}
                 style={{
-                  gridColumn: '1 / span 2',
                   padding: '5px 6px', borderRadius: 5,
                   border: '1px solid rgba(248,113,113,0.4)',
                   background: selectedAbility !== null ? 'rgba(251,191,36,0.12)' : 'rgba(248,113,113,0.08)',
@@ -529,7 +550,6 @@ export const Battle = () => {
               <div
                 onClick={() => { playClick(); endTurn(); }}
                 style={{
-                  gridColumn: '1 / span 2',
                   padding: '6px', borderRadius: 5,
                   border: '1px solid rgba(217,119,6,0.4)',
                   background: 'linear-gradient(180deg, rgb(180,100,10), rgb(120,60,8))',
@@ -545,86 +565,6 @@ export const Battle = () => {
               </div>
 
             </div>
-
-            {/* Ability panel */}
-            {playerAbilities.some((a) => a !== null) && (
-              <div style={{
-                padding: '10px 12px', borderRadius: 8,
-                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
-              }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 6 }}>💎 СПОСОБНОСТИ</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 48px)', gap: 4, justifyContent: 'start' }}>
-                  {playerAbilities.map((ab, i) => {
-                    if (!ab) return <div key={i} style={{ width: 48, height: 53, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6 }} />;
-                    const cd = abilityCooldowns[i];
-                    const isReady = cd <= 0 && ap >= ab.apCost;
-                    const isSelected = selectedAbility === i;
-                    const canAfford = ap >= ab.apCost;
-                    const statusText = cd > 0 ? `КД ${cd}` : !canAfford ? `${ab.apCost}AP` : '●';
-                    const statusColor = cd > 0 ? '#ff6b6b' : !canAfford ? 'rgba(255,255,255,0.3)' : '#69db7c';
-                    // Остаток расходника в рюкзаке (-1 = пассивка/бесплатная, бесплатно).
-                    const isFreeAb = !!ab.passive || (ab as any).free === true;
-                    const consLeft = isFreeAb ? -1 : consumableCount(ab.id);
-                    const outOfStock = consLeft === 0;
-                    const isDisplayOnly = (ab as any).displayOnly === true;
-                    const abImg = (ab as any).image ? getSniperImage((ab as any).image as string) : undefined;
-                    return (
-                      <div key={i}
-                        onClick={() => { playClick(); if (isDisplayOnly) { useCombatGridStore.getState().addMessage(`✨ ${ab.name} — пассивка, работает сама`); return; } selectAbility(i); }}
-                        onDoubleClick={() => {
-                          if (isDisplayOnly) return;
-                          const st = useCombatGridStore.getState();
-                          if (st.turn !== 'player') return;
-                          if (st.selectedAbility !== i || st.selectedAbilitySource !== 'player') st.selectAbility(i);
-                          playClick();
-                          useCombatGridStore.getState().useAbility(
-                            useCombatGridStore.getState().selectedEnemy ?? undefined,
-                          );
-                        }}
-                        title={`[${i + 1}] ${ab.name} — ${ab.description}\n${ab.apCost} AP | КД: ${ab.cooldown} хода\n⭐ Сила: ${ab.powerRating}${consLeft >= 0 ? `\n📦 Расходник: осталось ${consLeft}` : '\n✨ Бесплатно'}`}
-                        style={{
-                          width: 48, height: 53, display: 'flex', flexDirection: 'column',
-                          alignItems: 'center', justifyContent: 'center', gap: 0,
-                          padding: '3px 2px',
-                          border: `1px solid ${isSelected ? 'var(--accent-primary)' : outOfStock ? 'rgba(248,113,113,0.4)' : isReady ? 'rgba(217,119,6,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                          background: isSelected ? 'rgba(217,119,6,0.18)' : outOfStock ? 'rgba(248,113,113,0.05)' : isReady ? 'rgba(217,119,6,0.06)' : 'rgba(255,255,255,0.015)',
-                          boxShadow: isSelected ? '0 0 10px rgba(217,119,6,0.4)' : 'none',
-                          cursor: isDisplayOnly || turn !== 'player' || !isReady ? 'not-allowed' : 'pointer',
-                          opacity: isDisplayOnly ? 0.5 : (turn !== 'player' || !isReady ? 0.35 : 1),
-                          borderRadius: 6, position: 'relative',
-                        }}
-                      >
-                        {abImg
-                          ? <img src={abImg} alt={ab.name} draggable={false} style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 4 }} />
-                          : <span style={{ fontSize: 17, lineHeight: 1 }}>{ab.icon}</span>}
-                        <div style={{ fontSize: 9, color: statusColor, fontWeight: 700, lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
-                          {ab.apCost > 0 ? `${ab.apCost}AP` : 'FREE'}
-                        </div>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
-                          {cd > 0 ? `КД${cd}` : outOfStock ? 'НЕТ' : statusText}
-                        </div>
-                        <div style={{
-                          position: 'absolute', bottom: 1, left: 3,
-                          fontSize: 8, color: 'rgba(255,255,255,0.25)', fontFamily: 'var(--font-mono)',
-                        }}>
-                          {i + 1}
-                        </div>
-                        {consLeft >= 0 && (
-                          <div style={{
-                            position: 'absolute', top: 1, right: 3,
-                            fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                            color: consLeft > 0 ? '#4ade80' : '#f87171',
-                            background: 'rgba(0,0,0,0.65)', padding: '0 4px', borderRadius: 3,
-                          }}>
-                            x{consLeft}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* Battle log — таб, свёрнут по умолчанию */}
             <div style={{
@@ -664,6 +604,9 @@ export const Battle = () => {
         <CookingMenu />
         {gearInspectId !== null && (
           <EnemyGearModal enemyId={gearInspectId} onClose={() => setGearInspectId(null)} />
+        )}
+        {showBackpack && (
+          <BackpackWindow onClose={() => setShowBackpack(false)} />
         )}
         {/* Vignette */}
         <div style={{

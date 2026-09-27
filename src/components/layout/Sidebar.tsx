@@ -111,7 +111,7 @@ export const Sidebar = () => {
       </div>
 
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>Лог боя</div>
+        <div className={styles.sectionTitle}>Лог игры</div>
       </div>
       <div className={styles.logs}>
         {logs.length === 0 ? (

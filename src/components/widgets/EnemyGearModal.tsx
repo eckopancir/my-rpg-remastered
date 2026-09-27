@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
-import { getItemImage } from '../../assets/index';
+import { getItemImage, images } from '../../assets/index';
 import { ItemTooltip } from './ItemTooltip';
 import { WapHeader } from '../ui/WapHeader';
 import type { Item } from '../../types/items';
@@ -58,7 +58,14 @@ export const EnemyGearModal = ({ enemyId, onClose }: { enemyId: number | string;
           style={{ background: 'linear-gradient(180deg, rgb(217,119,6), rgb(146,64,14))', margin: 0, width: '100%' }}>
           <span onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ cursor: 'pointer', fontSize: 14, color: 'white', padding: '0 4px' }}>✕</span>
         </WapHeader>
-        <div style={{ padding: 14 }}>
+        <div style={{
+          padding: 14,
+          backgroundImage: images.enemyDead
+            ? `linear-gradient(rgba(10,10,14,0.82), rgba(10,10,14,0.82)), url(${images.enemyDead})`
+            : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}>
           {gear.length === 0 && (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>Без экипировки</div>
           )}

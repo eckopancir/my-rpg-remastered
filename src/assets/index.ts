@@ -443,4 +443,5 @@ export const images = {
   unloadMag: uiImageMap.get('screenshot_70-photoroom'),
   backpackLock: uiImageMap.get('screenshot_71-photoroom'),
   armorWorkshop: uiImageMap.get('armorcustom'),
+  enemyDead: uiImageMap.get('enemydead'),
 };

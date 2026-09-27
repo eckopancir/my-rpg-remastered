@@ -3321,6 +3321,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const deadNow = (get().enemies.find((e: any) => e.id === targetId)?.currentHp || 0) <= 0;
     if (deadNow) {
       get().addBattleLog(`💀 ${target.name} повержен питомцем!`);
+      // Добил питомец: лут + поломки как в огнестреле, иначе гир цел 100%.
+      const deadTgt = get().enemies.find((e: any) => e.id === targetId);
+      if (deadTgt && !(deadTgt as any).isNeutral) {
+        let freshLoot: any[] = [];
+        try {
+          freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+            rank: rankOfEnemy((deadTgt as any).factionKey, deadTgt.name),
+          });
+        } catch { /* ignore */ }
+        set((st: any) => ({
+          enemies: st.enemies.map((e: any) => e.id === targetId
+            ? { ...e, loot: freshLoot, looted: false, gear: rollGearOnDeath(e) }
+            : e),
+        }));
+      }
       if ((target as any).isNeutral) {
         playCombatSound('kaban-vizjit-rezko-v-shvatke', 0.5);
         setTimeout(() => stopCombatSound('kaban-vizjit-rezko-v-shvatke'), 3000);
@@ -3780,8 +3795,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               if ((e as any).isNeutral) {
                 playCombatSound('kaban-vizjit-rezko-v-shvatke', 0.5);
                 setTimeout(() => stopCombatSound('kaban-vizjit-rezko-v-shvatke'), 3000);
+                return { ...e, dead: true, isHit: false };
               }
-              return { ...e, dead: true, isHit: false, gear: rollGearOnDeath(e) };
+              // Ближний бой тоже даёт лут с трупа, как огнестрел.
+              let meleeLoot: any[] = [];
+              try {
+                meleeLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+                  rank: rankOfEnemy((e as any).factionKey, e.name),
+                });
+              } catch { /* ignore */ }
+              return { ...e, dead: true, isHit: false, loot: meleeLoot, looted: false, gear: rollGearOnDeath(e) };
             }
             return e;
           }),
@@ -4093,7 +4116,23 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             set((s) => ({ enemies: s.enemies.map((e) => (splashIds.has(e.id) ? { ...e, isHit: false } : e)) }));
           }, 300);
           const deadSplash = splashTargets.filter((o) => (dealt.get(o.id) ?? 0) >= o.currentHp);
-          if (deadSplash.length > 0) get().addBattleLog(`💥 ${wprof.cone ? 'Конус задел' : 'Взрыв задел'}: ${deadSplash.map((o) => o.name).join(', ')}`);
+          if (deadSplash.length > 0) {
+            get().addBattleLog(`💥 ${wprof.cone ? 'Конус задел' : 'Взрыв задел'}: ${deadSplash.map((o) => o.name).join(', ')}`);
+            // Добило конусом/взрывом: лут + поломки, иначе гир цел 100%.
+            const splashIdsDead = new Set(deadSplash.map((o) => o.id));
+            set((s) => ({
+              enemies: s.enemies.map((e) => {
+                if (!splashIdsDead.has(e.id) || (e as any).isNeutral) return e;
+                let freshLoot: any[] = [];
+                try {
+                  freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+                    rank: rankOfEnemy((e as any).factionKey, e.name),
+                  });
+                } catch { /* ignore */ }
+                return { ...e, loot: freshLoot, looted: false, gear: rollGearOnDeath(e) };
+              }),
+            }));
+          }
         }
       }
     } catch { /* best effort */ }
