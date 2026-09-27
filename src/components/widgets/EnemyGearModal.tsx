@@ -60,9 +60,7 @@ export const EnemyGearModal = ({ enemyId, onClose }: { enemyId: number | string;
         </WapHeader>
         <div style={{
           padding: 14,
-          backgroundImage: images.enemyDead
-            ? `linear-gradient(rgba(10,10,14,0.82), rgba(10,10,14,0.82)), url(${images.enemyDead})`
-            : 'none',
+          backgroundImage: images.enemyDead ? `url(${images.enemyDead})` : 'none',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}>
