@@ -10,7 +10,8 @@ import type { Item } from '../../types/items';
 import { ItemTooltip } from './ItemTooltip';
 import { ChestOpening } from './ChestOpening';
 import { chestImageFor } from '../../data/chests';
-import { GAME_ITEMS } from '../../data/GameItems';
+import { GAME_ITEMS, GAME_RESOURCES } from '../../data/GameItems';
+import { getBackpackImage, getBulletImage, getSchemeImage } from '../../assets/index';
 import { getConsumableIcon } from '../../data/consumables';
 import { calcItemPower } from '../../utils/itemPower';
 import { effectiveItemStats, modLevelMult } from '../../utils/itemStats';
@@ -134,19 +135,28 @@ const slotFilterKey = (item: Item): string => {  if (item.type === 'mod') return
   return item.slot || '';
 };
 
-// Закладки категорий слева: иконка — картинка первого предмета категории из базы.
+// Закладки категорий слева: иконка — картинка предмета категории
+// (снаряжение — из базы, остальное — из своих семейств спрайтов).
+const tabRepFor = (value: string): { img?: string; emoji?: string } => {
+  if (value === 'backpack') return { img: getBackpackImage('рейд') };
+  if (value === 'bullet') return { img: getBulletImage('Патроны пистолетные') };
+  if (value === 'blueprint') return { img: getSchemeImage('damage') };
+  if (value === 'material') return { img: (GAME_RESOURCES[0] as any)?.image };
+  if (value === 'consumable') return { emoji: '🧪' }; // у расходников арта нет — как в ячейках
+  if (value === 'mod') return { img: getItemImage('Прицел', undefined, 'mod_scope', 'mod'), emoji: '🔧' };
+  if (value === 'chest') return { img: chestImageFor('Обычный') };
+  const rep: any = (GAME_ITEMS as any[]).find((d) => { try { return slotFilterKey(d as Item) === value; } catch { return false; } });
+  if (!rep) return { emoji: '❔' };
+  const url = getItemImage(rep.name, rep.displayName, rep.slot, rep.type);
+  return url ? { img: url } : { emoji: rep.icon || '❔' };
+};
 const TABS: { value: string; label: string; img?: string; emoji?: string }[] = [
   { value: '', label: 'Все предметы', emoji: '📦' },
-  ...SLOT_FILTERS.filter((f) => f.value !== '').map((f) => {
-    const rep: any = (GAME_ITEMS as any[]).find((d) => { try { return slotFilterKey(d as Item) === f.value; } catch { return false; } });
-    const label = f.label.replace(/^— /, '');
-    if (!rep) return { value: f.value, label, emoji: '❔' };
-    if (rep.type === 'chest') return { value: f.value, label, img: chestImageFor(rep.quality || rep.rarity || 'Обычный') };
-    if (rep.type === 'consumable') return { value: f.value, label, emoji: getConsumableIcon(rep) };
-    const url = getItemImage(rep.name, rep.displayName, rep.slot, rep.type);
-    if (url) return { value: f.value, label, img: url };
-    return { value: f.value, label, emoji: rep.icon || '❔' };
-  }),
+  ...SLOT_FILTERS.filter((f) => f.value !== '').map((f) => ({
+    value: f.value,
+    label: f.label.replace(/^— /, ''),
+    ...tabRepFor(f.value),
+  })),
 ];
 
 export const InventoryOverlay = () => {
