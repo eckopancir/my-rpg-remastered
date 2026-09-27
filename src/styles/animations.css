@@ -136,12 +136,6 @@
 
 /* === FX окна экипировки (Equipment): каждый блок подписан номером —
  *  чтобы убрать анимацию, удали её блок здесь + помеченную строку в Equipment.tsx. */
-/* FX-1: каскадное появление слотов при открытии окна (задержка — inline animationDelay). */
-@keyframes eqfxAppear {
-  from { opacity: 0; transform: scale(0.7); }
-  to { opacity: 1; transform: scale(1); }
-}
-.eqfx-appear { animation: eqfxAppear 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
 /* FX-2: pop ячейки при надевании предмета. */
 @keyframes eqfxPop {
   0% { transform: scale(0.8); }

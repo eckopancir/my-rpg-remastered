@@ -218,8 +218,6 @@ const SLOT_LABELS: Record<string, string> = {
 // Слоты поверх силуэта + отдельный ряд оружейной сумки под куклой.
 const OVERLAY_SLOTS = EQUIPMENT_SLOTS.filter((s) => !s.startsWith('gun_')) as EquipmentSlot[];
 const GUN_ROW_SLOTS = EQUIPMENT_SLOTS.filter((s) => s.startsWith('gun_')) as EquipmentSlot[];
-// FX-1: порядок каскадного появления слотов при открытии окна.
-const SLOT_ORDER = new Map<string, number>([...GUN_ROW_SLOTS, ...OVERLAY_SLOTS].map((s, i) => [s as string, i]));
 
 // FX: призрак предмета для drag-and-drop (полупрозрачная копия с наклоном).
 const ghostEl = (item: Item): HTMLElement | null => {
@@ -749,11 +747,9 @@ export const Equipment = () => {
     const cc = isDragTarget ? '#4ade80' : qc;
     const glowBase = isDragTarget ? '#22c55e' : qc;
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
-    const orderIdx = SLOT_ORDER.get(slot as string) ?? 0;
     const isTopRarity = !!item && ((item as any).quality === 'Легендарный' || (item as any).quality === 'Божественный');
     return (
-      // FX-1: каскадное появление слота при открытии окна.
-      <div key={slot} className="eqfx-appear" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, animationDelay: `${orderIdx * 30}ms` }}>
+      <div key={slot} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         {/* FX-6: пыль цвета редкости падает вниз из-под слота (легендарные/божественные) */}
         {isTopRarity && (
           <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, height: 44, overflow: 'visible', pointerEvents: 'none', zIndex: 5 }}>
