@@ -466,26 +466,6 @@ export const Dashboard = () => {
 
       {/* Status cards */}
       <div style={{ display: 'flex', gap: 8 }}>
-        {combat.isFighting && (
-          <div style={{ flex: 1, cursor: 'pointer', background: 'rgba(18,16,14,0.88)', borderRadius: 6, border: '1px solid rgba(146,64,14,0.3)', padding: 10, position: 'relative' }} onClick={() => navigate('/battle')}>
-            <span
-              title="Убрать зависший бой"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!window.confirm('Убрать зависший бой? Флаг боя будет снят, можно начать новый.')) return;
-                playClick();
-                try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
-                usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
-                useUiStore.getState().addToast('🧹 Зависший бой убран', 'success');
-              }}
-              style={{ position: 'absolute', top: 4, right: 8, cursor: 'pointer', fontSize: 13, color: 'rgba(255,120,120,0.7)', padding: '0 4px' }}
-            >
-              ✕
-            </span>
-            <div style={{ fontSize: 11, fontFamily: 'var(--wa-font-hud)', fontWeight: 600, marginBottom: 4, color: 'var(--wa-accent)' }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--wa-font-terminal)' }}>НАЖМИТЕ ДЛЯ НАЧАЛА</div>
-          </div>
-        )}
         {isResting && (
           <WapPanel variant="metal" style={{ flex: 1 }}>
             <div style={{ fontSize: 11, fontFamily: 'var(--wa-font-hud)', fontWeight: 600, marginBottom: 4 }}>🛌 Отдых...</div>
@@ -499,12 +479,12 @@ export const Dashboard = () => {
         )}
       </div>
 
-      {/* Queue */}
-      {queue.length > 0 && (
+      {/* Queue — боевые карточки живут в журнале активности, тут только вылазки */}
+      {queue.filter((entry) => !entry.cardData).length > 0 && (
         <WapPanel variant="metal">
           <WapHeader title="ОЧЕРЕДЬ ЗАДАНИЙ" glow="none" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {queue.map((entry) => (
+            {queue.filter((entry) => !entry.cardData).map((entry) => (
               <div key={entry.id} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 padding: '4px 8px', background: entry.status === 'active' ? 'rgba(217,119,6,0.08)' : 'rgba(0,0,0,0.3)',

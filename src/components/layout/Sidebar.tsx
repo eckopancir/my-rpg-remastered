@@ -1,6 +1,7 @@
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useExplorationStore } from '../../stores/explorationStore';
+import { useNavigate } from 'react-router-dom';
 import { ProgressBar } from '../ui/ProgressBar';
 import styles from './Sidebar.module.css';
 
@@ -20,6 +21,8 @@ const fmtTime = (ts: number): string => {
 
 export const Sidebar = () => {
   const logs = usePlayerStore((s) => s.logs);
+  const isFighting = usePlayerStore((s) => s.combat.isFighting);
+  const navigate = useNavigate();
   const queue = useUiStore((s) => s.queue);
   const craftingTimer = useUiStore((s) => s.craftingTimer);
   const craftingTimerMax = useUiStore((s) => s.craftingTimerMax);
@@ -58,8 +61,22 @@ export const Sidebar = () => {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.section} style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div className={styles.sectionTitle}>Журнал заданий ({queue.length + (craftingTimer > 0 ? 1 : 0) + (isExploring ? 1 : 0)})</div>
+        <div className={styles.sectionTitle}>Журнал активности ({queue.length + (craftingTimer > 0 ? 1 : 0) + (isExploring ? 1 : 0) + (isFighting ? 1 : 0)})</div>
         <div className={styles.queue}>
+          {/* Бой готов: живая зелёная полоска, клик — на арену */}
+          {isFighting && (
+            <div
+              className={`${styles.queueItem} journal-live`}
+              onClick={() => navigate('/battle')}
+              title="Перейти на арену"
+              style={{ border: '1px solid #22c55e', background: 'rgba(34,197,94,0.08)' }}
+            >
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ fontWeight: 700, color: '#4ade80', fontSize: 12 }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>НАЖМИТЕ ДЛЯ НАЧАЛА</div>
+              </div>
+            </div>
+          )}
           {isExploring && (
             <div className={`${styles.queueItem} ${styles.queueItemActive}`}>
               <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 12 }}>
@@ -91,7 +108,7 @@ export const Sidebar = () => {
               />
             </div>
           )}
-          {!isExploring && queue.length === 0 && craftingTimer === 0 ? (
+          {!isExploring && queue.length === 0 && craftingTimer === 0 && !isFighting ? (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '2px 0', fontFamily: 'var(--wa-font-terminal)' }}>
               Нет активных заданий
             </div>
@@ -100,8 +117,14 @@ export const Sidebar = () => {
               <div
                 key={entry.id}
                 className={`${styles.queueItem} ${entry.status === 'active' ? styles.queueItemActive : ''}`}
+                style={entry.cardData ? { border: '1px solid rgba(217,119,6,0.45)', background: 'rgba(217,119,6,0.07)' } : undefined}
               >
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{entry.zoneName}</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{entry.cardData ? '⚔️ ' : ''}{entry.zoneName}</div>
+                {entry.cardData && (
+                  <div style={{ fontSize: 10, color: 'var(--wa-accent-amber)' }}>
+                    🎴 {entry.cardData.cardRarityName} · 👾 {(entry.cardData.enemyKeys || []).length}
+                  </div>
+                )}
                 <div style={{ fontSize: 11, color: entry.status === 'active' ? 'var(--wa-accent-amber)' : 'var(--text-muted)' }}>
                   {entry.status === 'active' ? `⏳ ${entry.remaining}s` : entry.status}
                 </div>
