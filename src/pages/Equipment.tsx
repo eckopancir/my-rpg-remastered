@@ -583,7 +583,7 @@ export const Equipment = () => {
         setCustomizing({ item: null, slot });
         return;
       }
-      // Клик по стволу — выбрать активным (зелёная рамка, урон с него).
+      // Клик по стволу — выбрать активным (рамка в цвете редкости, урон с него).
       if ((GUN_SLOTS as readonly string[]).includes(slot)) {
         usePlayerStore.getState().setActiveWeaponSlot(slot as EquipmentSlot);
       }
@@ -658,10 +658,10 @@ export const Equipment = () => {
     const isHover = hoverSlot === slot;
 
     // RPG-ячейка: утопленный тёмный металл + уголки качества + свечение за предметом.
-    // Зелёный только у функциональных состояний (активный ствол, дроп-таргет).
+    // Активный ствол — в цвете редкости оружия, дроп-таргет — зелёный.
     const qc = item?.qualityColor || '#818cf8';
-    const cc = isActiveGun ? '#22c55e' : isDragTarget ? '#4ade80' : qc;
-    const glowBase = isActiveGun || isDragTarget ? '#22c55e' : qc;
+    const cc = isDragTarget ? '#4ade80' : qc;
+    const glowBase = isDragTarget ? '#22c55e' : qc;
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
     return (
       <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -683,6 +683,7 @@ export const Equipment = () => {
             height: slotH,
             position: 'relative',
             overflow: 'hidden',
+            ...(isActiveGun ? { ['--gun-ring' as any]: qc } : null),
             background: item
               ? 'linear-gradient(180deg, #0e0e11 0%, #16161a 100%)'
               : isDragTarget
@@ -692,7 +693,7 @@ export const Equipment = () => {
             borderRadius: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: isActiveGun
-              ? '0 0 18px rgba(34,197,94,0.7), inset 0 2px 10px rgba(0,0,0,0.75)'
+              ? `0 0 18px ${withAlpha(qc, 0.7)}, inset 0 2px 10px rgba(0,0,0,0.75)`
               : isDragTarget && item
                 ? '0 0 18px rgba(34,197,94,0.5), inset 0 2px 10px rgba(0,0,0,0.75)'
                 : item
