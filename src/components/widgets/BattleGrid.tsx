@@ -998,10 +998,12 @@ export const BattleGrid = () => {
             const key = `${Math.round(pop.x)},${Math.round(pop.y)}`;
             const count = posCount.get(key) || 0;
             posCount.set(key, count + 1);
+            // Хил-карточку (+50 💚 +5 🩸) поднимаем выше модельки.
+            const lift = pop.type === 'HEALCARD' ? -34 : 0;
             return (
               <div key={pop.id} className={`${styles.battlePopup} ${styles[pop.type.toLowerCase()] || styles.normal}`} style={{
                 left: `${(pop.x / 31) * 100}%`,
-                top: `calc(${(pop.y / 31) * 100}% + ${count * -24}px)`,
+                top: `calc(${(pop.y / 31) * 100}% + ${count * -24 + lift}px)`,
               }}>
                 {pop.text}
               </div>
