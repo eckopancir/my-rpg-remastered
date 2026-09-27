@@ -1014,7 +1014,7 @@ export const Equipment = () => {
                 : (backpackLocked ? '🔒' : '🔓')}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', width: '100%' }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', width: '100%', marginTop: 23 }}>
             {[
               { v: `${equippedCount}/${EQUIPMENT_SLOTS.length}`, l: 'надето' },
               { v: `⭐ ${avgStars.toFixed(1)}`, l: 'качество', star: true },
