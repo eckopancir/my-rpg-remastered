@@ -71,10 +71,8 @@ export const Sidebar = () => {
               title="Перейти на арену"
               style={{ border: '1px solid #22c55e', background: 'rgba(34,197,94,0.08)' }}
             >
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{ fontWeight: 700, color: '#4ade80', fontSize: 12 }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>НАЖМИТЕ ДЛЯ НАЧАЛА</div>
-              </div>
+              <div style={{ fontWeight: 700, color: '#4ade80', fontSize: 12 }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>НАЖМИТЕ ДЛЯ НАЧАЛА</div>
             </div>
           )}
           {isExploring && (
