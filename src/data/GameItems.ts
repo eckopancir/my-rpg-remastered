@@ -946,6 +946,7 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Катана', rarity: 'superepic', slot: 'weapon1', stats: { damage: 16, crit: 0.12, accuracy: 0.04, speed: 0.1, vampir: 0.14 } },
 
   // === ЩИТЫ (слот shield, класс Милишник; блока в stats нет — +20% шанс даёт надетый щит) ===
+  { name: 'Щит мусорщика', rarity: 'normal', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 5, maxHp: 100 } },
   { name: 'Полицейский щит', rarity: 'epic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 8, maxHp: 200, evasion: 0.001 } },
   { name: 'Баллистический щит', rarity: 'superepic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 14, maxHp: 350, regen: 0.1 } },
 
