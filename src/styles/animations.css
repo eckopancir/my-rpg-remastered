@@ -234,7 +234,7 @@
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  animation: journalSpin 2.5s linear infinite;
+  animation: journalSpin 5s linear infinite;
   pointer-events: none;
 }
 @keyframes journalSpin { to { --jl-a: 360deg; } }

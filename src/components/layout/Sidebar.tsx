@@ -1,4 +1,5 @@
 import { usePlayerStore } from '../../stores/playerStore';
+import { useCombatGridStore, clearBattleEntry } from '../../stores/combatGridStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useExplorationStore } from '../../stores/explorationStore';
 import { useNavigate } from 'react-router-dom';
@@ -71,6 +72,19 @@ export const Sidebar = () => {
               title="Перейти на арену"
               style={{ border: '1px solid #22c55e', background: 'rgba(34,197,94,0.08)' }}
             >
+              <span
+                title="Убрать зависший бой"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!window.confirm('Убрать зависший бой? Флаг боя будет снят, можно начать новый.')) return;
+                  try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
+                  clearBattleEntry();
+                  usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+                }}
+                style={{ position: 'absolute', top: 2, right: 6, cursor: 'pointer', fontSize: 12, color: 'rgba(255,120,120,0.7)', padding: '0 4px', zIndex: 2 }}
+              >
+                ✕
+              </span>
               <div style={{ fontWeight: 700, color: '#4ade80', fontSize: 12 }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>НАЖМИТЕ ДЛЯ НАЧАЛА</div>
             </div>
