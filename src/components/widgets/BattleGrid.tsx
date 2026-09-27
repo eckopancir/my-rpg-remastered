@@ -178,7 +178,9 @@ export const BattleGrid = () => {
   // -- Sound effects --
   const prevShotLine = useRef<typeof shotLine>(null);
   const prevPlayerHit = useRef(false);
-  const prevPopupsLen = useRef(popups.length);
+  // Агрегация не меняет длину массива (карточка обновляется на месте) —
+  // следим за суммарным контентом, звук — по свежее обновлённой карточке.
+  const prevPopupsContent = useRef(0);
   const prevEnemiesDead = useRef<Set<number | string>>(new Set());
   // Активный залп живёт сам (ShotVolley гасится по таймеру): переживает очистку shotLine.
   const [volley, setVolley] = useState<typeof shotLine>(null);
@@ -204,13 +206,15 @@ export const BattleGrid = () => {
   }, [isPlayerHit, playSound]);
 
   useEffect(() => {
-    if (popups.length > prevPopupsLen.current && popups.length > 0) {
-      const last = popups[popups.length - 1];
-      if (last.type === 'CRIT') playSound('crit');
-      else if (last.type === 'EVASION') playSound('evasion');
-      else if (last.type === 'BLOCK') playSound('block');
+    const content = popups.reduce((a, p) => a + p.hits.length + (p.statuses?.length || 0) + (p.overflowHits || 0), 0);
+    if (content > prevPopupsContent.current && popups.length > 0) {
+      let fresh = popups[popups.length - 1];
+      for (const p of popups) if ((p.updatedAt || 0) > (fresh.updatedAt || 0)) fresh = p;
+      if (fresh.hits.some((h) => h.crit != null)) playSound('crit');
+      else if ((fresh.statuses || []).some((s) => s.kind === 'EVASION')) playSound('evasion');
+      else if ((fresh.statuses || []).some((s) => s.kind === 'BLOCK')) playSound('block');
     }
-    prevPopupsLen.current = popups.length;
+    prevPopupsContent.current = content;
   }, [popups, playSound]);
 
   // Death sounds — when an enemy dies, play its soundAttack + optional death sound
@@ -991,19 +995,45 @@ export const BattleGrid = () => {
           );
         })}
 
-        {/* Battle popups — offset vertically to avoid stacking */}
+        {/* Battle popups: карточки (урон слева построчно, статусы центр, хил справа). */}
         {(() => {
           const posCount = new Map<string, number>();
           return popups.map((pop) => {
             const key = `${Math.round(pop.x)},${Math.round(pop.y)}`;
             const count = posCount.get(key) || 0;
             posCount.set(key, count + 1);
+            const hasDmg = pop.hits.length > 0 || pop.overflowHits > 0;
+            const hasHeal = (pop.heal || 0) > 0 || (pop.vamp || 0) > 0;
+            const sts = (pop.statuses || []).slice(0, 3);
             return (
-              <div key={pop.id} className={`${styles.battlePopup} ${styles[pop.type.toLowerCase()] || styles.normal}`} style={{
+              <div key={pop.id} className={styles.battlePopup} style={{
                 left: `${(pop.x / 31) * 100}%`,
-                top: `calc(${(pop.y / 31) * 100}% + ${count * -24}px)`,
+                top: `calc(${(pop.y / 31) * 100}% + ${count * -44}px)`,
               }}>
-                {pop.text}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  {hasDmg && (
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end', color: '#f87171', fontWeight: 800 }}>
+                      {pop.overflowHits > 0 && (
+                        <span style={{ opacity: 0.75 }}>−{Math.abs(Math.round(pop.overflowDmg))} ×{pop.overflowHits}</span>
+                      )}
+                      {pop.hits.map((h, i) => (
+                        <span key={i} style={h.crit != null ? { color: '#fbbf24' } : undefined}>
+                          {h.crit != null ? `🔥 КРИТ x${h.crit}! −${Math.abs(Math.round(h.amount))}` : `−${Math.abs(Math.round(h.amount))}`}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  {sts.length > 0 && (
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 1, fontSize: '0.85em' }}>
+                      {sts.map((s, i) => <span key={i}>{s.text}</span>)}
+                    </span>
+                  )}
+                  {hasHeal && (
+                    <span style={{ color: '#4ade80', fontWeight: 700 }}>
+                      {(pop.heal || 0) > 0 ? `+${Math.round(pop.heal)} 💚` : ''}{(pop.heal || 0) > 0 && (pop.vamp || 0) > 0 ? ' ' : ''}{(pop.vamp || 0) > 0 ? `+${Math.round(pop.vamp)} 🩸` : ''}
+                    </span>
+                  )}
+                </div>
               </div>
             );
           });

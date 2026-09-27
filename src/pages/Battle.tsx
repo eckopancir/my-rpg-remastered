@@ -18,22 +18,36 @@ import { SkillBar } from '../components/widgets/SkillBar';
 
 const LogPanel = () => {
   const battleLogs = useCombatGridStore((s) => s.battleLogs);
-  const logSize = useUiStore((s) => s.battleLogSize ?? 20);
+  const logSize = useUiStore((s) => s.battleLogSize ?? 50);
   const visible = battleLogs.slice(-logSize);
   const ref = useRef<HTMLDivElement>(null);
+  // Умный скролл: вниз — только если юзер уже внизу (чтение истории не дёргаем).
   useEffect(() => {
-    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+    const el = ref.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [battleLogs.length]);
+  const colorOf = (msg: string) => {
+    if (msg.startsWith('🔫')) return '#e7f5ff';
+    if (msg.startsWith('💀')) return '#ff6b6b';
+    if (msg.startsWith('📦')) return '#ffd93d';
+    if (msg.startsWith('⚠️')) return '#ffa94d';
+    if (msg.startsWith('🕊️')) return '#69db7c';
+    if (msg.startsWith('🔥') || msg.startsWith('☠️')) return '#ffb3b3';
+    return 'rgba(255,255,255,0.7)';
+  };
   return (
     <div style={{ fontSize: 11, marginTop: 8 }}>
-      <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', marginBottom: 4 }}>📋 Лог боя</div>
+      <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', marginBottom: 4 }}>📋 Лог боя ({battleLogs.length})</div>
       <div ref={ref} style={{
-        maxHeight: 120, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2,
+        maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2,
         padding: '4px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.3)',
+        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
       }}>
         {visible.length === 0 && <span style={{ opacity: 0.3 }}>—</span>}
         {visible.map((msg, i) => (
-          <span key={i} style={{ color: msg.startsWith('💀') ? '#ff6b6b' : msg.startsWith('📦') ? '#ffd93d' : msg.startsWith('⚠️') ? '#ffa94d' : msg.startsWith('🕊️') ? '#69db7c' : 'rgba(255,255,255,0.7)' }}>
+          <span key={i} style={{ color: colorOf(msg) }}>
             {msg}
           </span>
         ))}

@@ -132,13 +132,55 @@ export interface GridObstacle {
   imgIndex?: number;
 }
 
+/** Агрегированная карточка попапов (WoW-стиль): слева урон, справа хил, центр статусы. */
 export interface BattlePopup {
   id: string;
   x: number;
   y: number;
-  text: string;
-  type: string;
+  // Левая полоса: каждое попадание своей строкой (как раньше «🔥 КРИТ x3! −47»),
+  // переполнение старше 4 строк схлопывается в «−X ×N».
+  hits: Array<{ amount: number; crit: number | null }>;
+  overflowDmg: number;
+  overflowHits: number;
+  // Правая полоса: реген и вампиризм одним суммарным числом.
+  heal: number;
+  vamp: number;
+  // Центр: статусы (максимум 3).
+  statuses: Array<{ text: string; kind: string }>;
+  updatedAt: number;
 }
+
+// Окно агрегации: пока летит (3.5с с последнего обновления) — суммируем.
+// Чистит один общий дворник каждые 300мс (без таймеров на карточку).
+const POPUP_AGG_MS = 3500;
+// Максимум строк попаданий в карточке; старше — в «−X ×N».
+const MAX_HIT_LINES = 4;
+// Максимум карточек на одной клетке и всего (защита от лагов).
+const POPUP_CARDS_PER_CELL = 3;
+const POPUP_CARDS_TOTAL = 15;
+// Полосы урона (лево) и хила (право).
+// NORMAL — обычные попадания «−47» (без него урон уходил в статусы и терялся).
+const DMG_LANES = new Set(['NORMAL', 'DMG', 'CRIT', 'DAMAGE']);
+const HEAL_LANES: Record<string, 'heal' | 'vamp'> = { HEAL: 'heal', VAMP: 'vamp' };
+
+let popupPruneOn = false;
+
+const parseCritMult = (text: string): number | null => {
+  const m = String(text).match(/[xх](\d+)/i);
+  if (!m) return null;
+  const v = parseInt(m[1], 10);
+  return Number.isFinite(v) && v > 0 ? v : null;
+};
+
+const parsePopupNumber = (text: string): number => {
+  // Урон — число после минуса («🔥 КРИТ x3! -47» → -47, а не 347).
+  // Без цифр («МИМО») — 0, такой попап уйдёт в статусы, а не в «−0».
+  const t = String(text).replace(/−/g, '-');
+  const m = t.match(/-\s*(\d+)/);
+  if (m) return -parseInt(m[1], 10);
+  const p = t.match(/(\d+)/);
+  return p ? parseInt(p[1], 10) : 0;
+};
 
 export type ShotKind = 'single' | 'burst' | 'spread' | 'boss' | 'heal';
 
@@ -354,7 +396,7 @@ export interface CombatGridStore {
   endTurn: () => void;
   cleanup: () => void;
   addMessage: (msg: string) => void;
-  addPopup: (x: number, y: number, text: string, type?: string) => void;
+  addPopup: (x: number, y: number, text: string, type?: string, meta?: { amount?: number; crit?: number | null }) => void;
   addBattleLog: (msg: string) => void;
   procElementalDebuffs: (targetId: string | number) => void;
   procShotgunStun: (targetId: string | number) => void;
@@ -739,36 +781,55 @@ export const calcPureDamage = (pStats: any, faction?: string): number => {
 
 export const calculateCombatResult = (attacker: any, target: any) => {
   let dmg = attacker.dps || attacker.damage || 0;
+  const baseDmg = dmg;
   let text = '';
   let type = 'NORMAL';
   let sound: string | null = null;
+  // Разбор для детального лога боя (по каждому выстрелу).
+  let missed = false;
+  let evaded = false;
+  let evasionChance = 0;
+  let accuracy = 0;
+  let critChance = 0;
 
   const currentHour = new Date().getHours();
   // DEBUG forceDay: для тестов всегда день (без ночного штрафа).
   const isNightTime = currentHour >= 0 && currentHour < 6 && !useUiStore.getState().forceDay;
   const nightPenalty = isNightTime && !attacker.isPlayer ? 0.2 : 0;
   const finalAccuracy = Math.max(0, (attacker.accuracy || 0) - nightPenalty);
+  accuracy = finalAccuracy;
   const forcedMult = (attacker as any).forceCritMult || 0;
 
   if (Math.random() > finalAccuracy && finalAccuracy < 1 && !forcedMult) {
-    return { damage: 0, type: 'MISS', text: 'ПРОМАХ', sound: null };
+    missed = true;
+    const out: any = { damage: 0, type: 'MISS', text: 'ПРОМАХ', sound: null };
+    out.detail = { missed: true, evaded: false, accuracy, evasionChance: 0, critChance: 0, critMult: 0, isCrit: false, blockChance: 0, blocked: false, armorIn: target.armor || 0, armorEff: target.armor || 0, armorCutPct: 0, barrierMult: 1, baseDmg: Math.round(baseDmg), pureDmg: 0, finalDmg: 0 };
+    return out;
   }
 
   // Уворот проверяется до расчёта урона.
-  let evasionChance = target.evasion || 0;
+  evasionChance = target.evasion || 0;
   if (finalAccuracy > 1) {
     if (Math.random() < finalAccuracy - 1) evasionChance = 0;
   }
   if (Math.random() < evasionChance && !forcedMult) {
     playCombatSound('evasion', 0.3);
+    evaded = true;
     const pureDmg = Math.round(attacker.pure || 0);
-    if (pureDmg > 0) return { damage: pureDmg, type: 'EVASION', text: `УВОРОТ −${pureDmg}`, sound: null };
-    return { damage: 0, type: 'EVASION', text: 'УВОРОТ', sound: null };
+    if (pureDmg > 0) {
+      const out: any = { damage: pureDmg, type: 'EVASION', text: `УВОРОТ −${pureDmg}`, sound: null };
+      out.detail = { missed: false, evaded: true, accuracy, evasionChance, critChance: attacker.crit || 0, critMult: 1, isCrit: false, blockChance: 0, blocked: false, armorIn: target.armor || 0, armorEff: target.armor || 0, armorCutPct: 0, barrierMult: 1, baseDmg: Math.round(baseDmg), pureDmg, finalDmg: pureDmg };
+      return out;
+    }
+    const out: any = { damage: 0, type: 'EVASION', text: 'УВОРОТ', sound: null };
+    out.detail = { missed: false, evaded: true, accuracy, evasionChance, critChance: attacker.crit || 0, critMult: 1, isCrit: false, blockChance: 0, blocked: false, armorIn: target.armor || 0, armorEff: target.armor || 0, armorCutPct: 0, barrierMult: 1, baseDmg: Math.round(baseDmg), pureDmg: 0, finalDmg: 0 };
+    return out;
   }
 
   // 1) КРИТ: множитель к базовому урону.
   // Стрелок Т2/Т5 «крит. урон»: плоская добавка к множителю крита.
   const critVal = attacker.crit || 0;
+  critChance = critVal;
   const critDmgBonus = Math.max(0, (attacker as any).critDamage || 0);
   let critMultiplier = 1;
   let isCrit = false;
@@ -802,6 +863,10 @@ export const calculateCombatResult = (attacker: any, target: any) => {
 
   // 3) БРОНЯ после блока: асимптотический срез DR = A^0.75/(A^0.75+135).
   // Пробитие режет эффективную броню: punch 0–1 → 0–50%, 1–3 → 50–70%, 3+ → 70% кап.
+  const armorIn = target.armor || 0;
+  let armorEff = armorIn;
+  let armorCutPct = 0;
+  const dmgBeforeArmor = dmg;
   if (dmg > 0) {
     const p = attacker.punching || 0;
     let pierceFactor: number;
@@ -809,11 +874,15 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     else if (p >= 1.0) pierceFactor = 0.5 + (p - 1.0) * 0.1;
     else pierceFactor = p * 0.5;
     const effectiveEnemyArmor = (target.armor || 0) * (1 - pierceFactor);
+    armorEff = Math.round(effectiveEnemyArmor * 100) / 100;
     dmg = applyArmorDamage(dmg, effectiveEnemyArmor);
+    if (dmgBeforeArmor > 0) armorCutPct = Math.round((1 - dmg / dmgBeforeArmor) * 100);
   }
 
   // 4) Барьер (incoming damage multiplier).
+  let barrierMult = 1;
   if (dmg > 0 && target.incomingDamageMult !== undefined && target.incomingDamageMult < 1) {
+    barrierMult = target.incomingDamageMult;
     dmg *= target.incomingDamageMult;
   }
 
@@ -834,7 +903,46 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     text = `-${displayDmg}`;
   }
 
-  return { damage: displayDmg, type, text, sound };
+  const out: any = { damage: displayDmg, type, text, sound };
+  out.critMult = critMultiplier;
+  out.detail = {
+    missed: false, evaded: false, accuracy, evasionChance,
+    critChance, critMult: critMultiplier, isCrit,
+    blockChance, blocked: isBlocked,
+    armorIn: Math.round(armorIn * 10) / 10, armorEff, armorCutPct,
+    barrierMult, baseDmg: Math.round(baseDmg), pureDmg: pureTotal, finalDmg: displayDmg,
+  };
+  return out;
+};
+
+/** Детальная строка лога по каждому выстрелу: роллы и срезы.
+ * Формат: 🔫 att → tgt: −47 | точн 0.85 | уверт 12% − | крит 15% x2 ✓ | блок 5% − | броня 20→эфф 12.4 (−38%) | барьер ×1 | чистый +0 | HP 73/120 */
+export const buildShotLog = (
+  attackerLabel: string,
+  targetLabel: string,
+  result: any,
+  hpAfter?: { cur: number; max: number },
+): string => {
+  const d = (result as any).detail;
+  if (!d) return `🔫 ${attackerLabel} → ${targetLabel}: ${result.text}`;
+  if (d.missed) return `🔫 ${attackerLabel} → ${targetLabel}: ПРОМАХ (точн ${Number(d.accuracy || 0).toFixed(2)})${hpAfter ? ` | HP ${hpAfter.cur}/${hpAfter.max}` : ''}`;
+  const parts: string[] = [];
+  parts.push(`🔫 ${attackerLabel} → ${targetLabel}: ${result.text}`);
+  parts.push(`точн ${Number(d.accuracy || 0).toFixed(2)}`);
+  parts.push(`уверт ${Math.round((d.evasionChance || 0) * 100)}% ${d.evaded ? '✓' : '−'}`);
+  if ((d.critChance || 0) > 0 || d.isCrit) {
+    parts.push(`крит ${Math.round((d.critChance || 0) * 100)}%${d.isCrit ? ` x${d.critMult} ✓` : ' −'}`);
+  }
+  if ((d.blockChance || 0) > 0 || d.blocked) {
+    parts.push(`блок ${Math.round((d.blockChance || 0) * 100)}%${d.blocked ? ' ✓' : ' −'}`);
+  }
+  if ((d.armorIn || 0) > 0) {
+    parts.push(`броня ${d.armorIn}→эфф ${d.armorEff} (−${d.armorCutPct}%)`);
+  }
+  if ((d.barrierMult || 1) < 1) parts.push(`барьер ×${d.barrierMult}`);
+  if ((d.pureDmg || 0) > 0) parts.push(`чистый +${d.pureDmg}`);
+  if (hpAfter) parts.push(`HP ${hpAfter.cur}/${hpAfter.max}`);
+  return parts.join(' | ');
 };
 
 /** Проверяет щит игрока перед получением урона. Если щит активен — поглощает атаку, возвращает true */
@@ -1040,7 +1148,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       pendingReinforce: [],
       reinforceSpawned: true,
       message: `⚠️ Подкрепление врага (${placed.length})! Патрулирует карту`,
-      battleLogs: [...st.battleLogs.slice(-199), `⚠️ Подкрепление (${placed.length}) прибыло с угла карты — патрулирует!`],
+      battleLogs: [...st.battleLogs.slice(-499), `⚠️ Подкрепление (${placed.length}) прибыло с угла карты — патрулирует!`],
     }));
     if (placed[0]) get().say(placed[0].id, pickPhrase(REINFORCE_BARK));
   },
@@ -1070,7 +1178,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         return next;
       }),
       message: '🚨 Тревога! Враги прочёсывают карту!',
-      battleLogs: [...st.battleLogs.slice(-199), '🚨 Враг нашёл труп! Все ищут тебя!'],
+      battleLogs: [...st.battleLogs.slice(-499), '🚨 Враг нашёл труп! Все ищут тебя!'],
     }));
     get().say(finderId, pickPhrase(CORPSE_ALARM));
   },
@@ -1181,16 +1289,97 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   addMessage: (msg) => set({ message: msg }),
 
-  addBattleLog: (msg) => set((s) => ({ battleLogs: [...s.battleLogs.slice(-199), msg] })),
+  addBattleLog: (msg) => set((s) => ({ battleLogs: [...s.battleLogs.slice(-499), msg] })),
 
-  addPopup: (x, y, text, type = 'NORMAL') => {
+  addPopup: (x, y, text, type = 'NORMAL', meta) => {
     // Настройка «Цифры урона»: числовые попапы (урон/крит/блок) можно скрыть.
-    if ((type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK') && useUiStore.getState().showDamageNumbers === false) return;
-    const id = `popup-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
-    set((s) => ({ popups: [...s.popups, { id, x, y, text, type }] }));
-    setTimeout(() => {
-      set((s) => ({ popups: s.popups.filter((p) => p.id !== id) }));
-    }, 1000);
+    const hideNumbers = useUiStore.getState().showDamageNumbers === false;
+    if (hideNumbers && (type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK')) return;
+    // Общий дворник протухших карточек (один на всех, без таймеров).
+    if (!popupPruneOn && typeof window !== 'undefined') {
+      popupPruneOn = true;
+      window.setInterval(() => {
+        const cur = get();
+        if (!cur.popups.length) return;
+        const now = Date.now();
+        let dirty = false;
+        for (const p of cur.popups) {
+          if (now - p.updatedAt >= POPUP_AGG_MS) { dirty = true; break; }
+        }
+        if (dirty) set({ popups: cur.popups.filter((p) => now - p.updatedAt < POPUP_AGG_MS) });
+      }, 300);
+    }
+    const key = `${Math.round(x)},${Math.round(y)}`;
+    const now = Date.now();
+    const st = get();
+    const sameCell = st.popups.filter(
+      (p) => `${Math.round(p.x)},${Math.round(p.y)}` === key,
+    );
+    let card = sameCell[sameCell.length - 1];
+    const applyLane = (c: BattlePopup): boolean => {
+      if (DMG_LANES.has(type)) {
+        if (hideNumbers) return false;
+        // Структурные данные (без парсинга текста): урон уже числом, крит — множителем.
+        // Знак: хиты храним отрицательными (как раньше «−47»).
+        const n = meta?.amount !== undefined ? -Math.abs(Math.round(meta.amount)) : parsePopupNumber(text);
+        // Без числа в тексте (промах и т.п.) — в статусы, а не в «−0».
+        if (n === 0 && meta?.amount === undefined && !/\d/.test(String(text))) {
+          const last = c.statuses[c.statuses.length - 1];
+          if (!last || last.text !== text) {
+            c.statuses.push({ text, kind: type });
+            if (c.statuses.length > 3) c.statuses.shift();
+          }
+          return true;
+        }
+        // Каждое попадание — своей строкой; множитель крита — как раньше.
+        const cm = meta?.crit !== undefined ? meta.crit : (type === 'CRIT' ? parseCritMult(text) : null);
+        c.hits.push({ amount: n, crit: cm });
+        while (c.hits.length > MAX_HIT_LINES) {
+          const dropped = c.hits.shift()!;
+          c.overflowDmg += dropped.amount;
+          c.overflowHits += 1;
+        }
+        return true;
+      }
+      const healLane = (HEAL_LANES as Record<string, 'heal' | 'vamp'>)[type];
+      if (healLane) {
+        const n = Math.abs(parsePopupNumber(text));
+        (c as any)[healLane] = ((c as any)[healLane] || 0) + n;
+        return (c as any)[healLane] > 0;
+      }
+      // Центр: статусы (максимум 3, дубли подряд не копим).
+      const last = c.statuses[c.statuses.length - 1];
+      if (!last || last.text !== text) {
+        c.statuses.push({ text, kind: type });
+        if (c.statuses.length > 3) c.statuses.shift();
+      }
+      return true;
+    };
+    if (!card) {
+      if (sameCell.length >= POPUP_CARDS_PER_CELL) return;
+      const fresh: BattlePopup = {
+        id: `popup-${now}-${Math.random().toString(36).slice(2, 5)}`,
+        x, y, hits: [], overflowDmg: 0, overflowHits: 0, heal: 0, vamp: 0, statuses: [], updatedAt: now,
+      };
+      if (!applyLane(fresh)) return;
+      // Пустая карточка (всё отфильтровано) — не создаём.
+      if (fresh.hits.length === 0 && fresh.overflowHits === 0 && fresh.heal === 0 && fresh.vamp === 0 && fresh.statuses.length === 0) return;
+      let next = [...st.popups, fresh];
+      // Глобальный кап: старейшие карточки сносим.
+      while (next.length > POPUP_CARDS_TOTAL) next = next.slice(1);
+      set({ popups: next });
+      return;
+    }
+    const next = st.popups.map((p) => {
+      if (p.id !== card!.id) return p;
+      const c: BattlePopup = {
+        ...p,
+        hits: [...p.hits], statuses: [...p.statuses], updatedAt: now,
+      };
+      applyLane(c);
+      return c;
+    });
+    set({ popups: next });
   },
 
   triggerShake: () => {
@@ -3590,7 +3779,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           selectedEnemy: null,
           stealth: false,
         } as any));
-        get().addPopup(t.pos.x, t.pos.y, result.text, result.type);
+        get().addPopup(t.pos.x, t.pos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+        get().addBattleLog(buildShotLog('вы 🗡️', t.name, result, { cur: Math.max(0, t.currentHp - actualDmg), max: t.maxHp }));
         // Искра ближнего боя на цели (гаснет сама).
         {
           const fxId = Date.now() + Math.random();
@@ -3725,7 +3915,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       stealth: false,
     } as any));
 
-    get().addPopup(enemy.pos.x, enemy.pos.y, result.text, result.type);
+    get().addPopup(enemy.pos.x, enemy.pos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+    get().addBattleLog(buildShotLog('вы', enemy.name, result, { cur: Math.max(0, enemy.currentHp - actualDmg), max: enemy.maxHp }));
 
     // Стихийные дебафы: шанс = значение стихии (только если попали и цель жива).
     if (actualDmg > 0) get().procElementalDebuffs(enemyId);
@@ -3815,7 +4006,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           ),
         }));
 
-        get().addPopup(en.pos.x, en.pos.y, res.text, res.type);
+        get().addPopup(en.pos.x, en.pos.y, res.text, res.type, { amount: res.damage, crit: (res as any).critMult > 1 ? (res as any).critMult : null });
+        get().addBattleLog(buildShotLog('вы ↺', en.name, res, { cur: Math.max(0, en.currentHp - dmg), max: en.maxHp }));
         get().addPopup(st.playerPos.x, st.playerPos.y, '+1 🏃', 'BUFF');
         // Стихийные дебафы и на бонус-выстрелах.
         if (dmg > 0) get().procElementalDebuffs(enemyId);
@@ -4116,7 +4308,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       enemies: [...s.enemies, ...newEnemies],
       isVictory: false,
       message: `⚠️ Подкрепление! ${count} врагов прибыло`,
-      battleLogs: [...get().battleLogs.slice(-199), `⚠️ Подкрепление! ${count} врагов прибыло`],
+      battleLogs: [...get().battleLogs.slice(-499), `⚠️ Подкрепление! ${count} врагов прибыло`],
       turn: 'enemy',
       reserve: s.reserve.length > count ? s.reserve.slice(count) : [],
     }));
@@ -4627,14 +4819,18 @@ export async function executeSkill(
       const result = calculateCombatResult(attackerStats, get().playerDefenseTarget());
       if (result.damage > 0) {
         if (!absorbWithShield(pPos)) {
+          const pBefore = usePlayerStore.getState().stats.currentHp;
           const finalDmg = Math.round(result.damage);
           usePlayerStore.setState((st: any) => ({
             stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
           }));
-          get().addPopup(pPos.x, pPos.y, result.text, result.type);
+          get().addPopup(pPos.x, pPos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+          const pAfter = usePlayerStore.getState().stats;
+          get().addBattleLog(buildShotLog(`${enemy.name} 🎯`, 'вы', result, { cur: Math.round(pAfter.currentHp), max: Math.round(pAfter.maxHp) }));
         }
       } else {
         get().addPopup(pPos.x, pPos.y, result.text, 'SPECIAL');
+        get().addBattleLog(buildShotLog(`${enemy.name} 🎯`, 'вы', result));
       }
       setCd('aimShot', 5);
       if (!enemy.cooldowns) enemy.cooldowns = {};
@@ -4678,11 +4874,14 @@ export async function executeSkill(
           const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false }, get().playerDefenseTarget());
           get().triggerShake();
           if (result.damage > 0 && !absorbWithShield(pPos)) {
+            const pBefore = usePlayerStore.getState().stats.currentHp;
             const finalDmg = Math.round(result.damage);
             usePlayerStore.setState((st: any) => ({
               stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
             }));
-            get().addPopup(pPos.x, pPos.y, `БА-БАХ! ${result.text}`, result.type);
+            get().addPopup(pPos.x, pPos.y, `БА-БАХ! ${result.text}`, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+            const pAfter = usePlayerStore.getState().stats;
+            get().addBattleLog(buildShotLog(`${enemy.name} 🐗`, 'вы', result, { cur: Math.round(pAfter.currentHp), max: Math.round(pAfter.maxHp) }));
           } else {
             get().addPopup(pPos.x, pPos.y, `🛡️ ЩИТ выдержал таран!`, 'BLOCK');
           }
@@ -4881,7 +5080,11 @@ export async function executeSkill(
           usePlayerStore.setState((st: any) => ({
             stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
           }));
-          get().addPopup(pPos.x, pPos.y, result.text, result.type);
+          get().addPopup(pPos.x, pPos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+          const pAfter = usePlayerStore.getState().stats;
+          get().addBattleLog(buildShotLog(`${enemy.name} 🌧`, 'вы', result, { cur: Math.round(pAfter.currentHp), max: Math.round(pAfter.maxHp) }));
+        } else if (result.damage <= 0) {
+          get().addBattleLog(buildShotLog(`${enemy.name} 🌧`, 'вы', result));
         }
         await new Promise((r) => setTimeout(r, 250));
       }
@@ -4939,7 +5142,11 @@ export async function executeSkill(
         usePlayerStore.setState((st: any) => ({
           stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
         }));
-        get().addPopup(pPos.x, pPos.y, `💥 УДАРНАЯ ВОЛНА! ${result.text}`, result.type);
+        get().addPopup(pPos.x, pPos.y, `💥 УДАРНАЯ ВОЛНА! ${result.text}`, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+        const pAfter = usePlayerStore.getState().stats;
+        get().addBattleLog(buildShotLog(`${enemy.name} 🌊`, 'вы', result, { cur: Math.round(pAfter.currentHp), max: Math.round(pAfter.maxHp) }));
+      } else if (result.damage <= 0) {
+        get().addBattleLog(buildShotLog(`${enemy.name} 🌊`, 'вы', result));
       }
       set((s: any) => ({ ap: 0 }));
       get().addPopup(pPos.x, pPos.y, '😵 Оглушение: AP 0', 'SPECIAL');

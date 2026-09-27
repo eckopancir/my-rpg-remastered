@@ -169,7 +169,7 @@ export const Settings = () => {
               <div style={{ fontSize: 14, fontWeight: 500 }}>Размер лога боя</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Сколько строк держать в логе арены и полигона</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                {[10, 20, 50].map((n) => (
+                {[10, 20, 50, 100].map((n) => (
                   <Button
                     key={n}
                     variant={battleLogSize === n ? 'primary' : 'ghost'}

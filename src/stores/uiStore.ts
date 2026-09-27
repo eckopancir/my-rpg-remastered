@@ -153,7 +153,7 @@ export const useUiStore = create<UiStore>()(
       arenaVolume: 1,
       rangeVolume: 1,
       showDamageNumbers: true,
-      battleLogSize: 20,
+      battleLogSize: 50,
       autoReload: false,
       confirmExitCombat: true,
       showEnemyHpNumbers: false,
@@ -252,7 +252,7 @@ export const useUiStore = create<UiStore>()(
       setArenaVolume: (volume) => set({ arenaVolume: Math.max(0, Math.min(1, volume)) }),
       setRangeVolume: (volume) => set({ rangeVolume: Math.max(0, Math.min(1, volume)) }),
       setShowDamageNumbers: (v) => set({ showDamageNumbers: v }),
-      setBattleLogSize: (v) => set({ battleLogSize: [10, 20, 50].includes(v) ? v : 20 }),
+      setBattleLogSize: (v) => set({ battleLogSize: [10, 20, 50, 100].includes(v) ? v : 50 }),
       setAutoReload: (v) => set({ autoReload: v }),
       setConfirmExitCombat: (v) => set({ confirmExitCombat: v }),
       setShowEnemyHpNumbers: (v) => set({ showEnemyHpNumbers: v }),
@@ -353,7 +353,7 @@ export const useUiStore = create<UiStore>()(
           if (state.arenaVolume === undefined) state.arenaVolume = 1;
           if (state.rangeVolume === undefined) state.rangeVolume = 1;
           if (state.showDamageNumbers === undefined) state.showDamageNumbers = true;
-          if (state.battleLogSize === undefined) state.battleLogSize = 20;
+          if (state.battleLogSize === undefined) state.battleLogSize = 50;
           if (state.autoReload === undefined) state.autoReload = false;
           if (state.confirmExitCombat === undefined) state.confirmExitCombat = true;
           if (state.showEnemyHpNumbers === undefined) state.showEnemyHpNumbers = false;
