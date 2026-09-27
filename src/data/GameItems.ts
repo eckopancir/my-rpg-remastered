@@ -1021,21 +1021,6 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'ГП-25', rarity: 'epic', slot: 'weapon2', stats: { damage: 28, speed: -0.2, accuracy: -0.2, evasion: -0.25 }, ammoCapacity: 1 },
 
   // === NEW MELEE WEAPONS ===
-  { name: 'Кастет', rarity: 'normal', slot: 'weapon1', stats: { damage: 3, punching: 0.03, vampir: 0.1, crit: 0.02, speed: 0.1 } },
-  { name: 'Дубинка', rarity: 'normal', slot: 'weapon1', stats: { damage: 4, block: 0.04, vampir: 0.1, punching: 0.03, crit: 0.02, speed: 0.1 } },
-  { name: 'Топор', rarity: 'normal', slot: 'weapon1', stats: { damage: 7, vampir: 0.1, punching: 0.03, crit: 0.02, speed: 0.1 } },
-  { name: 'Кинжал', rarity: 'normal', slot: 'weapon1', stats: { damage: 5, crit: 0.05, vampir: 0.02, punching: 0.03, speed: 0.13 } },
-  { name: 'Молот', rarity: 'normal', slot: 'weapon1', stats: { damage: 8, speed: -0.2, vampir: 0.02, punching: 0.03, crit: 0.02 } },
-  { name: 'Рапира', rarity: 'epic', slot: 'weapon1', stats: { damage: 9, crit: 0.04, accuracy: 0.02, vampir: 0.03, punching: 0.045, speed: 0.13 } },
-  { name: 'Палаш', rarity: 'epic', slot: 'weapon1', stats: { damage: 11, block: 0.08, vampir: 0.03, punching: 0.045, crit: 0.03 } },
-  { name: 'Секира', rarity: 'epic', slot: 'weapon1', stats: { damage: 13, speed: -0.2, armor: 0.5, vampir: 0.03, punching: 0.045, crit: 0.03 }, mods: {} },
-  { name: 'Цепь с шипами', rarity: 'epic', slot: 'weapon1', stats: { damage: 8, vampir: 0.03, speed: 0.01, punching: 0.045, crit: 0.03 } },
-  { name: 'Танто', rarity: 'superepic', slot: 'weapon1', stats: { damage: 10, crit: 0.06, speed: 0.13, vampir: 0.04, punching: 0.06 } },
-  { name: 'Нунчаки', rarity: 'superepic', slot: 'weapon1', stats: { damage: 8, evasion: 0.008, speed: 0.13, vampir: 0.04, punching: 0.06, crit: 0.04 } },
-  { name: 'Коса', rarity: 'superepic', slot: 'weapon1', stats: { damage: 16, speed: -0.2, armor: 0.5, vampir: 0.04, punching: 0.06, crit: 0.04 }, mods: {} },
-  { name: 'Плазменный клинок', rarity: 'superepic', slot: 'weapon1', stats: { damage: 20, dpsEmi: 5, block: 0.08, vampir: 0.04, punching: 0.06, crit: 0.04 }, mods: {} },
-  { name: 'Молот Торнадо', rarity: 'superepic', slot: 'weapon1', stats: { damage: 22, speed: -0.2, armor: 1, vampir: 0.04, punching: 0.06, crit: 0.04, evasion: -0.3 }, mods: {} },
-  { name: 'Клинок из обсидиана', rarity: 'superepic', slot: 'weapon1', stats: { damage: 14, crit: 0.05, vampir: 0.04, punching: 0.06 } },
   // === НОВОЕ ХОЛОДНОЕ: острое — крит+вамп без пробития; тупое — урон без крита ===
   { name: 'Боевой нож', rarity: 'normal', slot: 'weapon1', stats: { damage: 7, crit: 0.08, accuracy: 0.03, speed: 0.15, vampir: 0.14 } },
   { name: 'Силовой кастет', rarity: 'epic', slot: 'weapon1', stats: { damage: 14, speed: 0.18, vampir: 0.1 } },
@@ -1056,11 +1041,6 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Базука «Карманная»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 35, speed: 0.05, accuracy: -0.2 }, ammoCapacity: 2, unique: true },
   { name: 'Огнемет «Дракон»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 22, dpsFire: 6, speed: 0.05 }, ammoCapacity: 30, unique: true },
   { name: 'Пулемёт «Снайпер»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 10, accuracy: 0.1, speed: -0.1 }, ammoCapacity: 60, unique: true },
-  { name: 'Катана «Молния»', rarity: 'superepic', slot: 'weapon1', stats: { damage: 10, speed: 0.2, crit: 0.05 }, unique: true },
-  { name: 'Тесак «Пиявка»', rarity: 'superepic', slot: 'weapon1', stats: { damage: 8, vampir: 0.15, speed: 0.1 }, unique: true },
-  { name: 'Молот «Гора»', rarity: 'superepic', slot: 'weapon1', stats: { damage: 30, speed: -0.2, accuracy: -0.2 }, unique: true },
-  { name: 'Кинжал «Укол»', rarity: 'superepic', slot: 'weapon1', stats: { damage: 6, crit: 0.15, speed: 0.15, punching: 0.08 }, unique: true },
-  { name: 'Топор «Палач»', rarity: 'superepic', slot: 'weapon1', stats: { damage: 16, punching: 0.15, vampir: 0.05, speed: -0.2 }, unique: true },
 ];
 
 /** Бонус сета: flat — плоские статы; mults — множители (применяются после сумм);
