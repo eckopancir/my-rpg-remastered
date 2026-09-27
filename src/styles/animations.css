@@ -167,12 +167,15 @@
   60% { transform: translateX(-4px); } 80% { transform: translateX(3px); }
 }
 .eqfx-shake { animation: eqfxShake 0.35s ease-out; }
-/* FX-6: аура легендарных/божественных (цвет — inline --aura-c). */
-@keyframes eqfxAuraSpin { to { transform: rotate(360deg); } }
-.eqfx-aura {
-  position: absolute; inset: -18%; pointer-events: none; z-index: 0; opacity: 0.55;
-  background: conic-gradient(from 0deg, transparent 0deg, var(--aura-c, #ffd700) 60deg, transparent 120deg, var(--aura-c, #ffd700) 200deg, transparent 260deg);
-  animation: eqfxAuraSpin 5s linear infinite; filter: blur(2px);
+/* FX-6: пыль цвета редкости, медленно осыпается со слота (только легендарные/божественные). */
+@keyframes eqfxSlotDust {
+  0% { transform: translateY(-4px); opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { transform: translateY(60px); opacity: 0; }
+}
+.eqfx-slot-dust {
+  position: absolute; border-radius: 50%; pointer-events: none; z-index: 3;
+  animation: eqfxSlotDust linear infinite;
 }
 /* FX-7: звёзды качества (задержка — inline animationDelay). */
 @keyframes eqfxStar {
@@ -189,17 +192,6 @@
   transform: skewX(-18deg); animation: eqfxShimmerMove 0.7s ease-out;
 }
 @keyframes eqfxShimmerMove { to { left: 140%; } }
-/* FX-9: пульс полного сета + мигание его частей. */
-@keyframes eqfxSetPulse {
-  0%, 100% { box-shadow: 0 0 4px rgba(251,191,36,0.4); }
-  50% { box-shadow: 0 0 14px rgba(251,191,36,0.9); }
-}
-.eqfx-set-full { animation: eqfxSetPulse 1.6s ease-in-out infinite; border-radius: 6px; }
-@keyframes eqfxPartBlink {
-  0%, 100% { outline: 1px solid rgba(251,191,36,0.25); }
-  50% { outline: 2px solid rgba(251,191,36,0.95); }
-}
-.eqfx-set-part { animation: eqfxPartBlink 0.8s ease-in-out infinite; border-radius: 10px; }
 /* FX-10: вспышка характеристики (рост/падение). */
 @keyframes eqfxStatUp { 0% { color: #4ade80; transform: translateY(3px) scale(1.12); } 100% {} }
 @keyframes eqfxStatDown { 0% { color: #f87171; transform: translateY(-3px) scale(1.12); } 100% {} }
