@@ -320,6 +320,12 @@ const SHOTGUN_WEAPON_IMAGE_MAP: Record<string, string> = {
   'dp12': 'dp-12-photoroom',
   'aa12': 'aa-12-photoroom',
 };
+/** Арты щитов по нормализованному имени. */
+const SHIELD_IMAGE_MAP: Record<string, string> = {
+  'баллистическийщит': 'баллистический щит',
+  'щитмусорщика': 'щит мусорщиков',
+  'полицейскийщит': 'щит полиция',
+};
 /** Новые автоматы (20 шт.): их арты показываем крупнее —
  *  в тултипе +33% (180→240), в инвентаре +20% (44→53). */
 const LARGE_ART_WEAPONS = new Set([
@@ -338,8 +344,6 @@ export const isLargeArtWeapon = (name?: string): boolean =>
   LARGE_ART_WEAPONS.has((name || '').toLowerCase());
 
 export const getItemImage = (name?: string, displayName?: string, slot?: string, type?: string): string | undefined => {
-  // Щиты пока без арта — рисуются эмодзи (item.icon).
-  if (slot === 'shield') return undefined;
   // Рюкзаки — картинка по семейству (11 спрайтов pack_*.png).
   if (type === 'backpack') return getBackpackImage(name || displayName);
   // Патроны — картинка по группе (6 спрайтов ammo_*.png).
@@ -372,6 +376,9 @@ export const getItemImage = (name?: string, displayName?: string, slot?: string,
   // Арты холодного — по точному имени.
   const mKey = MELEE_WEAPON_IMAGE_MAP[lookup];
   if (mKey) return itemImageMap.get(mKey);
+  // Арты щитов — по точному имени.
+  const shKey = SHIELD_IMAGE_MAP[lookup];
+  if (shKey) return itemImageMap.get(shKey);
   // Точное совпадение имени файла — приоритет (арты стволов и именные спрайты).
   // Иначе lookup с цифрами уезжает на numbered-файлы ('ak47' -> '4.png').
   const exact = itemImageMap.get(lookup);
