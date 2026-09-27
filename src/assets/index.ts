@@ -271,6 +271,19 @@ const MG_WEAPON_IMAGE_MAP: Record<string, string> = {
   'пкппеченег': 'пкп печенег-photoroom',
   'm240': 'm240-photoroom',
 };
+/** Арты дробовиков по нормализованному имени (фuzzy-матчинг их не ловит). */
+const SHOTGUN_WEAPON_IMAGE_MAP: Record<string, string> = {
+  'ithaca37': 'ithaca 37-photoroom',
+  'mossberg500': 'mossberg 500-photoroom',
+  'remington870': 'remington 870-photoroom',
+  'striker12': 'striker-12-photoroom',
+  'keltecksg': 'kel-tec ksg-photoroom',
+  'uts15': 'uts-15-photoroom',
+  'benellim4': 'benelli m4-photoroom',
+  'spas12': 'spas-12-photoroom',
+  'dp12': 'dp-12-photoroom',
+  'aa12': 'aa-12-photoroom',
+};
 /** Новые автоматы (20 шт.): их арты показываем крупнее —
  *  в тултипе +33% (180→240), в инвентаре +20% (44→53). */
 const LARGE_ART_WEAPONS = new Set([
@@ -278,6 +291,8 @@ const LARGE_ART_WEAPONS = new Set([
   'm5', 'vector', 'скс', 'winchester 1894', 'сайга-мк', 'cz 805 bren',
   'fn f2000', 'galil ace', 'arx-160', 'rec7', 'scar-h', 'аш-12',
   'm60', 'pkm', 'm249 saw', 'пкп «печенег»', 'm240', 'm134 minigun',
+  'ithaca 37', 'mossberg 500', 'remington 870', 'striker-12', 'kel-tec ksg',
+  'uts-15', 'benelli m4', 'spas-12', 'dp-12', 'aa-12',
 ]);
 
 export const isLargeArtWeapon = (name?: string): boolean =>
@@ -306,6 +321,9 @@ export const getItemImage = (name?: string, displayName?: string, slot?: string,
   // Арты пулемётов — по точному имени ствола.
   const mgKey = MG_WEAPON_IMAGE_MAP[lookup];
   if (mgKey) return itemImageMap.get(mgKey);
+  // Арты дробовиков — по точному имени ствола.
+  const sgKey = SHOTGUN_WEAPON_IMAGE_MAP[lookup];
+  if (sgKey) return itemImageMap.get(sgKey);
   // Точное совпадение имени файла — приоритет (арты стволов и именные спрайты).
   // Иначе lookup с цифрами уезжает на numbered-файлы ('ak47' -> '4.png').
   const exact = itemImageMap.get(lookup);
