@@ -1557,10 +1557,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       // Союзникам/нейтралам не положена. Боссы — минимум эпик.
       const noGear = base.faction === 'Союзник' || base.faction === 'Нейтралы';
       const bossGear = factionKey.includes('boss');
+      // Боссу ничего не режем: база и гир полностью.
+      const BF = bossGear ? 1 : BASE_F;
+      const HP_F = bossGear ? 1 : 0.5;
+      const ARM_F = bossGear ? 1 : 0.35;
       const gear = noGear ? [] : generateEnemyGear(factionKey, player.level, bossGear ? 'epic' : null);
       const gb = sumGearStats(gear);
-      const scaledHealth = Math.round(base.health * totalMult * BASE_F + (gb.maxHp || 0) * 0.5);
-      const scaledDamage = Math.round(base.damage * totalMult * BASE_F + (gb.damage || 0) * cardMult);
+      const scaledHealth = Math.round(base.health * totalMult * BF + (gb.maxHp || 0) * HP_F);
+      const scaledDamage = Math.round(base.damage * totalMult * BF + (gb.damage || 0) * cardMult);
       const newSpeed = base.speed * totalMult + (gb.speed || 0);
       // Дистанция боя — по надетому стволу (дробь близко, снайперка далеко).
       const gearWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
@@ -1591,7 +1595,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         maxHp: scaledHealth,
         health: base.health,
         damage: scaledDamage,
-        armor: Math.round(base.armor * totalMult * BASE_F) + Math.round((gb.armor || 0) * 0.35),
+        armor: Math.round(base.armor * totalMult * BF) + Math.round((gb.armor || 0) * ARM_F),
         // Точность не роняем ниже 0.65: иначе низкобазовые (0.8) со штрафами ствола не попадают вообще.
         accuracy: Math.min(2, Math.max(0.65, base.accuracy + accuracyAdd + (gb.accuracy || 0))),
         evasion: Math.min(1, base.evasion * totalMult + (gb.evasion || 0)),
@@ -4152,10 +4156,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const BASE_F = 0.35;
       const noGear = base.faction === 'Союзник' || base.faction === 'Нейтралы';
       const bossGear = ((base as any).factionKey || '').includes('boss');
+      // Боссу ничего не режем: база и гир полностью.
+      const BF = bossGear ? 1 : BASE_F;
+      const HP_F = bossGear ? 1 : 0.5;
+      const ARM_F = bossGear ? 1 : 0.35;
       const gear = noGear ? [] : generateEnemyGear((base as any).factionKey, playerLevel, bossGear ? 'epic' : null);
       const gb = sumGearStats(gear);
-      const waveHealth = Math.round(base.scaledHealth * BASE_F + (gb.maxHp || 0) * 0.5);
-      const waveDamage = Math.round(base.scaledDamage * BASE_F + (gb.damage || 0) * cardMult);
+      const waveHealth = Math.round(base.scaledHealth * BF + (gb.maxHp || 0) * HP_F);
+      const waveDamage = Math.round(base.scaledDamage * BF + (gb.damage || 0) * cardMult);
       const waveSpeed = base.scaledSpeed + (gb.speed || 0);
       // Дистанция волны — по надетому стволу.
       const waveWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
@@ -4186,7 +4194,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         maxHp: waveHealth,
         health: base.health,
         damage: waveDamage,
-        armor: Math.round(base.scaledArmor * BASE_F) + Math.round((gb.armor || 0) * 0.35),
+        armor: Math.round(base.scaledArmor * BF) + Math.round((gb.armor || 0) * ARM_F),
         accuracy: Math.min(2, Math.max(0.65, base.scaledAccuracy + (gb.accuracy || 0))),
         evasion: Math.min(1, base.scaledEvasion + (gb.evasion || 0)),
         block: Math.min(50, base.scaledBlock + (gb.block || 0)),
