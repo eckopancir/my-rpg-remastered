@@ -27,6 +27,32 @@ const ATTACK_RANGE = 10;
 
 export { GRID, BASE_AP, MAX_AMMO, ATTACK_RANGE };
 
+/** Точка входа в бой для переигровки волны после рефреша (C-lite, localStorage). */
+const BATTLE_ENTRY_KEY = 'rpg.battleEntry';
+export interface BattleEntry {
+  difficulty: number;
+  encounteredFaction?: string;
+  cardEnemyKeys?: string[];
+  cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string };
+  allyCount?: number;
+  at: number;
+}
+export const saveBattleEntry = (e: Omit<BattleEntry, 'at'>): void => {
+  try { localStorage.setItem(BATTLE_ENTRY_KEY, JSON.stringify({ ...e, at: Date.now() })); } catch { /* ignore */ }
+};
+export const loadBattleEntry = (): BattleEntry | null => {
+  try {
+    const raw = localStorage.getItem(BATTLE_ENTRY_KEY);
+    if (!raw) return null;
+    const e = JSON.parse(raw) as BattleEntry;
+    if (typeof e.difficulty !== 'number') return null;
+    return e;
+  } catch { return null; }
+};
+export const clearBattleEntry = (): void => {
+  try { localStorage.removeItem(BATTLE_ENTRY_KEY); } catch { /* ignore */ }
+};
+
 
 export interface GridEnemy {
   id: number | string;
@@ -1453,6 +1479,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount) => {
     try {
+    // Точка входа для переигровки волны после рефреша.
+    saveBattleEntry({ difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount });
     // Прогрев звуков боя: первый выстрел без задержки декодирования.
     preloadCombatSounds([
       'shot1', 'shot2', 'shotenemy', 'pistol', 'sniper', 'drob', 'm134',
@@ -4700,6 +4728,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
 
   cleanup: () => {
+    // Бой окончен штатно — точка переигровки больше не нужна.
+    clearBattleEntry();
     usePlayerStore.setState((st: any) => ({
       stats: {
         ...st.stats,

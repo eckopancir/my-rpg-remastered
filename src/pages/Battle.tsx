@@ -10,7 +10,7 @@ import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { CookingMenu } from '../components/widgets/CookingMenu';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
-import { useCombatGridStore } from '../stores/combatGridStore';
+import { useCombatGridStore, loadBattleEntry, clearBattleEntry } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getTerrainBonus } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
@@ -158,8 +158,29 @@ export const Battle = () => {
     if (!window.confirm('Сбросить текущий бой? Прогресс боя будет потерян.')) return;
     playClick();
     useCombatGridStore.getState().cleanup();
+    clearBattleEntry();
     usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
   }, [playClick]);
+
+  // Переигровка волны после рефреша: точка входа сохранена в initCombat.
+  const battleEntry = combat.isFighting && !isActive ? loadBattleEntry() : null;
+  const replayBattle = useCallback(() => {
+    const e = loadBattleEntry();
+    if (!e) return;
+    playClick();
+    const ok = useCombatGridStore.getState().initCombat(e.difficulty, e.encounteredFaction, e.cardEnemyKeys, e.cardRewards as any, e.allyCount);
+    if (!ok) useCombatGridStore.getState().addMessage('❌ Не вышло начать бой');
+  }, [playClick]);
+
+  // Предупреждение о выходе из боя через рефреш/закрытие вкладки.
+  useEffect(() => {
+    const onBefore = (ev: BeforeUnloadEvent) => {
+      const st = useCombatGridStore.getState();
+      if (st.isActive && !st.isVictory && !st.isDefeat) ev.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBefore);
+    return () => window.removeEventListener('beforeunload', onBefore);
+  }, []);
   const playerAbilities = useCombatGridStore((s) => s.playerAbilities);
   const abilityCooldowns = useCombatGridStore((s) => s.abilityCooldowns);
   const selectedAbility = useCombatGridStore((s) => s.selectedAbility);
@@ -327,8 +348,13 @@ export const Battle = () => {
         <WapPanel variant="metal" padding="lg" glow="amber" style={{ textAlign: 'center', padding: 60 }}>
           <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>⚠️ Бой не загрузился</div>
           <div style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
-            Флаг боя взведён, а арена пуста — это зависший бой. Убери его и начни новый.
+            {battleEntry
+              ? 'Поле боя потеряно (например, после обновления страницы). Можно переиграть волну с начала — враги свежие, твои HP и патроны текущие.'
+              : 'Флаг боя взведён, а арена пуста — это зависший бой. Убери его и начни новый.'}
           </div>
+          {battleEntry && (
+            <Button variant="primary" onClick={replayBattle} style={{ marginRight: 8 }}>⚔️ Переиграть волну</Button>
+          )}
           <Button variant="danger" onClick={resetStuckCombat}>🧹 Убрать зависший бой</Button>
         </WapPanel>
       </motion.div>

@@ -26,6 +26,7 @@ import { PinnedTooltipHost } from './components/widgets/ItemTooltip';
 import { ShootingRange } from './components/widgets/ShootingRange';
 import { useGameLoop } from './hooks/useGameLoop';
 import { usePlayerStore } from './stores/playerStore';
+import { useCombatGridStore, loadBattleEntry } from './stores/combatGridStore';
 import { useInventoryStore } from './stores/inventoryStore';
 import { useExplorationStore } from './stores/explorationStore';
 import { useUiStore } from './stores/uiStore';
@@ -102,6 +103,16 @@ const AppContent = () => {
   useEffect(() => {
     seedInventory();
     usePlayerStore.getState().recalcStats();
+    // Сиротский бой после рефреша: поле потеряно, точки переигровки нет —
+    // снимаем флаг сразу, иначе завис. С точкой — ждёт кнопки на /battle.
+    try {
+      const ps = usePlayerStore.getState();
+      const cs = useCombatGridStore.getState();
+      if (ps.combat.isFighting && !cs.isActive && !loadBattleEntry()) {
+        usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+        ps.addLog('⚠️ Незаконченный бой сброшен (поле потеряно)', 'warning');
+      }
+    } catch { /* ignore */ }
     if (images.background) {
       document.body.style.backgroundImage = `url(${images.background})`;
       document.body.style.backgroundSize = 'cover';
