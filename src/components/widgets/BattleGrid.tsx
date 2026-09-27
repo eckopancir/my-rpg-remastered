@@ -206,7 +206,7 @@ export const BattleGrid = () => {
   useEffect(() => {
     if (popups.length > prevPopupsLen.current && popups.length > 0) {
       const last = popups[popups.length - 1];
-      if (last.hits > 0 && last.crit) playSound('crit');
+      if (last.hits.some((h) => h.crit != null)) playSound('crit');
       else if ((last.statuses || []).some((s) => s.kind === 'EVASION')) playSound('evasion');
       else if ((last.statuses || []).some((s) => s.kind === 'BLOCK')) playSound('block');
     }
@@ -998,7 +998,7 @@ export const BattleGrid = () => {
             const key = `${Math.round(pop.x)},${Math.round(pop.y)}`;
             const count = posCount.get(key) || 0;
             posCount.set(key, count + 1);
-            const hasDmg = pop.hits > 0;
+            const hasDmg = pop.hits.length > 0 || pop.overflowHits > 0;
             const hasHeal = (pop.heal || 0) > 0 || (pop.vamp || 0) > 0;
             const sts = (pop.statuses || []).slice(0, 3);
             return (
@@ -1008,8 +1008,15 @@ export const BattleGrid = () => {
               }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', whiteSpace: 'nowrap' }}>
                   {hasDmg && (
-                    <span style={{ color: pop.crit ? '#fbbf24' : '#f87171', fontWeight: 800 }}>
-                      −{Math.abs(Math.round(pop.dmg))}{pop.hits > 1 ? ` ×${pop.hits}` : ''}{pop.crit ? ' CRIT' : ''}
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end', color: '#f87171', fontWeight: 800 }}>
+                      {pop.overflowHits > 0 && (
+                        <span style={{ opacity: 0.75 }}>−{Math.abs(Math.round(pop.overflowDmg))} ×{pop.overflowHits}</span>
+                      )}
+                      {pop.hits.map((h, i) => (
+                        <span key={i} style={h.crit != null ? { color: '#fbbf24' } : undefined}>
+                          {h.crit != null ? `🔥 КРИТ x${h.crit}! −${Math.abs(Math.round(h.amount))}` : `−${Math.abs(Math.round(h.amount))}`}
+                        </span>
+                      ))}
                     </span>
                   )}
                   {sts.length > 0 && (

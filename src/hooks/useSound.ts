@@ -11,6 +11,47 @@ for (const [path, mod] of Object.entries(audioModules)) {
 
 const audioCache = new Map<string, HTMLAudioElement>();
 
+// Пул перекрывающихся инстансов: очередь не режет сама себя,
+// быстрые залпы (бонус-выстрелы, пулемёты) слышны каждый.
+const POOL_SIZE = 4;
+const overlapPools = new Map<string, HTMLAudioElement[]>();
+const overlapIdx = new Map<string, number>();
+
+const playPooled = (src: string, effective: number) => {
+  let pool = overlapPools.get(src);
+  if (!pool) {
+    pool = [];
+    overlapPools.set(src, pool);
+  }
+  const i = overlapIdx.get(src) || 0;
+  let el = pool[i % POOL_SIZE];
+  if (!el) {
+    el = new Audio(src);
+    el.preload = 'auto';
+    pool[i % POOL_SIZE] = el;
+  }
+  overlapIdx.set(src, i + 1);
+  try {
+    el.currentTime = 0;
+    el.volume = Math.max(0, Math.min(1, effective));
+    el.play().catch(() => {});
+  } catch { /* noop */ }
+};
+
+/** Прогрев звуков боя: убирает задержку декодирования первого выстрела. */
+export const preloadCombatSounds = (names: string[]) => {
+  try {
+    for (const name of names) {
+      const src = audioMap.get(name);
+      if (!src || overlapPools.has(src)) continue;
+      const el = new Audio(src);
+      el.preload = 'auto';
+      try { el.load(); } catch { /* noop */ }
+      overlapPools.set(src, [el]);
+    }
+  } catch { /* noop */ }
+};
+
 const getAudio = (src: string): HTMLAudioElement | undefined => {
   const cached = audioCache.get(src);
   if (cached) return cached;
@@ -87,11 +128,7 @@ export const useSound = () => {
       if (effective <= 0) return;
       const src = audioMap.get(name);
       if (!src) return;
-      const audio = getAudio(src);
-      if (!audio) return;
-      audio.currentTime = 0;
-      audio.volume = Math.max(0, Math.min(1, effective));
-      audio.play().catch(() => {});
+      playPooled(src, effective);
     },
     [soundEnabled, uiVolume],
   );

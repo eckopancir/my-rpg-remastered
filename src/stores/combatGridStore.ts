@@ -13,7 +13,7 @@ import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapa
 import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
-import { playCombatSound, stopCombatSound } from '../hooks/useSound';
+import { playCombatSound, stopCombatSound, preloadCombatSounds } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -137,11 +137,12 @@ export interface BattlePopup {
   id: string;
   x: number;
   y: number;
-  // Левая полоса: суммарный урон (знак минус), число попаданий, был ли крит.
-  dmg: number;
-  hits: number;
-  crit: boolean;
-  // Правая полоса: реген и вампиризм отдельно.
+  // Левая полоса: каждое попадание своей строкой (как раньше «🔥 КРИТ x3! −47»),
+  // переполнение старше 4 строк схлопывается в «−X ×N».
+  hits: Array<{ amount: number; crit: number | null }>;
+  overflowDmg: number;
+  overflowHits: number;
+  // Правая полоса: реген и вампиризм одним суммарным числом.
   heal: number;
   vamp: number;
   // Центр: статусы (максимум 3).
@@ -151,6 +152,8 @@ export interface BattlePopup {
 
 // Окно агрегации попапов на клетке: пока летит — суммируем урон и хил.
 const POPUP_AGG_MS = 3500;
+// Максимум строк попаданий в карточке; старше — в «−X ×N».
+const MAX_HIT_LINES = 4;
 // Максимум карточек на одной клетке.
 const POPUP_CARDS_PER_CELL = 3;
 // Полосы урона (лево) и хила (право).
@@ -161,9 +164,21 @@ const LOGGED_STATUS = new Set(['SPECIAL', 'DEBUFF', 'ERROR']);
 
 const popupTimers = new Map<string, number>();
 
+const parseCritMult = (text: string): number | null => {
+  const m = String(text).match(/[xх](\d+)/i);
+  if (!m) return null;
+  const v = parseInt(m[1], 10);
+  return Number.isFinite(v) && v > 0 ? v : null;
+};
+
 const parsePopupNumber = (text: string): number => {
-  const n = parseInt(String(text).replace(/−/g, '-').replace(/[^0-9-]/g, ''), 10);
-  return Number.isFinite(n) ? n : 0;
+  // Урон — число после минуса («🔥 КРИТ x3! -47» → -47, а не 347).
+  // Без цифр («МИМО») — 0, такой попап уйдёт в статусы, а не в «−0».
+  const t = String(text).replace(/−/g, '-');
+  const m = t.match(/-\s*(\d+)/);
+  if (m) return -parseInt(m[1], 10);
+  const p = t.match(/(\d+)/);
+  return p ? parseInt(p[1], 10) : 0;
 };
 
 export type ShotKind = 'single' | 'burst' | 'spread' | 'boss' | 'heal';
@@ -1231,9 +1246,23 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (DMG_LANES.has(type)) {
         if (hideNumbers) return false;
         const n = parsePopupNumber(text);
-        c.dmg += n;
-        c.hits += 1;
-        if (type === 'CRIT') c.crit = true;
+        // Без числа в тексте (промах и т.п.) — в статусы, а не в «−0».
+        if (n === 0 && !/\d/.test(String(text))) {
+          const last = c.statuses[c.statuses.length - 1];
+          if (!last || last.text !== text) {
+            c.statuses.push({ text, kind: type });
+            if (c.statuses.length > 3) c.statuses.shift();
+          }
+          return true;
+        }
+        // Каждое попадание — своей строкой; множитель крита — как раньше.
+        const cm = type === 'CRIT' ? parseCritMult(text) : null;
+        c.hits.push({ amount: n, crit: cm });
+        while (c.hits.length > MAX_HIT_LINES) {
+          const dropped = c.hits.shift()!;
+          c.overflowDmg += dropped.amount;
+          c.overflowHits += 1;
+        }
         return true;
       }
       const healLane = (HEAL_LANES as Record<string, 'heal' | 'vamp'>)[type];
@@ -1253,11 +1282,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!card) {
       const fresh: BattlePopup = {
         id: `popup-${now}-${Math.random().toString(36).slice(2, 5)}`,
-        x, y, dmg: 0, hits: 0, crit: false, heal: 0, vamp: 0, statuses: [], updatedAt: now,
+        x, y, hits: [], overflowDmg: 0, overflowHits: 0, heal: 0, vamp: 0, statuses: [], updatedAt: now,
       };
       if (!applyLane(fresh)) return;
       // Пустая карточка (всё отфильтровано) — не создаём.
-      if (fresh.hits === 0 && fresh.heal === 0 && fresh.vamp === 0 && fresh.statuses.length === 0) return;
+      if (fresh.hits.length === 0 && fresh.overflowHits === 0 && fresh.heal === 0 && fresh.vamp === 0 && fresh.statuses.length === 0) return;
       set((s) => ({ popups: [...s.popups, fresh] }));
       card = fresh;
     } else {
@@ -1265,8 +1294,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (p.id !== card!.id) return p;
         const c: BattlePopup = {
           ...p,
-          dmg: p.dmg, hits: p.hits, crit: p.crit, heal: p.heal, vamp: p.vamp,
-          statuses: [...p.statuses], updatedAt: now,
+          hits: [...p.hits], statuses: [...p.statuses], updatedAt: now,
         };
         applyLane(c);
         return c;
@@ -1440,6 +1468,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount) => {
     try {
+    // Прогрев звуков боя: первый выстрел без задержки декодирования.
+    preloadCombatSounds([
+      'shot1', 'shot2', 'shotenemy', 'pistol', 'sniper', 'drob', 'm134',
+      'bazooka_sound_effect', 'grenadegun', 'reload', 'reloading',
+      'crit', 'evasion', 'block', 'invis', 'Aeon_Disk',
+    ]);
     // Reset combat-only player state
     usePlayerStore.setState((st: any) => ({
       stats: { ...st.stats, shieldCharges: 0 },
@@ -1576,9 +1610,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         health: base.health,
         damage: scaledDamage,
         armor: Math.round(base.armor * totalMult * BASE_F) + Math.round((gb.armor || 0) * 0.35),
-        accuracy: Math.min(2, base.accuracy + accuracyAdd + (gb.accuracy || 0)),
+        // Точность не роняем ниже 0.65: иначе низкобазовые (0.8) со штрафами ствола не попадают вообще.
+        accuracy: Math.min(2, Math.max(0.65, base.accuracy + accuracyAdd + (gb.accuracy || 0))),
         evasion: Math.min(1, base.evasion * totalMult + (gb.evasion || 0)),
-        block: Math.min(5, base.block * totalMult + (gb.block || 0)),
+        block: Math.min(50, base.block * totalMult + (gb.block || 0)),
         punching: base.punching * totalMult + (gb.punching || 0),
         // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
         vampir: base.vampir + (gb.vampir || 0),
@@ -4152,9 +4187,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         health: base.health,
         damage: waveDamage,
         armor: Math.round(base.scaledArmor * BASE_F) + Math.round((gb.armor || 0) * 0.35),
-        accuracy: Math.min(2, base.scaledAccuracy + (gb.accuracy || 0)),
+        accuracy: Math.min(2, Math.max(0.65, base.scaledAccuracy + (gb.accuracy || 0))),
         evasion: Math.min(1, base.scaledEvasion + (gb.evasion || 0)),
-        block: Math.min(5, base.scaledBlock + (gb.block || 0)),
+        block: Math.min(50, base.scaledBlock + (gb.block || 0)),
         punching: base.scaledPunching + (gb.punching || 0),
         vampir: base.scaledVampir + (gb.vampir || 0),
         crit: base.scaledCrit + (gb.crit || 0),
