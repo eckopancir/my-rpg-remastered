@@ -340,7 +340,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
   };
 
   // Auto-assign grid positions for corpse loot items (2×2 for weapons/armor)
-  const corpseGridCols = 5;
+  const corpseGridCols = 6;
   const corpseGridRows = Math.max(1, Math.ceil(CORPSE_SLOTS / corpseGridCols));
   const corpseItems: (Item | null)[] = Array(corpseGridCols * corpseGridRows).fill(null);
   const corpseOccupied = new Set<number>();
