@@ -489,7 +489,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
             {gearView.length > 0 && (
               <div style={{ marginTop: 2 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  🛡️ Экипировка <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 10 }}>· двойной клик — себе · тяни в рюкзаки · 🔧 не снимается</span>
+                  🛡️ Экипировка
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(6, ${cellPx}px)`, gap: 4, justifyContent: 'start' }}>
                   {[
