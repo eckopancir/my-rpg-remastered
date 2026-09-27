@@ -271,6 +271,21 @@ const MG_WEAPON_IMAGE_MAP: Record<string, string> = {
   'пкппеченег': 'пкп печенег-photoroom',
   'm240': 'm240-photoroom',
 };
+/** Арты снайперок по нормализованному имени (фuzzy-матчинг их не ловит). */
+const SNIPER_WEAPON_IMAGE_MAP: Record<string, string> = {
+  'awp': 'awp-photoroom',
+  'accuracyinternationalax50': 'ax50-photoroom',
+  'barrettm82': 'barrett m82-photoroom',
+  'cheytacm200': 'cheytac m200-photoroom',
+  'm110sass': 'm110 sass-photoroom',
+  'mcmillantac50': 'mcmillan tac-50-photoroom',
+  'svt40': 'svt-40-photoroom',
+  'springfieldm1903a4': 'springfield m1903a4-photoroom',
+  'vssвинторез': 'vss винторез-photoroom',
+  'wa2000': 'wa2000-photoroom',
+  'винтовкамосина': 'винтовка мосина-photoroom',
+  'винтовкасвд': 'винтовка свд-photoroom',
+};
 /** Арты дробовиков по нормализованному имени (фuzzy-матчинг их не ловит). */
 const SHOTGUN_WEAPON_IMAGE_MAP: Record<string, string> = {
   'ithaca37': 'ithaca 37-photoroom',
@@ -293,6 +308,9 @@ const LARGE_ART_WEAPONS = new Set([
   'm60', 'pkm', 'm249 saw', 'пкп «печенег»', 'm240', 'm134 minigun',
   'ithaca 37', 'mossberg 500', 'remington 870', 'striker-12', 'kel-tec ksg',
   'uts-15', 'benelli m4', 'spas-12', 'dp-12', 'aa-12',
+  'awp', 'accuracy international ax50', 'barrett m82', 'cheytac m200', 'm110 sass',
+  'mcmillan tac-50', 'svt-40', 'springfield m1903a4', 'vss «винторез»', 'wa2000',
+  'винтовка мосина', 'винтовка свд',
 ]);
 
 export const isLargeArtWeapon = (name?: string): boolean =>
@@ -324,6 +342,9 @@ export const getItemImage = (name?: string, displayName?: string, slot?: string,
   // Арты дробовиков — по точному имени ствола.
   const sgKey = SHOTGUN_WEAPON_IMAGE_MAP[lookup];
   if (sgKey) return itemImageMap.get(sgKey);
+  // Арты снайперок — по точному имени ствола.
+  const snKey = SNIPER_WEAPON_IMAGE_MAP[lookup];
+  if (snKey) return itemImageMap.get(snKey);
   // Точное совпадение имени файла — приоритет (арты стволов и именные спрайты).
   // Иначе lookup с цифрами уезжает на numbered-файлы ('ak47' -> '4.png').
   const exact = itemImageMap.get(lookup);
