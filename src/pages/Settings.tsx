@@ -1,8 +1,19 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { useUiStore } from '../stores/uiStore';
+import { useInventoryStore } from '../stores/inventoryStore';
+import { usePlayerStore } from '../stores/playerStore';
+import { generateItem } from '../engine/items';
+import { GAME_ITEMS } from '../data/GameItems';
+
+/** Дебаг-выдача: по 50 каждого из 10 дробовиков (итого 500) под уровень игрока. */
+const DEBUG_SHOTGUN_NAMES = [
+  'Ithaca 37', 'Mossberg 500', 'Remington 870', 'Striker-12', 'Kel-Tec KSG',
+  'UTS-15', 'Benelli M4', 'SPAS-12', 'DP-12', 'AA-12',
+];
 
 const VolumeSlider = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingLeft: 4 }}>
@@ -53,6 +64,26 @@ export const Settings = () => {
     setShowDamageNumbers, setBattleLogSize, setAutoReload,
     setConfirmExitCombat, setShowEnemyHpNumbers, setDuckMusicInCombat,
   } = useUiStore();
+  const [debugGiven, setDebugGiven] = useState(0);
+
+  const giveDebugShotguns = () => {
+    const lvl = usePlayerStore.getState().level;
+    const defs = (GAME_ITEMS as any[]).filter((d) => d && DEBUG_SHOTGUN_NAMES.includes(d.name));
+    const batch: any[] = [];
+    for (const def of defs) {
+      for (let i = 0; i < 50; i++) {
+        try {
+          const w: any = generateItem([def] as any, lvl, null as any, null, 'weapon2', null);
+          if (w && typeof w.ammoCapacity === 'number') w.loadedAmmo = w.ammoCapacity;
+          batch.push(w);
+        } catch { /* ignore */ }
+      }
+    }
+    if (batch.length > 0) {
+      useInventoryStore.setState((s) => ({ items: [...s.items, ...batch] }));
+      setDebugGiven(batch.length);
+    }
+  };
 
   return (
     <motion.div
@@ -180,6 +211,25 @@ export const Settings = () => {
                   </Button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Debug */}
+          <div style={{
+            padding: '12px 0',
+            borderTop: '1px solid var(--border-glass)',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>🛠️ Отладка</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>+500 дробовиков</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  По 50 каждого из 10 в инвентарь{debugGiven > 0 ? ` — выдано ${debugGiven}` : ''}
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={giveDebugShotguns}>
+                Выдать
+              </Button>
             </div>
           </div>
 
