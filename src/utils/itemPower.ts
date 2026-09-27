@@ -50,7 +50,7 @@ export const calcItemPower = (item: Item): number => {
   // (база + моды + сферы). Не зависит от надетого — цифра стабильна везде.
   // Огнестрел: урон в sustained-эквиваленте (темп с перезарядками).
   const sustainedFactor = item.slot === 'weapon2' && item.ammoCapacity
-    ? sustainedShotsPerTurn(effectiveAmmoCapacity(item), item.reloadAp || 1) / 5
+    ? sustainedShotsPerTurn(effectiveAmmoCapacity(item), item.reloadAp ?? 1) / 5
     : 1;
   const combined: Record<string, number> = effectiveItemStats(item);
   // Моды показывают статы со скейлом уровня (как тултип) — мощность считаем с ним же.

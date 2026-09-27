@@ -4300,8 +4300,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Магазин — у АКТИВНОГО оружия (Q — смена).
     const w2 = usePlayerStore.getState().getActiveWeapon();
     const wslot = usePlayerStore.getState().activeWeaponSlot;
-    // Стоимость перезарядки: у пулемётов 5 AP (лента), у остальных 1 AP.
-    const reloadCost = freeReload ? 0 : ((w2 as any)?.reloadAp || 1);
+    // Стоимость перезарядки: у пулемётов 5 AP (лента), у пистолетов 0 AP, у остальных 1 AP.
+    const reloadCost = freeReload ? 0 : ((w2 as any)?.reloadAp ?? 1);
     if (!freeReload && state.ap < reloadCost) { get().addMessage(`❌ Нужно ${reloadCost} AP для перезарядки`); return; }
     if (state.ammo >= state.maxAmmo) { get().addMessage('✅ Патроны полны'); return; }
     if (!w2 || !w2.ammoCapacity) {
