@@ -949,13 +949,13 @@ export const Equipment = () => {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>ГЕРОЙ</div>
           <div style={{ position: 'relative', width: 207, height: 396, margin: '0 66px 0 60px', flexShrink: 0 }}>
             {/* FX-13: пыль над силуэтом */}
-            <div style={{ position: 'absolute', left: -21, top: -6, width: 248, height: 431, overflow: 'hidden', pointerEvents: 'none', borderRadius: 72 }}>
+            <div style={{ position: 'absolute', left: -21, top: -13, width: 248, height: 431, overflow: 'hidden', pointerEvents: 'none', borderRadius: 72 }}>
               {Array.from({ length: 10 }).map((_, i) => (
                 <span key={i} className="eqfx-dust" style={{ left: `${(i * 37 + 9) % 100}%`, top: `${(i * 53) % 60}%`, width: 3, height: 3, animationDuration: `${3 + (i % 4)}s`, animationDelay: `${(i * 0.7).toFixed(1)}s` }} />
               ))}
             </div>
             <div style={{
-              position: 'absolute', left: -21, top: -6, width: 248, height: 431,
+              position: 'absolute', left: -21, top: -13, width: 248, height: 431,
               backgroundImage: images.main ? `url(${images.main})` : 'none',
               backgroundSize: 'contain',
               backgroundRepeat: 'no-repeat',
