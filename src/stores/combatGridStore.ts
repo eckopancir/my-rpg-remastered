@@ -138,7 +138,22 @@ export interface BattlePopup {
   y: number;
   text: string;
   type: string;
+  // Хил-карточка: реген + вамп одной строкой суммой (остальные попапы — плоские).
+  healCard?: boolean;
+  heal?: number;
+  vamp?: number;
 }
+
+// Хил-карточка живёт 3с с последнего обновления (таймер один на карточку, их мало).
+const HEAL_CARD_MS = 3000;
+const healCardTimers = new Map<string, number>();
+
+// Только короткие плоские хилы вида «+50 💚» / «+5 🩸» идут в карточку.
+// Сложные («+10 💉 СТИМУЛЯТОР», «💚 +10%/ход») — отдельными плоскими попапами.
+const isFlatHeal = (text: string): boolean => /^\+\d+\s*(💚|🩸|❤️|💗|HP)/.test(String(text).trim());
+
+const healCardText = (heal: number, vamp: number): string =>
+  [`${heal > 0 ? `+${heal} 💚` : ''}`, `${vamp > 0 ? `+${vamp} 🩸` : ''}`].filter(Boolean).join(' ');
 
 export type ShotKind = 'single' | 'burst' | 'spread' | 'boss' | 'heal';
 
@@ -1233,6 +1248,40 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   addPopup: (x, y, text, type = 'NORMAL') => {
     // Настройка «Цифры урона»: числовые попапы (урон/крит/блок) можно скрыть.
     if ((type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK') && useUiStore.getState().showDamageNumbers === false) return;
+    // Реген + вамп — одной строкой суммой в хил-карточке клетки (3с с обновления).
+    // Урон/статусы — плоскими попапами как были.
+    if ((type === 'HEAL' || type === 'VAMP') && isFlatHeal(text)) {
+      const m = String(text).match(/\+(\d+)/);
+      const n = m ? parseInt(m[1], 10) : 0;
+      if (n > 0) {
+        const key = `${Math.round(x)},${Math.round(y)}`;
+        const st = get();
+        const found = st.popups.find((p) => p.healCard && `${Math.round(p.x)},${Math.round(p.y)}` === key);
+        if (found) {
+          const nh = (found.heal || 0) + (type === 'HEAL' ? n : 0);
+          const nv = (found.vamp || 0) + (type === 'VAMP' ? n : 0);
+          const t = healCardText(nh, nv);
+          const old = healCardTimers.get(found.id);
+          if (old) window.clearTimeout(old);
+          healCardTimers.set(found.id, window.setTimeout(() => {
+            healCardTimers.delete(found.id);
+            set((s) => ({ popups: s.popups.filter((p) => p.id !== found.id) }));
+          }, HEAL_CARD_MS));
+          set((s) => ({ popups: s.popups.map((p) => p.id === found.id ? { ...p, text: t, heal: nh, vamp: nv } : p) }));
+          return;
+        }
+        const id = `healcard-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+        const nh = type === 'HEAL' ? n : 0;
+        const nv = type === 'VAMP' ? n : 0;
+        const fresh: BattlePopup = { id, x, y, text: healCardText(nh, nv), type: 'HEALCARD', healCard: true, heal: nh, vamp: nv };
+        healCardTimers.set(id, window.setTimeout(() => {
+          healCardTimers.delete(id);
+          set((s) => ({ popups: s.popups.filter((p) => p.id !== id) }));
+        }, HEAL_CARD_MS));
+        set((s) => ({ popups: [...s.popups, fresh] }));
+        return;
+      }
+    }
     const id = `popup-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
     set((s) => ({ popups: [...s.popups, { id, x, y, text, type }] }));
     setTimeout(() => {
