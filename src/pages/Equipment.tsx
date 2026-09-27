@@ -666,6 +666,7 @@ export const Equipment = () => {
     return (
       <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         <div
+          className={isActiveGun ? 'equip-gun-active' : undefined}
           onDrop={(e) => handleDrop(slot, e)}
           onDragOver={handleDragOver}
           onMouseEnter={(e) => handleMouseEnter(slot, item, e)}
@@ -705,7 +706,7 @@ export const Equipment = () => {
           {item && (
             <>
               {/* Свечение качества за предметом */}
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(ellipse 72% 66% at 50% 55%, ${withAlpha(glowBase, 0.32)}, transparent 70%)` }} />
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(ellipse 72% 66% at 50% 55%, ${withAlpha(glowBase, 0.32)}, transparent 70%)`, ...(isActiveGun ? { zIndex: 2 } : null) }} />
               {/* Звёздочка избранного */}
               {favorites[item.id] && (
                 <span style={{ position: 'absolute', top: 2, left: 5, fontSize: 11, lineHeight: 1, color: '#ffd700', textShadow: '0 0 4px rgba(255,215,0,0.8)', zIndex: 3, pointerEvents: 'none' }}>★</span>
@@ -720,7 +721,7 @@ export const Equipment = () => {
             </>
           )}
           {item ? (
-            <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', ...(isActiveGun ? { zIndex: 2 } : null) }}>
               {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', position: 'relative', top: 6, filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 6px ${withAlpha(qc, 0.4)})` }} /> : ((item as any).icon ? <span style={{ fontSize: 40, lineHeight: 1, position: 'relative', top: 6 }}>{(item as any).icon}</span> : null); })()}
               <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', lineHeight: 1, marginTop: 2, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, padding: '1px 4px' }}>
                 {item.level || 0} ур.
