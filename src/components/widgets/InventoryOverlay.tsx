@@ -356,6 +356,9 @@ export const InventoryOverlay = () => {
     killWithAnim(stacked, contextMenu?.idx ?? idx, () => {
       removeItem(item.id);
       setContextMenu(null);
+      // Тултип сундука перекрывал анимацию — гасим ховер и закреплённые.
+      setHoveredItem(null);
+      useUiStore.getState().setTooltipPin(null);
       setOpeningChest(item);
     });
   };

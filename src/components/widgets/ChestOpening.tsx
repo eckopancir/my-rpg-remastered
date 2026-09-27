@@ -251,7 +251,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                       alt=""
                       draggable={false}
                       style={{
-                        width: 84, height: 84, objectFit: 'contain',
+                        width: 109, height: 109, objectFit: 'contain',
                         filter: `drop-shadow(0 0 16px ${aura})`,
                       }}
                     />
@@ -276,7 +276,7 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                 const angle = (-90 + (i * 360) / Math.max(1, orbitDrops.length)) * (Math.PI / 180);
                 const r = 195;
                 const x = Math.cos(angle) * r;
-                const y = Math.sin(angle) * r * 0.82;
+                const y = Math.sin(angle) * r;
                 const taken = !remaining.some((d) => d.key === drop.key);
                 return (
                   <motion.div
@@ -286,8 +286,6 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                     style={{ position: 'absolute', left: x, top: y }}
                   >
                     <motion.div
-                      animate={{ y: [0, -7, 0] }}
-                      transition={{ duration: 2.2, ease: 'easeInOut', repeat: Infinity, delay: i * 0.25 }}
                       onClick={() => collect(drop.key)}
                       onMouseEnter={(e) => {
                         const it = dropItems.get(drop.key);
