@@ -915,7 +915,7 @@ export const Equipment = () => {
           padding: '16px 10px', background: 'rgba(255,255,255,0.02)',
           border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🔫 ОРУЖЕЙНАЯ СУМКА</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>ОРУЖЕЙНАЯ СУМКА</div>
           {/* Фикс ширины ряда: ячейки не растягивают окно при надевании ствола. */}
           <div style={{ display: 'flex', gap: 12, width: 4 * 96 + 3 * 12, justifyContent: 'center', position: 'relative', left: -10 }}>
             {GUN_ROW_SLOTS.map((slot) => {
@@ -946,7 +946,7 @@ export const Equipment = () => {
               );
             })}
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🛡️ ГЕРОЙ</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>ГЕРОЙ</div>
           <div style={{ position: 'relative', width: 207, height: 396, margin: '0 66px 0 60px', flexShrink: 0 }}>
             {/* FX-13: пыль над силуэтом */}
             <div style={{ position: 'absolute', left: 0, top: 0, width: 207, height: 359, overflow: 'hidden', pointerEvents: 'none', borderRadius: 60 }}>
