@@ -93,6 +93,49 @@ export const generateEnemyGear = (
   return gear;
 };
 
+/** Сет одежды мусорщика-союзника: всегда полный комплект своих вещей. */
+const ALLY_CLOTH_NAMES: Record<string, string> = {
+  head: 'Шлем мусорщика',
+  armor: 'Куртка мусорщика',
+  pants: 'Штаны мусорщика',
+  gloves: 'Перчатки мусорщика',
+  boots: 'Ботинки мусорщика',
+};
+
+/** Ствол мусорщика: случайный — пистолет, автомат или дробовик. */
+const ALLY_WEAPON_GROUPS = ['pistol', 'rifle', 'shell'];
+
+/**
+ * Экипировка мусорщика-союзника: фикс-сет «Мусорщик» + случайный ствол
+ * обычной генерацией лута (как у врагов, кап качества Раритетный).
+ */
+export const generateAllyGear = (playerLevel: number): any[] => {
+  const gear: any[] = [];
+  const maxQuality = 'Раритетный';
+  try {
+    const group = ALLY_WEAPON_GROUPS[Math.floor(Math.random() * ALLY_WEAPON_GROUPS.length)];
+    const pool = (GAME_ITEMS as ItemDefinition[]).filter(
+      (d) => d && d.slot === 'weapon2' && groupOf(d) === group,
+    );
+    const src = pool.length > 0
+      ? pool
+      : (GAME_ITEMS as ItemDefinition[]).filter((d) => d && d.slot === 'weapon2');
+    if (src.length > 0) {
+      const w: any = generateItem(src as any, playerLevel, null as any, null, 'weapon2', maxQuality);
+      if (w && typeof w.ammoCapacity === 'number') w.loadedAmmo = w.ammoCapacity;
+      gear.push(w);
+    }
+  } catch { /* ignore */ }
+  for (const slot of ENEMY_CLOTH_SLOTS) {
+    try {
+      const def = (GAME_ITEMS as ItemDefinition[]).find((d) => d && d.name === ALLY_CLOTH_NAMES[slot]);
+      const src = def ? [def] : GAME_ITEMS as any;
+      gear.push(generateItem(src as any, playerLevel, null as any, null, slot, maxQuality));
+    } catch { /* ignore */ }
+  }
+  return gear;
+};
+
 /** Сумма ЭФФЕКТИВНЫХ статов надетого (база + предустановленные сферы) —
  *  ровно то, что показывает тултип вещи. Враг 1в1 считается как мы. */
 export const sumGearStats = (gear: any[]): Record<string, number> => {

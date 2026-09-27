@@ -4,7 +4,7 @@ import { gunSlotForWeapon } from './playerStore';
 import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
-import { generateEnemyGear, sumGearStats, rollGearOnDeath, cardTierMult } from '../engine/enemyGear';
+import { generateEnemyGear, generateAllyGear, sumGearStats, rollGearOnDeath, cardTierMult } from '../engine/enemyGear';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
@@ -1797,39 +1797,49 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         taken.add(`${spot.x},${spot.y}`);
         const model = stalkerModels[Math.floor(Math.random() * stalkerModels.length)];
         // Мусорщики крепче обычных стрелков: +30% к здоровью.
-        const aHp = Math.round(aBase.health * aTotalMult * 1.3);
+        // Одеты: фикс-сет «Мусорщик» + случайный ствол (пистолет/автомат/дробь),
+        // статы гира — теми же долями, что у врагов.
+        const aGear = generateAllyGear(playerLevel);
+        const agb = sumGearStats(aGear);
+        const aHp = Math.round(aBase.health * aTotalMult * 1.3 + (agb.maxHp || 0) * 0.5);
         // Хабар с мёртвого мусорщика — как с обычного стрелка.
         let aLoot: any[] = [];
         try {
           aLoot = generateLoot(GAME_ITEMS, playerLevel, { rank: 'regular' });
         } catch { /* ignore */ }
-        const aDmg = Math.round(aBase.damage * aTotalMult);
+        const aDmg = Math.round(aBase.damage * aTotalMult + (agb.damage || 0));
+        const aSpeed = aBase.speed * aTotalMult + (agb.speed || 0);
+        // Дистанция и звук — по надетому стволу.
+        const aGearWeapon = aGear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
+        const aGearRange = aGearWeapon ? weaponRangeProfile(aGearWeapon).range : 0;
+        const aGearGroup = aGearWeapon ? ammoTypeForWeapon(aGearWeapon) : 'rifle';
+        const aSound = aGearGroup === 'pistol' ? 'pistol' : aGearGroup === 'shell' ? 'drob' : aGearGroup === 'sniper' ? 'sniper' : aGearGroup === 'mg' ? 'm134' : 'shotenemy';
         activeEnemies.push({
           id: `ally_${a}_${Date.now()}`,
           name: 'Мусорщик',
           faction: 'Союзник',
           factionKey: 'Мусорщики',
-          dps: aDmg * (1 + (aBase.speed * aTotalMult || 0)),
-          speed: aBase.speed * aTotalMult,
+          dps: aDmg * (1 + (aSpeed || 0)),
+          speed: aSpeed,
           currentHp: aHp,
           maxHp: aHp,
           health: aBase.health,
           damage: aDmg,
-          armor: Math.round(aBase.armor * aTotalMult),
-          accuracy: Math.min(2, aBase.accuracy + accuracyAdd),
-          evasion: Math.min(1, aBase.evasion * aTotalMult),
-          block: aBase.block * aTotalMult,
-          punching: aBase.punching * aTotalMult,
+          armor: Math.round(aBase.armor * aTotalMult) + Math.round((agb.armor || 0) * 0.35),
+          accuracy: Math.min(2, Math.max(0.65, aBase.accuracy + accuracyAdd + (agb.accuracy || 0))),
+          evasion: Math.min(1, aBase.evasion * aTotalMult + (agb.evasion || 0)),
+          block: Math.min(50, aBase.block * aTotalMult + (agb.block || 0)),
+          punching: aBase.punching * aTotalMult + (agb.punching || 0),
           // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
-          vampir: aBase.vampir,
-          crit: aBase.crit * aTotalMult,
-          regen: (aBase.regen || 0) * aTotalMult,
+          vampir: aBase.vampir + (agb.vampir || 0),
+          crit: aBase.crit * aTotalMult + (agb.crit || 0),
+          regen: (aBase.regen || 0) * aTotalMult + (agb.regen || 0),
           pos: spot,
           isHit: false,
           dead: false,
           runAp: aBase.runAp || 4,
           rotation: 0,
-          rangeDistance: aBase.rangeDistance || 7,
+          rangeDistance: aGearRange || aBase.rangeDistance || 7,
           shotPrice: aBase.shotPrice || 1,
           skillUse: [],
           cooldowns: {},
@@ -1843,7 +1853,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           isSpinning: false,
           loot: aLoot,
           looted: false,
-          soundAttack: aBase.soundAttack || 'shotenemy',
+          gear: aGear,
+          soundAttack: aSound,
           nowModel: model,
           deadModel: 'dead',
           avatar: model,

@@ -6,6 +6,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
+import { rollGearOnDeath } from '../engine/enemyGear';
 import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, BOSS_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, STALKER_COMBAT_BARK, STALKER_SPOT_BARK, STALKER_LOOT, pickPhrase } from '../data/enemyChatter';
 
 const isMilitary = (e: any): boolean =>
@@ -842,6 +843,7 @@ export const useEnemyAI = () => {
                     try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
                   } else {
                     targetAlly.dead = true;
+                    targetAlly.gear = rollGearOnDeath(targetAlly);
                     useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, '💥 Приманка уничтожена!', 'SPECIAL');
                   }
                 }
@@ -976,6 +978,7 @@ export const useEnemyAI = () => {
                       try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
                     } else {
                       extraTargetAlly.dead = true;
+                      extraTargetAlly.gear = rollGearOnDeath(extraTargetAlly);
                       useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, '💥 Приманка уничтожена!', 'SPECIAL');
                     }
                   }
