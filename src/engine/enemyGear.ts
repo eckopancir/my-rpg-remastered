@@ -90,6 +90,12 @@ export const generateEnemyGear = (
       gear.push(generateItem(GAME_ITEMS as any, playerLevel, forceRarity as any, null, slot, maxQuality));
     } catch { /* ignore */ }
   }
+  // Танк: дополнительный слот со щитом (как у игрока: сам щит +20 блока).
+  if ((factionKey || '').includes('tank')) {
+    try {
+      gear.push(generateItem(GAME_ITEMS as any, playerLevel, forceRarity as any, null, 'shield', maxQuality));
+    } catch { /* ignore */ }
+  }
   return gear;
 };
 

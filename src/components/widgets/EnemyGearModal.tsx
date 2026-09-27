@@ -74,7 +74,7 @@ export const EnemyGearModal = ({ enemyId, onClose }: { enemyId: number | string;
             <div />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('pants', 'Штаны')}</div>
             <div />
-            <div />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('shield', 'Щит')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('boots', 'Ботинки')}</div>
             <div />
           </div>

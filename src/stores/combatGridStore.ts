@@ -1602,7 +1602,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         // Точность не роняем ниже 0.65: иначе низкобазовые (0.8) со штрафами ствола не попадают вообще.
         accuracy: Math.min(2, Math.max(0.65, base.accuracy + accuracyAdd + (gb.accuracy || 0))),
         evasion: Math.min(1, base.evasion * totalMult + (gb.evasion || 0)),
-        block: Math.min(50, base.block * totalMult + (gb.block || 0)),
+        // Щит в гире — +20 блока как у игрока (кап 50%).
+        block: Math.min(50, base.block * totalMult + (gb.block || 0) + (gear.some((g: any) => g && g.slot === 'shield') ? 20 : 0)),
         punching: base.punching * totalMult + (gb.punching || 0),
         // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
         vampir: base.vampir + (gb.vampir || 0),
@@ -4223,7 +4224,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         armor: Math.round(base.scaledArmor * BF) + Math.round((gb.armor || 0) * ARM_F),
         accuracy: Math.min(2, Math.max(0.65, base.scaledAccuracy + (gb.accuracy || 0))),
         evasion: Math.min(1, base.scaledEvasion + (gb.evasion || 0)),
-        block: Math.min(50, base.scaledBlock + (gb.block || 0)),
+        // Щит в гире — +20 блока как у игрока (кап 50%).
+        block: Math.min(50, base.scaledBlock + (gb.block || 0) + (gear.some((g: any) => g && g.slot === 'shield') ? 20 : 0)),
         punching: base.scaledPunching + (gb.punching || 0),
         vampir: base.scaledVampir + (gb.vampir || 0),
         crit: base.scaledCrit + (gb.crit || 0),
