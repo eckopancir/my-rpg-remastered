@@ -10,6 +10,7 @@ import type { Item } from '../../types/items';
 import { ItemTooltip } from './ItemTooltip';
 import { ChestOpening } from './ChestOpening';
 import { chestImageFor } from '../../data/chests';
+import { GAME_ITEMS } from '../../data/GameItems';
 import { getConsumableIcon } from '../../data/consumables';
 import { calcItemPower } from '../../utils/itemPower';
 import { effectiveItemStats, modLevelMult } from '../../utils/itemStats';
@@ -133,6 +134,21 @@ const slotFilterKey = (item: Item): string => {  if (item.type === 'mod') return
   return item.slot || '';
 };
 
+// Закладки категорий слева: иконка — картинка первого предмета категории из базы.
+const TABS: { value: string; label: string; img?: string; emoji?: string }[] = [
+  { value: '', label: 'Все предметы', emoji: '📦' },
+  ...SLOT_FILTERS.filter((f) => f.value !== '').map((f) => {
+    const rep: any = (GAME_ITEMS as any[]).find((d) => { try { return slotFilterKey(d as Item) === f.value; } catch { return false; } });
+    const label = f.label.replace(/^— /, '');
+    if (!rep) return { value: f.value, label, emoji: '❔' };
+    if (rep.type === 'chest') return { value: f.value, label, img: chestImageFor(rep.quality || rep.rarity || 'Обычный') };
+    if (rep.type === 'consumable') return { value: f.value, label, emoji: getConsumableIcon(rep) };
+    const url = getItemImage(rep.name, rep.displayName, rep.slot, rep.type);
+    if (url) return { value: f.value, label, img: url };
+    return { value: f.value, label, emoji: rep.icon || '❔' };
+  }),
+];
+
 export const InventoryOverlay = () => {
   const open = useUiStore((s) => s.inventoryOpen);
   const toggle = useUiStore((s) => s.toggleInventory);
@@ -248,6 +264,12 @@ export const InventoryOverlay = () => {
 
   const totalPages = Math.max(1, Math.ceil(processed.length / ITEMS_PER_PAGE));
   const currentPage = Math.min(page, totalPages - 1);
+  // Счётчики закладок по категориям (пустые — приглушены).
+  const tabCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const i of items) { const k = slotFilterKey(i); m[k] = (m[k] || 0) + 1; }
+    return m;
+  }, [items]);
   const pageItems = processed.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE);
   const padded = [...pageItems];
   while (padded.length < ITEMS_PER_PAGE) padded.push(null as any);
@@ -437,7 +459,7 @@ export const InventoryOverlay = () => {
             border: '1px solid rgba(217,119,6,0.35)',
             borderRadius: '0 0 10px 10px',
             boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 0 24px rgba(217,119,6,0.08), 0 2px 0 rgba(255,255,255,0.04) inset',
-            padding: 8, minWidth: cols * (cellSize + 4) + 16,
+            padding: 8, minWidth: cols * (cellSize + 4) + 16 + 40,
           }}>
             {/* Filters */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
@@ -469,7 +491,34 @@ export const InventoryOverlay = () => {
               </select>
             </div>
 
-            {/* Grid (принимает возврат из рюкзака) */}
+            {/* Grid (принимает возврат из рюкзака) + закладки категорий слева */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {TABS.map((t) => {
+                  const active = filterSlot === t.value;
+                  const n = t.value === '' ? items.length : (tabCounts[t.value] || 0);
+                  return (
+                    <div
+                      key={t.value || 'all'}
+                      title={n > 0 ? `${t.label} (${n})` : t.label}
+                      onClick={() => { playClick(); setFilterSlot(active ? '' : t.value); }}
+                      style={{
+                        flex: 1, minHeight: 0, width: 34,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        borderRadius: 4, cursor: 'pointer',
+                        border: `1px solid ${active ? 'var(--wa-accent-teal)' : 'rgba(255,255,255,0.08)'}`,
+                        background: active ? 'rgba(45,212,191,0.15)' : 'rgba(0,0,0,0.35)',
+                        boxShadow: active ? '0 0 8px rgba(45,212,191,0.35)' : 'none',
+                        opacity: n === 0 && !active ? 0.35 : 1,
+                      }}
+                    >
+                      {t.img
+                        ? <img src={t.img} alt="" draggable={false} style={{ width: 20, height: 20, objectFit: 'contain' }} />
+                        : <span style={{ fontSize: 15, lineHeight: 1 }}>{t.emoji}</span>}
+                    </div>
+                  );
+                })}
+              </div>
             <div
               key={`${filterSlot}|${sortBy}|${currentPage}`}
               className="invfx-reshuffle"
@@ -619,6 +668,7 @@ export const InventoryOverlay = () => {
                   </div>
                 );
               })}
+            </div>
             </div>
 
             {/* Pagination */}
