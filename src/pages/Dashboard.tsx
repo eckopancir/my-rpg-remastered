@@ -62,22 +62,26 @@ const WeaponStrip = () => {
         {guns.map(({ slot, item }) => {
           const active = activeWeaponSlot === slot;
           const url = getItemImage(item!.name, item!.displayName);
+          const qc = (item as any)?.qualityColor || '#818cf8';
           return (
             <div
               key={slot}
+              className={active ? 'equip-gun-active' : undefined}
               onClick={() => { playClick(); setActiveWeaponSlot(slot); }}
               onMouseEnter={(e) => { setTooltipItem(item); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
               onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
               onMouseLeave={() => setTooltipItem(null)}
               style={{
                 width: 38, height: 38, borderRadius: 7, cursor: 'pointer',
-                border: active ? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.14)',
-                boxShadow: active ? '0 0 10px rgba(34,197,94,0.65)' : '0 1px 4px rgba(0,0,0,0.4)',
-                background: active ? 'rgba(34,197,94,0.12)' : 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative', overflow: 'hidden',
+                ...(active ? { ['--gun-ring' as any]: qc } : null),
+                border: active ? `2px solid ${qc}` : '1px solid rgba(255,255,255,0.14)',
+                boxShadow: active ? `0 0 10px ${qc}` : '0 1px 4px rgba(0,0,0,0.4)',
+                background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 120ms',
               }}
             >
-              {url ? <img src={url} alt="" style={{ width: 32, height: 32, objectFit: 'contain', filter: active ? 'drop-shadow(0 0 4px rgba(34,197,94,0.8))' : 'none' }} draggable={false} /> : <span style={{ fontSize: 16 }}>🔫</span>}
+              {url ? <img src={url} alt="" style={{ width: 32, height: 32, objectFit: 'contain', position: 'relative', zIndex: 2, filter: active ? `drop-shadow(0 0 4px ${qc})` : 'none' }} draggable={false} /> : <span style={{ fontSize: 16 }}>🔫</span>}
             </div>
           );
         })}
