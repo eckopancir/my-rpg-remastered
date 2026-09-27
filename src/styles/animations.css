@@ -214,3 +214,16 @@
 .eqfx-crt { animation: eqfxCrt 4s ease-in-out infinite; }
 /* FX-14: полоса атака/защита в разборе мощности. */
 .eqfx-splitbar { transition: width 0.5s ease; }
+/* FX-15: тик счётчика магазина при зарядке. */
+@keyframes eqfxTick {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+.eqfx-tick { animation: eqfxTick 0.35s ease-out; }
+/* FX-16: покачивание замка рюкзака. */
+@keyframes eqfxWiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-14deg); } 55% { transform: rotate(10deg); } 80% { transform: rotate(-6deg); }
+}
+.eqfx-wiggle { animation: eqfxWiggle 0.4s ease-out; }

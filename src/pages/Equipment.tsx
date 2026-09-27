@@ -331,6 +331,8 @@ export const Equipment = () => {
   const [shimmerFx, setShimmerFx] = useState<{ slot: string; t: number } | null>(null);
   const [switchFx, setSwitchFx] = useState<{ slot: string; t: number } | null>(null);
   const [flashFx, setFlashFx] = useState<Record<string, { dir: 1 | -1; t: number }>>({});
+  const [ammoTick, setAmmoTick] = useState<{ slot: string; t: number } | null>(null); // FX-15
+  const [lockWiggle, setLockWiggle] = useState<number | null>(null); // FX-16
   const prevEquipSig = useRef<Record<string, string>>({});
   const prevStatsFx = useRef<Record<string, number>>({});
   const prevActiveGun = useRef<string | null>(null);
@@ -458,6 +460,7 @@ export const Equipment = () => {
       if (old) {
         if (slot === 'backpack' && backpackLocked) {
           usePlayerStore.getState().addLog('🔒 Рюкзак под замком — сними замочек, чтобы снять.', 'warning');
+          setLockWiggle(Date.now()); // FX-16
           return;
         }
         unequipItem(slot);
@@ -625,6 +628,7 @@ export const Equipment = () => {
     syncNow();
     playSound('reloading', 0.5);
     pst.addLog(`📀 Заряжено: +${take} (${packQ}, магазин ${(loaded + take)}/${cap})`, 'info');
+    setAmmoTick({ slot, t: Date.now() }); // FX-15
     return true;
   };
 
@@ -665,6 +669,8 @@ export const Equipment = () => {
         setCustomizing({ item: null, slot });
         return;
       }
+      // FX-16: клик по закрытому рюкзаку — замок качается.
+      if (slot === 'backpack' && backpackLocked) setLockWiggle(Date.now());
       // Клик по стволу — выбрать активным (рамка в цвете редкости, урон с него).
       if ((GUN_SLOTS as readonly string[]).includes(slot)) {
         usePlayerStore.getState().setActiveWeaponSlot(slot as EquipmentSlot);
@@ -830,12 +836,16 @@ export const Equipment = () => {
                 {item.level || 0} ур.
               </div>
               {isGun && (item as any).ammoCapacity != null && (
-                <div style={{
-                  position: 'absolute', bottom: 5, right: 3,
-                  fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                  color: '#fbbf24', background: 'rgba(0,0,0,0.75)',
-                  borderRadius: 3, padding: '0 3px', lineHeight: '12px',
-                }}>
+                <div
+                  key={ammoTick && ammoTick.slot === slot ? `ammo-${ammoTick.t}` : 'ammo-0'}
+                  className={ammoTick && ammoTick.slot === slot ? 'eqfx-tick' : undefined}
+                  style={{
+                    position: 'absolute', bottom: 5, right: 3,
+                    fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    color: '#fbbf24', background: 'rgba(0,0,0,0.75)',
+                    borderRadius: 3, padding: '0 3px', lineHeight: '12px',
+                  }}
+                >
                   {(item as any).loadedAmmo ?? 0}/{effectiveAmmoCapacity(item as any)}
                 </div>
               )}
@@ -985,7 +995,9 @@ export const Equipment = () => {
             })}
             {/* Замочек рюкзака — справа от слота, не под подписью */}
             <div
-              onClick={(e) => { e.stopPropagation(); setBackpackLocked(!backpackLocked); }}
+              key={lockWiggle ?? 'lock-0'}
+              className={lockWiggle ? 'eqfx-wiggle' : undefined}
+              onClick={(e) => { e.stopPropagation(); setLockWiggle(Date.now()); setBackpackLocked(!backpackLocked); }}
               title={backpackLocked ? 'Снять замочек' : 'Замочек: клик не снимет рюкзак'}
               style={{
                 position: 'absolute',
