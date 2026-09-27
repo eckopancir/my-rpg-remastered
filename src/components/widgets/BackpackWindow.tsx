@@ -48,7 +48,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
   const slots = backpackSlotsFor(backpack);
   const gridRows = Math.max(1, Math.ceil(slots / GRID_COLS));
   const contents = backpackGrid.items;
-  const inCombat = useCombatGridStore((s) => s.isActive && s.enemies.some((e) => !e.dead && e.knowsPlayer));
+  const inCombat = useCombatGridStore((s) => s.isActive);
 
   // Build occupied map for grid rendering
   const occupied = useMemo(() => {

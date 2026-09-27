@@ -61,7 +61,8 @@ export const EnemyGearModal = ({ enemyId, onClose }: { enemyId: number | string;
         <div style={{
           padding: 14,
           backgroundImage: images.enemyDead ? `url(${images.enemyDead})` : 'none',
-          backgroundSize: 'cover',
+          backgroundSize: '80% auto',
+          backgroundRepeat: 'no-repeat',
           backgroundPosition: 'center',
         }}>
           {gear.length === 0 && (
