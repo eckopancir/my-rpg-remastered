@@ -658,7 +658,7 @@ export const Equipment = () => {
     const isHover = hoverSlot === slot;
 
     // RPG-ячейка: утопленный тёмный металл + уголки качества + свечение за предметом.
-    // Активный ствол — в цвете редкости оружия, дроп-таргет — зелёный.
+    // Активный ствол отличается только бегущей линией в цвете редкости, дроп-таргет — зелёный.
     const qc = item?.qualityColor || '#818cf8';
     const cc = isDragTarget ? '#4ade80' : qc;
     const glowBase = isDragTarget ? '#22c55e' : qc;
@@ -692,13 +692,11 @@ export const Equipment = () => {
             border: `1px ${item || isDragTarget ? 'solid' : 'dashed'} ${item ? 'rgba(255,255,255,0.08)' : (isDragTarget ? 'rgba(34,197,94,0.8)' : 'rgba(255,255,255,0.14)')}`,
             borderRadius: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: isActiveGun
-              ? `0 0 18px ${withAlpha(qc, 0.7)}, inset 0 2px 10px rgba(0,0,0,0.75)`
-              : isDragTarget && item
-                ? '0 0 18px rgba(34,197,94,0.5), inset 0 2px 10px rgba(0,0,0,0.75)'
-                : item
-                  ? `0 0 14px ${withAlpha(qc, 0.28)}, inset 0 2px 10px rgba(0,0,0,0.75), 0 1px 0 rgba(255,255,255,0.03)`
-                  : 'none',
+            boxShadow: isDragTarget && item
+              ? '0 0 18px rgba(34,197,94,0.5), inset 0 2px 10px rgba(0,0,0,0.75)'
+              : item
+                ? `0 0 14px ${withAlpha(qc, 0.28)}, inset 0 2px 10px rgba(0,0,0,0.75), 0 1px 0 rgba(255,255,255,0.03)`
+                : 'none',
             cursor: item ? 'grab' : 'pointer',
             transition: 'all 120ms',
             filter: isHover && item ? 'brightness(1.12)' : 'none',
@@ -713,7 +711,7 @@ export const Equipment = () => {
                 <span style={{ position: 'absolute', top: 2, left: 5, fontSize: 11, lineHeight: 1, color: '#ffd700', textShadow: '0 0 4px rgba(255,215,0,0.8)', zIndex: 3, pointerEvents: 'none' }}>★</span>
               )}
               {/* Уголки качества */}
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2, filter: (isHover || isActiveGun || isDragTarget) ? `drop-shadow(0 0 3px ${cc})` : 'none' }}>
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2, filter: (isHover || isDragTarget) ? `drop-shadow(0 0 3px ${cc})` : 'none' }}>
                 <div style={{ position: 'absolute', top: 3, left: 3, width: 9, height: 9, borderTop: `2px solid ${cc}`, borderLeft: `2px solid ${cc}`, borderTopLeftRadius: 5 }} />
                 <div style={{ position: 'absolute', top: 3, right: 3, width: 9, height: 9, borderTop: `2px solid ${cc}`, borderRight: `2px solid ${cc}`, borderTopRightRadius: 5 }} />
                 <div style={{ position: 'absolute', bottom: 3, left: 3, width: 9, height: 9, borderBottom: `2px solid ${cc}`, borderLeft: `2px solid ${cc}`, borderBottomLeftRadius: 5 }} />
