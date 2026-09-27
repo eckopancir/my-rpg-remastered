@@ -119,7 +119,7 @@
   position: absolute;
   inset: -45%;
   background: conic-gradient(from 0deg, transparent 0deg, var(--gun-ring, rgba(34,197,94,0.95)) 35deg, transparent 70deg);
-  animation: equipRingSpin 1.8s linear infinite;
+  animation: equipRingSpin 3.6s linear infinite;
   pointer-events: none;
   z-index: 0;
 }
