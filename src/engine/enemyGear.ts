@@ -7,8 +7,8 @@ import { CARD_RARITY_TIERS } from '../data/encounters';
 /** Слоты одежды врага: полный комплект. */
 export const ENEMY_CLOTH_SLOTS = ['head', 'armor', 'pants', 'gloves', 'boots'];
 
-/** Шанс поломки слота при смерти (по умолчанию 75%). */
-export const GEAR_BREAK_RATE = 0.75;
+/** Шанс поломки слота при смерти (по умолчанию 90%). */
+export const GEAR_BREAK_RATE = 0.9;
 
 /** Множитель мощи надетого по тиру карточки: t0 +0%, далее +20% за тир. */
 export const cardTierMult = (cardRarityName?: string | null): number => {

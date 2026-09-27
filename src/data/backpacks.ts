@@ -1,5 +1,5 @@
 import type { Item } from '../types/items';
-import { maxStackFor, isBulletOfGroup, AMMO_GROUP_MAP, type AmmoGroup } from './ammo';
+import { maxStackFor, isBulletOfGroup, AMMO_GROUP_MAP, ammoTypeForWeapon, type AmmoGroup } from './ammo';
 
 // Каталог рюкзаков: 11 семейств × 5 градаций = 55 штук.
 // Слоты = baseSlots + индекс качества предмета (Обычный 0 … Божественный 6).
@@ -200,6 +200,11 @@ const GRID_W = 5;
 
 export const isBigItem = (item: Item): boolean => {
   const s = (item.slot || '') as string;
+  // Пистолеты маленькие — 1×1 (и в слоте gun_pistol, и неэкипированные weapon2).
+  if (s === 'gun_pistol') return false;
+  if (s === 'weapon2') {
+    try { if (ammoTypeForWeapon(item as any) === 'pistol') return false; } catch { /* ignore */ }
+  }
   return s === 'weapon1' || s === 'weapon2' || s.startsWith('gun_')
     || s === 'head' || s === 'armor' || s === 'pants' || s === 'gloves' || s === 'boots'
     || s === 'shield';
