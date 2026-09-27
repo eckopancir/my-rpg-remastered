@@ -492,7 +492,7 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
                 backgroundImage: images.enemyDead ? `url(${images.enemyDead})` : 'none',
                 backgroundSize: '80% auto',
                 backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center',
+                backgroundPosition: 'center calc(50% - 25px)',
               }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
                   🛡️ Экипировка
