@@ -144,6 +144,18 @@ const debugAddPistols = (count: number) => {
   useUiStore.getState().addToast(`🔫 Выдано ${count} пистолетов`, 'loot');
 };
 
+// DEBUG: 500 снайперок (группа снайперских патронов) текущего уровня.
+const debugAddSnipers = (count: number) => {
+  const addItem = useInventoryStore.getState().addItem;
+  const pool = GAME_ITEMS.filter((i) => i.slot === 'weapon2' && ammoTypeForWeapon(i as any) === 'sniper');
+  const lvl = usePlayerStore.getState().level;
+  for (let i = 0; i < count; i++) {
+    const drop = generateItem(pool, lvl);
+    if (drop) addItem(drop);
+  }
+  useUiStore.getState().addToast(`🔫 Выдано ${count} снайперок`, 'loot');
+};
+
 const debugAddMods = (count: number) => {
   const addItem = useInventoryStore.getState().addItem;
   const mods = GAME_ITEMS.filter((i) => i.type === 'mod');
@@ -599,6 +611,7 @@ export const Dashboard = () => {
             <Button size="sm" variant="primary" onClick={() => debugAddRifles(500)} style={{ fontSize: 11 }}>+500 автоматов 🔫</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddShotguns(500)} style={{ fontSize: 11 }}>+500 дробовиков 🔫</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddPistols(500)} style={{ fontSize: 11 }}>+500 пистолетов 🔫</Button>
+            <Button size="sm" variant="primary" onClick={() => debugAddSnipers(500)} style={{ fontSize: 11 }}>+500 снайперок 🔫</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddArmorSlot('head', 'шлемов', 500)} style={{ fontSize: 11 }}>+500 шлемов 🪖</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddArmorSlot('armor', 'брони', 500)} style={{ fontSize: 11 }}>+500 брони 🦺</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddArmorSlot('gloves', 'перчаток', 500)} style={{ fontSize: 11 }}>+500 перчаток 🧤</Button>
