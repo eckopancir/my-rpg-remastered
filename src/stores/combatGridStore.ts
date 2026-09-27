@@ -132,54 +132,13 @@ export interface GridObstacle {
   imgIndex?: number;
 }
 
-/** Агрегированная карточка попапов (WoW-стиль): слева урон, справа хил, центр статусы. */
 export interface BattlePopup {
   id: string;
   x: number;
   y: number;
-  // Левая полоса: каждое попадание своей строкой (как раньше «🔥 КРИТ x3! −47»),
-  // переполнение старше 4 строк схлопывается в «−X ×N».
-  hits: Array<{ amount: number; crit: number | null }>;
-  overflowDmg: number;
-  overflowHits: number;
-  // Правая полоса: реген и вампиризм одним суммарным числом.
-  heal: number;
-  vamp: number;
-  // Центр: статусы (максимум 3).
-  statuses: Array<{ text: string; kind: string }>;
-  updatedAt: number;
+  text: string;
+  type: string;
 }
-
-// Окно агрегации попапов на клетке: пока летит — суммируем урон и хил.
-const POPUP_AGG_MS = 3500;
-// Максимум строк попаданий в карточке; старше — в «−X ×N».
-const MAX_HIT_LINES = 4;
-// Максимум карточек на одной клетке.
-const POPUP_CARDS_PER_CELL = 3;
-// Полосы урона (лево) и хила (право).
-const DMG_LANES = new Set(['DMG', 'CRIT', 'DAMAGE']);
-const HEAL_LANES: Record<string, 'heal' | 'vamp'> = { HEAL: 'heal', VAMP: 'vamp' };
-// Статусы, дублируемые в лог боя.
-const LOGGED_STATUS = new Set(['SPECIAL', 'DEBUFF', 'ERROR']);
-
-const popupTimers = new Map<string, number>();
-
-const parseCritMult = (text: string): number | null => {
-  const m = String(text).match(/[xх](\d+)/i);
-  if (!m) return null;
-  const v = parseInt(m[1], 10);
-  return Number.isFinite(v) && v > 0 ? v : null;
-};
-
-const parsePopupNumber = (text: string): number => {
-  // Урон — число после минуса («🔥 КРИТ x3! -47» → -47, а не 347).
-  // Без цифр («МИМО») — 0, такой попап уйдёт в статусы, а не в «−0».
-  const t = String(text).replace(/−/g, '-');
-  const m = t.match(/-\s*(\d+)/);
-  if (m) return -parseInt(m[1], 10);
-  const p = t.match(/(\d+)/);
-  return p ? parseInt(p[1], 10) : 0;
-};
 
 export type ShotKind = 'single' | 'burst' | 'spread' | 'boss' | 'heal';
 
@@ -886,8 +845,10 @@ export const absorbWithShield = (pos: { x: number; y: number }): boolean => {
       stats: { ...st.stats, shieldCharges: st.stats.shieldCharges - 1 },
     }));
     const store = useCombatGridStore.getState();
-    store.addPopup(pos.x, pos.y, '🛡️ ЩИТ! Атака поглощена!', 'BLOCK');
+    // Свой тип SHIELD: поглощение щитом — не прок блока (не врёт в статистику ощущений).
+    store.addPopup(pos.x, pos.y, '🛡️ ЩИТ! Атака поглощена!', 'SHIELD');
     store.addBattleLog('🛡️ ЩИТ поглотил атаку');
+    playCombatSound('MaximumArmor', 0.4);
     return true;
   }
   return false;
@@ -1224,95 +1185,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   addPopup: (x, y, text, type = 'NORMAL') => {
     // Настройка «Цифры урона»: числовые попапы (урон/крит/блок) можно скрыть.
-    const hideNumbers = useUiStore.getState().showDamageNumbers === false;
-    if (hideNumbers && (type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK')) return;
-    const key = `${Math.round(x)},${Math.round(y)}`;
-    const now = Date.now();
-    const st = get();
-    const sameCell = st.popups.filter(
-      (p) => `${Math.round(p.x)},${Math.round(p.y)}` === key,
-    );
-    let card = sameCell[sameCell.length - 1];
-    if (!card && sameCell.length >= POPUP_CARDS_PER_CELL) return;
-    if (card && sameCell.length > POPUP_CARDS_PER_CELL) {
-      // Лишнее не копим: старейшую карточку клетки гасим.
-      const oldest = sameCell[0];
-      const t = popupTimers.get(oldest.id);
-      if (t) { window.clearTimeout(t); popupTimers.delete(oldest.id); }
-      set((s) => ({ popups: s.popups.filter((p) => p.id !== oldest.id) }));
-      card = sameCell[sameCell.length - 1];
-    }
-    const applyLane = (c: BattlePopup): boolean => {
-      if (DMG_LANES.has(type)) {
-        if (hideNumbers) return false;
-        const n = parsePopupNumber(text);
-        // Без числа в тексте (промах и т.п.) — в статусы, а не в «−0».
-        if (n === 0 && !/\d/.test(String(text))) {
-          const last = c.statuses[c.statuses.length - 1];
-          if (!last || last.text !== text) {
-            c.statuses.push({ text, kind: type });
-            if (c.statuses.length > 3) c.statuses.shift();
-          }
-          return true;
-        }
-        // Каждое попадание — своей строкой; множитель крита — как раньше.
-        const cm = type === 'CRIT' ? parseCritMult(text) : null;
-        c.hits.push({ amount: n, crit: cm });
-        while (c.hits.length > MAX_HIT_LINES) {
-          const dropped = c.hits.shift()!;
-          c.overflowDmg += dropped.amount;
-          c.overflowHits += 1;
-        }
-        return true;
-      }
-      const healLane = (HEAL_LANES as Record<string, 'heal' | 'vamp'>)[type];
-      if (healLane) {
-        const n = Math.abs(parsePopupNumber(text));
-        (c as any)[healLane] = ((c as any)[healLane] || 0) + n;
-        return (c as any)[healLane] > 0;
-      }
-      // Центр: статусы (максимум 3, дубли подряд не копим).
-      const last = c.statuses[c.statuses.length - 1];
-      if (!last || last.text !== text) {
-        c.statuses.push({ text, kind: type });
-        if (c.statuses.length > 3) c.statuses.shift();
-      }
-      return true;
-    };
-    if (!card) {
-      const fresh: BattlePopup = {
-        id: `popup-${now}-${Math.random().toString(36).slice(2, 5)}`,
-        x, y, hits: [], overflowDmg: 0, overflowHits: 0, heal: 0, vamp: 0, statuses: [], updatedAt: now,
-      };
-      if (!applyLane(fresh)) return;
-      // Пустая карточка (всё отфильтровано) — не создаём.
-      if (fresh.hits.length === 0 && fresh.overflowHits === 0 && fresh.heal === 0 && fresh.vamp === 0 && fresh.statuses.length === 0) return;
-      set((s) => ({ popups: [...s.popups, fresh] }));
-      card = fresh;
-    } else {
-      const next = st.popups.map((p) => {
-        if (p.id !== card!.id) return p;
-        const c: BattlePopup = {
-          ...p,
-          hits: [...p.hits], statuses: [...p.statuses], updatedAt: now,
-        };
-        applyLane(c);
-        return c;
-      });
-      set({ popups: next });
-    }
-    // Карточка висит 3.5с с последнего обновления.
-    const old = popupTimers.get(card.id);
-    if (old) window.clearTimeout(old);
-    popupTimers.set(
-      card.id,
-      window.setTimeout(() => {
-        popupTimers.delete(card!.id);
-        set((s) => ({ popups: s.popups.filter((p) => p.id !== card!.id) }));
-      }, POPUP_AGG_MS),
-    );
-    // Статусы — дубль в лог боя (урон/хил и так видны цифрами).
-    if (LOGGED_STATUS.has(type)) get().addBattleLog(text);
+    if ((type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK') && useUiStore.getState().showDamageNumbers === false) return;
+    const id = `popup-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    set((s) => ({ popups: [...s.popups, { id, x, y, text, type }] }));
+    setTimeout(() => {
+      set((s) => ({ popups: s.popups.filter((p) => p.id !== id) }));
+    }, 1000);
   },
 
   triggerShake: () => {
