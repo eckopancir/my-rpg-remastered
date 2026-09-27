@@ -2514,7 +2514,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           }
 
           if (ability.id === 'grenade') {
-            // Animated grenade: 2s flight + explosion
+            // Animated grenade: 1.6s flight + explosion
             playCombatSound('grenadegun', 0.4);
             set({ flyingGrenade: { from: state.playerPos, to: targetEnemy.pos } });
             get().addBattleLog(`💣 ${ability.name}: бросок...`);
@@ -2551,7 +2551,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                 globalEffects: [...st.globalEffects, { type: 'GRENADE' as const, pos: { ...targetEnemy.pos }, damage: 0, timer: 2 }],
               }));
               setTimeout(() => set((st: any) => ({ globalEffects: st.globalEffects.filter((g: any) => g.timer > 1) })), 2000);
-            }, 2000);
+            }, 1600);
             continue;
           }
 
@@ -2586,7 +2586,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                 globalEffects: [...st.globalEffects, { type: 'GRENADE' as const, pos: { ...targetEnemy.pos }, damage: 0, timer: 2 }],
               }));
               setTimeout(() => set((st: any) => ({ globalEffects: st.globalEffects.filter((g: any) => g.timer > 1) })), 2000);
-            }, 2000);
+            }, 1600);
             continue;
           }
 
