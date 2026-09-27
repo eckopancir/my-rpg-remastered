@@ -830,7 +830,7 @@ export const useEnemyAI = () => {
               if (targetAlly) {
                 targetAlly.currentHp = Math.max(0, targetAlly.currentHp - finalDmg);
                 targetAlly.isHit = true;
-                useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+                useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, result.text, result.type);
                 useCombatGridStore.getState().addBattleLog(buildShotLog(enemy.name, targetAlly.name, result, { cur: Math.round(targetAlly.currentHp), max: Math.round(targetAlly.maxHp) }));
                 setTimeout(() => { targetAlly.isHit = false; }, 300);
                 if (targetAlly.currentHp <= 0) {
@@ -853,7 +853,7 @@ export const useEnemyAI = () => {
                 if (targetHostile) {
                   targetHostile.currentHp = Math.max(0, targetHostile.currentHp - finalDmg);
                   targetHostile.isHit = true;
-                  useCombatGridStore.getState().addPopup(targetHostile.pos.x, targetHostile.pos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+                  useCombatGridStore.getState().addPopup(targetHostile.pos.x, targetHostile.pos.y, result.text, result.type);
                   useCombatGridStore.getState().addBattleLog(buildShotLog(`${enemy.name} 🤝`, targetHostile.name, result, { cur: Math.round(targetHostile.currentHp), max: Math.round(targetHostile.maxHp) }));
                   setTimeout(() => { targetHostile.isHit = false; }, 300);
                   if (targetHostile.currentHp <= 0) {
@@ -862,7 +862,7 @@ export const useEnemyAI = () => {
                     useCombatGridStore.getState().addBattleLog(`💀 ${targetHostile.name} уничтожен мусорщиком!`);
                   }
                 } else {
-                  useCombatGridStore.getState().addPopup(targetPos.x, targetPos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+                  useCombatGridStore.getState().addPopup(targetPos.x, targetPos.y, result.text, result.type);
                   useCombatGridStore.getState().addBattleLog(buildShotLog(`${enemy.name} 🤝`, `точка (${targetPos.x},${targetPos.y})`, result));
                 }
               } else if (absorbWithShield(currentStore.playerPos)) {
@@ -875,7 +875,7 @@ export const useEnemyAI = () => {
                 usePlayerStore.setState((st: any) => ({
                   stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
                 }));
-                useCombatGridStore.getState().addPopup(currentStore.playerPos.x, currentStore.playerPos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+                useCombatGridStore.getState().addPopup(currentStore.playerPos.x, currentStore.playerPos.y, result.text, result.type);
                 {
                   const ps = usePlayerStore.getState().stats;
                   useCombatGridStore.getState().addBattleLog(buildShotLog(enemy.name, 'вы', result, { cur: Math.round(ps.currentHp), max: Math.round(ps.maxHp) }));
@@ -965,7 +965,7 @@ export const useEnemyAI = () => {
                 if (extraTargetAlly) {
                   extraTargetAlly.currentHp = Math.max(0, extraTargetAlly.currentHp - finalDmg2);
                   extraTargetAlly.isHit = true;
-                  useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, result2.text, result2.type, { amount: result2.damage, crit: (result2 as any).critMult > 1 ? (result2 as any).critMult : null });
+                  useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, result2.text, result2.type);
                   useCombatGridStore.getState().addBattleLog(buildShotLog(`${enemy.name} ↺`, extraTargetAlly.name, result2, { cur: Math.round(extraTargetAlly.currentHp), max: Math.round(extraTargetAlly.maxHp) }));
                   setTimeout(() => { extraTargetAlly.isHit = false; }, 300);
                   if (extraTargetAlly.currentHp <= 0) {
@@ -987,7 +987,7 @@ export const useEnemyAI = () => {
                   if (extraHostile) {
                     extraHostile.currentHp = Math.max(0, extraHostile.currentHp - finalDmg2);
                     extraHostile.isHit = true;
-                    useCombatGridStore.getState().addPopup(extraHostile.pos.x, extraHostile.pos.y, result2.text, result2.type, { amount: result2.damage, crit: (result2 as any).critMult > 1 ? (result2 as any).critMult : null });
+                    useCombatGridStore.getState().addPopup(extraHostile.pos.x, extraHostile.pos.y, result2.text, result2.type);
                     useCombatGridStore.getState().addBattleLog(buildShotLog(`${enemy.name} ↺🤝`, extraHostile.name, result2, { cur: Math.round(extraHostile.currentHp), max: Math.round(extraHostile.maxHp) }));
                     setTimeout(() => { extraHostile.isHit = false; }, 300);
                     if (extraHostile.currentHp <= 0) {
@@ -996,7 +996,7 @@ export const useEnemyAI = () => {
                       useCombatGridStore.getState().addBattleLog(`💀 ${extraHostile.name} уничтожен мусорщиком!`);
                     }
                   } else {
-                    useCombatGridStore.getState().addPopup(targetPos.x, targetPos.y, result2.text, result2.type, { amount: result2.damage, crit: (result2 as any).critMult > 1 ? (result2 as any).critMult : null });
+                    useCombatGridStore.getState().addPopup(targetPos.x, targetPos.y, result2.text, result2.type);
                     useCombatGridStore.getState().addBattleLog(buildShotLog(`${enemy.name} ↺🤝`, `точка (${targetPos.x},${targetPos.y})`, result2));
                   }
                 } else if (absorbWithShield(currentStore.playerPos)) {
@@ -1009,7 +1009,7 @@ export const useEnemyAI = () => {
                   usePlayerStore.setState((st: any) => ({
                     stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg2) },
                   }));
-                  useCombatGridStore.getState().addPopup(currentStore.playerPos.x, currentStore.playerPos.y, result2.text, result2.type, { amount: result2.damage, crit: (result2 as any).critMult > 1 ? (result2 as any).critMult : null });
+                  useCombatGridStore.getState().addPopup(currentStore.playerPos.x, currentStore.playerPos.y, result2.text, result2.type);
                   {
                     const ps2 = usePlayerStore.getState().stats;
                     useCombatGridStore.getState().addBattleLog(buildShotLog(`${enemy.name} ↺`, 'вы', result2, { cur: Math.round(ps2.currentHp), max: Math.round(ps2.maxHp) }));

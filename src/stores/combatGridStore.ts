@@ -132,55 +132,13 @@ export interface GridObstacle {
   imgIndex?: number;
 }
 
-/** Агрегированная карточка попапов (WoW-стиль): слева урон, справа хил, центр статусы. */
 export interface BattlePopup {
   id: string;
   x: number;
   y: number;
-  // Левая полоса: каждое попадание своей строкой (как раньше «🔥 КРИТ x3! −47»),
-  // переполнение старше 4 строк схлопывается в «−X ×N».
-  hits: Array<{ amount: number; crit: number | null }>;
-  overflowDmg: number;
-  overflowHits: number;
-  // Правая полоса: реген и вампиризм одним суммарным числом.
-  heal: number;
-  vamp: number;
-  // Центр: статусы (максимум 3).
-  statuses: Array<{ text: string; kind: string }>;
-  updatedAt: number;
+  text: string;
+  type: string;
 }
-
-// Окно агрегации: пока летит (3.5с с последнего обновления) — суммируем.
-// Чистит один общий дворник каждые 300мс (без таймеров на карточку).
-const POPUP_AGG_MS = 3500;
-// Максимум строк попаданий в карточке; старше — в «−X ×N».
-const MAX_HIT_LINES = 4;
-// Максимум карточек на одной клетке и всего (защита от лагов).
-const POPUP_CARDS_PER_CELL = 3;
-const POPUP_CARDS_TOTAL = 15;
-// Полосы урона (лево) и хила (право).
-// NORMAL — обычные попадания «−47» (без него урон уходил в статусы и терялся).
-const DMG_LANES = new Set(['NORMAL', 'DMG', 'CRIT', 'DAMAGE']);
-const HEAL_LANES: Record<string, 'heal' | 'vamp'> = { HEAL: 'heal', VAMP: 'vamp' };
-
-let popupPruneOn = false;
-
-const parseCritMult = (text: string): number | null => {
-  const m = String(text).match(/[xх](\d+)/i);
-  if (!m) return null;
-  const v = parseInt(m[1], 10);
-  return Number.isFinite(v) && v > 0 ? v : null;
-};
-
-const parsePopupNumber = (text: string): number => {
-  // Урон — число после минуса («🔥 КРИТ x3! -47» → -47, а не 347).
-  // Без цифр («МИМО») — 0, такой попап уйдёт в статусы, а не в «−0».
-  const t = String(text).replace(/−/g, '-');
-  const m = t.match(/-\s*(\d+)/);
-  if (m) return -parseInt(m[1], 10);
-  const p = t.match(/(\d+)/);
-  return p ? parseInt(p[1], 10) : 0;
-};
 
 export type ShotKind = 'single' | 'burst' | 'spread' | 'boss' | 'heal';
 
@@ -396,7 +354,7 @@ export interface CombatGridStore {
   endTurn: () => void;
   cleanup: () => void;
   addMessage: (msg: string) => void;
-  addPopup: (x: number, y: number, text: string, type?: string, meta?: { amount?: number; crit?: number | null }) => void;
+  addPopup: (x: number, y: number, text: string, type?: string) => void;
   addBattleLog: (msg: string) => void;
   procElementalDebuffs: (targetId: string | number) => void;
   procShotgunStun: (targetId: string | number) => void;
@@ -1272,95 +1230,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   addBattleLog: (msg) => set((s) => ({ battleLogs: [...s.battleLogs.slice(-499), msg] })),
 
-  addPopup: (x, y, text, type = 'NORMAL', meta) => {
+  addPopup: (x, y, text, type = 'NORMAL') => {
     // Настройка «Цифры урона»: числовые попапы (урон/крит/блок) можно скрыть.
-    const hideNumbers = useUiStore.getState().showDamageNumbers === false;
-    if (hideNumbers && (type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK')) return;
-    // Общий дворник протухших карточек (один на всех, без таймеров).
-    if (!popupPruneOn && typeof window !== 'undefined') {
-      popupPruneOn = true;
-      window.setInterval(() => {
-        const cur = get();
-        if (!cur.popups.length) return;
-        const now = Date.now();
-        let dirty = false;
-        for (const p of cur.popups) {
-          if (now - p.updatedAt >= POPUP_AGG_MS) { dirty = true; break; }
-        }
-        if (dirty) set({ popups: cur.popups.filter((p) => now - p.updatedAt < POPUP_AGG_MS) });
-      }, 300);
-    }
-    const key = `${Math.round(x)},${Math.round(y)}`;
-    const now = Date.now();
-    const st = get();
-    const sameCell = st.popups.filter(
-      (p) => `${Math.round(p.x)},${Math.round(p.y)}` === key,
-    );
-    let card = sameCell[sameCell.length - 1];
-    const applyLane = (c: BattlePopup): boolean => {
-      if (DMG_LANES.has(type)) {
-        if (hideNumbers) return false;
-        // Структурные данные (без парсинга текста): урон уже числом, крит — множителем.
-        // Знак: хиты храним отрицательными (как раньше «−47»).
-        const n = meta?.amount !== undefined ? -Math.abs(Math.round(meta.amount)) : parsePopupNumber(text);
-        // Без числа в тексте (промах и т.п.) — в статусы, а не в «−0».
-        if (n === 0 && meta?.amount === undefined && !/\d/.test(String(text))) {
-          const last = c.statuses[c.statuses.length - 1];
-          if (!last || last.text !== text) {
-            c.statuses.push({ text, kind: type });
-            if (c.statuses.length > 3) c.statuses.shift();
-          }
-          return true;
-        }
-        // Каждое попадание — своей строкой; множитель крита — как раньше.
-        const cm = meta?.crit !== undefined ? meta.crit : (type === 'CRIT' ? parseCritMult(text) : null);
-        c.hits.push({ amount: n, crit: cm });
-        while (c.hits.length > MAX_HIT_LINES) {
-          const dropped = c.hits.shift()!;
-          c.overflowDmg += dropped.amount;
-          c.overflowHits += 1;
-        }
-        return true;
-      }
-      const healLane = (HEAL_LANES as Record<string, 'heal' | 'vamp'>)[type];
-      if (healLane) {
-        const n = Math.abs(parsePopupNumber(text));
-        (c as any)[healLane] = ((c as any)[healLane] || 0) + n;
-        return (c as any)[healLane] > 0;
-      }
-      // Центр: статусы (максимум 3, дубли подряд не копим).
-      const last = c.statuses[c.statuses.length - 1];
-      if (!last || last.text !== text) {
-        c.statuses.push({ text, kind: type });
-        if (c.statuses.length > 3) c.statuses.shift();
-      }
-      return true;
-    };
-    if (!card) {
-      if (sameCell.length >= POPUP_CARDS_PER_CELL) return;
-      const fresh: BattlePopup = {
-        id: `popup-${now}-${Math.random().toString(36).slice(2, 5)}`,
-        x, y, hits: [], overflowDmg: 0, overflowHits: 0, heal: 0, vamp: 0, statuses: [], updatedAt: now,
-      };
-      if (!applyLane(fresh)) return;
-      // Пустая карточка (всё отфильтровано) — не создаём.
-      if (fresh.hits.length === 0 && fresh.overflowHits === 0 && fresh.heal === 0 && fresh.vamp === 0 && fresh.statuses.length === 0) return;
-      let next = [...st.popups, fresh];
-      // Глобальный кап: старейшие карточки сносим.
-      while (next.length > POPUP_CARDS_TOTAL) next = next.slice(1);
-      set({ popups: next });
-      return;
-    }
-    const next = st.popups.map((p) => {
-      if (p.id !== card!.id) return p;
-      const c: BattlePopup = {
-        ...p,
-        hits: [...p.hits], statuses: [...p.statuses], updatedAt: now,
-      };
-      applyLane(c);
-      return c;
-    });
-    set({ popups: next });
+    if ((type === 'NORMAL' || type === 'CRIT' || type === 'BLOCK') && useUiStore.getState().showDamageNumbers === false) return;
+    const id = `popup-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    set((s) => ({ popups: [...s.popups, { id, x, y, text, type }] }));
+    setTimeout(() => {
+      set((s) => ({ popups: s.popups.filter((p) => p.id !== id) }));
+    }, 1000);
   },
 
   triggerShake: () => {
@@ -3760,7 +3637,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           selectedEnemy: null,
           stealth: false,
         } as any));
-        get().addPopup(t.pos.x, t.pos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+        get().addPopup(t.pos.x, t.pos.y, result.text, result.type);
         get().addBattleLog(buildShotLog('вы 🗡️', t.name, result, { cur: Math.max(0, t.currentHp - actualDmg), max: t.maxHp }));
         // Искра ближнего боя на цели (гаснет сама).
         {
@@ -3897,7 +3774,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       stealth: false,
     } as any));
 
-    get().addPopup(enemy.pos.x, enemy.pos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+    get().addPopup(enemy.pos.x, enemy.pos.y, result.text, result.type);
     get().addBattleLog(buildShotLog('вы', enemy.name, result, { cur: Math.max(0, enemy.currentHp - actualDmg), max: enemy.maxHp }));
 
     // Стихийные дебафы: шанс = значение стихии (только если попали и цель жива).
@@ -3990,7 +3867,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           ),
         }));
 
-        get().addPopup(en.pos.x, en.pos.y, res.text, res.type, { amount: res.damage, crit: (res as any).critMult > 1 ? (res as any).critMult : null });
+        get().addPopup(en.pos.x, en.pos.y, res.text, res.type);
         get().addBattleLog(buildShotLog('вы ↺', en.name, res, { cur: Math.max(0, en.currentHp - dmg), max: en.maxHp }));
         get().addPopup(st.playerPos.x, st.playerPos.y, '+1 🏃', 'BUFF');
         // Стихийные дебафы и на бонус-выстрелах.
@@ -4809,7 +4686,7 @@ export async function executeSkill(
           usePlayerStore.setState((st: any) => ({
             stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
           }));
-          get().addPopup(pPos.x, pPos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+          get().addPopup(pPos.x, pPos.y, result.text, result.type);
           const pAfter = usePlayerStore.getState().stats;
           get().addBattleLog(buildShotLog(`${enemy.name} 🎯`, 'вы', result, { cur: Math.round(pAfter.currentHp), max: Math.round(pAfter.maxHp) }));
         }
@@ -4864,7 +4741,7 @@ export async function executeSkill(
             usePlayerStore.setState((st: any) => ({
               stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
             }));
-            get().addPopup(pPos.x, pPos.y, `БА-БАХ! ${result.text}`, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+            get().addPopup(pPos.x, pPos.y, `БА-БАХ! ${result.text}`, result.type);
             const pAfter = usePlayerStore.getState().stats;
             get().addBattleLog(buildShotLog(`${enemy.name} 🐗`, 'вы', result, { cur: Math.round(pAfter.currentHp), max: Math.round(pAfter.maxHp) }));
           } else {
@@ -5065,7 +4942,7 @@ export async function executeSkill(
           usePlayerStore.setState((st: any) => ({
             stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
           }));
-          get().addPopup(pPos.x, pPos.y, result.text, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+          get().addPopup(pPos.x, pPos.y, result.text, result.type);
           const pAfter = usePlayerStore.getState().stats;
           get().addBattleLog(buildShotLog(`${enemy.name} 🌧`, 'вы', result, { cur: Math.round(pAfter.currentHp), max: Math.round(pAfter.maxHp) }));
         } else if (result.damage <= 0) {
@@ -5127,7 +5004,7 @@ export async function executeSkill(
         usePlayerStore.setState((st: any) => ({
           stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
         }));
-        get().addPopup(pPos.x, pPos.y, `💥 УДАРНАЯ ВОЛНА! ${result.text}`, result.type, { amount: result.damage, crit: (result as any).critMult > 1 ? (result as any).critMult : null });
+        get().addPopup(pPos.x, pPos.y, `💥 УДАРНАЯ ВОЛНА! ${result.text}`, result.type);
         const pAfter = usePlayerStore.getState().stats;
         get().addBattleLog(buildShotLog(`${enemy.name} 🌊`, 'вы', result, { cur: Math.round(pAfter.currentHp), max: Math.round(pAfter.maxHp) }));
       } else if (result.damage <= 0) {
