@@ -801,7 +801,7 @@ export const useEnemyAI = () => {
             const tgtBlock0 = defender0 ? (petEff0 ? petEff0.block : defender0.block) : playerStats.block;
             const tgtIncoming0 = defender0 ? 1 : playerStats.incomingDamageMult;
             const result = calculateCombatResult(
-              { dps: enemyDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
+              { dps: enemyDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist: getDist(enemy.pos, targetPos) },
               applyTerrainToTarget(
                 { armor: tgtArmor0, evasion: tgtEvasion0, block: tgtBlock0, incomingDamageMult: tgtIncoming0 },
                 targetPos,
@@ -952,7 +952,7 @@ export const useEnemyAI = () => {
               const tgtBlock = defender2 ? defender2.block : curAfter.block;
               const tgtIncoming = defender2 ? 1 : curAfter.incomingDamageMult;
               const result2 = calculateCombatResult(
-                { dps: enemyDps2, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
+                { dps: enemyDps2, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist: getDist(enemy.pos, targetPos) },
                 applyTerrainToTarget(
                   { armor: tgtArmor, evasion: tgtEvasion, block: tgtBlock, incomingDamageMult: tgtIncoming },
                   targetPos,

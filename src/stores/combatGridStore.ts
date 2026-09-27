@@ -778,10 +778,13 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   const isNightTime = currentHour >= 0 && currentHour < 6 && !useUiStore.getState().forceDay;
   const nightPenalty = isNightTime && !attacker.isPlayer ? 0.2 : 0;
   const finalAccuracy = Math.max(0, (attacker.accuracy || 0) - nightPenalty);
-  accuracy = finalAccuracy;
+  // Дальнобойный срез: выстрел на 14+ клеток режет точность −0.10 (и игрок, и враги).
+  const shotDist = (attacker as any).dist;
+  const effAccuracy = shotDist != null && shotDist >= 14 ? Math.max(0, finalAccuracy - 0.1) : finalAccuracy;
+  accuracy = effAccuracy;
   const forcedMult = (attacker as any).forceCritMult || 0;
 
-  if (Math.random() > finalAccuracy && finalAccuracy < 1 && !forcedMult) {
+  if (Math.random() > effAccuracy && effAccuracy < 1 && !forcedMult) {
     missed = true;
     const out: any = { damage: 0, type: 'MISS', text: 'ПРОМАХ', sound: null };
     out.detail = { missed: true, evaded: false, accuracy, evasionChance: 0, critChance: 0, critMult: 0, isCrit: false, blockChance: 0, blocked: false, armorIn: target.armor || 0, armorEff: target.armor || 0, armorCutPct: 0, barrierMult: 1, baseDmg: Math.round(baseDmg), pureDmg: 0, finalDmg: 0 };
@@ -790,8 +793,8 @@ export const calculateCombatResult = (attacker: any, target: any) => {
 
   // Уворот проверяется до расчёта урона.
   evasionChance = target.evasion || 0;
-  if (finalAccuracy > 1) {
-    if (Math.random() < finalAccuracy - 1) evasionChance = 0;
+  if (effAccuracy > 1) {
+    if (Math.random() < effAccuracy - 1) evasionChance = 0;
   }
   if (Math.random() < evasionChance && !forcedMult) {
     playCombatSound('evasion', 0.3);
@@ -2318,6 +2321,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           dps: (pStats.damage || 0) + shooterGunDamage(), pure: calcPureDamage(pStats, tgt.faction),
           crit: pStats.crit, critDamage: (pStats as any).critDamage || 0,
           accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true,
+          dist: getDist(get().playerPos, tgt.pos),
         };
         const tgtSt = applyTerrainToTarget({ armor: tgt.armor, evasion: tgt.evasion, block: tgt.block }, tgt.pos, get().obstacles);
         const res = calculateCombatResult(atk, tgtSt);
@@ -3815,6 +3819,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       punching: player.stats.punching,
       vampir: player.stats.vampir,
       isPlayer: true,
+      // Дальнобойный срез точности — по дистанции выстрела.
+      dist: getDist(state.playerPos, enemy.pos),
       // Старая механика ×5 из скрытности — теперь только снайпер (+100% крит выше).
       forceCritMult: 0,
     };
@@ -3920,7 +3926,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           bPureMult = 1.5;
         }
 
-        const atkStat = { dps: effDps, pure: pureBonus * bPureMult, crit: pStats.crit, critDamage: (pStats as any).critDamage || 0, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true };
+        const atkStat = { dps: effDps, pure: pureBonus * bPureMult, crit: pStats.crit, critDamage: (pStats as any).critDamage || 0, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true, dist: getDist(st.playerPos, en.pos) };
         const tgtStat = applyTerrainToTarget(
           { armor: en.armor, evasion: en.evasion, block: en.block },
           en.pos,
@@ -4753,7 +4759,7 @@ export async function executeSkill(
       setTimeout(() => set({ shotLine: null }), 800);
       get().triggerShake();
       const aimDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2.0;
-      const attackerStats = { dps: aimDps, accuracy: (enemy.accuracy || 1) + 2.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false };
+      const attackerStats = { dps: aimDps, accuracy: (enemy.accuracy || 1) + 2.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist };
       const result = calculateCombatResult(attackerStats, get().playerDefenseTarget());
       if (result.damage > 0) {
         if (!absorbWithShield(pPos)) {
@@ -4809,7 +4815,7 @@ export async function executeSkill(
             await new Promise((r) => setTimeout(r, 40));
           }
           const ramDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2;
-          const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false }, get().playerDefenseTarget());
+          const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist }, get().playerDefenseTarget());
           get().triggerShake();
           if (result.damage > 0 && !absorbWithShield(pPos)) {
             const pBefore = usePlayerStore.getState().stats.currentHp;
@@ -5010,7 +5016,7 @@ export async function executeSkill(
       const rainDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 1.2;
       for (let k = 0; k < 4; k++) {
         const result = calculateCombatResult(
-          { dps: rainDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
+          { dps: rainDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist },
           get().playerDefenseTarget(),
         );
         if (result.damage > 0 && !absorbWithShield(pPos)) {
@@ -5072,7 +5078,7 @@ export async function executeSkill(
       get().triggerShake();
       const waveDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 3;
       const result = calculateCombatResult(
-        { dps: waveDps, accuracy: (enemy.accuracy || 1) + 1.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false },
+        { dps: waveDps, accuracy: (enemy.accuracy || 1) + 1.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist },
         get().playerDefenseTarget(),
       );
       if (result.damage > 0 && !absorbWithShield(pPos)) {
