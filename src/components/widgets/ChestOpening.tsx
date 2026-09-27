@@ -266,6 +266,12 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                 </div>
               </div>
             )}
+            {/* Статичное кольцо орбиты */}
+            <div style={{
+              position: 'absolute', left: '50%', top: '50%', width: 390, height: 390,
+              transform: 'translate(-50%,-50%)', borderRadius: '50%',
+              border: '1px solid rgba(255,255,255,0.12)', pointerEvents: 'none',
+            }} />
             {/* Орбита лута вокруг открытого сундука (без главного предмета — он в центре) */}
             <motion.div
               animate={{ rotate: 360 }}
@@ -283,7 +289,10 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                     key={drop.key}
                     animate={{ rotate: -360 }}
                     transition={{ duration: RING_SECONDS, ease: 'linear', repeat: Infinity }}
-                    style={{ position: 'absolute', left: x, top: y }}
+                    style={{
+                      position: 'absolute', left: x, top: y, width: 0, height: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
                   >
                     <motion.div
                       onClick={() => collect(drop.key)}
@@ -297,7 +306,6 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
                       onMouseLeave={() => setTip(null)}
                       title={drop.kind === 'chips' ? `💾${drop.amount} чипов` : undefined}
                       style={{
-                        transform: 'translate(-50%, -50%)',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                         cursor: taken ? 'default' : 'pointer',
                         opacity: taken ? 0 : 1,
