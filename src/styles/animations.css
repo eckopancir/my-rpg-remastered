@@ -214,6 +214,77 @@
 .eqfx-crt { animation: eqfxCrt 4s ease-in-out infinite; }
 /* FX-14: полоса атака/защита в разборе мощности. */
 .eqfx-splitbar { transition: width 0.5s ease; }
+
+/* === FX инвентаря (InventoryOverlay): INV-N — удаление аналогично EQ-FX === */
+/* INV-1: появление ячеек при открытии/смене вида (задержка — inline). */
+@keyframes invfxAppear {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+.invfx-appear { animation: invfxAppear 0.22s ease-out both; }
+/* INV-2: pop новых (невиданных) вещей. */
+@keyframes invfxNewPop {
+  0% { transform: scale(0.5); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.invfx-newpop { animation: invfxNewPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
+/* INV-3: бейдж NEW. */
+@keyframes invfxNewBadge { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.invfx-newbadge { animation: invfxNewBadge 1s infinite; text-shadow: 0 0 6px rgba(74,222,128,0.9); }
+/* INV-4/5: подъём ячейки + блик-sweep при наведении. */
+.inv-cell { position: relative; overflow: hidden; }
+.inv-cell:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 2; }
+.invfx-sweep {
+  position: absolute; top: 0; bottom: 0; width: 50%; left: -60%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.18), transparent);
+  transform: skewX(-18deg); opacity: 0; pointer-events: none;
+}
+.inv-cell:hover .invfx-sweep { opacity: 1; animation: invfxSweepGo 0.5s ease-out; }
+@keyframes invfxSweepGo { from { left: -60%; } to { left: 130%; } }
+/* INV-6: shake ячейки при неудачном дропе. */
+@keyframes invfxShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); } 40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); } 80% { transform: translateX(3px); }
+}
+.invfx-shake { animation: invfxShake 0.35s ease-out; }
+/* INV-7: перестроение сетки при фильтре/сортировке/странице. */
+@keyframes invfxReshuffle { from { opacity: 0.3; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.invfx-reshuffle { animation: invfxReshuffle 0.18s ease-out; }
+/* INV-8: мягкая подсветка ячеек при активном фильтре. */
+@keyframes invfxMatch {
+  0% { box-shadow: 0 0 0 rgba(74,222,128,0); }
+  40% { box-shadow: 0 0 10px rgba(74,222,128,0.8); }
+  100% { box-shadow: none; }
+}
+.invfx-match { animation: invfxMatch 0.5s ease-out; }
+/* INV-9: вылет вещи при выбрасывании/использовании/экипировке. */
+@keyframes invfxLeave { to { transform: scale(0.2) translate(30px, -30px); opacity: 0; } }
+.invfx-leave { animation: invfxLeave 0.18s ease-in forwards; }
+/* INV-10: тик счётчика стака. */
+@keyframes invfxTick { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
+.invfx-tick { display: inline-block; animation: invfxTick 0.3s ease-out; }
+/* INV-11: пульс переполнения (вещей больше страницы). */
+@keyframes invfxFull { 0%, 100% { color: var(--text-muted); } 50% { color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.8); } }
+.invfx-full { animation: invfxFull 1.4s ease-in-out infinite; }
+/* INV-12: свечение + искры топ-редкости (цвет — inline --rare-c). */
+@keyframes invfxRare { 0%, 100% { box-shadow: 0 0 3px var(--rare-c, #ffd700); } 50% { box-shadow: 0 0 10px var(--rare-c, #ffd700); } }
+.invfx-rare { animation: invfxRare 2.4s ease-in-out infinite; }
+@keyframes invfxSpark {
+  0% { transform: translateY(6px); opacity: 0; }
+  30% { opacity: 0.9; }
+  100% { transform: translateY(-14px); opacity: 0; }
+}
+.invfx-spark { position: absolute; bottom: 2px; border-radius: 50%; pointer-events: none; animation: invfxSpark linear infinite; }
+/* INV-13: shimmer при улучшении предмета. */
+.invfx-shimmer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
+.invfx-shimmer::before {
+  content: ''; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -50%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.5), transparent);
+  transform: skewX(-18deg); animation: invfxShimmerMove 0.7s ease-out;
+}
+@keyframes invfxShimmerMove { to { left: 140%; } }
 /* FX-15: тик счётчика магазина при зарядке. */
 @keyframes eqfxTick {
   0% { transform: scale(1); }

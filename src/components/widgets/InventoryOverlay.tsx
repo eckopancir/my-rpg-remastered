@@ -161,10 +161,19 @@ export const InventoryOverlay = () => {
   const [page, setPage] = useState(0);
   const [filterSlot, setFilterSlot] = useState('');
   const [sortBy, setSortBy] = useState('');
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; stacked: StackedItem } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; stacked: StackedItem; idx: number } | null>(null);
   const [hoveredItem, setHoveredItem] = useState<StackedItem | null>(null);
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
   const [openingChest, setOpeningChest] = useState<Item | null>(null);
+  // INV-6/9/10/13: shake ячейки, вылет вещи, тик стака, shimmer улучшения.
+  const [shakeCell, setShakeCell] = useState<{ idx: number; t: number } | null>(null);
+  const [dying, setDying] = useState<{ key: string; idx: number; t: number } | null>(null);
+  const [tickMap, setTickMap] = useState<Record<string, number>>({});
+  const [shimmerId, setShimmerId] = useState<{ id: string; t: number } | null>(null);
+  const prevCounts = useRef<Record<string, number>>({});
+  const prevSig = useRef<Record<string, string>>({});
+  const dyingTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (dyingTimer.current !== null) window.clearTimeout(dyingTimer.current); }, []);
 
   const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
 
@@ -245,43 +254,78 @@ export const InventoryOverlay = () => {
 
   const rows = Math.ceil(padded.length / cols);
 
-  const handleContext = (e: React.MouseEvent, stacked: StackedItem) => {
+  const handleContext = (e: React.MouseEvent, stacked: StackedItem, idx: number) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, stacked });
+    setContextMenu({ x: e.clientX, y: e.clientY, stacked, idx });
   };
+
+  // INV-9: вещь вылетает из ячейки (180мс), потом выполняется действие.
+  const killWithAnim = (stacked: StackedItem, idx: number, fn: () => void) => {
+    if (dyingTimer.current !== null) { window.clearTimeout(dyingTimer.current); dyingTimer.current = null; setDying(null); fn(); return; }
+    setDying({ key: stacked.item.id, idx, t: Date.now() });
+    dyingTimer.current = window.setTimeout(() => { dyingTimer.current = null; setDying(null); fn(); }, 180);
+  };
+
+  // INV-10/13: тик изменившегося стака + shimmer улучшенного предмета.
+  useEffect(() => {
+    const prevC = prevCounts.current;
+    const prevS = prevSig.current;
+    const first = Object.keys(prevC).length === 0;
+    const nextC: Record<string, number> = {};
+    const nextS: Record<string, string> = {};
+    const ticks: Record<string, number> = {};
+    for (const st of stackItems(items)) {
+      const key = stackKeyOf(st.item);
+      nextC[key] = (nextC[key] || 0) + st.count;
+      const sig = `${st.item.level || 0}|${st.item.quality || ''}`;
+      if (!nextS[st.item.id]) nextS[st.item.id] = sig;
+      if (first) continue;
+      if (prevC[key] !== undefined && prevC[key] !== nextC[key]) ticks[key] = Date.now();
+      const ps = prevS[st.item.id];
+      if (ps && ps !== sig) {
+        const [pl, pq] = ps.split('|');
+        const [cl, cq] = sig.split('|');
+        if (+cl > +pl || (RARITY_ORDER[cq] ?? 0) > (RARITY_ORDER[pq] ?? 0)) setShimmerId({ id: st.item.id, t: Date.now() });
+      }
+    }
+    if (Object.keys(ticks).length > 0) setTickMap((m) => ({ ...m, ...ticks }));
+    prevCounts.current = nextC;
+    prevSig.current = nextS;
+  }, [items]);
 
   const handleEquip = (stacked: StackedItem) => {
     const item = stacked.item;
     const slot = getEquipSlotLocal(item);
     if (!slot) { addLog(`❌ ${item.displayName || item.name} нельзя экипировать`, 'warning'); return; }
     if (equipment[slot]) { addLog(`❌ Слот ${slot} занят`, 'warning'); return; }
-    if (equipItem(slot, item)) {
-      if (item.type === 'material' && stacked.count > 1) {
-        // For stacked items, we just equip the item. The item stays in inventory.
-        // Actually materials shouldn't be equippable. Skip.
-      } else {
-        removeItem(item.id);
+    killWithAnim(stacked, contextMenu?.idx ?? -1, () => {
+      if (equipItem(slot, item)) {
+        if (!(item.type === 'material' && stacked.count > 1)) removeItem(item.id);
+        playEquip();
       }
-      playEquip();
-    }
-    setContextMenu(null);
+      setContextMenu(null);
+    });
   };
 
   const handleUseConsumable = (stacked: StackedItem) => {
     const item = stacked.item;
     if (item.type !== 'consumable') { addLog(`❌ ${item.displayName || item.name} нельзя использовать`, 'warning'); return; }
-    useConsumable(item);
-    setContextMenu(null);
+    killWithAnim(stacked, contextMenu?.idx ?? -1, () => {
+      useConsumable(item);
+      setContextMenu(null);
+    });
   };
 
   // Открытие сундука: забираем из инвентаря, дальше ведёт модалка.
-  const openChest = (stacked: StackedItem) => {
+  const openChest = (stacked: StackedItem, idx = -1) => {
     const item = stacked.item;
     if (item.type !== 'chest') return;
-    removeItem(item.id);
-    setContextMenu(null);
-    setOpeningChest(item);
+    killWithAnim(stacked, contextMenu?.idx ?? idx, () => {
+      removeItem(item.id);
+      setContextMenu(null);
+      setOpeningChest(item);
+    });
   };
 
   // Ключ группировки — как в stackItems (стаки по имени+качеству, остальное по id).
@@ -303,7 +347,7 @@ export const InventoryOverlay = () => {
     if (fromIdx === -1) return;
     e.stopPropagation();
     e.preventDefault();
-    if (sortBy || filterSlot) { addLog('📌 Убери сортировку и фильтр для ручной раскладки', 'warning'); return; }
+    if (sortBy || filterSlot) { addLog('📌 Убери сортировку и фильтр для ручной раскладки', 'warning'); setShakeCell({ idx: paddedIdx, t: Date.now() }); return; }
     const entry = padded[paddedIdx];
     if (entry && entry.item.id === id) return; // своя же ячейка
     const next = [...all];
@@ -334,25 +378,27 @@ export const InventoryOverlay = () => {
   };
 
   const handleDrop = (stacked: StackedItem) => {    const item = stacked.item;
-    if (item.type === 'material' && stacked.count > 1) {
-      // Reduce count
-      useInventoryStore.setState((s) => {
-        const idx = s.items.findIndex((i) => i.id === item.id);
-        if (idx === -1) return {};
-        const newItems = [...s.items];
-        const qi = (newItems[idx].quantity || 1);
-        if (qi > 1) {
-          newItems[idx] = { ...newItems[idx], quantity: qi - 1 };
-        } else {
-          newItems.splice(idx, 1);
-        }
-        return { items: newItems };
-      });
-    } else {
-      removeItem(item.id);
-    }
-    addLog(`🗑️ ${item.displayName || item.name} выброшен`, 'warning');
-    setContextMenu(null);
+    killWithAnim(stacked, contextMenu?.idx ?? -1, () => {
+      if (item.type === 'material' && stacked.count > 1) {
+        // Reduce count
+        useInventoryStore.setState((s) => {
+          const idx = s.items.findIndex((i) => i.id === item.id);
+          if (idx === -1) return {};
+          const newItems = [...s.items];
+          const qi = (newItems[idx].quantity || 1);
+          if (qi > 1) {
+            newItems[idx] = { ...newItems[idx], quantity: qi - 1 };
+          } else {
+            newItems.splice(idx, 1);
+          }
+          return { items: newItems };
+        });
+      } else {
+        removeItem(item.id);
+      }
+      addLog(`🗑️ ${item.displayName || item.name} выброшен`, 'warning');
+      setContextMenu(null);
+    });
   };
 
   return (
@@ -424,11 +470,14 @@ export const InventoryOverlay = () => {
             </div>
 
             {/* Grid (принимает возврат из рюкзака) */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
-              gap: 2,
-            }}
+            <div
+              key={`${filterSlot}|${sortBy}|${currentPage}`}
+              className="invfx-reshuffle"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+                gap: 2,
+              }}
               onDrop={(e) => {
                 e.preventDefault();
                 const dtId = e.dataTransfer.getData('text/plain');
@@ -470,10 +519,20 @@ export const InventoryOverlay = () => {
                     : item.type === 'backpack' ? null
                     : item.type === 'bullet' ? null // картинка группы через getItemImage выше
                     : null;
+                // INV: флаги анимаций ячейки.
+                const isNew = !seenIds[item.id];
+                const isRare = item.quality === 'Легендарный' || item.quality === 'Божественный';
+                const stackKey = stackKeyOf(item);
+                const shaking = !!shakeCell && shakeCell.idx === idx;
+                const leaving = !!dying && dying.idx === idx && dying.key === item.id;
+                const cellCls = ['inv-cell', isNew ? 'invfx-newpop' : 'invfx-appear',
+                  filterSlot ? 'invfx-match' : '', shaking ? 'invfx-shake' : '',
+                  leaving ? 'invfx-leave' : '', isRare ? 'invfx-rare' : ''].filter(Boolean).join(' ');
 
                 return (
                   <div
                     key={item.id}
+                    className={cellCls}
                     draggable
                     onDrop={(e) => handleCellDrop(idx, e)}
                     onDragStart={(e) => {
@@ -481,13 +540,15 @@ export const InventoryOverlay = () => {
                       setDraggedItemId(item.id);
                     }}
                     onDragEnd={() => setDraggedItemId(null)}
-                    onContextMenu={(e) => handleContext(e, stacked)}
+                    onContextMenu={(e) => handleContext(e, stacked, idx)}
                     onDoubleClick={() => {
-                      if (item.type === 'chest') { openChest(stacked); return; }
+                      if (item.type === 'chest') { openChest(stacked, idx); return; }
                       // Двойной клик — в рюкзак (не ждёт перетаскивания).
-                      const msg = usePlayerStore.getState().putInBackpack(item.id);
-                      playSound('laying-out-a-travel-mat', 0.5);
-                      addLog(msg, msg.startsWith('❌') || msg.startsWith('⚠️') ? 'warning' : 'info');
+                      killWithAnim(stacked, idx, () => {
+                        const msg = usePlayerStore.getState().putInBackpack(item.id);
+                        playSound('laying-out-a-travel-mat', 0.5);
+                        addLog(msg, msg.startsWith('❌') || msg.startsWith('⚠️') ? 'warning' : 'info');
+                      });
                     }}
                     onMouseEnter={(e) => { setHoveredItem(stacked); setHoverPos({ x: e.clientX, y: e.clientY }); markSeen(stacked.item.id); }}
                     onMouseMove={(e) => setHoverPos({ x: e.clientX, y: e.clientY })}
@@ -500,8 +561,19 @@ export const InventoryOverlay = () => {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer', position: 'relative',
                       transition: 'all 80ms',
+                      animationDelay: `${Math.min(idx * 12, 300)}ms`, // INV-1
+                      ...(isRare ? { ['--rare-c' as any]: item.qualityColor } : null), // INV-12
+                    }}
+                    onAnimationEnd={(e) => {
+                      // Сбрасываем задержку появления, чтобы поздние FX (shake/leave) играли сразу.
+                      if (e.animationName === 'invfxAppear' || e.animationName === 'invfxNewPop') e.currentTarget.style.animationDelay = '0ms';
                     }}
                   >
+                    <div className="invfx-sweep" /> {/* INV-5 */}
+                    {isRare && [0, 1, 2].map((i) => ( // INV-12: искры топ-редкости
+                      <span key={i} className="invfx-spark" style={{ left: `${20 + i * 27}%`, width: 2, height: 2, background: item.qualityColor, animationDuration: `${1.8 + i * 0.5}s`, animationDelay: `${(i * 0.6).toFixed(1)}s` }} />
+                    ))}
+                    {shimmerId && shimmerId.id === item.id && <div key={shimmerId.t} className="invfx-shimmer" />} {/* INV-13 */}
                     {emojiIcon ? (
                       <span style={{ fontSize: 28, lineHeight: 1 }}>{emojiIcon}</span>
                     ) : imgUrl ? (
@@ -516,7 +588,7 @@ export const InventoryOverlay = () => {
                         color: '#fff', background: 'rgba(0,0,0,0.65)',
                         borderRadius: 2, padding: '0 3px', lineHeight: '13px',
                       }}>
-                        x{count}
+                        <span key={tickMap[stackKey] ?? 'c0'} className={tickMap[stackKey] ? 'invfx-tick' : undefined}>x{count}</span>
                       </div>
                     )}
                     {item.rarity && (
@@ -536,10 +608,10 @@ export const InventoryOverlay = () => {
                       </div>
                     )}
                     {!seenIds[item.id] && (
-                      <div style={{
+                      <div className="invfx-newbadge" style={{
                         position: 'absolute', bottom: 1, left: 2,
                         fontSize: 8, fontWeight: 800, lineHeight: 1,
-                        color: '#fff', animation: 'pulseText 1s infinite',
+                        color: '#fff',
                       }}>
                         NEW
                       </div>
@@ -554,7 +626,7 @@ export const InventoryOverlay = () => {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               marginTop: 8, fontSize: 11,
             }}>
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span className={processed.length > ITEMS_PER_PAGE ? 'invfx-full' : undefined} style={{ color: 'var(--text-muted)' }}>
                 Всего: {processed.length} | Стоимость хабара: 💾{items.reduce((sum, i) => sum + getSellPrice(i), 0).toLocaleString()}
               </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
