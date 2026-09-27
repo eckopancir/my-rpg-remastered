@@ -215,14 +215,17 @@ export const BattleGrid = () => {
 
   // Death sounds — when an enemy dies, play its soundAttack + optional death sound
   // (тихая смерть от скрытного убийства — без звуков).
+  // Нейтрал (кабан) визжит сам в сторе — Вильгельма ему не даём, иначе дубль.
   useEffect(() => {
     for (const e of enemies) {
       if (e.dead && !prevEnemiesDead.current.has(e.id)) {
         prevEnemiesDead.current.add(e.id);
         if (!(e as any).silentDeath) {
           if (e.soundAttack) playSound(e.soundAttack);
-          const screamIdx = Math.floor(Math.random() * 5) + 1;
-          playSound(`wilhelm_scream${screamIdx}`);
+          if (!(e as any).isNeutral) {
+            const screamIdx = Math.floor(Math.random() * 5) + 1;
+            playSound(`wilhelm_scream${screamIdx}`);
+          }
           playSound('chips');
         }
       }

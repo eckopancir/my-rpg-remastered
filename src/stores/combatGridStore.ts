@@ -3776,6 +3776,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           enemies: s2.enemies.map((e) => {
             if (hitIds.has(e.id) && !e.dead && e.currentHp <= 0) {
               killed += 1;
+              // Нейтрал визжит по-своему (в огнестреле — там же, тут — тут).
+              if ((e as any).isNeutral) {
+                playCombatSound('kaban-vizjit-rezko-v-shvatke', 0.5);
+                setTimeout(() => stopCombatSound('kaban-vizjit-rezko-v-shvatke'), 3000);
+              }
               return { ...e, dead: true, isHit: false, gear: rollGearOnDeath(e) };
             }
             return e;
