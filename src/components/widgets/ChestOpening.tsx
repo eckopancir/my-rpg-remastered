@@ -222,9 +222,9 @@ export const ChestOpening = ({ chest, onClose }: Props) => {
               }}
               style={{ width: 280 }}
             />
-            {/* Главный предмет — в центре над сундуком, в ауре лучей цвета сундука */}
+            {/* Главный предмет — по центру картинки сундука, в ауре лучей цвета сундука */}
             {mainDrop && !mainTaken && mainItem && (
-              <div style={{ position: 'absolute', left: '50%', top: '1%', transform: 'translateX(-50%)', zIndex: 5 }}>
+              <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', zIndex: 5 }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <motion.div
                     animate={{ rotate: 360 }}
