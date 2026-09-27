@@ -949,13 +949,6 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Щит мусорщика', rarity: 'normal', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 5, maxHp: 100 } },
   { name: 'Полицейский щит', rarity: 'epic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 8, maxHp: 200, evasion: 0.001 } },
   { name: 'Баллистический щит', rarity: 'superepic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 14, maxHp: 350, regen: 0.1 } },
-
-
-  { name: 'Пулемёт «Ураган»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 8, speed: 0.2, accuracy: -0.2 }, ammoCapacity: 100, unique: true },
-  { name: 'Пулемёт «Вампир»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 9, vampir: 0.08, accuracy: -0.2 }, ammoCapacity: 80, unique: true },
-  { name: 'Базука «Карманная»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 35, speed: 0.05, accuracy: -0.2 }, ammoCapacity: 2, unique: true },
-  { name: 'Огнемет «Дракон»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 22, dpsFire: 6, speed: 0.05 }, ammoCapacity: 30, unique: true },
-  { name: 'Пулемёт «Снайпер»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 10, accuracy: 0.1, speed: -0.1 }, ammoCapacity: 60, unique: true },
 ];
 
 /** Бонус сета: flat — плоские статы; mults — множители (применяются после сумм);

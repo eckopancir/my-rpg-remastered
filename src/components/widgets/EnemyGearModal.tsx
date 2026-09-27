@@ -63,7 +63,7 @@ export const EnemyGearModal = ({ enemyId, onClose }: { enemyId: number | string;
             <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>Без экипировки</div>
           )}
           {/* Папер-долл: центр — шлем/броня/штаны/ботинки;
-              перчатки слева и оружие справа — на уровне брони. */}
+              перчатки слева и оружие справа — на уровне брони, щит — слева от штанов. */}
           <div style={{ display: 'grid', gridTemplateColumns: `${cellPx}px ${cellPx}px ${cellPx}px`, gap: 6, justifyContent: 'center', alignItems: 'center' }}>
             <div />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('head', 'Шлем')}</div>
@@ -71,10 +71,10 @@ export const EnemyGearModal = ({ enemyId, onClose }: { enemyId: number | string;
             <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('gloves', 'Перчатки')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('armor', 'Броня')}</div>
             <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('weapon', 'Оружие')}</div>
-            <div />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('shield', 'Щит')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('pants', 'Штаны')}</div>
             <div />
-            <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('shield', 'Щит')}</div>
+            <div />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('boots', 'Ботинки')}</div>
             <div />
           </div>

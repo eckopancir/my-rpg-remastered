@@ -25,7 +25,7 @@ export const weaponSpecFor = (factionKey?: string): { slot: 'weapon1' | 'weapon2
   if (k.includes('sniper')) return { slot: 'weapon2', group: 'sniper' };
   if (k.includes('drob')) return { slot: 'weapon2', group: 'shell' };
   if (k.includes('melee') || k === 'Мутанты') return { slot: 'weapon1' };
-  if (k.includes('tank')) return { slot: 'weapon2', group: 'mg' };
+  if (k.includes('tank')) return { slot: 'weapon2', group: 'pistol' };
   if (k.includes('medic')) return { slot: 'weapon2', group: 'pistol' };
   if (k.includes('boss')) return { slot: 'weapon2', group: 'rifle' };
   return { slot: 'weapon2', group: 'rifle' };
@@ -74,11 +74,11 @@ export const generateEnemyGear = (
   const maxQuality = (factionKey || '').includes('boss') ? null : 'Раритетный';
   try {
     const pool = (GAME_ITEMS as ItemDefinition[]).filter(
-      (d) => d && d.slot === spec.slot && (!spec.group || groupOf(d) === spec.group),
+      (d) => d && d.slot === spec.slot && !(d as any).unique && (!spec.group || groupOf(d) === spec.group),
     );
     const src = pool.length > 0
       ? pool
-      : (GAME_ITEMS as ItemDefinition[]).filter((d) => d && d.slot === spec.slot);
+      : (GAME_ITEMS as ItemDefinition[]).filter((d) => d && d.slot === spec.slot && !(d as any).unique);
     if (src.length > 0) {
       const w: any = generateItem(src as any, playerLevel, forceRarity as any, null, spec.slot, maxQuality);
       if (w && typeof w.ammoCapacity === 'number') w.loadedAmmo = w.ammoCapacity;
@@ -121,11 +121,11 @@ export const generateAllyGear = (playerLevel: number): any[] => {
   try {
     const group = ALLY_WEAPON_GROUPS[Math.floor(Math.random() * ALLY_WEAPON_GROUPS.length)];
     const pool = (GAME_ITEMS as ItemDefinition[]).filter(
-      (d) => d && d.slot === 'weapon2' && groupOf(d) === group,
+      (d) => d && d.slot === 'weapon2' && !(d as any).unique && groupOf(d) === group,
     );
     const src = pool.length > 0
       ? pool
-      : (GAME_ITEMS as ItemDefinition[]).filter((d) => d && d.slot === 'weapon2');
+      : (GAME_ITEMS as ItemDefinition[]).filter((d) => d && d.slot === 'weapon2' && !(d as any).unique);
     if (src.length > 0) {
       const w: any = generateItem(src as any, playerLevel, null as any, null, 'weapon2', maxQuality);
       if (w && typeof w.ammoCapacity === 'number') w.loadedAmmo = w.ammoCapacity;
