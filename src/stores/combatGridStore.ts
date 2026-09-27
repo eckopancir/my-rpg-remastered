@@ -3731,6 +3731,26 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           get().addPopup(t.pos.x, t.pos.y, `+${vampHeal} 🩸`, 'VAMP');
           get().addBattleLog(`🩸 вы: +${vampHeal} вампиризм`);
         }
+        // Отброс оружием (бита): толкнуть живую цель от игрока, если клетка свободна.
+        const kb = (meleeW as any)?.knockback || 0;
+        if (kb > 0 && actualDmg > 0) {
+          const cur = get().enemies.find((e) => e.id === t.id);
+          if (cur && !cur.dead && (cur.currentHp || 0) > 0) {
+            const dx = cur.pos.x - state.playerPos.x;
+            const dy = cur.pos.y - state.playerPos.y;
+            const d = Math.sqrt(dx * dx + dy * dy) || 1;
+            const nx = cur.pos.x + Math.round((dx / d) * kb);
+            const ny = cur.pos.y + Math.round((dy / d) * kb);
+            const st2 = get();
+            const blocked = nx < 0 || ny < 0 || nx >= GRID || ny >= GRID
+              || st2.obstacles.some((o: any) => o.x === nx && o.y === ny && (o.blocks || o.isHigh))
+              || st2.enemies.some((e: any) => e.id !== t.id && !e.dead && (e.currentHp || 0) > 0 && e.pos.x === nx && e.pos.y === ny);
+            if (!blocked) {
+              set((s: any) => ({ enemies: s.enemies.map((e: any) => e.id === t.id ? { ...e, pos: { x: nx, y: ny } } : e) }));
+              get().addPopup(nx, ny, '💥 ОТБРОС!', 'SPECIAL');
+            }
+          }
+        }
       };
       for (const c of cells) {
         const targets = get().enemies.filter((e) =>

@@ -1036,6 +1036,15 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Плазменный клинок', rarity: 'superepic', slot: 'weapon1', stats: { damage: 20, dpsEmi: 5, block: 0.08, vampir: 0.04, punching: 0.06, crit: 0.04 }, mods: {} },
   { name: 'Молот Торнадо', rarity: 'superepic', slot: 'weapon1', stats: { damage: 22, speed: -0.2, armor: 1, vampir: 0.04, punching: 0.06, crit: 0.04, evasion: -0.3 }, mods: {} },
   { name: 'Клинок из обсидиана', rarity: 'superepic', slot: 'weapon1', stats: { damage: 14, crit: 0.05, vampir: 0.04, punching: 0.06 } },
+  // === НОВОЕ ХОЛОДНОЕ: острое — крит+вамп без пробития; тупое — урон без крита ===
+  { name: 'Боевой нож', rarity: 'normal', slot: 'weapon1', stats: { damage: 7, crit: 0.08, accuracy: 0.03, speed: 0.15, vampir: 0.14 } },
+  { name: 'Силовой кастет', rarity: 'epic', slot: 'weapon1', stats: { damage: 14, speed: 0.18, vampir: 0.1 } },
+  { name: 'Кувалда', rarity: 'superepic', slot: 'weapon1', stats: { damage: 28, accuracy: -0.05, punching: 0.12, speed: -0.3, vampir: 0.1 } },
+  { name: 'Тесак', rarity: 'epic', slot: 'weapon1', stats: { damage: 14, crit: 0.07, speed: 0, vampir: 0.13 } },
+  { name: 'Бензопила', rarity: 'epic', slot: 'weapon1', stats: { damage: 7, crit: 0.05, speed: 0.25, vampir: 0.15 } },
+  { name: 'Пожарный топор', rarity: 'superepic', slot: 'weapon1', stats: { damage: 18, crit: 0.07, speed: -0.1, vampir: 0.13 } },
+  { name: 'Бейсбольная бита', rarity: 'epic', slot: 'weapon1', stats: { damage: 18, speed: -0.05, punching: 0.06, vampir: 0.1 }, knockback: 2 },
+  { name: 'Катана', rarity: 'superepic', slot: 'weapon1', stats: { damage: 16, crit: 0.12, accuracy: 0.04, speed: 0.1, vampir: 0.14 } },
 
   // === ЩИТЫ (слот shield, класс Милишник; блока в stats нет — +20% шанс даёт надетый щит) ===
   { name: 'Полицейский щит', rarity: 'epic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 8, maxHp: 200, evasion: 0.001 } },

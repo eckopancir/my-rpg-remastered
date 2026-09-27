@@ -99,6 +99,8 @@ export interface GeneratedItem {
   reloadAp?: number;
   // Огнестрел: явная дальность (иначе — по группе патронов).
   range?: number;
+  // Холодное: отброс цели при попадании (в клетках).
+  knockback?: number;
 }
 
 const assignRandomAbility = (item: GeneratedItem) => {
