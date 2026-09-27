@@ -4,7 +4,7 @@ import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { CustomizationModal } from '../components/widgets/CustomizationModal';
 import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { WapHeader } from '../components/ui/WapHeader';
-import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, equipmentDelta, type EquipmentSlot } from '../stores/playerStore';
+import { usePlayerStore, EQUIPMENT_SLOTS, GUN_SLOTS, gunSlotForWeapon, equipmentDelta, setCountsOf, type EquipmentSlot } from '../stores/playerStore';
 import { ammoTypeForWeapon, ammoGroupName, AMMO_GROUPS, effectiveAmmoCapacity, worseQuality, type AmmoGroup } from '../data/ammo';
 import { removeItemFromGrid } from '../data/backpacks';
 import { PET_META, petMood, petSatietyAt, petBaseStats, petBranchBonuses, isPetBranchHidden, type PetKind } from '../data/pets';
@@ -18,6 +18,7 @@ import { useUiStore } from '../stores/uiStore';
 import { getItemImage, images } from '../assets/index';
 import { useSound } from '../hooks/useSound';
 import { calcItemPower } from '../utils/itemPower';
+import { SET_BONUSES } from '../data/GameItems';
 import type { Item } from '../types/items';
 
 // Слот питомца: выбор активного зверя (в бою смена запрещена).
@@ -218,6 +219,27 @@ const SLOT_LABELS: Record<string, string> = {
 // Слоты поверх силуэта + отдельный ряд оружейной сумки под куклой.
 const OVERLAY_SLOTS = EQUIPMENT_SLOTS.filter((s) => !s.startsWith('gun_')) as EquipmentSlot[];
 const GUN_ROW_SLOTS = EQUIPMENT_SLOTS.filter((s) => s.startsWith('gun_')) as EquipmentSlot[];
+// FX-1: порядок каскадного появления слотов при открытии окна.
+const SLOT_ORDER = new Map<string, number>([...GUN_ROW_SLOTS, ...OVERLAY_SLOTS].map((s, i) => [s as string, i]));
+
+// FX: призрак предмета для drag-and-drop (полупрозрачная копия с наклоном).
+const ghostEl = (item: Item): HTMLElement | null => {
+  try {
+    const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type);
+    const el = document.createElement('div');
+    el.style.cssText = `width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(10,10,14,0.85);border:1px solid ${item.qualityColor || '#818cf8'};border-radius:8px;transform:rotate(-8deg);opacity:0.85;position:fixed;top:-100px;left:-100px;pointer-events:none;`;
+    if (url) {
+      const img = document.createElement('img');
+      img.src = url;
+      img.style.cssText = 'width:40px;height:40px;object-fit:contain;';
+      el.appendChild(img);
+    } else {
+      el.textContent = (item as any).icon || '🎒';
+      el.style.fontSize = '28px';
+    }
+    return el;
+  } catch { return null; }
+};
 
 // Ключевые характеристики для сводки (остальное — под «Показать все»).
 const MAIN_STATS = ['damage', 'armor', 'maxStamina'] as const;
@@ -306,6 +328,16 @@ export const Equipment = () => {
   const [powerTooltipPos, setPowerTooltipPos] = useState({ x: 0, y: 0 });
   const [pos, setPos] = useState(equipmentPinPos);
   const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; startPosX: number; startPosY: number }>({ dragging: false, startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
+  // FX окна экипировки: pop/shake/shimmer/switch — {slot,t}; flash — {key:{dir,t}}; hlSet — подсветка частей сета.
+  const [popFx, setPopFx] = useState<{ slot: string; t: number } | null>(null);
+  const [shakeFx, setShakeFx] = useState<{ slot: string; t: number } | null>(null);
+  const [shimmerFx, setShimmerFx] = useState<{ slot: string; t: number } | null>(null);
+  const [switchFx, setSwitchFx] = useState<{ slot: string; t: number } | null>(null);
+  const [flashFx, setFlashFx] = useState<Record<string, { dir: 1 | -1; t: number }>>({});
+  const [hlSet, setHlSet] = useState<string | null>(null);
+  const prevEquipSig = useRef<Record<string, string>>({});
+  const prevStatsFx = useRef<Record<string, number>>({});
+  const prevActiveGun = useRef<string | null>(null);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -323,6 +355,53 @@ export const Equipment = () => {
       window.removeEventListener('mouseup', onUp);
     };
   }, [setEquipmentPinPos]);
+
+  // FX-2/FX-8: pop при смене предмета в слоте, shimmer при росте уровня/звёзд.
+  useEffect(() => {
+    const prev = prevEquipSig.current;
+    const first = Object.keys(prev).length === 0;
+    const next: Record<string, string> = {};
+    for (const s of EQUIPMENT_SLOTS as readonly string[]) {
+      const it = (equipment as any)[s];
+      const sig = it ? `${it.id}|${it.level || 0}|${QUALITY_STARS[it.quality || ''] || 0}` : '';
+      next[s] = sig;
+      if (first || !sig || sig === prev[s]) continue;
+      const [cid, clvl, cstar] = sig.split('|');
+      const [pid, plvl, pstar] = (prev[s] || '').split('|');
+      if (cid !== pid) setPopFx({ slot: s, t: Date.now() });
+      else if (+clvl > +plvl || +cstar > +pstar) setShimmerFx({ slot: s, t: Date.now() });
+    }
+    prevEquipSig.current = next;
+  }, [equipment]);
+
+  // FX-10: вспышка характеристики при её изменении.
+  useEffect(() => {
+    const keys = [...MAIN_STATS, ...SECOND_STATS, ...ELEM_STATS] as readonly string[];
+    const prev = prevStatsFx.current;
+    if (Object.keys(prev).length === 0) {
+      const o: Record<string, number> = {};
+      for (const k of keys) o[k] = (stats as any)[k] ?? 0;
+      prevStatsFx.current = o;
+      return;
+    }
+    const fl: Record<string, { dir: 1 | -1; t: number }> = {};
+    for (const k of keys) {
+      const cur = (stats as any)[k] ?? 0;
+      if (cur !== prev[k]) fl[k] = { dir: cur > prev[k] ? 1 : -1, t: Date.now() };
+    }
+    if (Object.keys(fl).length > 0) setFlashFx(fl);
+    const o: Record<string, number> = {};
+    for (const k of keys) o[k] = (stats as any)[k] ?? 0;
+    prevStatsFx.current = o;
+  }, [stats]);
+
+  // FX-11: кольцо на новом активном стволе при переключении.
+  useEffect(() => {
+    if (prevActiveGun.current && prevActiveGun.current !== activeWeaponSlot) {
+      setSwitchFx({ slot: activeWeaponSlot, t: Date.now() });
+    }
+    prevActiveGun.current = activeWeaponSlot;
+  }, [activeWeaponSlot]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     dragRef.current.dragging = true;
@@ -370,10 +449,12 @@ export const Equipment = () => {
       if (!rw) return;
       if (slot === 'shield' && !usePlayerStore.getState().chosenClasses.includes('melee')) {
         usePlayerStore.getState().addLog('🔒 Щит доступен с классом «Милишник»', 'warning');
+        setShakeFx({ slot, t: Date.now() }); // FX-5
         return;
       }
       if (rw.slot === 'weapon2' && gunSlotForWeapon(rw) !== slot) {
         usePlayerStore.getState().addLog(`❌ Сюда не подходит: неси в «${SLOT_LABELS[gunSlotForWeapon(rw)] || slot}».`, 'warning');
+        setShakeFx({ slot, t: Date.now() }); // FX-5
         return;
       }
       if (rw.slot && rw.slot !== slot && !(rw.slot === 'weapon2' && (GUN_SLOTS as readonly string[]).includes(slot))) return;
@@ -403,14 +484,19 @@ export const Equipment = () => {
     // Щит — только с классом «Милишник».
     if (slot === 'shield' && !usePlayerStore.getState().chosenClasses.includes('melee')) {
       usePlayerStore.getState().addLog('🔒 Щит доступен с классом «Милишник»', 'warning');
+      setShakeFx({ slot, t: Date.now() }); // FX-5
       return;
     }
     // Огнестрел — только в свой классовый слот.
     if (item.slot === 'weapon2' && gunSlotForWeapon(item) !== slot) {
       usePlayerStore.getState().addLog(`❌ Сюда не подходит: неси в «${SLOT_LABELS[gunSlotForWeapon(item)] || slot}».`, 'warning');
+      setShakeFx({ slot, t: Date.now() }); // FX-5
       return;
     }
-    if (item.slot && item.slot !== slot && !(item.slot === 'weapon2' && (GUN_SLOTS as readonly string[]).includes(slot))) return;
+    if (item.slot && item.slot !== slot && !(item.slot === 'weapon2' && (GUN_SLOTS as readonly string[]).includes(slot))) {
+      setShakeFx({ slot, t: Date.now() }); // FX-5
+      return;
+    }
     const old = equipment[slot];
     if (old) {
       // Замена: сначала снимаем старый, в инвентарь он уйдёт только если новый наделся.
@@ -609,6 +695,15 @@ export const Equipment = () => {
   const equippedCount = equippedItems.length;
   const avgLevel = equippedCount > 0 ? equippedItems.reduce((s, it) => s + (it.level || 0), 0) / equippedCount : 0;
   const avgStars = equippedCount > 0 ? equippedItems.reduce((s, it) => s + (QUALITY_STARS[it.quality || ''] || 0), 0) / equippedCount : 0;
+  // FX-9: надетые сеты для блока бонусов (пульс полного, подсветка частей по ховеру).
+  const setRows = useMemo(() => {
+    const counts = setCountsOf(equipment as any);
+    return Object.entries(counts).map(([name, count]) => {
+      const tiers = SET_BONUSES[name] || [];
+      const max = tiers.reduce((m, t) => Math.max(m, t.count), 0);
+      return { name, count, max, full: max > 0 && count >= max };
+    }).sort((a, b) => b.count - a.count);
+  }, [equipment]);
 
   // Строка характеристики в стиле тултипа: ◇ цветное значение + лейбл.
   // Штраф экипировки — красной подписью рядом ("-3%"), значение всегда цветом палитры.
@@ -637,7 +732,9 @@ export const Equipment = () => {
       <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
         <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
         <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
-          <span style={{ color: sv.color, fontWeight: 600 }}>{valOverride ?? sv.val}</span>{' '}
+          {(() => { const fl = flashFx[k]; return (
+            <span key={fl ? fl.t : 'v'} className={fl ? (fl.dir > 0 ? 'eqfx-stat-up' : 'eqfx-stat-down') : undefined} style={{ color: sv.color, fontWeight: 600 }}>{valOverride ?? sv.val}</span>
+          ); })()}{' '}
           <span style={{ color: 'rgba(255,255,255,0.72)' }}>{sv.label}</span>
           {hint && <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10, marginLeft: 6 }} title={hintTitle}>{hint}</span>}
           {penalty && <span style={{ color: '#f87171', fontSize: 10, marginLeft: 6 }}>-{penalty}</span>}
@@ -663,10 +760,20 @@ export const Equipment = () => {
     const cc = isDragTarget ? '#4ade80' : qc;
     const glowBase = isDragTarget ? '#22c55e' : qc;
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
+    const orderIdx = SLOT_ORDER.get(slot as string) ?? 0;
+    const isTopRarity = !!item && ((item as any).quality === 'Легендарный' || (item as any).quality === 'Божественный');
+    const setHl = !!hlSet && !!(item as any) && (item as any).set === hlSet;
     return (
-      <div key={slot} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      // FX-1: каскадное появление слота при открытии окна.
+      <div key={slot} className="eqfx-appear" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, animationDelay: `${orderIdx * 30}ms` }}>
         <div
-          className={isActiveGun ? 'equip-gun-active' : undefined}
+          className={[
+            'equip-slot',
+            isActiveGun ? 'equip-gun-active' : '',
+            isDragTarget ? 'eqfx-drop' : '', // FX-12
+            popFx && popFx.slot === slot ? 'eqfx-pop' : '', // FX-2
+            shakeFx && shakeFx.slot === slot ? 'eqfx-shake' : '', // FX-5
+          ].filter(Boolean).join(' ') || undefined}
           onDrop={(e) => handleDrop(slot, e)}
           onDragOver={handleDragOver}
           onMouseEnter={(e) => handleMouseEnter(slot, item, e)}
@@ -676,7 +783,7 @@ export const Equipment = () => {
           onDoubleClick={() => handleSlotDoubleClick(slot, item)}
           onContextMenu={(e) => { if (item) { e.preventDefault(); setSlotMenu({ slot, x: e.clientX, y: e.clientY }); } }}
           draggable={!!item}
-          onDragStart={(e) => { if (item) { e.dataTransfer.setData('text/plain', `equip:${slot}`); useUiStore.getState().setDraggedItemId(`equip:${slot}`); } }}
+          onDragStart={(e) => { if (item) { e.dataTransfer.setData('text/plain', `equip:${slot}`); useUiStore.getState().setDraggedItemId(`equip:${slot}`); const g = ghostEl(item); if (g) { document.body.appendChild(g); try { e.dataTransfer.setDragImage(g, 24, 24); } catch { /* noop */ } window.setTimeout(() => g.remove(), 0); } } }}
           onDragEnd={() => useUiStore.getState().setDraggedItemId(null)}
           style={{
             width: slotW,
@@ -702,6 +809,13 @@ export const Equipment = () => {
             filter: isHover && item ? 'brightness(1.12)' : 'none',
           }}
         >
+          <div className="eqfx-sweep" /> {/* FX-3: блик при наведении */}
+          {/* FX-6: аура топ-редкости */}
+          {isTopRarity && <div className="eqfx-aura" style={{ ['--aura-c' as any]: qc }} />}
+          {/* FX-11: кольцо переключения активного ствола */}
+          {switchFx && switchFx.slot === slot && <div key={switchFx.t} className="eqfx-switch" style={{ ['--gun-ring' as any]: qc }} />}
+          {/* FX-8: shimmer улучшения */}
+          {shimmerFx && shimmerFx.slot === slot && <div key={shimmerFx.t} className="eqfx-shimmer" />}
           {item && (
             <>
               {/* Свечение качества за предметом */}
@@ -717,10 +831,12 @@ export const Equipment = () => {
                 <div style={{ position: 'absolute', bottom: 3, left: 3, width: 9, height: 9, borderBottom: `2px solid ${cc}`, borderLeft: `2px solid ${cc}`, borderBottomLeftRadius: 5 }} />
                 <div style={{ position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderBottom: `2px solid ${cc}`, borderRight: `2px solid ${cc}`, borderBottomRightRadius: 5 }} />
               </div>
+              {/* FX-9: подсветка части сета при наведении на бонус сета */}
+              {setHl && <div className="eqfx-set-part" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4 }} />}
             </>
           )}
           {item ? (
-            <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', ...(isActiveGun ? { zIndex: 2 } : null) }}>
+            <div key={popFx && popFx.slot === slot ? `pop-${popFx.t}` : 'pop-0'} style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', ...(isActiveGun ? { zIndex: 2 } : null) }}>
               {(() => { const url = getItemImage(item.name, item.displayName, item.slot, (item as any).type); return url ? <img src={url} alt="" draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', imageRendering: 'pixelated', position: 'relative', top: 6, filter: `drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 6px ${withAlpha(qc, 0.4)})` }} /> : ((item as any).icon ? <span style={{ fontSize: 40, lineHeight: 1, position: 'relative', top: 6 }}>{(item as any).icon}</span> : null); })()}
               <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', lineHeight: 1, marginTop: 2, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, padding: '1px 4px' }}>
                 {item.level || 0} ур.
@@ -737,7 +853,7 @@ export const Equipment = () => {
               )}
             </div>
           ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', opacity: isHover ? 0.8 : 0.55 }}>
+          <div className={slot === 'shield' && !usePlayerStore.getState().chosenClasses.includes('melee') ? undefined : 'eqfx-empty'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer', opacity: isHover ? 0.8 : 0.55 }}>
             {slot === 'shield' && !usePlayerStore.getState().chosenClasses.includes('melee') ? (
               <span title="Нужен класс «Милишник»" style={{ fontSize: 18, lineHeight: 1 }}>🔒</span>
             ) : (
@@ -787,7 +903,7 @@ export const Equipment = () => {
         </span>
       </WapHeader>
 
-      <div style={{
+      <div className="eqfx-crt" style={{
         background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
         border: '1px solid rgba(217,119,6,0.35)',
         borderRadius: '0 0 10px 10px',
@@ -833,6 +949,12 @@ export const Equipment = () => {
           </div>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🛡️ ГЕРОЙ</div>
           <div style={{ position: 'relative', width: 207, height: 396, margin: '0 66px 0 60px', flexShrink: 0 }}>
+            {/* FX-13: пыль над силуэтом */}
+            <div style={{ position: 'absolute', left: 0, top: 0, width: 207, height: 359, overflow: 'hidden', pointerEvents: 'none', borderRadius: 60 }}>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <span key={i} className="eqfx-dust" style={{ left: `${(i * 37 + 9) % 100}%`, top: `${(i * 53) % 60}%`, width: 3, height: 3, animationDuration: `${3 + (i % 4)}s`, animationDelay: `${(i * 0.7).toFixed(1)}s` }} />
+              ))}
+            </div>
             <div style={{
               position: 'absolute', left: 0, top: 0, width: 207, height: 359,
               backgroundImage: images.main ? `url(${images.main})` : 'none',
@@ -894,7 +1016,7 @@ export const Equipment = () => {
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', width: '100%' }}>
             {[
               { v: `${equippedCount}/${EQUIPMENT_SLOTS.length}`, l: 'надето' },
-              { v: `⭐ ${avgStars.toFixed(1)}`, l: 'качество' },
+              { v: `⭐ ${avgStars.toFixed(1)}`, l: 'качество', star: true },
               { v: `${avgLevel.toFixed(1)}`, l: 'ср. уровень' },
             ].map((t) => (
               <div key={t.l} style={{
@@ -902,7 +1024,11 @@ export const Equipment = () => {
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8,
               }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t.v}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {(t as any).star
+                    ? (<><span key={avgStars.toFixed(1)} className="eqfx-star">⭐</span> {avgStars.toFixed(1)}</>)
+                    : t.v}
+                </div>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.l}</div>
               </div>
             ))}
@@ -969,6 +1095,37 @@ export const Equipment = () => {
               </div>
               <PetSlotRow />
             </div>
+            {/* FX-9: сеты — ховер подсвечивает части, полный комплект пульсирует */}
+            {setRows.length > 0 && (
+              <div style={{
+                background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 8, padding: '8px 10px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <span style={{ width: 14, height: 1, background: 'rgba(251,191,36,0.4)' }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#fbbf24' }}>◆ СЕТЫ</span>
+                  <span style={{ flex: 1, height: 1, background: 'rgba(251,191,36,0.14)' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {setRows.map((r) => (
+                    <div
+                      key={r.name}
+                      className={r.full ? 'eqfx-set-full' : undefined}
+                      onMouseEnter={() => setHlSet(r.name)}
+                      onMouseLeave={() => setHlSet(null)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'default', padding: '2px 6px' }}
+                      title={r.full ? 'Комплект собран — надень/наведи, части мигают' : 'Наведи — части сета мигают'}
+                    >
+                      <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
+                      <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>{r.name}</span>
+                      <span style={{ color: r.full ? '#4ade80' : '#fbbf24', fontWeight: 700 }}>
+                        {r.count}{r.max > 0 ? `/${r.max}` : ''}{r.full ? ' ✓' : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -985,6 +1142,12 @@ export const Equipment = () => {
           pointerEvents: 'none', fontSize: 11,
         }}>
           <div style={{ fontWeight: 600, color: '#fbbf24', marginBottom: 6, fontSize: 12 }}>🟡 Разбор мощности</div>
+          {(() => { const off = powerBreakdown.offensiveScore || 0; const def = powerBreakdown.defensiveScore || 0; const tot = off + def || 1; return (
+            <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.08)', marginBottom: 6 }} title={`Атака ${Math.round(off / tot * 100)}% / Защита ${Math.round(def / tot * 100)}%`}>
+              <div className="eqfx-splitbar" style={{ width: `${(off / tot * 100).toFixed(1)}%`, background: '#f87171' }} />
+              <div className="eqfx-splitbar" style={{ width: `${(def / tot * 100).toFixed(1)}%`, background: '#60a5fa' }} />
+            </div>
+          ); })()}
           <div style={{ color: 'var(--text-secondary)', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
             <span>⚔️ Атака (DPS ×3):</span>
             <span style={{ color: 'var(--text-primary)' }}>+{powerBreakdown.offensiveScore.toLocaleString()}</span>

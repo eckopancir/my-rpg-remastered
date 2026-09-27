@@ -133,3 +133,98 @@
   pointer-events: none;
   z-index: 1;
 }
+
+/* === FX окна экипировки (Equipment): каждый блок подписан номером —
+ *  чтобы убрать анимацию, удали её блок здесь + помеченную строку в Equipment.tsx. */
+/* FX-1: каскадное появление слотов при открытии окна (задержка — inline animationDelay). */
+@keyframes eqfxAppear {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+.eqfx-appear { animation: eqfxAppear 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
+/* FX-2: pop ячейки при надевании предмета. */
+@keyframes eqfxPop {
+  0% { transform: scale(0.8); }
+  55% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+.eqfx-pop { animation: eqfxPop 0.3s ease-out; }
+/* FX-3: блик-sweep при наведении на слот. */
+.eqfx-sweep {
+  position: absolute; top: 0; bottom: 0; width: 45%; left: -60%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.22), transparent);
+  transform: skewX(-18deg); pointer-events: none; opacity: 0; z-index: 3;
+}
+.equip-slot:hover .eqfx-sweep { opacity: 1; animation: eqfxSweep 0.55s ease-out; }
+@keyframes eqfxSweep { from { left: -60%; } to { left: 130%; } }
+/* FX-4: дыхание пустых слотов. */
+@keyframes eqfxBreathe { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.95; } }
+.eqfx-empty { animation: eqfxBreathe 2.2s ease-in-out infinite; }
+/* FX-5: shake слота при ошибке. */
+@keyframes eqfxShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); } 40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); } 80% { transform: translateX(3px); }
+}
+.eqfx-shake { animation: eqfxShake 0.35s ease-out; }
+/* FX-6: аура легендарных/божественных (цвет — inline --aura-c). */
+@keyframes eqfxAuraSpin { to { transform: rotate(360deg); } }
+.eqfx-aura {
+  position: absolute; inset: -18%; pointer-events: none; z-index: 0; opacity: 0.55;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--aura-c, #ffd700) 60deg, transparent 120deg, var(--aura-c, #ffd700) 200deg, transparent 260deg);
+  animation: eqfxAuraSpin 5s linear infinite; filter: blur(2px);
+}
+/* FX-7: звёзды качества (задержка — inline animationDelay). */
+@keyframes eqfxStar {
+  0% { opacity: 0; transform: scale(0.4) rotate(-40deg); }
+  60% { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.eqfx-star { display: inline-block; animation: eqfxStar 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+/* FX-8: shimmer при росте уровня/звёзд предмета. */
+.eqfx-shimmer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; border-radius: 10px; }
+.eqfx-shimmer::before {
+  content: ''; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -50%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.5), transparent);
+  transform: skewX(-18deg); animation: eqfxShimmerMove 0.7s ease-out;
+}
+@keyframes eqfxShimmerMove { to { left: 140%; } }
+/* FX-9: пульс полного сета + мигание его частей. */
+@keyframes eqfxSetPulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(251,191,36,0.4); }
+  50% { box-shadow: 0 0 14px rgba(251,191,36,0.9); }
+}
+.eqfx-set-full { animation: eqfxSetPulse 1.6s ease-in-out infinite; border-radius: 6px; }
+@keyframes eqfxPartBlink {
+  0%, 100% { outline: 1px solid rgba(251,191,36,0.25); }
+  50% { outline: 2px solid rgba(251,191,36,0.95); }
+}
+.eqfx-set-part { animation: eqfxPartBlink 0.8s ease-in-out infinite; border-radius: 10px; }
+/* FX-10: вспышка характеристики (рост/падение). */
+@keyframes eqfxStatUp { 0% { color: #4ade80; transform: translateY(3px) scale(1.12); } 100% {} }
+@keyframes eqfxStatDown { 0% { color: #f87171; transform: translateY(-3px) scale(1.12); } 100% {} }
+.eqfx-stat-up { animation: eqfxStatUp 0.5s ease-out; display: inline-block; font-weight: 700; }
+.eqfx-stat-down { animation: eqfxStatDown 0.5s ease-out; display: inline-block; font-weight: 700; }
+/* FX-11: кольцо переключения активного ствола (цвет — inline --gun-ring). */
+.eqfx-switch {
+  position: absolute; inset: 0; border-radius: 10px; pointer-events: none; z-index: 4;
+  border: 2px solid var(--gun-ring, #fff); animation: eqfxSwitch 0.5s ease-out forwards;
+}
+@keyframes eqfxSwitch { from { opacity: 0.9; transform: scale(0.85); } to { opacity: 0; transform: scale(1.25); } }
+/* FX-12: пружинный дроп-таргет при перетаскивании. */
+@keyframes eqfxDropBreathe {
+  0%, 100% { box-shadow: 0 0 8px rgba(34,197,94,0.35), inset 0 2px 10px rgba(0,0,0,0.75); }
+  50% { box-shadow: 0 0 20px rgba(34,197,94,0.8), inset 0 2px 10px rgba(0,0,0,0.75); }
+}
+.eqfx-drop { animation: eqfxDropBreathe 1.1s ease-in-out infinite; }
+/* FX-13: пыль над силуэтом + лёгкое CRT-мерцание панели. */
+@keyframes eqfxDust {
+  0% { transform: translateY(-8px); opacity: 0; }
+  15% { opacity: 0.8; } 85% { opacity: 0.5; }
+  100% { transform: translateY(120px); opacity: 0; }
+}
+.eqfx-dust { position: absolute; border-radius: 50%; background: rgba(251,191,36,0.5); pointer-events: none; animation: eqfxDust linear infinite; }
+@keyframes eqfxCrt { 0%, 100% { opacity: 1; } 50% { opacity: 0.985; } }
+.eqfx-crt { animation: eqfxCrt 4s ease-in-out infinite; }
+/* FX-14: полоса атака/защита в разборе мощности. */
+.eqfx-splitbar { transition: width 0.5s ease; }
