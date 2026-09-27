@@ -263,7 +263,7 @@ export const generateItem = (
     filteredItems = items.filter((item) => item.rarity === selectedRarity);
   }
   if (filteredItems.length === 0) {
-    const fallbackItem = items.find((i) => i.name === 'Нож') || items[0];
+    const fallbackItem = items.find((i) => i.name === 'Боевой нож') || items[0];
     let qualityTier: QualityTier | undefined;
     if (guaranteedQualityName) qualityTier = QUALITY_TIERS.find((t) => t.name === guaranteedQualityName);
     const fallback: GeneratedItem = {

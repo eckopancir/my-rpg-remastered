@@ -21,7 +21,7 @@ const ITEMS_PER_PAGE = cols * 8;
 
 const SLOT_FILTERS = [
   { value: '', label: 'All slots' },
-  { value: 'weapon1', label: '— Оружие' },
+  { value: 'weapon1', label: '— Ближний бой' },
   { value: 'shield', label: '— Щит' },
   { value: 'weapon2', label: '— Автомат' },
   { value: 'gun_pistol', label: '— Пистолет' },
