@@ -155,6 +155,14 @@ const isFlatHeal = (text: string): boolean => /^\+\d+\s*(💚|🩸|❤️|💗|H
 const healCardText = (heal: number, vamp: number): string =>
   [`${heal > 0 ? `+${heal} 💚` : ''}`, `${vamp > 0 ? `+${vamp} 🩸` : ''}`].filter(Boolean).join(' ');
 
+/** Время жизни попапа: урон 2с, крит 2.5с, хил-карточка 3с, остальное 1с. */
+export const popupLifeMs = (type?: string): number => {
+  if (type === 'CRIT') return 2500;
+  if (type === 'HEALCARD') return 3000;
+  if (type === 'NORMAL' || type === 'DMG' || type === 'DAMAGE') return 2000;
+  return 1000;
+};
+
 export type ShotKind = 'single' | 'burst' | 'spread' | 'boss' | 'heal';
 
 export interface ShotLine {
@@ -1286,7 +1294,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set((s) => ({ popups: [...s.popups, { id, x, y, text, type }] }));
     setTimeout(() => {
       set((s) => ({ popups: s.popups.filter((p) => p.id !== id) }));
-    }, 1000);
+    }, popupLifeMs(type));
   },
 
   triggerShake: () => {

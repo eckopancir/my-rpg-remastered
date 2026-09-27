@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-import { useCombatGridStore, checkVisibility, getDist, isBossEnemy } from '../../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs } from '../../stores/combatGridStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
@@ -1000,10 +1000,23 @@ export const BattleGrid = () => {
             posCount.set(key, count + 1);
             // Хил-карточку (+50 💚 +5 🩸) поднимаем выше модельки.
             const lift = pop.type === 'HEALCARD' ? -34 : 0;
+            // Разброс вокруг цели: детерминированный угол/радиус из id,
+            // чтобы цифры не перекрывали друг друга.
+            let dx = 0;
+            let dy = 0;
+            if (pop.type !== 'HEALCARD') {
+              let h = 0;
+              for (let i = 0; i < pop.id.length; i++) h = (h * 31 + pop.id.charCodeAt(i)) >>> 0;
+              const ang = (h % 360) * Math.PI / 180;
+              const rad = 0.45 + ((h >>> 8) % 5) * 0.12;
+              dx = Math.cos(ang) * rad;
+              dy = Math.sin(ang) * rad * 0.6 - 0.3;
+            }
             return (
               <div key={pop.id} className={`${styles.battlePopup} ${styles[pop.type.toLowerCase()] || styles.normal}`} style={{
-                left: `${(pop.x / 31) * 100}%`,
-                top: `calc(${(pop.y / 31) * 100}% + ${count * -24 + lift}px)`,
+                left: `${((pop.x + dx) / 31) * 100}%`,
+                top: `calc(${((pop.y + dy) / 31) * 100}% + ${count * -24 + lift}px)`,
+                animationDuration: `${popupLifeMs(pop.type)}ms`,
               }}>
                 {pop.text}
               </div>
