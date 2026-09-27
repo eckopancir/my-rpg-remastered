@@ -231,7 +231,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
           </span>
         </div>
       {(imgUrl || foodIcon || shieldIcon) && (
-        <div style={{ textAlign: 'center', padding: '4px 14px 0', position: 'relative' }}>
+        <div style={{ textAlign: 'center', padding: ['head', 'armor', 'pants', 'gloves', 'boots'].includes(item.slot || '') ? '25px 14px' : '4px 14px 0', position: 'relative' }}>
           {imgUrl ? (
             <img src={imgUrl} alt="" style={{ width: '100%', height: item.type === 'backpack' ? 187 : isLargeArtWeapon(item.name) ? 240 : 180, objectFit: 'contain', padding: 4, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }} />
           ) : (
