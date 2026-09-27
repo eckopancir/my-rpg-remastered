@@ -214,6 +214,7 @@ export const Battle = () => {
         case 'KeyF': playClick(); toggleStealth(); break;
         case 'KeyC': stealthKill(); break;
         case 'KeyQ': cycleWeapon(); break;
+        case 'KeyB': playClick(); setShowBackpack(true); break;
         case 'KeyE': {
           const st = useCombatGridStore.getState();
           const cf = st.campfire;

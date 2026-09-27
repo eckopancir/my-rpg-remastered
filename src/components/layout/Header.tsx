@@ -181,7 +181,7 @@ export const Header = () => {
           </button>
           <button
             className={`${styles.navLink} ${styles.navImageLink} ${inventoryOpen ? styles.navLinkActive : ''}`}
-            onClick={() => { playClick(); toggleInventory(); }}
+            onClick={() => { playClick(); if (useCombatGridStore.getState().isActive) { usePlayerStore.getState().addLog('⚔️ В бою инвентарь недоступен — только рюкзак (B)', 'warning'); return; } toggleInventory(); }}
             onMouseEnter={() => setHoverImg('inventory')}
             onMouseLeave={() => setHoverImg(null)}
             style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}

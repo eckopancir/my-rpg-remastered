@@ -487,7 +487,12 @@ export const LootBackpackWindow = ({ enemyId, onClose }: { enemyId: number | str
             </div>
             {/* Экипировка трупа: надетое (сломанное — только смотреть). */}
             {gearView.length > 0 && (
-              <div style={{ marginTop: 2 }}>
+              <div style={{
+                marginTop: 2, padding: 8, borderRadius: 6,
+                backgroundImage: images.enemyDead ? `url(${images.enemyDead})` : 'none',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
                   🛡️ Экипировка
                 </div>
