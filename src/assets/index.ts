@@ -271,6 +271,17 @@ const MG_WEAPON_IMAGE_MAP: Record<string, string> = {
   'пкппеченег': 'пкп печенег-photoroom',
   'm240': 'm240-photoroom',
 };
+/** Арты холодного по нормализованному имени (фuzzy-матчинг их не ловит). */
+const MELEE_WEAPON_IMAGE_MAP: Record<string, string> = {
+  'бензопила': 'бензопила',
+  'бейсбольнаябита': 'бита с шипами',
+  'силовойкастет': 'кастет',
+  'катана': 'катана',
+  'кувалда': 'кувалда',
+  'боевойнож': 'нож',
+  'пожарныйтопор': 'пожарный топор',
+  'тесак': 'тесак',
+};
 /** Арты пистолетов по нормализованному имени (фuzzy-матчинг их не ловит). */
 const PISTOL_WEAPON_IMAGE_MAP: Record<string, string> = {
   'coltm1911': 'colt',
@@ -358,6 +369,9 @@ export const getItemImage = (name?: string, displayName?: string, slot?: string,
   // Арты пистолетов — по точному имени ствола.
   const pKey = PISTOL_WEAPON_IMAGE_MAP[lookup];
   if (pKey) return itemImageMap.get(pKey);
+  // Арты холодного — по точному имени.
+  const mKey = MELEE_WEAPON_IMAGE_MAP[lookup];
+  if (mKey) return itemImageMap.get(mKey);
   // Точное совпадение имени файла — приоритет (арты стволов и именные спрайты).
   // Иначе lookup с цифрами уезжает на numbered-файлы ('ak47' -> '4.png').
   const exact = itemImageMap.get(lookup);
