@@ -753,7 +753,15 @@ export const Equipment = () => {
     const isTopRarity = !!item && ((item as any).quality === 'Легендарный' || (item as any).quality === 'Божественный');
     return (
       // FX-1: каскадное появление слота при открытии окна.
-      <div key={slot} className="eqfx-appear" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, animationDelay: `${orderIdx * 30}ms` }}>
+      <div key={slot} className="eqfx-appear" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, animationDelay: `${orderIdx * 30}ms` }}>
+        {/* FX-6: пыль цвета редкости падает вниз из-под слота (легендарные/божественные) */}
+        {isTopRarity && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, height: 44, overflow: 'visible', pointerEvents: 'none', zIndex: 5 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <span key={i} className="eqfx-slot-dust" style={{ left: `${12 + (i * 61) % 76}%`, top: 0, width: 2 + (i % 2), height: 2 + (i % 2), background: qc, animationDuration: `${2.6 + (i % 3) * 0.7}s`, animationDelay: `${(i * 0.55).toFixed(2)}s` }} />
+            ))}
+          </div>
+        )}
         <div
           className={[
             'equip-slot',
@@ -798,10 +806,6 @@ export const Equipment = () => {
           }}
         >
           <div className="eqfx-sweep" /> {/* FX-3: блик при наведении */}
-          {/* FX-6: пыль цвета редкости (легендарные/божественные) */}
-          {isTopRarity && Array.from({ length: 6 }).map((_, i) => (
-            <span key={i} className="eqfx-slot-dust" style={{ left: `${12 + (i * 61) % 76}%`, top: `${(i * 37) % 40}%`, width: 2 + (i % 2), height: 2 + (i % 2), background: qc, animationDuration: `${2.6 + (i % 3) * 0.7}s`, animationDelay: `${(i * 0.55).toFixed(2)}s` }} />
-          ))}
           {/* FX-11: кольцо переключения активного ствола */}
           {switchFx && switchFx.slot === slot && <div key={switchFx.t} className="eqfx-switch" style={{ ['--gun-ring' as any]: qc }} />}
           {/* FX-8: shimmer улучшения */}
@@ -907,7 +911,7 @@ export const Equipment = () => {
         }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: 'var(--text-muted)' }}>🔫 ОРУЖЕЙНАЯ СУМКА</div>
           {/* Фикс ширины ряда: ячейки не растягивают окно при надевании ствола. */}
-          <div style={{ display: 'flex', gap: 12, width: 4 * 96 + 3 * 12, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, width: 4 * 96 + 3 * 12, justifyContent: 'center', position: 'relative', left: -10 }}>
             {GUN_ROW_SLOTS.map((slot) => {
               const gw = (equipment as any)[slot];
               return (
