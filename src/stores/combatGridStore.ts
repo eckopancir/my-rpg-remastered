@@ -915,34 +915,15 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   return out;
 };
 
-/** Детальная строка лога по каждому выстрелу: роллы и срезы.
- * Формат: 🔫 att → tgt: −47 | точн 0.85 | уверт 12% − | крит 15% x2 ✓ | блок 5% − | броня 20→эфф 12.4 (−38%) | барьер ×1 | чистый +0 | HP 73/120 */
+/** Краткая строка лога по каждому выстрелу: только итог.
+ * Формат: 🔫 att → tgt: −39. Крит/блок/промах уже внутри result.text. */
 export const buildShotLog = (
   attackerLabel: string,
   targetLabel: string,
   result: any,
-  hpAfter?: { cur: number; max: number },
+  _hpAfter?: { cur: number; max: number },
 ): string => {
-  const d = (result as any).detail;
-  if (!d) return `🔫 ${attackerLabel} → ${targetLabel}: ${result.text}`;
-  if (d.missed) return `🔫 ${attackerLabel} → ${targetLabel}: ПРОМАХ (точн ${Number(d.accuracy || 0).toFixed(2)})${hpAfter ? ` | HP ${hpAfter.cur}/${hpAfter.max}` : ''}`;
-  const parts: string[] = [];
-  parts.push(`🔫 ${attackerLabel} → ${targetLabel}: ${result.text}`);
-  parts.push(`точн ${Number(d.accuracy || 0).toFixed(2)}`);
-  parts.push(`уверт ${Math.round((d.evasionChance || 0) * 100)}% ${d.evaded ? '✓' : '−'}`);
-  if ((d.critChance || 0) > 0 || d.isCrit) {
-    parts.push(`крит ${Math.round((d.critChance || 0) * 100)}%${d.isCrit ? ` x${d.critMult} ✓` : ' −'}`);
-  }
-  if ((d.blockChance || 0) > 0 || d.blocked) {
-    parts.push(`блок ${Math.round((d.blockChance || 0) * 100)}%${d.blocked ? ' ✓' : ' −'}`);
-  }
-  if ((d.armorIn || 0) > 0) {
-    parts.push(`броня ${d.armorIn}→эфф ${d.armorEff} (−${d.armorCutPct}%)`);
-  }
-  if ((d.barrierMult || 1) < 1) parts.push(`барьер ×${d.barrierMult}`);
-  if ((d.pureDmg || 0) > 0) parts.push(`чистый +${d.pureDmg}`);
-  if (hpAfter) parts.push(`HP ${hpAfter.cur}/${hpAfter.max}`);
-  return parts.join(' | ');
+  return `🔫 ${attackerLabel} → ${targetLabel}: ${result.text}`;
 };
 
 /** Проверяет щит игрока перед получением урона. Если щит активен — поглощает атаку, возвращает true */
@@ -3795,6 +3776,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vampHeal) },
           }));
           get().addPopup(t.pos.x, t.pos.y, `+${vampHeal} 🩸`, 'VAMP');
+          get().addBattleLog(`🩸 вы: +${vampHeal} вампиризм`);
         }
       };
       for (const c of cells) {
@@ -3943,6 +3925,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     if (vampHeal > 0) get().addPopup(state.playerPos.x, state.playerPos.y, `+${vampHeal} 🩸`, 'VAMP');
     if (regenHeal > 0) get().addPopup(state.playerPos.x, state.playerPos.y, `+${Math.round(regenHeal)} HP`, 'HEAL');
+    if (vampHeal > 0) get().addBattleLog(`🩸 вы: +${vampHeal} вампиризм`);
+    if (regenHeal > 0) get().addBattleLog(`💚 вы: +${Math.round(regenHeal)} реген`);
 
     // Extra shots from speed (no AP/ammo cost). Боевой раж стрелка складывается сюда же.
     const bonusShots = calcExtraShots((player.stats.speed || 0) + (get().bonusSpeed || 0));
@@ -4027,6 +4011,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (vamp > 0) {
           usePlayerStore.setState((st) => ({ stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + vamp) } }));
           get().addPopup(st.playerPos.x, st.playerPos.y, `+${vamp} 🩸`, 'VAMP');
+          get().addBattleLog(`🩸 вы: +${vamp} вампиризм`);
         }
       }, delay);
     }
