@@ -462,10 +462,10 @@ export const InventoryOverlay = () => {
                   || (item.type === 'chest' ? chestImageFor(item.quality || item.rarity || 'Обычный') : undefined)
                   || getItemImage(item.name, item.displayName, item.slot, item.type);
                 // Расходники и патроны пока без арта — эмодзи-заглушка из дефа; рюкзаки — картинка по семейству.
-                // Щиты пока без арта — эмодзи из предмета.
+                // Щиты: есть арт — картинка, нет — эмодзи из предмета.
                 const emojiIcon = item.type === 'consumable'
                   ? getConsumableIcon(item)
-                  : item.slot === 'shield'
+                  : item.slot === 'shield' && !imgUrl
                     ? ((item as any).icon || '🛡️')
                     : item.type === 'backpack' ? null
                     : item.type === 'bullet' ? null // картинка группы через getItemImage выше
