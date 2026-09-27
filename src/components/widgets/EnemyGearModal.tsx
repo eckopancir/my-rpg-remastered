@@ -62,14 +62,15 @@ export const EnemyGearModal = ({ enemyId, onClose }: { enemyId: number | string;
           {gear.length === 0 && (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>Без экипировки</div>
           )}
-          {/* Папер-долл: перчатки слева, центр — шлем/броня/штаны/ботинки, оружие справа. */}
+          {/* Папер-долл: центр — шлем/броня/штаны/ботинки;
+              перчатки слева и оружие справа — на уровне брони. */}
           <div style={{ display: 'grid', gridTemplateColumns: `${cellPx}px ${cellPx}px ${cellPx}px`, gap: 6, justifyContent: 'center', alignItems: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('gloves', 'Перчатки')}</div>
+            <div />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('head', 'Шлем')}</div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('weapon', 'Оружие')}</div>
             <div />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('gloves', 'Перчатки')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('armor', 'Броня')}</div>
-            <div />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>{cell('weapon', 'Оружие')}</div>
             <div />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{cell('pants', 'Штаны')}</div>
             <div />

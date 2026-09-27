@@ -37,11 +37,36 @@ export const weaponSpecFor = (factionKey?: string): { slot: 'weapon1' | 'weapon2
  * Уровень вещей = уровень игрока. forceRarity — форсированная редкость
  * (боссы минимум эпик).
  */
+/** Фиксированный комплект босса: лучший пулемёт + весь Джаггернаут, всё божественное. */
+const BOSS_GEAR_NAMES = [
+  'M240',
+  'Шлем джаггернаута',
+  'Броня джаггернаута',
+  'Штаны джаггернаута',
+  'Перчатки джаггернаута',
+  'Ботинки джаггернаута',
+];
+
 export const generateEnemyGear = (
   factionKey: string | undefined,
   playerLevel: number,
   forceRarity: string | null = null,
 ): any[] => {
+  // Босс: прописанный божественный комплект (баланс — после смерти всё ломается 100%).
+  if ((factionKey || '').includes('boss')) {
+    const gear: any[] = [];
+    for (const name of BOSS_GEAR_NAMES) {
+      try {
+        const def = (GAME_ITEMS as ItemDefinition[]).find((d) => d && d.name === name);
+        if (!def) continue;
+        const w: any = generateItem([def] as any, playerLevel, 'superepic' as any, 'Божественный', def.slot, null);
+        if (w && typeof w.ammoCapacity === 'number') w.loadedAmmo = w.ammoCapacity;
+        gear.push(w);
+      } catch { /* ignore */ }
+    }
+    if (gear.length > 0) return gear;
+    // Фолбэк — обычная генерация, если дефы не найдены.
+  }
   const gear: any[] = [];
   const spec = weaponSpecFor(factionKey);
   // Кап качества: максимум Раритетный (боссам — полная лотерея).
@@ -89,7 +114,11 @@ export const sumGearStats = (gear: any[]): Record<string, number> => {
   return out;
 };
 
-/** Ролл поломок при смерти: каждый слот с шансом rate становится сломанным (иммутабельно). */
+/** Ролл поломок при смерти: боссу ломается всё надетое (100%), остальным 75%. */
+export const rollGearOnDeath = (enemy: any): any[] => {
+  const isBoss = ((enemy?.factionKey || '') as string).includes('boss');
+  return rollGearBreakage(enemy?.gear || [], isBoss ? 1 : GEAR_BREAK_RATE);
+};
 export const rollGearBreakage = (gear: any[], rate = GEAR_BREAK_RATE): any[] => {
   return (gear || []).map((g) => {
     if (!g || (g as any).broken) return g;

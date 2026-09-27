@@ -4,7 +4,7 @@ import { gunSlotForWeapon } from './playerStore';
 import { useUiStore } from './uiStore';
 import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
-import { generateEnemyGear, sumGearStats, rollGearBreakage, cardTierMult } from '../engine/enemyGear';
+import { generateEnemyGear, sumGearStats, rollGearOnDeath, cardTierMult } from '../engine/enemyGear';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
@@ -1136,7 +1136,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: st.ap - 2,
       enemies: st.enemies.map((e) =>
         e.id === victim.id
-          ? { ...e, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, loot: freshLoot, looted: false, pos: corpsePos, gear: rollGearBreakage(e.gear || []) }
+          ? { ...e, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, loot: freshLoot, looted: false, pos: corpsePos, gear: rollGearOnDeath(e) }
           : e),
       message: `🔪 Скрытное убийство: ${victim.name}`,
       selectedEnemy: null,
@@ -1161,7 +1161,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         rank: rankOfEnemy((captive as any).factionKey, captive.name),
       });
     } catch { /* ignore */ }
-    const done = { ...captive, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, surrendering: false, loot: freshLoot, looted: false, gear: rollGearBreakage(captive.gear || []) };
+    const done = { ...captive, currentHp: 0, dead: true, sleeping: false, sleepTurns: undefined, speech: null, silentDeath: true, surrendering: false, loot: freshLoot, looted: false, gear: rollGearOnDeath(captive) };
     set((st) => ({
       enemies: st.enemies.map((e) => (e.id === id ? done : e)),
       lootingEnemy: done,
@@ -1375,7 +1375,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           // Нейтрал: свой лут не затираем, мести нет.
           next = (next as any).isNeutral
             ? { ...next, dead: true, isHit: false }
-            : { ...next, dead: true, loot: freshLoot, looted: false, isHit: false, gear: rollGearBreakage(next.gear || []) };
+            : { ...next, dead: true, loot: freshLoot, looted: false, isHit: false, gear: rollGearOnDeath(next) };
           get().addBattleLog(`💀 ${next.name} сгорел!`);
           get().addMessage(`💀 ${next.name} сгорел! Кликни для лута`);
           if (!(next as any).isNeutral) get().triggerRevengeDialogues(next.pos, (next as any).callsign);
@@ -2211,7 +2211,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           if (pick.currentHp <= 0) {
             pick.dead = true;
             pick.isHit = false;
-            pick.gear = rollGearBreakage((pick as any).gear || []);
+            pick.gear = rollGearOnDeath(pick);
             get().addBattleLog(`💀 ${pick.name} уничтожен!`);
           }
           if (i === 19) set({ enemies: [...get().enemies] });
@@ -2252,7 +2252,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           if (pick.currentHp <= 0) {
             pick.dead = true;
             pick.isHit = false;
-            pick.gear = rollGearBreakage((pick as any).gear || []);
+            pick.gear = rollGearOnDeath(pick);
             get().addBattleLog(`💀 ${pick.name} уничтожен!`);
           }
           if (i === shots - 1) set({ enemies: [...get().enemies] });
@@ -2429,7 +2429,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               get().addPopup(tgt.pos.x, tgt.pos.y, `-${rawDmg} 🎯`, 'DMG');
               if (tgt.currentHp <= 0) {
                 tgt.dead = true; tgt.isHit = false;
-                tgt.gear = rollGearBreakage((tgt as any).gear || []);
+                tgt.gear = rollGearOnDeath(tgt);
                 get().addBattleLog(`💀 ${tgt.name} уничтожен!`);
               }
               get().triggerShake();
@@ -2459,7 +2459,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                   e.currentHp = Math.max(0, e.currentHp - splashDmg);
                   e.isHit = true;
                   get().addPopup(e.pos.x, e.pos.y, `-${splashDmg} 💥`, 'DMG');
-                  if (e.currentHp <= 0) { e.dead = true; e.isHit = false; e.gear = rollGearBreakage((e as any).gear || []); get().addBattleLog(`💀 ${e.name} уничтожен!`); }
+                  if (e.currentHp <= 0) { e.dead = true; e.isHit = false; e.gear = rollGearOnDeath(e); get().addBattleLog(`💀 ${e.name} уничтожен!`); }
                 }
               });
               set({ enemies: [...s.enemies] });
@@ -2489,7 +2489,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             get().addBattleLog(`💀 ${ability.name}: ${tgt.name} теряет ${pctDmg} HP`);
             if (tgt.currentHp <= 0) {
               tgt.dead = true; tgt.isHit = false;
-              tgt.gear = rollGearBreakage((tgt as any).gear || []);
+              tgt.gear = rollGearOnDeath(tgt);
               get().addBattleLog(`💀 ${tgt.name} уничтожен!`);
             }
             set({ enemies: [...s.enemies] });
@@ -2520,6 +2520,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                       try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
                     } else {
                       e.dead = true; e.isHit = false;
+                      e.gear = rollGearOnDeath(e);
                       get().addBattleLog(`💀 ${e.name} уничтожен!`);
                     }
                   }
@@ -2554,9 +2555,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                   e.currentHp = Math.max(0, e.currentHp - finalDmg);
                   get().addPopup(e.pos.x, e.pos.y, `-${finalDmg}`, 'DMG');
                   if (e.currentHp <= 0) {
-                    e.dead = true;
-                    (e as any).gear = rollGearBreakage((e as any).gear || []); e.isHit = false;
-                    e.gear = rollGearBreakage((e as any).gear || []);
+                    e.dead = true; e.isHit = false;
+                    e.gear = rollGearOnDeath(e);
                     get().addBattleLog(`💀 ${e.name} уничтожен!`);
                   }
                 }
@@ -2586,6 +2586,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
                 if (e.currentHp <= 0) {
                   e.dead = true;
                   e.isHit = false;
+                  e.gear = rollGearOnDeath(e);
                   get().addBattleLog(`💀 ${e.name} уничтожен!`);
                 }
               }
@@ -2647,7 +2648,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             if (targetEnemy.currentHp <= 0) {
               targetEnemy.dead = true;
               targetEnemy.isHit = false;
-              (targetEnemy as any).gear = rollGearBreakage((targetEnemy as any).gear || []);
+              (targetEnemy as any).gear = rollGearOnDeath(targetEnemy);
               get().addBattleLog(`💀 ${targetEnemy.name} уничтожен!`);
             }
           }
@@ -3716,7 +3717,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           enemies: s2.enemies.map((e) => {
             if (hitIds.has(e.id) && !e.dead && e.currentHp <= 0) {
               killed += 1;
-              return { ...e, dead: true, isHit: false, gear: rollGearBreakage((e as any).gear || []) };
+              return { ...e, dead: true, isHit: false, gear: rollGearOnDeath(e) };
             }
             return e;
           }),
@@ -3960,7 +3961,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }
         set((s2) => ({
           enemies: s2.enemies.map((e) =>
-            e.id === enemyId ? { ...e, dead: true, loot: keepNeutralLoot ? (e.loot || []) : freshLoot, looted: false, pos: corpsePos, gear: rollGearBreakage(e.gear || []) } : e
+            e.id === enemyId ? { ...e, dead: true, loot: keepNeutralLoot ? (e.loot || []) : freshLoot, looted: false, pos: corpsePos, gear: rollGearOnDeath(e) } : e
           ),
           message: `💀 ${updatedEnemy.name} уничтожен! Кликни для лута`,
         }));
