@@ -265,9 +265,6 @@
 /* INV-10: тик счётчика стака. */
 @keyframes invfxTick { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
 .invfx-tick { display: inline-block; animation: invfxTick 0.3s ease-out; }
-/* INV-11: пульс переполнения (вещей больше страницы). */
-@keyframes invfxFull { 0%, 100% { color: var(--text-muted); } 50% { color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.8); } }
-.invfx-full { animation: invfxFull 1.4s ease-in-out infinite; }
 /* INV-12: свечение + искры топ-редкости (цвет — inline --rare-c). */
 @keyframes invfxRare { 0%, 100% { box-shadow: 0 0 3px var(--rare-c, #ffd700); } 50% { box-shadow: 0 0 10px var(--rare-c, #ffd700); } }
 .invfx-rare { animation: invfxRare 2.4s ease-in-out infinite; }

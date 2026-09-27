@@ -626,7 +626,7 @@ export const InventoryOverlay = () => {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               marginTop: 8, fontSize: 11,
             }}>
-              <span className={processed.length > ITEMS_PER_PAGE ? 'invfx-full' : undefined} style={{ color: 'var(--text-muted)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>
                 Всего: {processed.length} | Стоимость хабара: 💾{items.reduce((sum, i) => sum + getSellPrice(i), 0).toLocaleString()}
               </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
