@@ -149,13 +149,6 @@ export const GAME_ITEMS: ItemDefinition[] = [,
 
   // --- Firearms ---
   {
-    name: 'Пистолет ТТ',
-    rarity: 'normal',
-    slot: 'weapon2',
-    stats: { damage: 8, crit: 0.03, accuracy: 0.02, speed: 0.05 },
-    ammoCapacity: 8,
-  },
-  {
     name: 'Винтовка СВД',
     rarity: 'epic',
     slot: 'weapon2',
@@ -206,22 +199,6 @@ export const GAME_ITEMS: ItemDefinition[] = [,
     stats: { damage: 50, speed: -0.2, accuracy: -0.2, evasion: -0.25 },
     mods: {},
     ammoCapacity: 1,
-  },
-  {
-    name: 'Старый пистолет Макарова',
-    rarity: 'normal',
-    slot: 'weapon2',
-    stats: { damage: 5, accuracy: 0.02, speed: 0.05 },
-    mods: {},
-    ammoCapacity: 8,
-  },
-  {
-    name: 'Пистолет "Арбитр"',
-    rarity: 'epic',
-    slot: 'weapon2',
-    stats: { damage: 8, speed: 0.075, accuracy: 0.03 },
-    mods: {},
-    ammoCapacity: 12,
   },
   {
     name: 'Лазерный маркер',
@@ -988,12 +965,6 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   },
 
   // === NEW FIREARMS ===
-  { name: 'Глок 17', rarity: 'normal', slot: 'weapon2', stats: { damage: 7, accuracy: 0.02, speed: 0.05 }, ammoCapacity: 17 },
-  { name: 'Beretta 92', rarity: 'normal', slot: 'weapon2', stats: { damage: 7, accuracy: 0.02, speed: 0.05 }, ammoCapacity: 15 },
-  { name: 'Five-seveN', rarity: 'normal', slot: 'weapon2', stats: { damage: 6, accuracy: 0.02, speed: 0.05 }, ammoCapacity: 20 },
-  { name: 'Colt Python', rarity: 'epic', slot: 'weapon2', stats: { damage: 12, crit: 0.04, accuracy: 0.05, speed: 0.075 }, ammoCapacity: 6 },
-  { name: 'Револьвер «Наган»', rarity: 'normal', slot: 'weapon2', stats: { damage: 9, accuracy: 0.02, speed: 0.05 }, ammoCapacity: 7 },
-  { name: 'Гравитационный пистолет', rarity: 'superepic', slot: 'weapon2', stats: { damage: 14, dpsEmi: 3, accuracy: 0.04, speed: 0.1 }, mods: {}, ammoCapacity: 12 },
   // === ШТУРМОВЫЕ ВИНТОВКИ И ПП (новая линейка; дальность — поле range) ===
   { name: 'UZI', rarity: 'normal', slot: 'weapon2', stats: { damage: 6, speed: 0.18, accuracy: -0.3 }, ammoCapacity: 32, range: 8 },
   { name: 'Thompson', rarity: 'normal', slot: 'weapon2', stats: { damage: 8, speed: 0.1, accuracy: -0.2, punching: 0.01 }, ammoCapacity: 100, range: 8 },
@@ -1071,11 +1042,6 @@ export const GAME_ITEMS: ItemDefinition[] = [,
   { name: 'Баллистический щит', rarity: 'superepic', slot: 'shield', type: 'weapon', icon: '🛡️', stats: { armor: 14, maxHp: 350, regen: 0.1 } },
 
 
-  { name: 'Пистолет «Вампир»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 6, vampir: 0.08, accuracy: 0.02 }, ammoCapacity: 8, unique: true },
-  { name: 'Пистолет «Шершень»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 5, speed: 0.15, crit: 0.03 }, ammoCapacity: 12, unique: true },
-  { name: 'Пистолет «Дырокол»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 7, punching: 0.1, accuracy: -0.2 }, ammoCapacity: 8, unique: true },
-  { name: 'Пистолет «Снайпер»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 8, accuracy: 0.12, speed: -0.1 }, ammoCapacity: 8, unique: true },
-  { name: 'Пистолет «Гром»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 16, speed: -0.2, accuracy: -0.2 }, ammoCapacity: 6, unique: true },
   { name: 'Пулемёт «Ураган»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 8, speed: 0.2, accuracy: -0.2 }, ammoCapacity: 100, unique: true },
   { name: 'Пулемёт «Вампир»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 9, vampir: 0.08, accuracy: -0.2 }, ammoCapacity: 80, unique: true },
   { name: 'Базука «Карманная»', rarity: 'superepic', slot: 'weapon2', stats: { damage: 35, speed: 0.05, accuracy: -0.2 }, ammoCapacity: 2, unique: true },
