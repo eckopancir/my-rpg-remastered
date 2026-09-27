@@ -72,20 +72,28 @@ export const Sidebar = () => {
               title="Перейти на арену"
               style={{ border: '1px solid #22c55e', background: 'rgba(34,197,94,0.08)' }}
             >
-              <span
-                title="Убрать зависший бой"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!window.confirm('Убрать зависший бой? Флаг боя будет снят, можно начать новый.')) return;
-                  try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
-                  clearBattleEntry();
-                  usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
-                }}
-                style={{ position: 'absolute', top: 2, right: 6, cursor: 'pointer', fontSize: 12, color: 'rgba(255,120,120,0.7)', padding: '0 4px', zIndex: 2 }}
-              >
-                ✕
-              </span>
-              <div style={{ fontWeight: 700, color: '#4ade80', fontSize: 12 }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <div style={{ fontWeight: 700, color: '#4ade80', fontSize: 12 }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
+                <span
+                  title="Убрать зависший бой"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!window.confirm('Убрать зависший бой? Флаг боя будет снят, можно начать новый.')) return;
+                    try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
+                    clearBattleEntry();
+                    usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+                  }}
+                  style={{
+                    cursor: 'pointer', fontSize: 11, lineHeight: 1, color: 'rgba(255,120,120,0.8)',
+                    border: '1px solid rgba(255,120,120,0.35)', borderRadius: 4, padding: '1px 5px',
+                    background: 'rgba(248,113,113,0.08)', flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.2)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; }}
+                >
+                  ✕
+                </span>
+              </div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>НАЖМИТЕ ДЛЯ НАЧАЛА</div>
             </div>
           )}
