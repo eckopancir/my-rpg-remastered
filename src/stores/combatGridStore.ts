@@ -699,20 +699,24 @@ function generateObstacles(
     }
   }
 
-  // Cars (1x2, anchor at top cell) — NOT isHigh, random image.
+  // Cars — NOT isHigh, random image. o23 большой 2x3, остальные 1x2 (якорь сверху).
   // Фон обрезан: арт ровно по футпринту, за соседей не заходит.
   const carImagesCount = CAR_IMAGES.length;
   const carCount = Math.floor(Math.random() * 5) + 3;
   for (let i = 0; i < carCount; i++) {
     for (let attempt = 0; attempt < 30; attempt++) {
-      const x = Math.floor(Math.random() * GRID);
-      const y = Math.floor(Math.random() * (GRID - 1)) + 1;
-      if (isAreaFree(x, y - 1, 1, 2)) {
+      const imgIdx = Math.floor(Math.random() * carImagesCount);
+      const big = CAR_IMAGES[imgIdx] === 'o23';
+      const cw = big ? 2 : 1;
+      const ch = big ? 3 : 2;
+      const x = Math.floor(Math.random() * (GRID - cw + 1));
+      const y = Math.floor(Math.random() * (GRID - ch + 1));
+      if (isAreaFree(x, y, cw, ch)) {
         list.push({
-          id: id++, x, y: y - 1, w: 1, h: 2, type: 'car', blocks: true, icon: 'car',
-          isHigh: false, imgIndex: Math.floor(Math.random() * carImagesCount),
+          id: id++, x, y, w: cw, h: ch, type: 'car', blocks: true, icon: 'car',
+          isHigh: false, imgIndex: imgIdx,
         });
-        markArea(x, y - 1, 1, 2);
+        markArea(x, y, cw, ch);
         break;
       }
     }

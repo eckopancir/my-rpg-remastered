@@ -607,8 +607,8 @@ export const BattleGrid = () => {
                     )}
                     alt=""
                     className={`${styles.obstacleImg} ${obstacle.icon === 'building' ? styles.obstacleBigImg : obstacle.icon === 'car' ? styles.obstacleCarImg : obstacle.icon === 'woods' ? styles.obstacleWoodsImg : styles.obstacleSmallImg}`}
-                    // Здания и проходимый декор тянутся ровно на свой футпринт от якоря.
-                    style={(obstacle.icon === 'building' || (obstacle.icon === 'small' && !obstacle.blocks)) ? { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0 } : undefined}
+                    // Здания, машины и проходимый декор тянутся ровно на свой футпринт от якоря.
+                    style={(obstacle.icon === 'building' || obstacle.icon === 'car' || (obstacle.icon === 'small' && !obstacle.blocks)) ? { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0 } : undefined}
                     draggable={false}
                   />
                 )}
