@@ -4,7 +4,8 @@ import { crowFrames } from '../../assets/index';
 import { playCombatSound } from '../../hooks/useSound';
 
 const FLIGHT_MS = 7000;
-const EVERY_MS = 10000; // тест: часто. Прод: поднять.
+const ROLL_MS = 60000; // ролл шанса пролёта
+const ROLL_CHANCE = 0.15; // 15% в минуту
 const NEAR_DIST = 20;
 /** Координаты клеток -> % (центры, как весь оверлей арены). */
 const cellPct = (c: number): number => ((c + 0.5) / 32) * 100;
@@ -37,8 +38,11 @@ export const CrowFlight = () => {
       setGo(false);
       requestAnimationFrame(() => requestAnimationFrame(() => { if (alive) setGo(true); }));
     };
-    launch();
-    const every = window.setInterval(launch, EVERY_MS);
+    if (Math.random() < ROLL_CHANCE) launch();
+    const every = window.setInterval(() => {
+      if (!alive) return;
+      if (Math.random() < ROLL_CHANCE) launch();
+    }, ROLL_MS);
     const flapT = window.setInterval(() => setFlap((f) => (f + 1) % Math.max(1, crowFrames.length)), 120);
     // Крик, когда ворон рядом с игроком (1 раз за пролёт).
     const snd = window.setInterval(() => {
