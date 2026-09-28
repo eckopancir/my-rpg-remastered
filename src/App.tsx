@@ -312,6 +312,8 @@ const AppContent = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // В бою E занята худом (костёр/обыск) — экипировку не открываем.
+      if ((e.key === 'e' || e.key === 'E') && useCombatGridStore.getState().isActive) return;
       if (e.key === 'e' || e.key === 'E') { toggleEquipment(); }
     };
     window.addEventListener('keydown', onKey);

@@ -134,6 +134,10 @@ export const Battle = () => {
     return best;
   });
   const searchCast = useCombatGridStore((s) => s.searchCast);
+  const useLabel = !nearCampfire && searchTarget
+    ? ((searchTarget as any).searchLoot?.kind === 'well' ? '🪣 Набрать воды'
+      : (searchTarget as any).searchLoot?.kind === 'tree' ? '🪓 Рубка дров' : '🔍 Поиск лута')
+    : null;
   const useTarget = nearCampfire ? { kind: 'camp' as const } : searchTarget ? { kind: 'search' as const, ob: searchTarget } : null;
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const myTerrain = getTerrainBonus(playerPos, obstacles);
@@ -483,7 +487,7 @@ export const Battle = () => {
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {searchCast ? '✋ Отмена' : useTarget ? (useTarget.kind === 'camp' ? '🔥 Костёр' : '🔍 Обыскать') : '✋ Использовать'}
+                  {searchCast ? '✋ Отмена' : useTarget ? (useTarget.kind === 'camp' ? '🔥 Костёр' : (useLabel || '🔍 Обыскать')) : '✋ Использовать'}
                 </span>
                 <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>E{(useTarget || searchCast) ? '●' : ''}</span>
               </div>
