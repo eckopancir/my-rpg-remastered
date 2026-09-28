@@ -902,8 +902,8 @@ function generateObstacles(
         list.push({
           id: id++, x, y, w: cw, h: ch, type: 'car', blocks: true, icon: 'car',
           isHigh: false, imgIndex: imgIdx,
-          // Обыск: 30% машин с лутом (1 случайный ресурс, кроме дерева и воды).
-          ...(Math.random() < 0.3 ? { searchLoot: { kind: 'car' } as any } : null),
+          // Обыск машин: всегда с лутом (1 ресурс, кроме дерева и воды, х1-3).
+          searchLoot: { kind: 'car' } as any,
         });
         markArea(x, y, cw, ch);
         break;
@@ -3733,7 +3733,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     } else {
       const pool = (GAME_RESOURCES as any[]).filter((r: any) => r.name !== 'Вода' && r.name !== 'Дерево');
       def = pool[Math.floor(Math.random() * pool.length)];
-      qty = 1;
+      qty = 1 + Math.floor(Math.random() * 3);
     }
     if (!def) {
       set({ searchCast: null });
