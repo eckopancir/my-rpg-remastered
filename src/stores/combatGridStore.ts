@@ -837,6 +837,41 @@ function generateObstacles(
     }
   }
 
+  // Поле green 4×3 — обязательное, проходимое, простреливается, без бонусов,
+  // прозрачность внутри как в лесу. Рядом — o22.
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const x = Math.floor(Math.random() * (GRID - 4));
+    const y = Math.floor(Math.random() * (GRID - 3));
+    if (!isAreaFree(x, y, 4, 3)) continue;
+    list.push({
+      id: id++, x, y, w: 4, h: 3, type: 'field', blocks: true, icon: 'field',
+      isWalkable: true, isHigh: false,
+    });
+    markArea(x, y, 4, 3);
+    // o22 рядом с полем: перебираем соседние клеткиbbox.
+    const around: [number, number][] = [];
+    for (let ax = x - 1; ax <= x + 4; ax++) {
+      for (let ay = y - 1; ay <= y + 3; ay++) {
+        around.push([ax, ay]);
+      }
+    }
+    for (let i = around.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [around[i], around[j]] = [around[j], around[i]];
+    }
+    for (const [ax, ay] of around) {
+      if (isAreaFree(ax, ay, 1, 2)) {
+        list.push({
+          id: id++, x: ax, y: ay, w: 1, h: 2, type: 'car', blocks: true, icon: 'car',
+          isHigh: false, imgIndex: CAR_IMAGES.indexOf('o22'),
+        });
+        markArea(ax, ay, 1, 2);
+        break;
+      }
+    }
+    break;
+  }
+
   // Cars — NOT isHigh, random image. o23 большой 2x3, остальные 1x2 (якорь сверху).
   // Фон обрезан: арт ровно по футпринту, за соседей не заходит.
   const carImagesCount = CAR_IMAGES.length;

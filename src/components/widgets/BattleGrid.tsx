@@ -69,7 +69,7 @@ const PetHitSpark = () => {
   );
 };
 
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
@@ -258,16 +258,16 @@ export const BattleGrid = () => {
   }, [enemies, isActive, playSound]);
 
   // -- Helpers --
-  // Проходимый декор прозрачности не даёт — только лес.
+  // Проходимый декор прозрачности не даёт — только лес и поле.
   const isPlayerInWoods = useMemo(() => {
-    return obstacles.some(o => o.type === 'woods' && o.isWalkable && playerPos.x >= o.x && playerPos.x < o.x + (o.w ?? 1) && playerPos.y >= o.y && playerPos.y < o.y + (o.h ?? 1));
+    return obstacles.some(o => ((o.type === 'woods' || o.type === 'field') && o.isWalkable) && playerPos.x >= o.x && playerPos.x < o.x + (o.w ?? 1) && playerPos.y >= o.y && playerPos.y < o.y + (o.h ?? 1));
   }, [obstacles, playerPos]);
 
-  // -- Woods cells for enemy transparency (только лес) --
+  // -- Woods cells for enemy transparency (только лес и поле) --
   const woodsCells = useMemo(() => {
     const set = new Set<string>();
     for (const ob of obstacles) {
-      if (ob.type === 'woods' && ob.isWalkable) {
+      if ((ob.type === 'woods' || ob.type === 'field') && ob.isWalkable) {
         for (let dx = 0; dx < (ob.w ?? 1); dx++) {
           for (let dy = 0; dy < (ob.h ?? 1); dy++) {
             set.add(`${ob.x + dx},${ob.y + dy}`);
@@ -626,14 +626,15 @@ export const BattleGrid = () => {
                       obstacle.icon === 'woods' ? WOOD_IMAGES[obstacle.imgIndex ?? 0] :
                       obstacle.icon === 'small' ? SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] :
                       obstacle.icon === 'fence' ? FENCE_IMAGE :
+                      obstacle.icon === 'field' ? FIELD_IMAGE :
                       'o1'
                     )}
                     alt=""
                     className={`${styles.obstacleImg} ${obstacle.icon === 'building' ? styles.obstacleBigImg : obstacle.icon === 'car' ? styles.obstacleCarImg : obstacle.icon === 'woods' ? styles.obstacleWoodsImg : styles.obstacleSmallImg}`}
-                    // Здания, машины и проходимый декор тянутся ровно на свой футпринт от якоря.
+                    // Здания, машины, поле и проходимый декор тянутся ровно на свой футпринт от якоря.
                     // Обрезанные камни o1/o2 — чуть меньше клетки (85% по центру).
                     style={(() => {
-                      if (obstacle.icon === 'building' || obstacle.icon === 'car' || (obstacle.icon === 'small' && !obstacle.blocks)) {
+                      if (obstacle.icon === 'building' || obstacle.icon === 'car' || obstacle.icon === 'field' || (obstacle.icon === 'small' && !obstacle.blocks)) {
                         return { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0 };
                       }
                       if (obstacle.icon === 'small' && ['o1', 'o1_2', 'o2'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
