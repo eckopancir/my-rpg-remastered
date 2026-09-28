@@ -718,8 +718,8 @@ function generateObstacles(
     }
   }
 
-  // Woods (2x2 walkable) — NOT isHigh, random image. o3 — в 2 раза чаще.
-  const woodIdxPool = [0, 0, 1, 2, 3];
+  // Woods (2x2 walkable) — NOT isHigh, random image.
+  const woodIdxPool = [0, 1, 2, 3];
   const woodsCount = Math.floor(Math.random() * 50) + 10;
   for (let i = 0; i < woodsCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
@@ -764,8 +764,8 @@ function generateObstacles(
   }
 
   // Small obstacles (1×1) — up to 50, random image, NOT isHigh.
-  // o20/o21 — декор: полностью проходимые. o21 — в 2 раза чаще.
-  const smallIdxPool = [0, 1, 2, 3, 4, 4];
+  // o20/o21 — декор: полностью проходимые. o20 и o21 — в 2 раза чаще.
+  const smallIdxPool = [0, 1, 2, 3, 3, 4, 4];
   let smallCount = 0;
   let attempts = 0;
   while (smallCount < 50 && attempts < 70) {
