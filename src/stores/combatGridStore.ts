@@ -972,7 +972,7 @@ function generateObstacles(
         list.push({
           id: id++, x, y, w: 1, h: 1, type: 'small', blocks: true, icon: 'small',
           isHigh: false, imgIndex: 6, // o28
-          searchLoot: { kind: 'well' } as any,
+          searchLoot: { kind: 'well', charges: 3 } as any,
         });
         markArea(x, y, 1, 1);
         break;
@@ -3755,6 +3755,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     usePlayerStore.setState({ backpackGrid: res.grid } as any);
     const isTree = loot.kind === 'tree';
+    const isWell = loot.kind === 'well';
     set((s: any) => ({
       searchCast: null,
       obstacles: s.obstacles.map((o: any) => {
@@ -3764,8 +3765,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const { searchLoot: _sl, ...rest } = o;
           return { ...rest, icon: 'small', imgIndex: 8, w: 2, h: 2, blocks: true, isWalkable: true, stumpCenter: true };
         }
-        const { searchLoot: _sl2, ...rest2 } = o;
-        return rest2;
+        // Колодец: 3 забора воды, потом пустеет.
+        if (isWell) {
+          const left = ((o as any).searchLoot?.charges ?? 1) - 1;
+          if (left <= 0) {
+            const { searchLoot: _sl2, ...rest2 } = o;
+            return rest2;
+          }
+          return { ...o, searchLoot: { kind: 'well', charges: left } };
+        }
+        const { searchLoot: _sl3, ...rest3 } = o;
+        return rest3;
       }),
     }));
     get().addLootPopup(px, py, (def as any).image, `+${qty} ${def.name}`);
