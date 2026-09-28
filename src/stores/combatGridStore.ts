@@ -3659,7 +3659,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const loot = ob?.searchLoot;
     if (!ob || !loot) return;
     const label = loot.kind === 'well' ? 'Набираю воду' : loot.kind === 'tree' ? 'Рубка дерева' : 'Обыск машины';
-    const totalMs = loot.kind === 'tree' ? 18000 : loot.kind === 'well' ? 10000 : 4000;
+    const totalMs = loot.kind === 'tree' ? 18000 : 4000;
     if (searchTimer !== null) window.clearTimeout(searchTimer);
     set({ searchCast: { obId, label, totalMs, startedAt: Date.now() } });
     // Звук обыска по типу: колодец — вода, дерево — дерево, машина — шорох.
