@@ -654,9 +654,11 @@ export const BattleGrid = () => {
                         return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
                       }
                       if (obstacle.icon === 'small' && ['o32_2', 'penek'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
-                        // Пенёк от срубленного дерева — та же геометрия, что была у кроны (без сдвигов).
+                        // Пенёк от срубленного дерева — вдвое меньше кроны, по центру футпринта.
                         // Кластерные — 42% по центру своей клетки.
-                        if ((obstacle as any).stumpCenter) return undefined;
+                        if ((obstacle as any).stumpCenter) {
+                          return { width: '122%', height: '122%', left: '39%', top: '39%' };
+                        }
                         return { width: '42%', height: '42%', left: '29%', top: '29%' };
                       }
                       // Остальная блокирующая мелочь (o19, колодец) — 85% по центру.
