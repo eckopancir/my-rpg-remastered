@@ -646,9 +646,10 @@ export const BattleGrid = () => {
                         return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
                       }
                       if (obstacle.icon === 'small' && SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] === 'o32_2') {
-                        // Пенёк от срубленного дерева — по центру старого 2×2, кластерные — по центру своей клетки.
+                        // Пенёк от срубленного дерева — по визуальному центру кроны (арт 244%/-5%),
+                        // кластерные — по центру своей клетки.
                         return (obstacle as any).stumpCenter
-                          ? { width: '42%', height: '42%', left: '79%', top: '79%' }
+                          ? { width: '42%', height: '42%', left: '96%', top: '96%' }
                           : { width: '42%', height: '42%', left: '29%', top: '29%' };
                       }
                       // Остальная блокирующая мелочь (o19, колодец) — 85% по центру.
