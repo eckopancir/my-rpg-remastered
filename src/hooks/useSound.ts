@@ -179,6 +179,35 @@ export const stopBirdLoop = () => {
   }
 };
 
+/** Сверчки: ночью всегда (дождя ночью не бывает). */
+const CRICKET_KEY = 'zvuki-sverchkov1';
+export const playCricketLoop = (volume = 0.2) => {
+  const ui = useUiStore.getState();
+  if (!ui.soundEnabled) return;
+  const src = audioMap.get(CRICKET_KEY);
+  if (!src) return;
+  let audio = loopCache.get(src);
+  if (audio && !audio.paused) return;
+  if (!audio) {
+    audio = new Audio(src);
+    audio.loop = true;
+    loopCache.set(src, audio);
+  }
+  audio.volume = Math.max(0, Math.min(1, volume * (ui.arenaVolume ?? 1)));
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+};
+
+export const stopCricketLoop = () => {
+  const src = audioMap.get(CRICKET_KEY);
+  if (!src) return;
+  const audio = loopCache.get(src);
+  if (audio) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+};
+
 export const useSound = () => {
   const soundEnabled = useUiStore((s) => s.soundEnabled);
   const uiVolume = useUiStore((s) => s.uiVolume ?? 1);

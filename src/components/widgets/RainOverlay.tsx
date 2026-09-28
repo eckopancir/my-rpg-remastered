@@ -9,8 +9,11 @@ const SPLASH_MAX = 60;
 export const RainOverlay = () => {
   const isRaining = useCombatGridStore((s) => s.isRaining);
   const isActive = useCombatGridStore((s) => s.isActive);
+  const isNightTime = useCombatGridStore((s) => s.isNightTime);
+  const forceDay = useUiStore((s) => s.forceDay);
   const ref = useRef<HTMLCanvasElement>(null);
-  const on = isRaining && isActive;
+  // Ночью дождя нет — только сверчки.
+  const on = isRaining && isActive && !(isNightTime && !forceDay);
 
   // Звук дождя: первый проход с начала, дальше с 1:20.
   useEffect(() => {

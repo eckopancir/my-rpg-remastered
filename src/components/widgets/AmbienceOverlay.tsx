@@ -1,20 +1,30 @@
 import { useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useUiStore } from '../../stores/uiStore';
-import { playBirdLoop, stopBirdLoop } from '../../hooks/useSound';
+import { playBirdLoop, stopBirdLoop, playCricketLoop, stopCricketLoop } from '../../hooks/useSound';
 
 /** Эмбиент карты: дрейф тумана + тени облаков + пыль + светлячки (ночь) + дым и свет костра. */
 export const AmbienceOverlay = () => {
   const isActive = useCombatGridStore((s) => s.isActive);
   const isRaining = useCombatGridStore((s) => s.isRaining);
+  const isNightTime = useCombatGridStore((s) => s.isNightTime);
+  const forceDay = useUiStore((s) => s.forceDay);
   const ref = useRef<HTMLCanvasElement>(null);
+  const night = isNightTime && !forceDay;
 
-  // Птицы: фоном без остановки, пока нет дождя.
+  // Птицы: фоном без остановки, пока нет дождя и не ночь.
   useEffect(() => {
-    if (!isActive || isRaining) return;
+    if (!isActive || isRaining || night) return;
     try { playBirdLoop(0.2); } catch { /* ignore */ }
     return () => { try { stopBirdLoop(); } catch { /* ignore */ } };
-  }, [isActive, isRaining]);
+  }, [isActive, isRaining, night]);
+
+  // Сверчки: ночью всегда.
+  useEffect(() => {
+    if (!isActive || !night) return;
+    try { playCricketLoop(0.2); } catch { /* ignore */ }
+    return () => { try { stopCricketLoop(); } catch { /* ignore */ } };
+  }, [isActive, night]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -121,15 +131,16 @@ export const AmbienceOverlay = () => {
           ctx.fill();
         }
       }
-      // Костёр: пульс света + дымок.
+      // Костёр: пульс света + дымок. Ночью свет намного ярче (реализм).
       const cf = (st as any).campfire as { x: number; y: number } | undefined;
       if (cf) {
         const cx = ((cf.x + 0.5) / 32) * w;
         const cy = ((cf.y + 0.5) / 32) * h;
+        const nightBoost = night ? 2.2 : 1;
         const pulse = 0.5 + 0.5 * Math.sin(t * 3.1) * 0.5 + 0.5 * Math.sin(t * 7.3) * 0.2;
-        const R = Math.min(w, h) * (0.10 + 0.02 * pulse);
+        const R = Math.min(w, h) * (0.10 + 0.02 * pulse) * nightBoost;
         const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-        g.addColorStop(0, `rgba(255,170,60,${(0.28 + 0.1 * pulse).toFixed(2)})`);
+        g.addColorStop(0, `rgba(255,170,60,${Math.min(0.6, (0.28 + 0.1 * pulse) * nightBoost).toFixed(2)})`);
         g.addColorStop(1, 'rgba(255,170,60,0)');
         ctx.fillStyle = g;
         ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
