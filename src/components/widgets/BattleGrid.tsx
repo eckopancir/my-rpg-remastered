@@ -88,6 +88,7 @@ export const BattleGrid = () => {
   const isShaking = useCombatGridStore((s) => s.isShaking);
   const reserve = useCombatGridStore((s) => s.reserve);
   const popups = useCombatGridStore((s) => s.popups);
+  const searchCast = useCombatGridStore((s) => s.searchCast);
   const campfire = useCombatGridStore((s) => s.campfire);
   const [fireFrame, setFireFrame] = useState(0);
   useEffect(() => {
@@ -634,8 +635,12 @@ export const BattleGrid = () => {
                     // Здания, машины, поле и проходимый декор тянутся ровно на свой футпринт от якоря.
                     // Обрезанные камни o1/o2 — чуть меньше клетки (85% по центру).
                     style={(() => {
-                      if (obstacle.icon === 'building' || obstacle.icon === 'car' || obstacle.icon === 'field' || (obstacle.icon === 'small' && !obstacle.blocks)) {
+                      if (obstacle.icon === 'building' || obstacle.icon === 'field' || (obstacle.icon === 'small' && !obstacle.blocks)) {
                         return { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0 };
+                      }
+                      // Машины: в длину по футпринту, в ширину +25% по центру.
+                      if (obstacle.icon === 'car') {
+                        return { width: `${obstacle.w * 125}%`, height: `${obstacle.h * 100}%`, left: `${-obstacle.w * 12.5}%`, top: 0 };
                       }
                       if (obstacle.icon === 'small' && ['o1', 'o1_2', 'o2'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
                         return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
@@ -1057,6 +1062,34 @@ export const BattleGrid = () => {
           );
         })}
 
+        {/* Каст обыска у игрока */}
+        {searchCast && (
+          <div style={{
+            position: 'absolute',
+            left: `${cellPct(playerPos.x)}%`,
+            top: `calc(${cellPct(playerPos.y)}% - 44px)`,
+            transform: 'translateX(-50%)',
+            zIndex: 60, pointerEvents: 'none',
+            background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(251,191,36,0.5)',
+            borderRadius: 4, padding: '3px 8px', whiteSpace: 'nowrap',
+            fontSize: 10, fontWeight: 700, color: '#fbbf24',
+          }}>
+            <div style={{ marginBottom: 3 }}>🔍 {searchCast.label}</div>
+            <div style={{ width: 110, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.15)', overflow: 'hidden' }}>
+              <div
+                key={searchCast.startedAt}
+                style={{
+                  height: '100%', width: 0, background: '#fbbf24', borderRadius: 3,
+                  transition: `width ${searchCast.totalMs}ms linear`,
+                }}
+                ref={(el) => {
+                  if (el) requestAnimationFrame(() => requestAnimationFrame(() => { el.style.width = '100%'; }));
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Battle popups — offset vertically to avoid stacking */}
         {(() => {
           const posCount = new Map<string, number>();
@@ -1084,6 +1117,9 @@ export const BattleGrid = () => {
                 top: `calc(${cellPct(pop.y + dy)}% + ${count * -24 + lift}px)`,
                 animationDuration: `${popupLifeMs(pop.type)}ms`,
               }}>
+                {(pop as any).img && (
+                  <img src={(pop as any).img} alt="" draggable={false} style={{ width: 26, height: 26, objectFit: 'contain', marginRight: 4, verticalAlign: 'middle' }} />
+                )}
                 {pop.text}
               </div>
             );

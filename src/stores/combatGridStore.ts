@@ -6,7 +6,8 @@ import { useInventoryStore } from './inventoryStore';
 import { generateEnemy, ENEMY_BASE_STATS } from '../engine/enemies';
 import { generateEnemyGear, generateAllyGear, sumGearStats, rollGearOnDeath, cardTierMult } from '../engine/enemyGear';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
-import { GAME_ITEMS } from '../data/GameItems';
+import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
+import { tryInsertIntoGrid } from '../data/backpacks';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
@@ -164,6 +165,8 @@ export interface BattlePopup {
   y: number;
   text: string;
   type: string;
+  /** Иконка лута (URL картинки) — попап находки. */
+  img?: string;
   // Хил-карточка: реген + вамп одной строкой суммой (остальные попапы — плоские).
   healCard?: boolean;
   heal?: number;
@@ -181,10 +184,11 @@ const isFlatHeal = (text: string): boolean => /^\+\d+\s*(💚|🩸|❤️|💗|H
 const healCardText = (heal: number, vamp: number): string =>
   [`${heal > 0 ? `+${heal} 💚` : ''}`, `${vamp > 0 ? `+${vamp} 🩸` : ''}`].filter(Boolean).join(' ');
 
-/** Время жизни попапа: урон 2с, крит 2.5с, хил-карточка 3с, остальное 1с. */
+/** Время жизни попапа: урон 2с, крит 2.5с, хил-карточка 3с, лут 2с, остальное 1с. */
 export const popupLifeMs = (type?: string): number => {
   if (type === 'CRIT') return 2500;
   if (type === 'HEALCARD') return 3000;
+  if (type === 'LOOT') return 2000;
   if (type === 'NORMAL' || type === 'DMG' || type === 'DAMAGE') return 2000;
   return 1000;
 };
@@ -361,6 +365,13 @@ export interface CombatGridStore {
   startCelebration: () => void;
   /** Шаг празднования (зовёт интервал из BattleGrid): союзники идут к целям, у трупов болтают. */
   celebrationStep: () => void;
+  /** Обыск объекта (машина/дерево/колодец): каст-бар у игрока, лут в рюкзак. */
+  searchCast: { obId: number | string; label: string; totalMs: number; startedAt: number } | null;
+  startSearchCast: (obId: number | string) => void;
+  finishSearchCast: () => void;
+  cancelSearchCast: () => void;
+  /** Попап находки с иконкой предмета. */
+  addLootPopup: (x: number, y: number, img: string | undefined, text: string) => void;
   selectedAbility: number | null;
   selectedAbilitySource: 'player' | 'skillBar' | 'pet' | null;
   playerInvisible: boolean;
@@ -834,6 +845,7 @@ function generateObstacles(
           list.push({
             id: id++, x: sx, y: sy, w: 2, h: 2, type: 'woods', blocks: true, icon: 'woods',
             isWalkable: true, isHigh: false, imgIndex: 8, // o32
+            searchLoot: { kind: 'tree' } as any,
           });
           markArea(sx, sy, 2, 2);
         } else {
@@ -887,6 +899,8 @@ function generateObstacles(
         list.push({
           id: id++, x, y, w: cw, h: ch, type: 'car', blocks: true, icon: 'car',
           isHigh: false, imgIndex: imgIdx,
+          // Обыск: 30% машин с лутом (1 случайный ресурс, кроме дерева и воды).
+          ...(Math.random() < 0.3 ? { searchLoot: { kind: 'car' } as any } : null),
         });
         markArea(x, y, cw, ch);
         break;
@@ -906,6 +920,8 @@ function generateObstacles(
         list.push({
           id: id++, x, y, w: 2, h: 2, type: 'woods', blocks: true, icon: 'woods',
           isWalkable: true, isHigh: false, imgIndex: woodIdxPool[Math.floor(Math.random() * woodIdxPool.length)],
+          // Обыск дерева: всегда есть (х10-15 дерева, после — пенёк).
+          searchLoot: { kind: 'tree' } as any,
         });
         markArea(x, y, 2, 2);
         break;
@@ -943,9 +959,9 @@ function generateObstacles(
 
   // Small obstacles (1×1) — up to 50, random image, NOT isHigh.
   // o20/o21 — декор: полностью проходимые, в 2 раза чаще.
-  // o28 (колодец): ровно 2 шт на карту, непроходим, +броня рядом как o1.
+  // o28 (колодец): ровно 1 шт на карту, непроходим, +броня рядом как o1, вода х10.
   const smallIdxPool = [0, 1, 2, 3, 4, 4, 5, 5];
-  for (let w = 0; w < 2; w++) {
+  for (let w = 0; w < 1; w++) {
     for (let attempt = 0; attempt < 30; attempt++) {
       const x = Math.floor(Math.random() * GRID);
       const y = Math.floor(Math.random() * GRID);
@@ -953,6 +969,7 @@ function generateObstacles(
         list.push({
           id: id++, x, y, w: 1, h: 1, type: 'small', blocks: true, icon: 'small',
           isHigh: false, imgIndex: 6, // o28
+          searchLoot: { kind: 'well' } as any,
         });
         markArea(x, y, 1, 1);
         break;
@@ -1219,6 +1236,9 @@ const celebrateRingNear = (
   }
   return null;
 };
+
+/** Таймер завершения обыска объекта (сброс при отмене/выходе из боя). */
+let searchTimer: number | null = null;
 
 export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
@@ -1532,6 +1552,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   petTargetId: null,
   petAiActive: false,
   celebration: false,
+  searchCast: null,
   hitFx: null,
   selectedAbility: null,
   selectedAbilitySource: null,
@@ -2311,7 +2332,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     set({
       isActive: true, isTestArena: !!testMode, isRaining: testMode ? true : (!get().isNightTime && Math.random() < 0.5), playerPos, enemies: activeEnemies, obstacles,
-      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, celebration: false, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
+      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, celebration: false, searchCast: null, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
@@ -2389,6 +2410,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     set({ isDefensiveMode: false, isMoving: true, isSelected: false, plannedPath: [] });
+    get().cancelSearchCast();
     playCombatSound('run', 0.15);
     const stepsTaken = path.length - 1;
 
@@ -2442,6 +2464,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     const angle = getAngle(state.playerPos, { x: nx, y: ny });
     const newAp = free ? state.ap : state.ap - 1;
+    get().cancelSearchCast();
     set({
       playerPos: { x: nx, y: ny },
       ap: newAp,
@@ -3618,6 +3641,102 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (const b of barks) {
       try { get().say(b.id, b.text); } catch { /* ignore */ }
     }
+  },
+
+  addLootPopup: (x, y, img, text) => {
+    const id = `lootpop-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    set((s) => ({ popups: [...s.popups, { id, x, y, text, type: 'LOOT', img }] }));
+    setTimeout(() => {
+      set((s) => ({ popups: s.popups.filter((p) => p.id !== id) }));
+    }, popupLifeMs('LOOT'));
+  },
+
+  startSearchCast: (obId) => {
+    const st = get();
+    if (!st.isActive || st.turn !== 'player' || st.isMoving) return;
+    if (st.searchCast) return;
+    const ob = st.obstacles.find((o: any) => o.id === obId) as any;
+    const loot = ob?.searchLoot;
+    if (!ob || !loot) return;
+    const label = loot.kind === 'well' ? 'Набираю воду' : loot.kind === 'tree' ? 'Обыск дерева' : 'Обыск машины';
+    const totalMs = loot.kind === 'well' || loot.kind === 'tree' ? 10000 : 4000;
+    if (searchTimer !== null) window.clearTimeout(searchTimer);
+    set({ searchCast: { obId, label, totalMs, startedAt: Date.now() } });
+    playCombatSound('seach', 0.5);
+    searchTimer = window.setTimeout(() => {
+      searchTimer = null;
+      try { get().finishSearchCast(); } catch { /* ignore */ }
+    }, totalMs);
+  },
+
+  cancelSearchCast: () => {
+    if (searchTimer !== null) { window.clearTimeout(searchTimer); searchTimer = null; }
+    if (get().searchCast) set({ searchCast: null });
+  },
+
+  finishSearchCast: () => {
+    const st = get();
+    const cast = st.searchCast;
+    searchTimer = null;
+    if (!cast || !st.isActive) { set({ searchCast: null }); return; }
+    const ob = st.obstacles.find((o: any) => o.id === cast.obId) as any;
+    const loot = ob?.searchLoot;
+    const px = st.playerPos.x;
+    const py = st.playerPos.y;
+    if (!loot) {
+      set({ searchCast: null });
+      get().addPopup(px, py, 'пусто', 'NORMAL');
+      return;
+    }
+    let def: any;
+    let qty = 1;
+    if (loot.kind === 'well') {
+      def = (GAME_RESOURCES as any[]).find((r: any) => r.name === 'Вода');
+      qty = 10;
+    } else if (loot.kind === 'tree') {
+      def = (GAME_RESOURCES as any[]).find((r: any) => r.name === 'Дерево');
+      qty = 10 + Math.floor(Math.random() * 6);
+    } else {
+      const pool = (GAME_RESOURCES as any[]).filter((r: any) => r.name !== 'Вода' && r.name !== 'Дерево');
+      def = pool[Math.floor(Math.random() * pool.length)];
+      qty = 1;
+    }
+    if (!def) {
+      set({ searchCast: null });
+      get().addPopup(px, py, 'пусто', 'NORMAL');
+      return;
+    }
+    const item: any = {
+      id: `loot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: def.name, displayName: def.name, rarity: def.rarity, slot: def.slot,
+      stats: {}, quality: 'Обычный', qualityColor: '#a0a0a0', level: 1,
+      type: 'material', quantity: qty, image: (def as any).image,
+    };
+    const pst = usePlayerStore.getState();
+    const res = tryInsertIntoGrid(pst.backpackGrid, item);
+    if (!res.moved) {
+      set({ searchCast: null });
+      get().addMessage('🎒 Рюкзак полон!');
+      return;
+    }
+    usePlayerStore.setState({ backpackGrid: res.grid } as any);
+    const isTree = loot.kind === 'tree';
+    set((s: any) => ({
+      searchCast: null,
+      obstacles: s.obstacles.map((o: any) => {
+        if (o.id !== cast.obId) return o;
+        // Дерево после обыска — пенёк o32_2 1×1.
+        if (isTree) {
+          const { searchLoot: _sl, ...rest } = o;
+          return { ...rest, icon: 'small', imgIndex: 7, w: 1, h: 1, blocks: true };
+        }
+        const { searchLoot: _sl2, ...rest2 } = o;
+        return rest2;
+      }),
+    }));
+    const snd = loot.kind === 'well' ? 'water' : loot.kind === 'tree' ? 'wood' : 'chips';
+    try { playCombatSound(snd as any, 0.5); } catch { /* ignore */ }
+    get().addLootPopup(px, py, (def as any).image, `+${qty} ${def.name}`);
   },
 
   commandPetAttack: async (enemyId) => {
@@ -5163,6 +5282,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { stopRainLoop(); } catch { /* ignore */ }
     try { stopBirdLoop(); } catch { /* ignore */ }
     try { stopCricketLoop(); } catch { /* ignore */ }
+    if (searchTimer !== null) { window.clearTimeout(searchTimer); searchTimer = null; }
     usePlayerStore.setState((st: any) => ({
       stats: {
         ...st.stats,
@@ -5218,7 +5338,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, isRaining: false, celebration: false, enemies: [], obstacles: [], turn: 'player',
+      isActive: false, isTestArena: false, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

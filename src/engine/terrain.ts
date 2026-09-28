@@ -56,7 +56,7 @@ export const obstacleImageKey = (o: TerrainObstacle): string => {
 const labelOf = (o: TerrainObstacle): string => ICON_LABELS[o.icon || ''] || 'Объект';
 
 /** Чебышевская дистанция от клетки до прямоугольника препятствия. */
-const distToRect = (px: number, py: number, o: TerrainObstacle): number => {
+export const distToRect = (px: number, py: number, o: TerrainObstacle): number => {
   const w = o.w ?? 1;
   const h = o.h ?? 1;
   const dx = Math.max(o.x - px, 0, px - (o.x + w - 1));

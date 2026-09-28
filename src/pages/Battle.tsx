@@ -12,7 +12,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore, loadBattleEntry, clearBattleEntry } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
-import { getTerrainBonus } from '../engine/terrain';
+import { getTerrainBonus, distToRect } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
 import { getEnemyImage, getCharacterImage, images, getSniperImage, petAvatarImage } from '../assets/index';
 import { SkillBar } from '../components/widgets/SkillBar';
@@ -121,6 +121,20 @@ export const Battle = () => {
   const cursorPos = useCombatGridStore((s) => s.cursorPos);
   const playerPos = useCombatGridStore((s) => s.playerPos);
   const nearCampfire = campfire && Math.abs(playerPos.x - campfire.x) + Math.abs(playerPos.y - campfire.y) <= 2;
+  // Обыск: ближайший объект с лутом впритык (костёр — приоритет).
+  const searchTarget = useCombatGridStore((s) => {
+    if (!s.isActive || s.turn !== 'player') return null;
+    let best: any = null;
+    let bestD = Infinity;
+    for (const o of s.obstacles as any[]) {
+      if (!(o as any).searchLoot) continue;
+      const d = distToRect(s.playerPos.x, s.playerPos.y, o as any);
+      if (d <= 1 && d < bestD) { bestD = d; best = o; }
+    }
+    return best;
+  });
+  const searchCast = useCombatGridStore((s) => s.searchCast);
+  const useTarget = nearCampfire ? { kind: 'camp' as const } : searchTarget ? { kind: 'search' as const, ob: searchTarget } : null;
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const myTerrain = getTerrainBonus(playerPos, obstacles);
   const myTerrainText = [
@@ -243,15 +257,23 @@ export const Battle = () => {
         case 'KeyB': playClick(); setShowBackpack(true); break;
         case 'KeyE': {
           const st = useCombatGridStore.getState();
+          if (st.searchCast) { st.cancelSearchCast(); break; }
+          if (st.turn !== 'player') break;
+          playClick();
           const cf = st.campfire;
           const pp = st.playerPos;
-          if (cf) {
-            const edx = Math.abs(pp.x - cf.x);
-            const edy = Math.abs(pp.y - cf.y);
-            if (edx + edy <= 2) {
-              st.setShowCookingMenu(true);
-            }
+          if (cf && Math.abs(pp.x - cf.x) + Math.abs(pp.y - cf.y) <= 2) {
+            st.setShowCookingMenu(true);
+            break;
           }
+          let best: any = null;
+          let bestD = Infinity;
+          for (const o of st.obstacles as any[]) {
+            if (!(o as any).searchLoot) continue;
+            const d = distToRect(pp.x, pp.y, o as any);
+            if (d <= 1 && d < bestD) { bestD = d; best = o; }
+          }
+          if (best) st.startSearchCast(best.id);
           break;
         }
         case 'Digit1': selectAbility(0); break;
@@ -441,26 +463,29 @@ export const Battle = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 4 }}>
               <div
                 onClick={() => {
-                  if (nearCampfire) {
-                    playClick();
-                    useCombatGridStore.getState().setShowCookingMenu(true);
-                  }
+                  if (searchCast) { useCombatGridStore.getState().cancelSearchCast(); return; }
+                  if (!useTarget || turn !== 'player') return;
+                  playClick();
+                  if (useTarget.kind === 'camp') useCombatGridStore.getState().setShowCookingMenu(true);
+                  else useCombatGridStore.getState().startSearchCast((useTarget.ob as any).id);
                 }}
-                title="Костёр (E)"
+                title={searchCast ? 'Отмена обыска (E)' : useTarget ? (useTarget.kind === 'camp' ? 'Костёр (E)' : 'Обыскать (E)') : 'Использовать (E)'}
                 style={{
                   padding: '4px 6px', borderRadius: 5,
-                  border: `1px solid ${nearCampfire ? 'rgba(74,222,128,0.6)' : 'rgba(255,255,255,0.08)'}`,
-                  background: nearCampfire ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.03)',
-                  color: nearCampfire ? '#4ade80' : 'var(--text-muted)',
-                  cursor: nearCampfire ? 'pointer' : 'not-allowed',
+                  border: `1px solid ${useTarget ? 'rgba(74,222,128,0.6)' : 'rgba(255,255,255,0.08)'}`,
+                  background: useTarget ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.03)',
+                  color: useTarget ? '#4ade80' : 'var(--text-muted)',
+                  cursor: useTarget ? 'pointer' : 'not-allowed',
                   fontSize: 11, fontWeight: 600,
                   opacity: turn !== 'player' ? 0.4 : 1,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
                   minWidth: 0,
                 }}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔥 Костёр</span>
-                <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>E{nearCampfire ? '●' : ''}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {searchCast ? '✋ Отмена' : useTarget ? (useTarget.kind === 'camp' ? '🔥 Костёр' : '🔍 Обыскать') : '✋ Использовать'}
+                </span>
+                <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>E{(useTarget || searchCast) ? '●' : ''}</span>
               </div>
 
               <div
