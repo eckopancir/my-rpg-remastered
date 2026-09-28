@@ -1671,7 +1671,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     // Бой без врагов (битые ключи карт) — не стартуем, иначе вечный пустой бой.
-    if (enemies.length === 0) throw new Error('initCombat: no enemies generated');
+    // Тест-арена: пусто штатно.
+    if (enemies.length === 0 && !testMode) throw new Error('initCombat: no enemies generated');
 
     // --- Camp life: 1,2,3 — лагерь у костра (1 спит), 4,5,6 — часовые,
     // 7,8,9 — патруль, 10+ — подкрепление на 40 ход. ---
