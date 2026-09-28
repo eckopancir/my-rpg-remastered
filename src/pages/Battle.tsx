@@ -616,6 +616,26 @@ export const Battle = () => {
                   <span>🚪 Покинуть арену</span>
                 </div>
               )}
+              {/* Тест-арена: дождь живьём */}
+              {isTestArena && (
+                <div
+                  onClick={() => {
+                    playClick();
+                    const cs = useCombatGridStore.getState();
+                    cs.setRaining(!cs.isRaining);
+                  }}
+                  style={{
+                    padding: '6px', borderRadius: 5,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'rgba(255,255,255,0.03)',
+                    color: 'var(--text-secondary)', fontWeight: 800,
+                    cursor: 'pointer', fontSize: 12,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <span>🌧 Дождь вкл/выкл</span>
+                </div>
+              )}
 
             </div>
 

@@ -2147,7 +2147,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { useUiStore.getState().setSkillBarPos(null); } catch { /* noop */ }
 
     set({
-      isActive: true, isTestArena: !!testMode, isRaining: testMode ? false : Math.random() < 0.28, playerPos, enemies: activeEnemies, obstacles,
+      isActive: true, isTestArena: !!testMode, isRaining: testMode ? true : Math.random() < 0.28, playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
