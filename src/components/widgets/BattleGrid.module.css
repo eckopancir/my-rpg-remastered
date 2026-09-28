@@ -136,10 +136,10 @@
 }
 
 .obstacleSmallImg {
-  width: 130%;
-  height: 130%;
-  left: -14%;
-  top: -14%;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
   z-index: 10;
 }
 
