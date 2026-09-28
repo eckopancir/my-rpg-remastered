@@ -545,12 +545,12 @@ export const BattleGrid = () => {
   }, [enemies]);
 
   const obstacleTileMap = useMemo(() => {
-    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; w: number; h: number; blocks: boolean; hasLoot: boolean }>();
+    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean }>();
     for (const ob of obstacles) {
       for (let dx = 0; dx < ob.w; dx++) {
         for (let dy = 0; dy < ob.h; dy++) {
           const isAnchor = dx === 0 && dy === 0;
-          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot });
+          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter });
         }
       }
     }
