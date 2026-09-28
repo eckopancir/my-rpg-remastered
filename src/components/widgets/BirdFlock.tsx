@@ -1,0 +1,67 @@
+import { useEffect, useState } from 'react';
+import { useCombatGridStore } from '../../stores/combatGridStore';
+import { crowFrames } from '../../assets/index';
+
+const EVERY_MS = 45000;
+
+/** Стая вдали: те же кадры ворона, вдвое меньше, без звука, редкий пролёт. */
+export const BirdFlock = () => {
+  const isActive = useCombatGridStore((s) => s.isActive);
+  const [flight, setFlight] = useState<{ id: number; fy: number; left: boolean } | null>(null);
+  const [go, setGo] = useState(false);
+  const [flap, setFlap] = useState(0);
+
+  useEffect(() => {
+    if (!isActive || crowFrames.length === 0) return;
+    let alive = true;
+    const launch = () => {
+      if (!alive) return;
+      // Высоко: верхняя треть карты, слева направо или обратно.
+      const left = Math.random() < 0.5;
+      setFlight({ id: Date.now(), fy: 4 + Math.random() * 6, left });
+      setGo(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (alive) setGo(true); }));
+    };
+    if (Math.random() < 0.5) launch();
+    const every = window.setInterval(() => { if (Math.random() < 0.6) launch(); }, EVERY_MS);
+    const flapT = window.setInterval(() => setFlap((f) => (f + 1) % Math.max(1, crowFrames.length)), 140);
+    return () => { alive = false; window.clearInterval(every); window.clearInterval(flapT); };
+  }, [isActive]);
+
+  if (!isActive || !flight || crowFrames.length === 0) return null;
+  const from = flight.left ? -6 : 37;
+  const to = flight.left ? 37 : -6;
+  return (
+    <div
+      key={flight.id}
+      style={{
+        position: 'absolute',
+        left: `${(((go ? to : from) + 0.5) / 32) * 100}%`,
+        top: `${((flight.fy + 0.5) / 32) * 100}%`,
+        width: '1.3%',
+        aspectRatio: '280 / 520',
+        transform: 'translate(-50%,-50%)',
+        transition: 'left 14s linear',
+        zIndex: 36,
+        pointerEvents: 'none',
+        opacity: 0.85,
+      }}
+    >
+      {[0, 1, 2].map((i) => (
+        <img
+          key={i}
+          src={crowFrames[(flap + i) % crowFrames.length]}
+          alt=""
+          draggable={false}
+          style={{
+            position: 'absolute',
+            left: `${i * 130}%`,
+            top: `${(i % 2) * 40}%`,
+            width: '100%', height: '100%', objectFit: 'contain',
+            transform: flight.left ? 'none' : 'scaleX(-1)',
+          }}
+        />
+      ))}
+    </div>
+  );
+};
