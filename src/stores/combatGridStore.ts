@@ -680,7 +680,7 @@ function generateObstacles(
   // o15 маленькое 4x4 (−30%), остальные 6x5. isHigh, random image.
   // Футпринт = визуал: арт тянется ровно на w×h от якоря.
   // o13 и o17 взаимоисключают друг друга на одной карте, и каждая — максимум 1 шт.
-  const bigCount = Math.floor(Math.random() * 2) + 3;
+  const bigCount = Math.floor(Math.random() * 2) + 4;
   const placedBig = new Set<string>();
   for (let i = 0; i < bigCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
