@@ -647,6 +647,7 @@ export const petWalk = (
 function generateObstacles(
   playerPos: { x: number; y: number },
   enemies: { pos: { x: number; y: number } }[],
+  campfire?: { x: number; y: number },
 ): GridObstacle[] {
   const list: GridObstacle[] = [];
   let id = 0;
@@ -674,6 +675,14 @@ function generateObstacles(
   markArea(playerPos.x - 1, playerPos.y - 1, 3, 3);
   for (const enemy of enemies) {
     markArea(enemy.pos.x - 1, enemy.pos.y - 1, 3, 3);
+  }
+  // Защита костра: в радиусе 2 клеток ничего не спавним (враги уже расставлены).
+  if (campfire) {
+    for (let x = campfire.x - 2; x <= campfire.x + 2; x++) {
+      for (let y = campfire.y - 2; y <= campfire.y + 2; y++) {
+        if (x >= 0 && x < GRID && y >= 0 && y < GRID) occupied.add(`${x},${y}`);
+      }
+    }
   }
 
   // Big buildings — 3 типоразмера по картинке: o8/o9 большие 8x6 (+30%),
@@ -799,30 +808,31 @@ function generateObstacles(
     }
   }
 
-  // Fences — L-shaped, 5 cells in 3×3 area, each a separate 1×1 obstacle, all isHigh
+  // Fences — L-shaped (5 cells in 3×3) or straight (5 cells in 5×1), all isHigh.
+  // Проверяем и резервируем ровно bbox забора, иначе хвост лезет на соседей.
   for (let i = 0; i < 4; i++) {
     for (let attempt = 0; attempt < 20; attempt++) {
-      const x = Math.floor(Math.random() * (GRID - 3));
-      const y = Math.floor(Math.random() * (GRID - 3));
-      if (isAreaFree(x, y, 3, 3)) {
-        const isLshape = Math.random() > 0.5;
-        // 5 cells
-        const fenceCells: { dx: number; dy: number }[] = [];
-        for (let j = 0; j < 5; j++) {
-          const dx = isLshape && j > 2 ? 1 : j;
-          const dy = isLshape && j > 2 ? j - 2 : 0;
-          fenceCells.push({ dx, dy });
-        }
-        for (const { dx, dy } of fenceCells) {
-          list.push({
-            id: id++, x: x + dx, y: y + dy, w: 1, h: 1, type: 'fence', blocks: true, icon: 'fence',
-            isHigh: true,
-          });
-        }
-        // Mark all 9 cells of the 3×3 area as occupied
-        markArea(x, y, 3, 3);
-        break;
+      const isLshape = Math.random() > 0.5;
+      const bw = isLshape ? 3 : 5;
+      const bh = isLshape ? 3 : 1;
+      const x = Math.floor(Math.random() * (GRID - bw));
+      const y = Math.floor(Math.random() * (GRID - bh));
+      if (!isAreaFree(x, y, bw, bh)) continue;
+      // 5 cells
+      const fenceCells: { dx: number; dy: number }[] = [];
+      for (let j = 0; j < 5; j++) {
+        const dx = isLshape && j > 2 ? 1 : j;
+        const dy = isLshape && j > 2 ? j - 2 : 0;
+        fenceCells.push({ dx, dy });
       }
+      for (const { dx, dy } of fenceCells) {
+        list.push({
+          id: id++, x: x + dx, y: y + dy, w: 1, h: 1, type: 'fence', blocks: true, icon: 'fence',
+          isHigh: true,
+        });
+      }
+      markArea(x, y, bw, bh);
+      break;
     }
   }
 
@@ -1999,7 +2009,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     // Generate obstacles with safe zones around player and enemies
-    const obstacles = generateObstacles(playerPos, activeEnemies);
+    const obstacles = generateObstacles(playerPos, activeEnemies, campfire);
 
     // Костёр не должен оказаться внутри стены: сдвигаем на свободную.
     if (!isCellWalkable(campfire.x, campfire.y, obstacles)) {

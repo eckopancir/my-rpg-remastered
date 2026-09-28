@@ -613,7 +613,14 @@ export const BattleGrid = () => {
                       if (obstacle.icon === 'building' || obstacle.icon === 'car' || (obstacle.icon === 'small' && !obstacle.blocks)) {
                         return { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0 };
                       }
-                      if (obstacle.icon === 'small' && ['o1', 'o1_2', 'o2', 'o32_2'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
+                      if (obstacle.icon === 'small' && ['o1', 'o1_2', 'o2'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
+                        return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
+                      }
+                      if (obstacle.icon === 'small' && SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] === 'o32_2') {
+                        return { width: '42%', height: '42%', left: '29%', top: '29%' };
+                      }
+                      // Остальная блокирующая мелочь (o19, колодец) — 85% по центру.
+                      if (obstacle.icon === 'small') {
                         return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
                       }
                       return undefined;
