@@ -83,6 +83,7 @@ export const Battle = () => {
   const { playClick, playSound } = useSound();
 
   const isActive = useCombatGridStore((s) => s.isActive);
+  const isTestArena = useCombatGridStore((s) => s.isTestArena);
   const ap = useCombatGridStore((s) => s.ap);
   const maxAp = useCombatGridStore((s) => s.maxAp);
   const ammo = useCombatGridStore((s) => s.ammo);
@@ -143,7 +144,9 @@ export const Battle = () => {
   const gridReserve = useCombatGridStore((s) => s.reserve);
 
   // Пустой активный бой (0 врагов, 0 резерва) — автовыход через победу, а не вис.
+  // Тест-арена: пусто штатно, не трогаем.
   useEffect(() => {
+    if (isTestArena) return;
     if (isActive && gridEnemies.length === 0 && (gridReserve?.length ?? 0) === 0 && !isVictory && !isDefeat) {
       const t = setTimeout(() => {
         const st = useCombatGridStore.getState();
@@ -151,7 +154,7 @@ export const Battle = () => {
       }, 800);
       return () => clearTimeout(t);
     }
-  }, [isActive, gridEnemies.length, gridReserve?.length, isVictory, isDefeat]);
+  }, [isActive, gridEnemies.length, gridReserve?.length, isVictory, isDefeat, isTestArena]);
 
   // Ручной сброс зависшего боя — всегда доступен в бою.
   const resetStuckCombat = useCallback(() => {
@@ -173,10 +176,11 @@ export const Battle = () => {
   }, [playClick]);
 
   // Предупреждение о выходе из боя через рефреш/закрытие вкладки.
+  // Тест-арена: терять нечего, не мешаем.
   useEffect(() => {
     const onBefore = (ev: BeforeUnloadEvent) => {
       const st = useCombatGridStore.getState();
-      if (st.isActive && !st.isVictory && !st.isDefeat) ev.preventDefault();
+      if (st.isActive && !st.isTestArena && !st.isVictory && !st.isDefeat) ev.preventDefault();
     };
     window.addEventListener('beforeunload', onBefore);
     return () => window.removeEventListener('beforeunload', onBefore);
@@ -590,6 +594,28 @@ export const Battle = () => {
                 <span>⏭ Конец хода</span>
                 <span style={{ fontSize: 9, opacity: 0.7, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>SPACE</span>
               </div>
+
+              {/* Тест-арена: выход без боя */}
+              {isTestArena && (
+                <div
+                  onClick={() => {
+                    playClick();
+                    useCombatGridStore.getState().cleanup();
+                    usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+                    navigate('/dashboard');
+                  }}
+                  style={{
+                    padding: '6px', borderRadius: 5,
+                    border: '1px solid rgba(248,113,113,0.4)',
+                    background: 'rgba(248,113,113,0.08)',
+                    color: '#f87171', fontWeight: 800,
+                    cursor: 'pointer', fontSize: 12,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <span>🚪 Покинуть арену</span>
+                </div>
+              )}
 
             </div>
 

@@ -265,6 +265,8 @@ export interface GlobalEffect {
 
 export interface CombatGridStore {
   isActive: boolean;
+  /** Тестовая арена из DEBUG (один игрок, без врагов/союзников/зверя, без автопобеды). */
+  isTestArena: boolean;
   playerPos: { x: number; y: number };
   enemies: GridEnemy[];
   obstacles: GridObstacle[];
@@ -382,7 +384,7 @@ export interface CombatGridStore {
   setShowCookingMenu: (show: boolean) => void;
 
   cardRarityName: string | null;
-  initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }, allyCount?: number) => boolean;
+  initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }, allyCount?: number, testMode?: boolean) => boolean;
   teleportTo: (x: number, y: number) => void;
   placeMine: (x: number, y: number) => void;
   placeAoE: (x: number, y: number) => void;
@@ -955,6 +957,7 @@ export const absorbWithShield = (pos: { x: number; y: number }): boolean => {
 
 export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
+  isTestArena: false,
   playerPos: { x: 2, y: 2 },
   enemies: [],
   obstacles: [],
@@ -1477,10 +1480,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     return findPath(from, to, obs);
   },
 
-  initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount) => {
+  initCombat: (difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount, testMode) => {
     try {
-    // Точка входа для переигровки волны после рефреша.
-    saveBattleEntry({ difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount });
+    // Точка входа для переигровки волны после рефреша (тест-арену не сохраняем).
+    if (!testMode) saveBattleEntry({ difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount });
     // Прогрев звуков боя: первый выстрел без задержки декодирования.
     preloadCombatSounds([
       'shot1', 'shot2', 'shotenemy', 'pistol', 'sniper', 'drob', 'm134',
@@ -1821,7 +1824,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // --- Мусорщики-союзники (карточка помощи): рядом с героем, статы обычных
     // стрелков военных, сразу в бой (aggro + knowsPlayer), модель-сталкер наугад.
-    const allyNum = Math.max(0, Math.min(6, Math.floor(allyCount || 0)));
+    // Тест-арена: игрок один, союзников нет.
+    const allyNum = testMode ? 0 : Math.max(0, Math.min(6, Math.floor(allyCount || 0)));
     if (allyNum > 0 && ENEMY_BASE_STATS['Военные (original)']) {
       const aBase = ENEMY_BASE_STATS['Военные (original)'];
       const aTotalMult = levelMult * extraMult;
@@ -1940,7 +1944,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // Питомец: спавн рядом с игроком, если выбран зверь И взят класс «Лесничий».
     // Без класса — ни зверя, ни его способностей на поле боя.
-    const hasLesnichiy = (usePlayerStore.getState().chosenClasses || []).includes('lesnichiy');
+    // Тест-арена: игрок один, зверя нет.
+    const hasLesnichiy = !testMode && (usePlayerStore.getState().chosenClasses || []).includes('lesnichiy');
     const petAbilities = hasLesnichiy ? [...(usePlayerStore.getState().petAbilities || [])] : [];
     const petCooldowns = petAbilities.map(() => 0);
     {
@@ -1997,8 +2002,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Нейтральный кабан: 1 шт на арену (шанс ниже; тест — всегда).
     // Никого не трогает, ИИ его игнорирует, ходит по 10-сек таймеру.
     // 50 HP, с трупа — 3-8 мяса. Убить может только игрок.
+    // Тест-арена: игрок один, кабана нет.
     {
-      const NEUTRAL_BOAR_CHANCE = 1.0; // тест: 100%. Прод: 0.2.
+      const NEUTRAL_BOAR_CHANCE = testMode ? 0 : 1.0; // тест: 100%. Прод: 0.2.
       if (Math.random() < NEUTRAL_BOAR_CHANCE) {
         let spot = { x: Math.max(1, GRID - 4), y: Math.max(1, GRID - 4) };
         for (let a = 0; a < 60; a++) {
@@ -2035,7 +2041,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { useUiStore.getState().setSkillBarPos(null); } catch { /* noop */ }
 
     set({
-      isActive: true, playerPos, enemies: activeEnemies, obstacles,
+      isActive: true, isTestArena: !!testMode, playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
@@ -4785,7 +4791,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, enemies: [], obstacles: [], turn: 'player',
+      isActive: false, isTestArena: false, enemies: [], obstacles: [], turn: 'player',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

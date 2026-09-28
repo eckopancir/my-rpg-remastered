@@ -588,6 +588,18 @@ export const Dashboard = () => {
         <WapPanel variant="metal">
           <WapHeader title="🧪 DEBUG" glow="none" />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button size="sm" variant="primary" onClick={() => {
+              const cs = useCombatGridStore.getState();
+              if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
+              usePlayerStore.getState().startCombat(1, true);
+              const ok = cs.initCombat(1, undefined, [], undefined, 0, true);
+              if (!ok) {
+                usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+                usePlayerStore.getState().addLog('⚠️ Тест-арена не запустилась', 'warning');
+                return;
+              }
+              navigate('/battle');
+            }} style={{ fontSize: 11 }}>🧪 Тест-арена (один)</Button>
             <Button size="sm" variant="primary" onClick={() => debugGenerateItems(200)} style={{ fontSize: 11 }}>+200 предметов</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddRifles(500)} style={{ fontSize: 11 }}>+500 автоматов 🔫</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddShotguns(500)} style={{ fontSize: 11 }}>+500 дробовиков 🔫</Button>
