@@ -706,7 +706,8 @@ function generateObstacles(
   }
 
   // Хвойный лес o32: максимум 1 на карту, сразу после зданий.
-  // Кластер 8-10 деревьев 2×2 рядом (эмуляция леса).
+  // Кластер 8-10 деревьев 2×2 рядом (эмуляция леса) + 2 пенька o32_2 (1×1,
+  // непроходимы, без бонусов, чуть меньше клетки).
   {
     const pines = 8 + Math.floor(Math.random() * 3);
     for (let attempt = 0; attempt < 30; attempt++) {
@@ -731,6 +732,26 @@ function generateObstacles(
           isWalkable: true, isHigh: false, imgIndex: 8, // o32
         });
         markArea(sx, sy, 2, 2);
+      }
+      // Пеньки: свободные 1×1 внутри зоны кластера.
+      const cells: [number, number][] = [];
+      for (let px = cx; px < cx + 10; px++) {
+        for (let py = cy; py < cy + 10; py++) {
+          if (isAreaFree(px, py, 1, 1)) cells.push([px, py]);
+        }
+      }
+      for (let i = cells.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cells[i], cells[j]] = [cells[j], cells[i]];
+      }
+      for (let i = 0; i < Math.min(2, cells.length); i++) {
+        const [px, py] = cells[i];
+        if (!isAreaFree(px, py, 1, 1)) continue;
+        list.push({
+          id: id++, x: px, y: py, w: 1, h: 1, type: 'small', blocks: true, icon: 'small',
+          isHigh: false, imgIndex: 7, // o32_2
+        });
+        markArea(px, py, 1, 1);
       }
       break;
     }
