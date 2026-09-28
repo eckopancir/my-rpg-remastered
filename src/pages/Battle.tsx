@@ -312,7 +312,7 @@ export const Battle = () => {
 
   const selectedEnemyData = enemies.find((e) => selectedEnemy !== null && e.id === selectedEnemy);
   const hoverTarget = hoveredEnemy || selectedEnemyData;
-  const aliveEnemies = enemies.filter((e) => !e.dead && e.faction !== 'Союзник');
+  const aliveEnemies = enemies.filter((e) => !e.dead && e.faction !== 'Союзник' && !(e as any).isNeutral);
   const aliveAllies = enemies.filter((e) => !e.dead && e.faction === 'Союзник');
 
   if (!combat.isFighting && !travel.isTraveling && !isResting) {

@@ -793,7 +793,7 @@ export const useEnemyAI = () => {
             );
             // Бьёт союзник: защита — stats ВРАГА на точке, а не игрока!
             const preTargetHostile = isAlly ? updatedEnemies.find((e: any) =>
-              e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+              e.faction !== 'Союзник' && !(e as any).isNeutral && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
             ) : undefined;
             const defender0 = preTargetHostile || preTargetAlly;
             // Питомец: защита с учётом баффов (Инстинкты, Полоснуть, Урсок).
@@ -850,9 +850,9 @@ export const useEnemyAI = () => {
                   }
                 }
               } else if (isAlly) {
-                // Бьёт СОЮЗНИК: урон — врагу на точке, а не игроку!
+                // Бьёт СОЮЗНИК: урон — врагу на точке, а не игроку! Нейтралов не трогаем.
                 const targetHostile = updatedEnemies.find((e: any) =>
-                  e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+                  e.faction !== 'Союзник' && !(e as any).isNeutral && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
                 );
                 if (targetHostile) {
                   targetHostile.currentHp = Math.max(0, targetHostile.currentHp - finalDmg);
@@ -956,7 +956,7 @@ export const useEnemyAI = () => {
                 e.faction === 'Союзник' && !e.dead && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
               );
               const extraHostile = isAlly ? updatedEnemies.find((e: any) =>
-                e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+                e.faction !== 'Союзник' && !(e as any).isNeutral && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
               ) : undefined;
               const defender2 = extraHostile || extraTargetAlly;
               const tgtArmor = defender2 ? defender2.armor : curAfter.armor;
@@ -995,9 +995,9 @@ export const useEnemyAI = () => {
                     }
                   }
                 } else if (isAlly) {
-                  // Бонус-выстрел союзника: урон — врагу на точке.
+                  // Бонус-выстрел союзника: урон — врагу на точке. Нейтралов не трогаем.
                   const extraHostile = updatedEnemies.find((e: any) =>
-                    e.faction !== 'Союзник' && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
+                    e.faction !== 'Союзник' && !(e as any).isNeutral && !e.dead && e.currentHp > 0 && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
                   );
                   if (extraHostile) {
                     extraHostile.currentHp = Math.max(0, extraHostile.currentHp - finalDmg2);
@@ -1008,6 +1008,15 @@ export const useEnemyAI = () => {
                     if (extraHostile.currentHp <= 0) {
                       extraHostile.dead = true;
                       extraHostile.isHit = false;
+                      if (!(extraHostile as any).isNeutral) {
+                        try {
+                          extraHostile.loot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+                            rank: rankOfEnemy((extraHostile as any).factionKey, extraHostile.name),
+                          });
+                          extraHostile.looted = false;
+                        } catch { /* ignore */ }
+                        extraHostile.gear = rollGearOnDeath(extraHostile);
+                      }
                       useCombatGridStore.getState().addBattleLog(`💀 ${extraHostile.name} уничтожен мусорщиком!`);
                     }
                   } else {

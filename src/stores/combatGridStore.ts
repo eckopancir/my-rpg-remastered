@@ -3487,6 +3487,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     const takenCells = new Set<string>();
     let changed = false;
+    // Реплики копим и говорим ПОСЛЕ set — иначе set({enemies}) затрёт speech.
+    const barks: { id: number | string; text: string }[] = [];
     const next = st.enemies.map((e: any) => {
       if (e.faction !== 'Союзник' || e.dead || (e.currentHp || 0) <= 0 || e.isPet) return e;
       let goal = (e as any).celebrateGoal as { x: number; y: number; cId?: number | string; barked?: boolean } | undefined;
@@ -3539,7 +3541,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const c = st.enemies.find((o: any) => o.id === goal!.cId);
           const rot = c ? getAngle(e.pos, c.pos) : e.rotation;
           if (!goal.barked || now - lastBark > CELEBRATE_BARK_CD) {
-            get().say(e.id, CELEBRATE_CORPSE_PHRASES[Math.floor(Math.random() * CELEBRATE_CORPSE_PHRASES.length)]);
+            barks.push({ id: e.id, text: CELEBRATE_CORPSE_PHRASES[Math.floor(Math.random() * CELEBRATE_CORPSE_PHRASES.length)] });
             changed = true;
             return { ...e, rotation: rot, celebrateGoal: { ...goal, barked: true }, celebrateBarkAt: now };
           }
@@ -3551,7 +3553,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           // У костра: смотрим на огонь, иногда болтаем.
           if ((!goal.barked && !(e as any).celebrateFaced) || now - lastBark > CELEBRATE_BARK_CD) {
             if (now - lastBark > CELEBRATE_BARK_CD && Math.random() < 0.5) {
-              get().say(e.id, CELEBRATE_FIRE_PHRASES[Math.floor(Math.random() * CELEBRATE_FIRE_PHRASES.length)]);
+              barks.push({ id: e.id, text: CELEBRATE_FIRE_PHRASES[Math.floor(Math.random() * CELEBRATE_FIRE_PHRASES.length)] });
             }
             changed = true;
             return { ...e, rotation: camp ? getAngle(e.pos, camp) : e.rotation, celebrateGoal: { ...goal, barked: true }, celebrateFaced: true, celebrateBarkAt: now };
@@ -3578,6 +3580,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return { ...e, pos: { x: nxt.x, y: nxt.y }, rotation: getAngle(e.pos, nxt), celebrateGoal: goal };
     });
     if (changed) set({ enemies: next });
+    // Реплики — после set, иначе их затрёт stale-массив.
+    for (const b of barks) {
+      try { get().say(b.id, b.text); } catch { /* ignore */ }
+    }
   },
 
   commandPetAttack: async (enemyId) => {
