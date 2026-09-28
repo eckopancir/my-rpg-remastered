@@ -61,7 +61,7 @@ export const BirdFlock = () => {
           style={{
             position: 'absolute',
             left: o.dx, top: o.dy,
-            width: 26, height: 48, objectFit: 'contain',
+            width: 10, aspectRatio: '280 / 520', objectFit: 'contain',
             transform: `translate(-50%,-50%) ${flight.left ? 'none' : 'scaleX(-1)'}`,
           }}
         />
