@@ -753,49 +753,42 @@ function generateObstacles(
     }
   }
 
-  // Поле green 10×8 — как большой объект: на карте только оно или o17 или o13.
-  // Механика своя (проходимое, простреливается, без бонусов, прозрачность).
-  let greenPlaced = false;
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const x = Math.floor(Math.random() * (GRID - 10));
-    const y = Math.floor(Math.random() * (GRID - 8));
-    if (!isAreaFree(x, y, 10, 8)) continue;
-    list.push({
-      id: id++, x, y, w: 10, h: 8, type: 'field', blocks: true, icon: 'field',
-      isWalkable: true, isHigh: false,
-    });
-    markArea(x, y, 10, 8);
-    greenPlaced = true;
-    break;
-  }
-
-  // Big buildings — 3 типоразмера по картинке: o8/o9 большие 8x6 (+30%),
-  // o15 маленькое 4x4 (−30%), остальные 6x5. isHigh, random image.
+  // Big buildings — 3-4 шт лотереей: o8–o18 + green 10×8 как кандидат.
+  // Типоразмеры: o8/o9 8×6, green 10×8, остальные 6×5. isHigh (поле — своя механика).
   // Футпринт = визуал: арт тянется ровно на w×h от якоря.
-  // o13 и o17 взаимоисключают друг друга и поле green: только что-то одно, максимум 1 шт.
+  // Трио green/o13/o17: только что-то одно, максимум 1 шт.
   // o14 — максимум 1 шт, 10% карт с ним (резервируем слот).
   const bigCount = Math.floor(Math.random() * 2) + 3;
   const placedBig = new Set<string>();
   const wantO14 = Math.random() < 0.1;
+  const sizeOf = (k: string): [number, number] =>
+    k === 'o8' || k === 'o9' ? [8, 6] : k === 'green' ? [10, 8] : [6, 5];
   for (let i = 0; i < bigCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
-      const pairTaken = placedBig.has('o13') || placedBig.has('o17') || greenPlaced;
-      const pool = BIG_BUILDING_IMAGES.map((k, idx) => ({ k, idx }))
-        .filter(({ k }) => !((k === 'o13' || k === 'o17') && pairTaken))
+      const trioTaken = placedBig.has('o13') || placedBig.has('o17') || placedBig.has('green');
+      const pool = [...BIG_BUILDING_IMAGES.map((k, idx) => ({ k, idx })), { k: 'green', idx: -1 }]
+        .filter(({ k }) => !((k === 'o13' || k === 'o17' || k === 'green') && trioTaken))
         .filter(({ k }) => k !== 'o14');
       const pick = wantO14 && !placedBig.has('o14')
         ? { k: 'o14', idx: BIG_BUILDING_IMAGES.indexOf('o14') }
         : pool[Math.floor(Math.random() * pool.length)];
       const imgIdx = pick.idx;
       const imgKey = pick.k;
-      const [bw, bh] = imgKey === 'o8' || imgKey === 'o9' ? [8, 6] : imgKey === 'o15' ? [4, 4] : [6, 5];
+      const [bw, bh] = sizeOf(imgKey);
       const x = Math.floor(Math.random() * (GRID - bw));
       const y = Math.floor(Math.random() * (GRID - bh));
       if (isAreaFree(x, y, bw, bh)) {
-        list.push({
-          id: id++, x, y, w: bw, h: bh, type: 'building', blocks: true, icon: 'building',
-          isHigh: true, imgIndex: imgIdx,
-        });
+        if (imgKey === 'green') {
+          list.push({
+            id: id++, x, y, w: bw, h: bh, type: 'field', blocks: true, icon: 'field',
+            isWalkable: true, isHigh: false,
+          });
+        } else {
+          list.push({
+            id: id++, x, y, w: bw, h: bh, type: 'building', blocks: true, icon: 'building',
+            isHigh: true, imgIndex: imgIdx,
+          });
+        }
         markArea(x, y, bw, bh);
         placedBig.add(imgKey);
         break;
