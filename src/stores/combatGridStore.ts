@@ -769,7 +769,22 @@ function generateObstacles(
 
   // Small obstacles (1×1) — up to 50, random image, NOT isHigh.
   // o20/o21 — декор: полностью проходимые, в 2 раза чаще.
+  // o28 (колодец): ровно 2 шт на карту, непроходим, +броня рядом как o1.
   const smallIdxPool = [0, 1, 2, 3, 3, 4, 4];
+  for (let w = 0; w < 2; w++) {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const x = Math.floor(Math.random() * GRID);
+      const y = Math.floor(Math.random() * GRID);
+      if (isAreaFree(x, y, 1, 1)) {
+        list.push({
+          id: id++, x, y, w: 1, h: 1, type: 'small', blocks: true, icon: 'small',
+          isHigh: false, imgIndex: 5,
+        });
+        markArea(x, y, 1, 1);
+        break;
+      }
+    }
+  }
   let smallCount = 0;
   let attempts = 0;
   while (smallCount < 50 && attempts < 70) {
