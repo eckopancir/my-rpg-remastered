@@ -824,7 +824,7 @@ export const BattleGrid = () => {
         <BirdFlock />
 
         {/* Костёр лагеря — виден всегда (свет видно издалека), 12 кадров */}
-        {campfire && campfireFrames.length > 0 && (
+        {campfire && campfireFrames.length > 0 && isCellVisible(campfire.x, campfire.y) && (
           <div style={{
             position: 'absolute',
             left: `${cellPct(campfire.x)}%`,

@@ -132,8 +132,10 @@ export const AmbienceOverlay = () => {
         }
       }
       // Костёр: пульс света + дымок. Ночью свет намного ярче (реализм).
+      // Сквозь туман войны не горит — только разведанные клетки.
       const cf = (st as any).campfire as { x: number; y: number } | undefined;
-      if (cf) {
+      const cfSeen = cf && (st as any).exploredCells && (st as any).exploredCells[`${cf.x},${cf.y}`];
+      if (cf && cfSeen) {
         const cx = ((cf.x + 0.5) / 32) * w;
         const cy = ((cf.y + 0.5) / 32) * h;
         const nightBoost = night ? 2.2 : 1;
