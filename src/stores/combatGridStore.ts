@@ -13,7 +13,7 @@ import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapa
 import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, obstacleImageKey } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
-import { playCombatSound, stopCombatSound, stopRainLoop, preloadCombatSounds } from '../hooks/useSound';
+import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, preloadCombatSounds } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -5127,6 +5127,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Бой окончен штатно — точка переигровки больше не нужна.
     clearBattleEntry();
     try { stopRainLoop(); } catch { /* ignore */ }
+    try { stopBirdLoop(); } catch { /* ignore */ }
     usePlayerStore.setState((st: any) => ({
       stats: {
         ...st.stats,

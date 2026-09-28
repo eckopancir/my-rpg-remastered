@@ -1,11 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useUiStore } from '../../stores/uiStore';
+import { playBirdLoop, stopBirdLoop } from '../../hooks/useSound';
 
 /** Эмбиент карты: дрейф тумана + тени облаков + пыль + светлячки (ночь) + дым и свет костра. */
 export const AmbienceOverlay = () => {
   const isActive = useCombatGridStore((s) => s.isActive);
+  const isRaining = useCombatGridStore((s) => s.isRaining);
   const ref = useRef<HTMLCanvasElement>(null);
+
+  // Птицы: фоном без остановки, пока нет дождя.
+  useEffect(() => {
+    if (!isActive || isRaining) return;
+    try { playBirdLoop(0.2); } catch { /* ignore */ }
+    return () => { try { stopBirdLoop(); } catch { /* ignore */ } };
+  }, [isActive, isRaining]);
 
   useEffect(() => {
     if (!isActive) return;
