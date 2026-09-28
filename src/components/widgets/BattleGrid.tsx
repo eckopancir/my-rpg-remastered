@@ -613,7 +613,7 @@ export const BattleGrid = () => {
                       if (obstacle.icon === 'building' || obstacle.icon === 'car' || (obstacle.icon === 'small' && !obstacle.blocks)) {
                         return { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0 };
                       }
-                      if (obstacle.icon === 'small' && ['o1', 'o2'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
+                      if (obstacle.icon === 'small' && ['o1', 'o1_2', 'o2'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
                         return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
                       }
                       return undefined;

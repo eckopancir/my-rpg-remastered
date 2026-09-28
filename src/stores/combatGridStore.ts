@@ -706,7 +706,7 @@ function generateObstacles(
   for (let i = 0; i < carCount; i++) {
     for (let attempt = 0; attempt < 30; attempt++) {
       const imgIdx = Math.floor(Math.random() * carImagesCount);
-      const big = CAR_IMAGES[imgIdx] === 'o23';
+      const big = CAR_IMAGES[imgIdx] === 'o23' || CAR_IMAGES[imgIdx] === 'o29';
       const cw = big ? 2 : 1;
       const ch = big ? 3 : 2;
       const x = Math.floor(Math.random() * (GRID - cw + 1));
@@ -770,7 +770,7 @@ function generateObstacles(
   // Small obstacles (1×1) — up to 50, random image, NOT isHigh.
   // o20/o21 — декор: полностью проходимые, в 2 раза чаще.
   // o28 (колодец): ровно 2 шт на карту, непроходим, +броня рядом как o1.
-  const smallIdxPool = [0, 1, 2, 3, 3, 4, 4];
+  const smallIdxPool = [0, 1, 2, 3, 4, 4, 5, 5];
   for (let w = 0; w < 2; w++) {
     for (let attempt = 0; attempt < 30; attempt++) {
       const x = Math.floor(Math.random() * GRID);
@@ -778,7 +778,7 @@ function generateObstacles(
       if (isAreaFree(x, y, 1, 1)) {
         list.push({
           id: id++, x, y, w: 1, h: 1, type: 'small', blocks: true, icon: 'small',
-          isHigh: false, imgIndex: 5,
+          isHigh: false, imgIndex: 6, // o28
         });
         markArea(x, y, 1, 1);
         break;
@@ -790,7 +790,7 @@ function generateObstacles(
   while (smallCount < 50 && attempts < 70) {
     attempts++;
     const imgIdx = smallIdxPool[Math.floor(Math.random() * smallIdxPool.length)];
-    const walkable = imgIdx === 3 || imgIdx === 4; // o20, o21
+    const walkable = imgIdx === 4 || imgIdx === 5; // o20, o21
     const x = Math.floor(Math.random() * GRID);
     const y = Math.floor(Math.random() * GRID);
     if (isAreaFree(x, y, 1, 1)) {
