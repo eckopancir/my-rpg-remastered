@@ -600,6 +600,11 @@ export const Dashboard = () => {
               }
               navigate('/battle');
             }} style={{ fontSize: 11 }}>🧪 Тест-арена (один)</Button>
+            <Button size="sm" variant="primary" onClick={() => {
+              const cs = useCombatGridStore.getState();
+              cs.setRaining(!cs.isRaining);
+              usePlayerStore.getState().addLog(cs.isRaining ? '🌧 Дождь выключен' : '🌧 Дождь включён', 'info');
+            }} style={{ fontSize: 11 }}>🌧 Дождь вкл/выкл</Button>
             <Button size="sm" variant="primary" onClick={() => debugGenerateItems(200)} style={{ fontSize: 11 }}>+200 предметов</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddRifles(500)} style={{ fontSize: 11 }}>+500 автоматов 🔫</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddShotguns(500)} style={{ fontSize: 11 }}>+500 дробовиков 🔫</Button>

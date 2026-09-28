@@ -3,6 +3,7 @@ import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs 
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
+import { RainOverlay } from './RainOverlay';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
@@ -789,6 +790,9 @@ export const BattleGrid = () => {
             style={{ width: '100%', height: '100%', filter: 'blur(6px)', transform: 'scale(1.04)' }}
           />
         </div>
+
+        {/* Дождь поверх сцены (только при флаге погоды) */}
+        <RainOverlay />
 
         {/* Костёр лагеря — виден всегда (свет видно издалека), 12 кадров */}
         {campfire && campfireFrames.length > 0 && (

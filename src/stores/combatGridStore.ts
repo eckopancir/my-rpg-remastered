@@ -13,7 +13,7 @@ import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapa
 import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
-import { playCombatSound, stopCombatSound, preloadCombatSounds } from '../hooks/useSound';
+import { playCombatSound, stopCombatSound, stopLoopSound, preloadCombatSounds } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -286,6 +286,9 @@ export interface CombatGridStore {
   isVictory: boolean;
   isDefeat: boolean;
   isNightTime: boolean;
+  /** Дождь: роллится при старте боя (~28%), тумблер на тест-арене из DEBUG. */
+  isRaining: boolean;
+  setRaining: (v: boolean) => void;
   isPlayerHit: boolean;
   isShaking: boolean;
   isMoving: boolean;
@@ -1076,6 +1079,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isVictory: false,
   isDefeat: false,
   isNightTime: !useUiStore.getState().forceDay && new Date().getHours() >= 0 && new Date().getHours() < 6,
+  isRaining: false,
+  setRaining: (v) => set({ isRaining: v }),
   isPlayerHit: false,
   isShaking: false,
   isMoving: false,
@@ -2142,7 +2147,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { useUiStore.getState().setSkillBarPos(null); } catch { /* noop */ }
 
     set({
-      isActive: true, isTestArena: !!testMode, playerPos, enemies: activeEnemies, obstacles,
+      isActive: true, isTestArena: !!testMode, isRaining: testMode ? false : Math.random() < 0.28, playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
@@ -4837,6 +4842,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   cleanup: () => {
     // Бой окончен штатно — точка переигровки больше не нужна.
     clearBattleEntry();
+    try { stopLoopSound('rain'); } catch { /* ignore */ }
     usePlayerStore.setState((st: any) => ({
       stats: {
         ...st.stats,
@@ -4892,7 +4898,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, enemies: [], obstacles: [], turn: 'player',
+      isActive: false, isTestArena: false, isRaining: false, enemies: [], obstacles: [], turn: 'player',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
