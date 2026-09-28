@@ -1239,6 +1239,8 @@ const celebrateRingNear = (
 
 /** Таймер завершения обыска объекта (сброс при отмене/выходе из боя). */
 let searchTimer: number | null = null;
+/** Звук текущего обыска — глушим при срыве каста. */
+let searchSound: string | null = null;
 
 export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
@@ -3664,6 +3666,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set({ searchCast: { obId, label, totalMs, startedAt: Date.now() } });
     // Звук обыска по типу: колодец — вода, дерево — дерево, машина — шорох.
     const startSnd = loot.kind === 'well' ? 'water' : loot.kind === 'tree' ? 'wood' : 'seach';
+    searchSound = startSnd;
     try { playCombatSound(startSnd as any, 0.5); } catch { /* ignore */ }
     searchTimer = window.setTimeout(() => {
       searchTimer = null;
@@ -3673,6 +3676,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   cancelSearchCast: () => {
     if (searchTimer !== null) { window.clearTimeout(searchTimer); searchTimer = null; }
+    if (searchSound) { try { stopCombatSound(searchSound as any); } catch { /* ignore */ } searchSound = null; }
     if (get().searchCast) set({ searchCast: null });
   },
 
@@ -3680,6 +3684,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const st = get();
     const cast = st.searchCast;
     searchTimer = null;
+    if (searchSound) { try { stopCombatSound(searchSound as any); } catch { /* ignore */ } searchSound = null; }
     if (!cast || !st.isActive) { set({ searchCast: null }); return; }
     const ob = st.obstacles.find((o: any) => o.id === cast.obId) as any;
     const loot = ob?.searchLoot;
@@ -5283,6 +5288,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { stopBirdLoop(); } catch { /* ignore */ }
     try { stopCricketLoop(); } catch { /* ignore */ }
     if (searchTimer !== null) { window.clearTimeout(searchTimer); searchTimer = null; }
+    if (searchSound) { try { stopCombatSound(searchSound as any); } catch { /* ignore */ } searchSound = null; }
     usePlayerStore.setState((st: any) => ({
       stats: {
         ...st.stats,
