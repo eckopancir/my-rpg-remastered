@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useUiStore } from '../../stores/uiStore';
+import { CAR_IMAGES } from '../../engine/terrain';
 import { playBirdLoop, stopBirdLoop, playCricketLoop, stopCricketLoop } from '../../hooks/useSound';
 
 /** Эмбиент карты: дрейф тумана + тени облаков + пыль + светлячки (ночь) + дым и свет костра. */
@@ -146,10 +147,21 @@ export const AmbienceOverlay = () => {
         g.addColorStop(1, 'rgba(255,170,60,0)');
         ctx.fillStyle = g;
         ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+      }
+      // Дым: костёр (если виден) + сгоревший вертолёт o33.
+      {
+        const emitters: { x: number; y: number }[] = [];
+        if (cf && cfSeen) emitters.push({ x: ((cf.x + 0.5) / 32) * w, y: ((cf.y + 0.5) / 32) * h });
+        for (const o of (st as any).obstacles || []) {
+          if (o.icon === 'car' && CAR_IMAGES[o.imgIndex] === 'o33') {
+            emitters.push({ x: ((o.x + (o.w ?? 1) / 2) / 32) * w, y: ((o.y + (o.h ?? 1) / 2) / 32) * h });
+          }
+        }
         smokeAcc += dt;
-        while (smokeAcc > 0.12 && smoke.length < 30) {
+        while (smokeAcc > 0.12 && smoke.length < 30 && emitters.length > 0) {
           smokeAcc -= 0.12;
-          smoke.push({ x: cx + (Math.random() - 0.5) * 8, y: cy - 6, r: 2, t: 0 });
+          const e = emitters[Math.floor(Math.random() * emitters.length)];
+          smoke.push({ x: e.x + (Math.random() - 0.5) * 8, y: e.y - 6, r: 2, t: 0 });
         }
       }
       for (let i = smoke.length - 1; i >= 0; i--) {

@@ -838,7 +838,7 @@ function generateObstacles(
   }
 
   // Поле green 10×8 — обязательное, проходимое, простреливается, без бонусов,
-  // прозрачность внутри как в лесу. Рядом — o22.
+  // прозрачность внутри как в лесу.
   for (let attempt = 0; attempt < 50; attempt++) {
     const x = Math.floor(Math.random() * (GRID - 10));
     const y = Math.floor(Math.random() * (GRID - 8));
@@ -848,27 +848,6 @@ function generateObstacles(
       isWalkable: true, isHigh: false,
     });
     markArea(x, y, 10, 8);
-    // o22 рядом с полем: перебираем соседние клеткиbbox.
-    const around: [number, number][] = [];
-    for (let ax = x - 1; ax <= x + 10; ax++) {
-      for (let ay = y - 1; ay <= y + 8; ay++) {
-        around.push([ax, ay]);
-      }
-    }
-    for (let i = around.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [around[i], around[j]] = [around[j], around[i]];
-    }
-    for (const [ax, ay] of around) {
-      if (isAreaFree(ax, ay, 1, 2)) {
-        list.push({
-          id: id++, x: ax, y: ay, w: 1, h: 2, type: 'car', blocks: true, icon: 'car',
-          isHigh: false, imgIndex: CAR_IMAGES.indexOf('o22'),
-        });
-        markArea(ax, ay, 1, 2);
-        break;
-      }
-    }
     break;
   }
 
