@@ -619,31 +619,6 @@ export const BattleGrid = () => {
                 data-invalid={pathPoint?.isInvalid ? 'true' : 'false'}
               >
                 {obstacle?.isAnchor && (
-                  obstacle.icon === 'field' && fieldFrames.length > 1 ? (
-                    // Поле: два кадра стопкой, сцена 5с (CSS-кроссфейд).
-                    <div
-                      style={{
-                        position: 'absolute', left: 0, top: 0,
-                        width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`,
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      <img
-                        src={fieldFrames[0]}
-                        alt=""
-                        draggable={false}
-                        className={`${styles.obstacleImg} field-frame-a`}
-                        style={{ width: '100%', height: '100%', left: 0, top: 0 }}
-                      />
-                      <img
-                        src={fieldFrames[1]}
-                        alt=""
-                        draggable={false}
-                        className={`${styles.obstacleImg} field-frame-b`}
-                        style={{ width: '100%', height: '100%', left: 0, top: 0 }}
-                      />
-                    </div>
-                  ) : (
                   <img
                     src={getBattleImage(
                       obstacle.icon === 'building' ? BIG_BUILDING_IMAGES[obstacle.imgIndex ?? 0] :
@@ -676,7 +651,6 @@ export const BattleGrid = () => {
                     })()}
                     draggable={false}
                   />
-                  )
                 )}
                 {waypointNum && !isPlayer && !enemy && (
                   <div className={styles.waypointDot}>{waypointNum}</div>

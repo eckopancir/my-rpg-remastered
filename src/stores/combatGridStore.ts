@@ -773,14 +773,19 @@ function generateObstacles(
   // o15 маленькое 4x4 (−30%), остальные 6x5. isHigh, random image.
   // Футпринт = визуал: арт тянется ровно на w×h от якоря.
   // o13 и o17 взаимоисключают друг друга и поле green: только что-то одно, максимум 1 шт.
+  // o14 — максимум 1 шт, 10% карт с ним (резервируем слот).
   const bigCount = Math.floor(Math.random() * 2) + 3;
   const placedBig = new Set<string>();
+  const wantO14 = Math.random() < 0.1;
   for (let i = 0; i < bigCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
       const pairTaken = placedBig.has('o13') || placedBig.has('o17') || greenPlaced;
       const pool = BIG_BUILDING_IMAGES.map((k, idx) => ({ k, idx }))
-        .filter(({ k }) => !((k === 'o13' || k === 'o17') && pairTaken));
-      const pick = pool[Math.floor(Math.random() * pool.length)];
+        .filter(({ k }) => !((k === 'o13' || k === 'o17') && pairTaken))
+        .filter(({ k }) => k !== 'o14');
+      const pick = wantO14 && !placedBig.has('o14')
+        ? { k: 'o14', idx: BIG_BUILDING_IMAGES.indexOf('o14') }
+        : pool[Math.floor(Math.random() * pool.length)];
       const imgIdx = pick.idx;
       const imgKey = pick.k;
       const [bw, bh] = imgKey === 'o8' || imgKey === 'o9' ? [8, 6] : imgKey === 'o15' ? [4, 4] : [6, 5];
