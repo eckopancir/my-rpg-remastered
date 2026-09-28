@@ -214,6 +214,17 @@
 .eqfx-crt { animation: eqfxCrt 4s ease-in-out infinite; }
 /* FX-14: полоса атака/защита в разборе мощности. */
 .eqfx-splitbar { transition: width 0.5s ease; }
+/* Искры костра: едва заметные, поднимаются вверх. */
+@keyframes fireSpark {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 0.7; }
+  100% { transform: translateY(-34px); opacity: 0; }
+}
+.fire-spark {
+  position: absolute; bottom: 30%; border-radius: 50%;
+  background: rgba(251,191,36,0.8); pointer-events: none;
+  animation: fireSpark linear infinite;
+}
 
 /* Живая зелёная полоска журнала активности (бой готов и кликабелен):
  * луч бежит по контуру рамки, как бегущая линия активного ствола. */

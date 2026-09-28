@@ -808,6 +808,17 @@ export const BattleGrid = () => {
               draggable={false}
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
+            {[0, 1, 2, 3].map((i) => (
+              <span
+                key={i}
+                className="fire-spark"
+                style={{
+                  left: `${30 + i * 14}%`, width: 2, height: 2,
+                  animationDuration: `${1.6 + i * 0.4}s`,
+                  animationDelay: `${(i * 0.5).toFixed(1)}s`,
+                }}
+              />
+            ))}
           </div>
         )}
 
