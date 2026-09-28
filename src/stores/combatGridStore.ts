@@ -679,13 +679,14 @@ function generateObstacles(
   // Big buildings — 3 типоразмера по картинке: o8/o9 большие 8x6 (+30%),
   // o15 маленькое 4x4 (−30%), остальные 6x5. isHigh, random image.
   // Футпринт = визуал: арт тянется ровно на w×h от якоря.
-  // o13 и o17 взаимоисключают друг друга на одной карте.
+  // o13 и o17 взаимоисключают друг друга на одной карте, и каждая — максимум 1 шт.
   const bigCount = Math.floor(Math.random() * 2) + 3;
   const placedBig = new Set<string>();
   for (let i = 0; i < bigCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
+      const pairTaken = placedBig.has('o13') || placedBig.has('o17');
       const pool = BIG_BUILDING_IMAGES.map((k, idx) => ({ k, idx }))
-        .filter(({ k }) => !((placedBig.has('o13') && k === 'o17') || (placedBig.has('o17') && k === 'o13')));
+        .filter(({ k }) => !((k === 'o13' || k === 'o17') && pairTaken));
       const pick = pool[Math.floor(Math.random() * pool.length)];
       const imgIdx = pick.idx;
       const imgKey = pick.k;
