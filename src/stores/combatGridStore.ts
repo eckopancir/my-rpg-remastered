@@ -715,9 +715,9 @@ function generateObstacles(
   }
 
   // Хвойный лес: максимум 1 на карту, сразу после зданий.
-  // 8-10 посадок: каждая 50% o32 (2×2) / 50% пенёк o32_2 (1×1, непроходим, без бонусов).
+  // 12-15 посадок: 65% пенёк o32_2 (1×1, непроходим, без бонусов) / 35% o32 (2×2).
   {
-    const plantings = 8 + Math.floor(Math.random() * 3);
+    const plantings = 12 + Math.floor(Math.random() * 4);
     for (let attempt = 0; attempt < 30; attempt++) {
       const cx = Math.floor(Math.random() * (GRID - 10));
       const cy = Math.floor(Math.random() * (GRID - 10));
@@ -745,7 +745,7 @@ function generateObstacles(
       let si = 0;
       let ci = 0;
       for (let i = 0; i < plantings; i++) {
-        if (Math.random() < 0.5) {
+        if (Math.random() < 0.35) {
           while (si < slots.length && !isAreaFree(slots[si][0], slots[si][1], 2, 2)) si++;
           if (si >= slots.length) continue;
           const [sx, sy] = slots[si++];
