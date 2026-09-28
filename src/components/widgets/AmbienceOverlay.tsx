@@ -139,12 +139,12 @@ export const AmbienceOverlay = () => {
       if (cf && cfSeen) {
         const cx = ((cf.x + 0.5) / 32) * w;
         const cy = ((cf.y + 0.5) / 32) * h;
-        const nightBoost = night ? 2.2 : 1;
+        const nightBoost = night ? 1.5 : 1;
         const pulse = 0.5 + 0.5 * Math.sin(t * 3.1) * 0.5 + 0.5 * Math.sin(t * 7.3) * 0.2;
         const R = Math.min(w, h) * (0.10 + 0.02 * pulse) * nightBoost;
         const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-        g.addColorStop(0, `rgba(255,170,60,${Math.min(0.6, (0.28 + 0.1 * pulse) * nightBoost).toFixed(2)})`);
-        g.addColorStop(1, 'rgba(255,170,60,0)');
+        g.addColorStop(0, `rgba(255,150,50,${Math.min(night ? 0.35 : 0.38, (0.28 + 0.1 * pulse) * nightBoost).toFixed(2)})`);
+        g.addColorStop(1, 'rgba(255,150,50,0)');
         ctx.fillStyle = g;
         ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
       }
