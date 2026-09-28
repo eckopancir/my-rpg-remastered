@@ -4,6 +4,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
 import { RainOverlay } from './RainOverlay';
+import { CrowFlight } from './CrowFlight';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
@@ -813,6 +814,8 @@ export const BattleGrid = () => {
 
         {/* Дождь поверх сцены (только при флаге погоды) */}
         <RainOverlay />
+        {/* Ворон: пролёт из угла в угол */}
+        <CrowFlight />
 
         {/* Костёр лагеря — виден всегда (свет видно издалека), 12 кадров */}
         {campfire && campfireFrames.length > 0 && (

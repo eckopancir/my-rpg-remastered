@@ -451,3 +451,8 @@ export const campfireFrames: string[] = Array.from(
   { length: 12 },
   (_, i) => battleImageMap.get(`fire ${i + 1}-photoroom`),
 ).filter(Boolean) as string[];
+
+/** 3 кадра ворона (voron1..3.png). */
+export const crowFrames: string[] = ['voron1', 'voron2', 'voron3']
+  .map((k) => battleImageMap.get(k))
+  .filter(Boolean) as string[];
