@@ -837,21 +837,21 @@ function generateObstacles(
     }
   }
 
-  // Поле green 4×3 — обязательное, проходимое, простреливается, без бонусов,
+  // Поле green 6×4 — обязательное, проходимое, простреливается, без бонусов,
   // прозрачность внутри как в лесу. Рядом — o22.
   for (let attempt = 0; attempt < 50; attempt++) {
-    const x = Math.floor(Math.random() * (GRID - 4));
-    const y = Math.floor(Math.random() * (GRID - 3));
-    if (!isAreaFree(x, y, 4, 3)) continue;
+    const x = Math.floor(Math.random() * (GRID - 6));
+    const y = Math.floor(Math.random() * (GRID - 4));
+    if (!isAreaFree(x, y, 6, 4)) continue;
     list.push({
-      id: id++, x, y, w: 4, h: 3, type: 'field', blocks: true, icon: 'field',
+      id: id++, x, y, w: 6, h: 4, type: 'field', blocks: true, icon: 'field',
       isWalkable: true, isHigh: false,
     });
-    markArea(x, y, 4, 3);
+    markArea(x, y, 6, 4);
     // o22 рядом с полем: перебираем соседние клеткиbbox.
     const around: [number, number][] = [];
-    for (let ax = x - 1; ax <= x + 4; ax++) {
-      for (let ay = y - 1; ay <= y + 3; ay++) {
+    for (let ax = x - 1; ax <= x + 6; ax++) {
+      for (let ay = y - 1; ay <= y + 4; ay++) {
         around.push([ax, ay]);
       }
     }
