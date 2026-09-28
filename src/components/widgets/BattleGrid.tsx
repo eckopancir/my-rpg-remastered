@@ -460,8 +460,8 @@ export const BattleGrid = () => {
       }
       return;
     }
-    // Combined loot from multiple corpses on same cell
-    const deadOnCell = enemies.filter((e) => e.dead && ((e.loot && e.loot.length > 0) || ((e as any).gear && (e as any).gear.length > 0)) && e.pos.x === x && e.pos.y === y);
+    // Combined loot from multiple corpses on same cell (нейтралы — только через E).
+    const deadOnCell = enemies.filter((e) => e.dead && !(e as any).isNeutral && ((e.loot && e.loot.length > 0) || ((e as any).gear && (e as any).gear.length > 0)) && e.pos.x === x && e.pos.y === y);
     // Must be within 1 cell to loot (like original)
     if (deadOnCell.length > 0) {
       const lootDist = getDist(playerPos, { x, y });
@@ -492,6 +492,14 @@ export const BattleGrid = () => {
         } as GridEnemy);
       }
       return;
+    }
+    // Труп нейтрала (кабан): только через E, окно не открываем.
+    {
+      const boar = enemies.find((e: any) => e.dead && e.isNeutral && e.pos.x === x && e.pos.y === y && Array.isArray(e.loot) && e.loot.length > 0);
+      if (boar) {
+        useCombatGridStore.getState().addMessage('🥩 Подойди ближе и нажми E — собрать мясо');
+        return;
+      }
     }
     // Режим команды питомца: клик по пустой клетке — шаг зверя.
     if (useCombatGridStore.getState().petCommandMode) {

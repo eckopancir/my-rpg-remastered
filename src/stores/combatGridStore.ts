@@ -365,13 +365,16 @@ export interface CombatGridStore {
   startCelebration: () => void;
   /** Шаг празднования (зовёт интервал из BattleGrid): союзники идут к целям, у трупов болтают. */
   celebrationStep: () => void;
-  /** Обыск объекта (машина/дерево/колодец): каст-бар у игрока, лут в рюкзак. */
-  searchCast: { obId: number | string; label: string; totalMs: number; startedAt: number } | null;
+  /** Обыск объекта (машина/дерево/колодец) и сбор мяса: каст-бар у игрока, лут в рюкзак. */
+  searchCast: { kind: 'ob' | 'meat'; id: number | string; label: string; totalMs: number; startedAt: number } | null;
   startSearchCast: (obId: number | string) => void;
+  startMeatCast: (corpseId: number | string) => void;
   finishSearchCast: () => void;
   cancelSearchCast: () => void;
   /** Попап находки с иконкой предмета. */
   addLootPopup: (x: number, y: number, img: string | undefined, text: string) => void;
+  /** Собрать мясо с трупа нейтрала (E у трупа, без окна). */
+  collectMeat: (corpseId: number | string) => void;
   selectedAbility: number | null;
   selectedAbilitySource: 'player' | 'skillBar' | 'pet' | null;
   playerInvisible: boolean;
@@ -3663,7 +3666,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const label = loot.kind === 'well' ? 'Набираю воду' : loot.kind === 'tree' ? 'Рубка дерева' : 'Поиск лута';
     const totalMs = loot.kind === 'tree' ? 18000 : 4000;
     if (searchTimer !== null) window.clearTimeout(searchTimer);
-    set({ searchCast: { obId, label, totalMs, startedAt: Date.now() } });
+    set({ searchCast: { kind: 'ob', id: obId, label, totalMs, startedAt: Date.now() } });
     // Звук обыска по типу: колодец — вода, дерево — дерево, машина — шорох.
     const startSnd = loot.kind === 'well' ? 'water' : loot.kind === 'tree' ? 'wood' : 'seach';
     searchSound = startSnd;
@@ -3680,13 +3683,37 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (get().searchCast) set({ searchCast: null });
   },
 
+  startMeatCast: (corpseId) => {
+    const st = get();
+    if (!st.isActive || st.turn !== 'player' || st.isMoving) return;
+    if (st.searchCast) return;
+    const corpse = st.enemies.find((e: any) => e.id === corpseId && e.dead && (e as any).isNeutral) as any;
+    const loot: any[] = corpse?.loot ?? [];
+    if (!corpse || loot.length === 0) return;
+    if (getDist(st.playerPos, corpse.pos) > 1.5) { get().addMessage('❌ Подойди ближе'); return; }
+    if (searchTimer !== null) window.clearTimeout(searchTimer);
+    set({ searchCast: { kind: 'meat', id: corpseId, label: 'Собрать мясо', totalMs: 3000, startedAt: Date.now() } });
+    searchSound = 'kaban';
+    try { playCombatSound('kaban' as any, 0.5); } catch { /* ignore */ }
+    searchTimer = window.setTimeout(() => {
+      searchTimer = null;
+      try { get().finishSearchCast(); } catch { /* ignore */ }
+    }, 3000);
+  },
+
   finishSearchCast: () => {
     const st = get();
     const cast = st.searchCast;
     searchTimer = null;
     if (searchSound) { try { stopCombatSound(searchSound as any); } catch { /* ignore */ } searchSound = null; }
     if (!cast || !st.isActive) { set({ searchCast: null }); return; }
-    const ob = st.obstacles.find((o: any) => o.id === cast.obId) as any;
+    // Мясо с нейтрала — мгновенная выдача по окончании каста.
+    if (cast.kind === 'meat') {
+      set({ searchCast: null });
+      get().collectMeat(cast.id);
+      return;
+    }
+    const ob = st.obstacles.find((o: any) => o.id === cast.id) as any;
     const loot = ob?.searchLoot;
     const px = st.playerPos.x;
     const py = st.playerPos.y;
@@ -3731,7 +3758,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set((s: any) => ({
       searchCast: null,
       obstacles: s.obstacles.map((o: any) => {
-        if (o.id !== cast.obId) return o;
+        if (o.id !== cast.id) return o;
         // Дерево после обыска — пенёк o32_2 1×1 по центру старого футпринта.
         if (isTree) {
           const { searchLoot: _sl, ...rest } = o;
@@ -3742,6 +3769,35 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }),
     }));
     get().addLootPopup(px, py, (def as any).image, `+${qty} ${def.name}`);
+  },
+
+  collectMeat: (corpseId) => {
+    const st = get();
+    if (!st.isActive || st.turn !== 'player' || st.isMoving) return;
+    const corpse = st.enemies.find((e: any) => e.id === corpseId && e.dead && (e as any).isNeutral) as any;
+    const loot: any[] = corpse?.loot ?? [];
+    if (!corpse || loot.length === 0) return;
+    if (getDist(st.playerPos, corpse.pos) > 1.5) { get().addMessage('❌ Подойди ближе'); return; }
+    const pst = usePlayerStore.getState();
+    let grid = pst.backpackGrid;
+    const taken: any[] = [];
+    for (const it of loot) {
+      const res = tryInsertIntoGrid(grid, it);
+      if (res.moved) { grid = res.grid; taken.push(it); }
+    }
+    if (taken.length === 0) { get().addMessage('🎒 Рюкзак полон!'); return; }
+    usePlayerStore.setState({ backpackGrid: grid } as any);
+    const takenIds = new Set(taken.map((t: any) => t.id));
+    const remain = loot.filter((it: any) => !takenIds.has(it.id));
+    set((s: any) => ({
+      enemies: s.enemies.map((e: any) => e.id === corpseId
+        ? { ...e, loot: remain, looted: remain.length === 0 }
+        : e),
+    }));
+    try { playCombatSound('chips' as any, 0.4); } catch { /* ignore */ }
+    for (const it of taken) {
+      get().addLootPopup(corpse.pos.x, corpse.pos.y, (it as any).image, `+${(it as any).quantity ?? 1} ${(it as any).name || 'Мясо'}`);
+    }
   },
 
   commandPetAttack: async (enemyId) => {

@@ -10,7 +10,7 @@ import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { CookingMenu } from '../components/widgets/CookingMenu';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
-import { useCombatGridStore, loadBattleEntry, clearBattleEntry } from '../stores/combatGridStore';
+import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getTerrainBonus, distToRect } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
@@ -134,11 +134,32 @@ export const Battle = () => {
     return best;
   });
   const searchCast = useCombatGridStore((s) => s.searchCast);
-  const useLabel = !nearCampfire && searchTarget
+  // Труп нейтрала с мясом рядом — собрать через E (без окна).
+  const meatTarget = useCombatGridStore((s) => {
+    if (!s.isActive || s.turn !== 'player') return null;
+    let best: any = null;
+    let bestD = Infinity;
+    for (const e of s.enemies as any[]) {
+      if (!e.dead || !e.isNeutral || !Array.isArray(e.loot) || e.loot.length === 0) continue;
+      const d = getDist(s.playerPos, e.pos);
+      if (d <= 1.5 && d < bestD) { bestD = d; best = e; }
+    }
+    return best;
+  });
+  const useLabel = !nearCampfire && !meatTarget && searchTarget
     ? ((searchTarget as any).searchLoot?.kind === 'well' ? '🪣 Набрать воды'
       : (searchTarget as any).searchLoot?.kind === 'tree' ? '🪓 Рубка дров' : '🔍 Поиск лута')
     : null;
-  const useTarget = nearCampfire ? { kind: 'camp' as const } : searchTarget ? { kind: 'search' as const, ob: searchTarget } : null;
+  const useTarget = nearCampfire
+    ? { kind: 'camp' as const }
+    : meatTarget
+      ? { kind: 'meat' as const, corpse: meatTarget }
+      : searchTarget ? { kind: 'search' as const, ob: searchTarget } : null;
+  const useButtonLabel = searchCast
+    ? '✋ Отмена'
+    : useTarget
+      ? (useTarget.kind === 'camp' ? '🔥 Костёр' : useTarget.kind === 'meat' ? '🥩 Собрать мясо' : (useLabel || '🔍 Обыскать'))
+      : '✋ Использовать';
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const myTerrain = getTerrainBonus(playerPos, obstacles);
   const myTerrainText = [
@@ -270,14 +291,26 @@ export const Battle = () => {
             st.setShowCookingMenu(true);
             break;
           }
-          let best: any = null;
-          let bestD = Infinity;
-          for (const o of st.obstacles as any[]) {
-            if (!(o as any).searchLoot) continue;
-            const d = distToRect(pp.x, pp.y, o as any);
-            if (d <= 1 && d < bestD) { bestD = d; best = o; }
+          {
+            let best: any = null;
+            let bestD = Infinity;
+            for (const e of st.enemies as any[]) {
+              if (!e.dead || !e.isNeutral || !Array.isArray(e.loot) || e.loot.length === 0) continue;
+              const d = getDist(pp, e.pos);
+              if (d <= 1.5 && d < bestD) { bestD = d; best = e; }
+            }
+            if (best) { st.startMeatCast(best.id); break; }
           }
-          if (best) st.startSearchCast(best.id);
+          {
+            let best: any = null;
+            let bestD = Infinity;
+            for (const o of st.obstacles as any[]) {
+              if (!(o as any).searchLoot) continue;
+              const d = distToRect(pp.x, pp.y, o as any);
+              if (d <= 1 && d < bestD) { bestD = d; best = o; }
+            }
+            if (best) st.startSearchCast(best.id);
+          }
           break;
         }
         case 'Digit1': selectAbility(0); break;
@@ -471,9 +504,10 @@ export const Battle = () => {
                   if (!useTarget || turn !== 'player') return;
                   playClick();
                   if (useTarget.kind === 'camp') useCombatGridStore.getState().setShowCookingMenu(true);
+                  else if (useTarget.kind === 'meat') useCombatGridStore.getState().startMeatCast((useTarget.corpse as any).id);
                   else useCombatGridStore.getState().startSearchCast((useTarget.ob as any).id);
                 }}
-                title={searchCast ? 'Отмена обыска (E)' : useTarget ? (useTarget.kind === 'camp' ? 'Костёр (E)' : 'Обыскать (E)') : 'Использовать (E)'}
+                title={searchCast ? 'Отмена обыска (E)' : useTarget ? `${useButtonLabel} (E)` : 'Использовать (E)'}
                 style={{
                   padding: '4px 6px', borderRadius: 5,
                   border: `1px solid ${useTarget ? 'rgba(74,222,128,0.6)' : 'rgba(255,255,255,0.08)'}`,
@@ -487,7 +521,7 @@ export const Battle = () => {
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {searchCast ? '✋ Отмена' : useTarget ? (useTarget.kind === 'camp' ? '🔥 Костёр' : (useLabel || '🔍 Обыскать')) : '✋ Использовать'}
+                  {useButtonLabel}
                 </span>
                 <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>E{(useTarget || searchCast) ? '●' : ''}</span>
               </div>
