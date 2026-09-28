@@ -3794,9 +3794,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         ? { ...e, loot: remain, looted: remain.length === 0 }
         : e),
     }));
-    try { playCombatSound('chips' as any, 0.4); } catch { /* ignore */ }
     for (const it of taken) {
-      get().addLootPopup(corpse.pos.x, corpse.pos.y, (it as any).image, `+${(it as any).quantity ?? 1} ${(it as any).name || 'Мясо'}`);
+      get().addLootPopup(corpse.pos.x, corpse.pos.y, (it as any).image, `+${(it as any).quantity ?? 1} 🥩 ${(it as any).name || 'Мясо'}`);
     }
   },
 
