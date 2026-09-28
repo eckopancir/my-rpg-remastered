@@ -658,7 +658,7 @@ export const BattleGrid = () => {
                         // кластерные — мелкие по центру своей клетки.
                         return (obstacle as any).stumpCenter
                           ? { width: '42%', height: '42%', left: 'calc(96% + 20px)', top: 'calc(96% + 20px)' }
-                          : { width: '21%', height: '21%', left: '39.5%', top: '39.5%' };
+                          : { width: '42%', height: '42%', left: '29%', top: '29%' };
                       }
                       // Остальная блокирующая мелочь (o19, колодец) — 85% по центру.
                       if (obstacle.icon === 'small') {
