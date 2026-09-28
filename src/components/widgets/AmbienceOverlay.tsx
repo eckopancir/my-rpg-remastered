@@ -27,25 +27,25 @@ export const AmbienceOverlay = () => {
     if (cv.parentElement) ro.observe(cv.parentElement);
 
     interface Blob { x: number; y: number; r: number; vx: number; vy: number; a: number }
-    const fog: Blob[] = Array.from({ length: 3 }, () => ({
+    const fog: Blob[] = Array.from({ length: 4 }, () => ({
       x: Math.random(), y: Math.random(),
-      r: 0.25 + Math.random() * 0.25,
+      r: 0.3 + Math.random() * 0.3,
       vx: (0.004 + Math.random() * 0.006) * (Math.random() < 0.5 ? 1 : 1),
       vy: (Math.random() - 0.5) * 0.004,
-      a: 0.05 + Math.random() * 0.03,
+      a: 0.10 + Math.random() * 0.06,
     }));
-    const clouds: Blob[] = Array.from({ length: 2 }, () => ({
+    const clouds: Blob[] = Array.from({ length: 3 }, () => ({
       x: Math.random(), y: Math.random(),
-      r: 0.3 + Math.random() * 0.25,
+      r: 0.35 + Math.random() * 0.3,
       vx: 0.008 + Math.random() * 0.008,
       vy: 0,
-      a: 0.10 + Math.random() * 0.05,
+      a: 0.16 + Math.random() * 0.08,
     }));
     interface Mote { x: number; y: number; s: number; v: number; o: number }
-    const dust: Mote[] = Array.from({ length: 40 }, () => ({
+    const dust: Mote[] = Array.from({ length: 70 }, () => ({
       x: Math.random(), y: Math.random(),
-      s: 1 + Math.random() * 1.5, v: 0.02 + Math.random() * 0.04,
-      o: 0.1 + Math.random() * 0.2,
+      s: 1 + Math.random() * 2, v: 0.02 + Math.random() * 0.04,
+      o: 0.18 + Math.random() * 0.3,
     }));
     interface Fly { x: number; y: number; ph: number; sp: number }
     const flies: Fly[] = Array.from({ length: 25 }, () => ({

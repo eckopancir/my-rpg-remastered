@@ -31,6 +31,13 @@ export const BirdFlock = () => {
   if (!isActive || !flight || crowFrames.length === 0) return null;
   const from = flight.left ? -6 : 37;
   const to = flight.left ? 37 : -6;
+  // Клин 1-2-3: вожак + два ряда позади (px от точки стаи, зеркалится по направлению).
+  const back = flight.left ? -1 : 1;
+  const wedge = [
+    { dx: 0, dy: 0 },
+    { dx: 55 * back, dy: -20 }, { dx: 55 * back, dy: 20 },
+    { dx: 110 * back, dy: -40 }, { dx: 110 * back, dy: 0 }, { dx: 110 * back, dy: 40 },
+  ];
   return (
     <div
       key={flight.id}
@@ -38,16 +45,14 @@ export const BirdFlock = () => {
         position: 'absolute',
         left: `${(((go ? to : from) + 0.5) / 32) * 100}%`,
         top: `${((flight.fy + 0.5) / 32) * 100}%`,
-        width: '1.3%',
-        aspectRatio: '280 / 520',
-        transform: 'translate(-50%,-50%)',
+        width: 0, height: 0,
         transition: 'left 14s linear',
         zIndex: 36,
         pointerEvents: 'none',
-        opacity: 0.85,
+        opacity: 0.9,
       }}
     >
-      {[0, 1, 2].map((i) => (
+      {wedge.map((o, i) => (
         <img
           key={i}
           src={crowFrames[(flap + i) % crowFrames.length]}
@@ -55,10 +60,9 @@ export const BirdFlock = () => {
           draggable={false}
           style={{
             position: 'absolute',
-            left: `${i * 130}%`,
-            top: `${(i % 2) * 40}%`,
-            width: '100%', height: '100%', objectFit: 'contain',
-            transform: flight.left ? 'none' : 'scaleX(-1)',
+            left: o.dx, top: o.dy,
+            width: 26, height: 48, objectFit: 'contain',
+            transform: `translate(-50%,-50%) ${flight.left ? 'none' : 'scaleX(-1)'}`,
           }}
         />
       ))}
