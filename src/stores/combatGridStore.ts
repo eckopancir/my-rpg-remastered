@@ -705,6 +705,37 @@ function generateObstacles(
     }
   }
 
+  // Хвойный лес o32: максимум 1 на карту, сразу после зданий.
+  // Кластер 8-10 деревьев 2×2 рядом (эмуляция леса).
+  {
+    const pines = 8 + Math.floor(Math.random() * 3);
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const cx = Math.floor(Math.random() * (GRID - 10));
+      const cy = Math.floor(Math.random() * (GRID - 10));
+      const slots: [number, number][] = [];
+      for (let gx = cx; gx + 2 <= cx + 10; gx += 2) {
+        for (let gy = cy; gy + 2 <= cy + 10; gy += 2) {
+          if (isAreaFree(gx, gy, 2, 2)) slots.push([gx, gy]);
+        }
+      }
+      if (slots.length < pines) continue;
+      for (let i = slots.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [slots[i], slots[j]] = [slots[j], slots[i]];
+      }
+      for (let i = 0; i < pines; i++) {
+        const [sx, sy] = slots[i];
+        if (!isAreaFree(sx, sy, 2, 2)) continue;
+        list.push({
+          id: id++, x: sx, y: sy, w: 2, h: 2, type: 'woods', blocks: true, icon: 'woods',
+          isWalkable: true, isHigh: false, imgIndex: 8, // o32
+        });
+        markArea(sx, sy, 2, 2);
+      }
+      break;
+    }
+  }
+
   // Cars — NOT isHigh, random image. o23 большой 2x3, остальные 1x2 (якорь сверху).
   // Фон обрезан: арт ровно по футпринту, за соседей не заходит.
   const carImagesCount = CAR_IMAGES.length;
@@ -729,7 +760,8 @@ function generateObstacles(
   }
 
   // Woods (2x2 walkable) — NOT isHigh, random image. Семейство o3 — в 2 раза чаще.
-  const woodIdxPool = [0, 0, 1, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8];
+  // o32 только кластером (см. выше), из случайного пула исключён.
+  const woodIdxPool = [0, 0, 1, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7];
   const woodsCount = Math.floor(Math.random() * 50) + 10;
   for (let i = 0; i < woodsCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
