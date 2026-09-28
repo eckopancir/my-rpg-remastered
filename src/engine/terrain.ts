@@ -7,6 +7,10 @@ export const WOOD_IMAGES = ['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2', 'o30', 'o31
 export const SMALL_OBSTACLE_IMAGES = ['o1', 'o1_2', 'o2', 'o19', 'o20', 'o21', 'o28', 'o32_2'];
 export const FENCE_IMAGE = 'o5';
 export const FIELD_IMAGE = 'green';
+/** Кадры анимации поля (5с сцена). */
+export const fieldFrames = ['green', 'green1']
+  .map((k) => battleImageMap.get(k))
+  .filter(Boolean) as string[];
 
 // Точные наборы из дизайна (не весь icon-тип, а конкретные картинки).
 const EVADE_INSIDE = new Set(['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2', 'o30', 'o31', 'o32']);

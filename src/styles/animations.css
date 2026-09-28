@@ -214,6 +214,13 @@
 .eqfx-crt { animation: eqfxCrt 4s ease-in-out infinite; }
 /* FX-14: полоса атака/защита в разборе мощности. */
 .eqfx-splitbar { transition: width 0.5s ease; }
+/* Поле: два кадра, сцена 5с. */
+@keyframes fieldSwap {
+  0%, 45% { opacity: 1; }
+  55%, 100% { opacity: 0; }
+}
+.field-frame-a { animation: fieldSwap 5s ease-in-out infinite; }
+.field-frame-b { animation: fieldSwap 5s ease-in-out infinite; animation-delay: -2.5s; }
 /* Искры костра: едва заметные, поднимаются вверх. */
 @keyframes fireSpark {
   0% { transform: translateY(0); opacity: 0; }
