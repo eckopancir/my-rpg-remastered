@@ -10,7 +10,7 @@ import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
-import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, obstacleImageKey } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound, stopLoopSound, preloadCombatSounds } from '../hooks/useSound';
@@ -453,6 +453,63 @@ export const checkVisibility = (
   if (dist <= clearRange && diff <= clearFov / 2) return true;
   if (diff > fov / 2) return false;
   if (isShallowCheck) return true;
+  // Большие объекты (здания o8–o19 + o29, забор o5) блочат всем (мы/враги/союзники)
+  // всем футпринтом, а не якорной клеткой. Углы/край — грация: касание < 0.75 клетки не блочит.
+  const SHOT_BLOCK_KEYS = new Set([
+    'o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o19', 'o29', 'o5',
+  ]);
+  const rects: { x: number; y: number; w: number; h: number }[] = [];
+  try {
+    for (const o of obstacles) {
+      if (!o.blocks || (o as any).isWalkable) continue;
+      let key = '';
+      try { key = obstacleImageKey(o as any); } catch { key = ''; }
+      if (!SHOT_BLOCK_KEYS.has(key)) continue;
+      const w = (o as any).w ?? 1;
+      const h = (o as any).h ?? 1;
+      // Стоим внутри/цель внутри — не блочим (такого быть не должно, страховка).
+      if (viewerPos.x >= o.x && viewerPos.x < o.x + w && viewerPos.y >= o.y && viewerPos.y < o.y + h) continue;
+      if (targetPos.x >= o.x && targetPos.x < o.x + w && targetPos.y >= o.y && targetPos.y < o.y + h) continue;
+      rects.push({ x: o.x, y: o.y, w, h });
+    }
+  } catch { /* ignore */ }
+  if (rects.length > 0) {
+    const x0 = viewerPos.x + 0.5;
+    const y0 = viewerPos.y + 0.5;
+    const x1 = targetPos.x + 0.5;
+    const y1 = targetPos.y + 0.5;
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const segLen = Math.hypot(dx, dy) || 1;
+    for (const r of rects) {
+      let tmin = 0;
+      let tmax = 1;
+      let ok = true;
+      if (Math.abs(dx) < 1e-9) {
+        if (x0 < r.x || x0 > r.x + r.w) ok = false;
+      } else {
+        let t1 = (r.x - x0) / dx;
+        let t2 = (r.x + r.w - x0) / dx;
+        if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
+        tmin = Math.max(tmin, t1);
+        tmax = Math.min(tmax, t2);
+        if (tmin > tmax) ok = false;
+      }
+      if (ok) {
+        if (Math.abs(dy) < 1e-9) {
+          if (y0 < r.y || y0 > r.y + r.h) ok = false;
+        } else {
+          let t1 = (r.y - y0) / dy;
+          let t2 = (r.y + r.h - y0) / dy;
+          if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
+          tmin = Math.max(tmin, t1);
+          tmax = Math.min(tmax, t2);
+          if (tmin > tmax) ok = false;
+        }
+      }
+      if (ok && (tmax - tmin) * segLen > 0.75) return false;
+    }
+  }
   const dx = targetPos.x - viewerPos.x;
   const dy = targetPos.y - viewerPos.y;
   const steps = Math.max(Math.abs(dx), Math.abs(dy)) * 2;
@@ -460,14 +517,17 @@ export const checkVisibility = (
     const checkX = Math.round(viewerPos.x + (dx * i) / steps);
     const checkY = Math.round(viewerPos.y + (dy * i) / steps);
     if (!isValidCell(checkX, checkY)) continue;
-    const isBlocking = obstacles.some(
-      (obs) =>
-        (obs.isHigh || (obs.blocks && !obs.isWalkable)) &&
+    const isBlocking = obstacles.some((obs) => {
+      if (!(obs.isHigh || (obs.blocks && !obs.isWalkable))) return false;
+      // Большие уже проверены rect-тестом выше (с грацией углов) — тут их пропускаем.
+      try { if (SHOT_BLOCK_KEYS.has(obstacleImageKey(obs as any))) return false; } catch { /* ignore */ }
+      return (
         obs.x === checkX &&
         obs.y === checkY &&
         !(checkX === viewerPos.x && checkY === viewerPos.y) &&
-        !(checkX === targetPos.x && checkY === targetPos.y),
-    );
+        !(checkX === targetPos.x && checkY === targetPos.y)
+      );
+    });
     if (isBlocking) return false;
   }
   return true;

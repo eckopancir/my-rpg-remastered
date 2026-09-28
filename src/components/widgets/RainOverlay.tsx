@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { playLoopSound, stopLoopSound } from '../../hooks/useSound';
 
-const DROPS = 220;
-const SPLASH_MAX = 40;
+const DROPS = 330;
+const SPLASH_MAX = 60;
 
 /** Дождь поверх арены: canvas-штрихи + всплески. Звук — playLoopSound('rain'), файл зальёшь позже. */
 export const RainOverlay = () => {
