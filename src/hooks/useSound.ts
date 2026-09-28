@@ -117,6 +117,39 @@ export const stopLoopSound = (name: string) => {
   }
 };
 
+/** Дождь: первый проход с начала, дальше — с 1:20 (там ровный шум без вступления). */
+let rainAudio: HTMLAudioElement | null = null;
+export const playRainLoop = (volume = 0.25) => {
+  const ui = useUiStore.getState();
+  if (!ui.soundEnabled) return;
+  const src = audioMap.get('zvuki-prirody-1_-kapli-dozhdya');
+  if (!src) return;
+  if (rainAudio && !rainAudio.paused) return;
+  stopRainLoop();
+  try {
+    const el = new Audio(src);
+    el.volume = Math.max(0, Math.min(1, volume * (ui.arenaVolume ?? 1)));
+    el.onended = () => {
+      try {
+        el.currentTime = el.duration > 85 ? 80 : 0;
+        el.play().catch(() => {});
+      } catch { /* noop */ }
+    };
+    rainAudio = el;
+    el.play().catch(() => {});
+  } catch { /* noop */ }
+};
+
+export const stopRainLoop = () => {
+  try {
+    if (rainAudio) {
+      rainAudio.onended = null;
+      rainAudio.pause();
+    }
+  } catch { /* noop */ }
+  rainAudio = null;
+};
+
 export const useSound = () => {
   const soundEnabled = useUiStore((s) => s.soundEnabled);
   const uiVolume = useUiStore((s) => s.uiVolume ?? 1);

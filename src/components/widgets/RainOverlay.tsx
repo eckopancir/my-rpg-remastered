@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
-import { playLoopSound, stopLoopSound } from '../../hooks/useSound';
+import { playRainLoop, stopRainLoop } from '../../hooks/useSound';
 
 const DROPS = 330;
 const SPLASH_MAX = 60;
@@ -12,11 +12,11 @@ export const RainOverlay = () => {
   const ref = useRef<HTMLCanvasElement>(null);
   const on = isRaining && isActive;
 
-  // Зацикленный звук дождя (no-op, пока нет файла).
+  // Звук дождя: первый проход с начала, дальше с 1:20.
   useEffect(() => {
     if (!on) return;
-    try { playLoopSound('rain', 0.25); } catch { /* ignore */ }
-    return () => { try { stopLoopSound('rain'); } catch { /* ignore */ } };
+    try { playRainLoop(0.25); } catch { /* ignore */ }
+    return () => { try { stopRainLoop(); } catch { /* ignore */ } };
   }, [on]);
 
   useEffect(() => {
