@@ -235,16 +235,16 @@ export const BattleGrid = () => {
   }, [enemies, isActive, playSound]);
 
   // -- Helpers --
-  // Проходимый декор (лес, o20/o21) даёт прозрачность модели внутри.
+  // Проходимый декор прозрачности не даёт — только лес.
   const isPlayerInWoods = useMemo(() => {
-    return obstacles.some(o => ((o.type === 'woods' && o.isWalkable) || (o.icon === 'small' && !o.blocks)) && playerPos.x >= o.x && playerPos.x < o.x + (o.w ?? 1) && playerPos.y >= o.y && playerPos.y < o.y + (o.h ?? 1));
+    return obstacles.some(o => o.type === 'woods' && o.isWalkable && playerPos.x >= o.x && playerPos.x < o.x + (o.w ?? 1) && playerPos.y >= o.y && playerPos.y < o.y + (o.h ?? 1));
   }, [obstacles, playerPos]);
 
-  // -- Woods cells for enemy transparency (лес + проходимый декор o20/o21) --
+  // -- Woods cells for enemy transparency (только лес) --
   const woodsCells = useMemo(() => {
     const set = new Set<string>();
     for (const ob of obstacles) {
-      if ((ob.type === 'woods' && ob.isWalkable) || (ob.icon === 'small' && !ob.blocks)) {
+      if (ob.type === 'woods' && ob.isWalkable) {
         for (let dx = 0; dx < (ob.w ?? 1); dx++) {
           for (let dy = 0; dy < (ob.h ?? 1); dy++) {
             set.add(`${ob.x + dx},${ob.y + dy}`);
