@@ -872,16 +872,16 @@ function generateObstacles(
     break;
   }
 
-  // o33 2×3 — обязательный (тест), непроходим, без бонусов, простреливается.
+  // o33 (вертолёт) 4×2 — обязательный (тест), непроходим, без бонусов, простреливается.
   for (let attempt = 0; attempt < 50; attempt++) {
-    const x = Math.floor(Math.random() * (GRID - 2));
-    const y = Math.floor(Math.random() * (GRID - 3));
-    if (!isAreaFree(x, y, 2, 3)) continue;
+    const x = Math.floor(Math.random() * (GRID - 4));
+    const y = Math.floor(Math.random() * (GRID - 2));
+    if (!isAreaFree(x, y, 4, 2)) continue;
     list.push({
-      id: id++, x, y, w: 2, h: 3, type: 'car', blocks: true, icon: 'car',
+      id: id++, x, y, w: 4, h: 2, type: 'car', blocks: true, icon: 'car',
       isHigh: false, imgIndex: CAR_IMAGES.indexOf('o33'),
     });
-    markArea(x, y, 2, 3);
+    markArea(x, y, 4, 2);
     break;
   }
 
