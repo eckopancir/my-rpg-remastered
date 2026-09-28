@@ -4832,6 +4832,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       set({ ap: state.maxAp, turn: 'player' });
       return;
     }
+    // Дублирующий триггер празднования (мимо React-эффекта): все враги мертвы,
+    // резерв пуст, мусорщики живы — гуляем вместо финиша.
+    if (state.isActive) {
+      const hostiles = state.enemies.filter((e: any) => e.faction !== 'Союзник' && !(e as any).isNeutral);
+      const allies = state.enemies.filter((e: any) => e.faction === 'Союзник' && !e.dead && (e.currentHp || 0) > 0 && !(e as any).isPet);
+      if (hostiles.length > 0 && hostiles.every((e: any) => e.dead) && state.reserve.length === 0 && allies.length > 0) {
+        get().startCelebration();
+        return;
+      }
+    }
     if (state.turn !== 'player' || state.isMoving) return;
     // Check all dead + no reserve -> free movement (союзники не в счёт).
     const allDead = state.enemies.every((e) => e.dead || e.faction === 'Союзник' || (e as any).isNeutral);
