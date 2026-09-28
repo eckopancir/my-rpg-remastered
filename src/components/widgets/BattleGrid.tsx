@@ -654,10 +654,10 @@ export const BattleGrid = () => {
                         return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
                       }
                       if (obstacle.icon === 'small' && SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] === 'o32_2') {
-                        // Пенёк от срубленного дерева — по визуальному центру кроны (арт 244%/-5%),
+                        // Пенёк от срубленного дерева — по визуальному центру кроны +20px вправо-вниз,
                         // кластерные — по центру своей клетки.
                         return (obstacle as any).stumpCenter
-                          ? { width: '42%', height: '42%', left: '96%', top: '96%' }
+                          ? { width: '42%', height: '42%', left: 'calc(96% + 20px)', top: 'calc(96% + 20px)' }
                           : { width: '42%', height: '42%', left: '29%', top: '29%' };
                       }
                       // Остальная блокирующая мелочь (o19, колодец) — 85% по центру.
@@ -669,8 +669,8 @@ export const BattleGrid = () => {
                     draggable={false}
                   />
                 )}
-                {/* Метка: объект можно обыскать (в нём есть лут) */}
-                {obstacle?.isAnchor && (obstacle as any).hasLoot && (
+                {/* Метка: объект можно обыскать (в нём есть лут). Деревья без метки — и так видно. */}
+                {obstacle?.isAnchor && (obstacle as any).hasLoot && obstacle.icon !== 'woods' && (
                   <span className="searchable-dot" title="Можно обыскать (E)" />
                 )}
                 {waypointNum && !isPlayer && !enemy && (
