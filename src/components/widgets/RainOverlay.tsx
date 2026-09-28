@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
+import { useUiStore } from '../../stores/uiStore';
 import { playRainLoop, stopRainLoop } from '../../hooks/useSound';
 
 const DROPS = 330;
