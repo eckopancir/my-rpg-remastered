@@ -657,7 +657,7 @@ export const BattleGrid = () => {
                         // Пенёк от срубленного дерева — вдвое меньше кроны, по центру футпринта.
                         // Кластерные — 42% по центру своей клетки.
                         if ((obstacle as any).stumpCenter) {
-                          return { width: '122%', height: '122%', left: '39%', top: '39%' };
+                          return { width: '85%', height: '85%', left: '57.5%', top: '57.5%' };
                         }
                         return { width: '42%', height: '42%', left: '29%', top: '29%' };
                       }
