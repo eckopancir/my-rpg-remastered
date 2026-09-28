@@ -35,8 +35,8 @@ export const BirdFlock = () => {
   const back = flight.left ? -1 : 1;
   const wedge = [
     { dx: 0, dy: 0 },
-    { dx: 55 * back, dy: -20 }, { dx: 55 * back, dy: 20 },
-    { dx: 110 * back, dy: -40 }, { dx: 110 * back, dy: 0 }, { dx: 110 * back, dy: 40 },
+    { dx: 12 * back, dy: -5 }, { dx: 12 * back, dy: 5 },
+    { dx: 24 * back, dy: -10 }, { dx: 24 * back, dy: 0 }, { dx: 24 * back, dy: 10 },
   ];
   return (
     <div
