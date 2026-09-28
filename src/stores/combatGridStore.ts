@@ -718,8 +718,8 @@ function generateObstacles(
     }
   }
 
-  // Woods (2x2 walkable) — NOT isHigh, random image
-  const woodImagesCount = 4;
+  // Woods (2x2 walkable) — NOT isHigh, random image. o3 — в 2 раза чаще.
+  const woodIdxPool = [0, 0, 1, 2, 3];
   const woodsCount = Math.floor(Math.random() * 50) + 10;
   for (let i = 0; i < woodsCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
@@ -728,7 +728,7 @@ function generateObstacles(
       if (isAreaFree(x, y, 2, 2)) {
         list.push({
           id: id++, x, y, w: 2, h: 2, type: 'woods', blocks: true, icon: 'woods',
-          isWalkable: true, isHigh: false, imgIndex: Math.floor(Math.random() * woodImagesCount),
+          isWalkable: true, isHigh: false, imgIndex: woodIdxPool[Math.floor(Math.random() * woodIdxPool.length)],
         });
         markArea(x, y, 2, 2);
         break;
@@ -764,8 +764,8 @@ function generateObstacles(
   }
 
   // Small obstacles (1×1) — up to 50, random image, NOT isHigh.
-  // o20/o21 — декор: полностью проходимые.
-  const smallObstacleImagesCount = 5;
+  // o20/o21 — декор: полностью проходимые. o21 — в 2 раза чаще.
+  const smallIdxPool = [0, 1, 2, 3, 4, 4];
   let smallCount = 0;
   let attempts = 0;
   while (smallCount < 50 && attempts < 70) {
@@ -773,7 +773,7 @@ function generateObstacles(
     const x = Math.floor(Math.random() * GRID);
     const y = Math.floor(Math.random() * GRID);
     if (isAreaFree(x, y, 1, 1)) {
-      const imgIdx = Math.floor(Math.random() * smallObstacleImagesCount);
+      const imgIdx = smallIdxPool[Math.floor(Math.random() * smallIdxPool.length)];
       const walkable = imgIdx === 3 || imgIdx === 4; // o20, o21
       list.push({
         id: id++, x, y, w: 1, h: 1, type: 'small', blocks: !walkable, icon: 'small',
