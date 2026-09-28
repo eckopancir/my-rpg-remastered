@@ -3662,7 +3662,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const totalMs = loot.kind === 'well' || loot.kind === 'tree' ? 10000 : 4000;
     if (searchTimer !== null) window.clearTimeout(searchTimer);
     set({ searchCast: { obId, label, totalMs, startedAt: Date.now() } });
-    playCombatSound('seach', 0.5);
+    // Звук обыска по типу: колодец — вода, дерево — дерево, машина — шорох.
+    const startSnd = loot.kind === 'well' ? 'water' : loot.kind === 'tree' ? 'wood' : 'seach';
+    try { playCombatSound(startSnd as any, 0.5); } catch { /* ignore */ }
     searchTimer = window.setTimeout(() => {
       searchTimer = null;
       try { get().finishSearchCast(); } catch { /* ignore */ }
@@ -3734,8 +3736,6 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         return rest2;
       }),
     }));
-    const snd = loot.kind === 'well' ? 'water' : loot.kind === 'tree' ? 'wood' : 'chips';
-    try { playCombatSound(snd as any, 0.5); } catch { /* ignore */ }
     get().addLootPopup(px, py, (def as any).image, `+${qty} ${def.name}`);
   },
 
