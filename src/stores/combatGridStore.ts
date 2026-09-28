@@ -728,8 +728,8 @@ function generateObstacles(
     }
   }
 
-  // Woods (2x2 walkable) — NOT isHigh, random image.
-  const woodIdxPool = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  // Woods (2x2 walkable) — NOT isHigh, random image. Семейство o3 — в 2 раза чаще.
+  const woodIdxPool = [0, 0, 1, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8];
   const woodsCount = Math.floor(Math.random() * 50) + 10;
   for (let i = 0; i < woodsCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
