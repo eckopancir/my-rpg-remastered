@@ -77,7 +77,8 @@ export const CrowFlight = () => {
 
   if (!isActive || !flight || crowFrames.length === 0) return null;
   const img = crowFrames[flap % crowFrames.length];
-  const flip = flight.tx < flight.fx;
+  // Картинка смотрит вправо — доворачиваем по вектору полёта.
+  const ang = (Math.atan2(flight.ty - flight.fy, flight.tx - flight.fx) * 180) / Math.PI;
   return (
     <div
       key={flight.id}
@@ -97,7 +98,7 @@ export const CrowFlight = () => {
         src={img}
         alt=""
         draggable={false}
-        style={{ width: '100%', height: '100%', objectFit: 'contain', transform: flip ? 'scaleX(-1)' : 'none' }}
+        style={{ width: '100%', height: '100%', objectFit: 'contain', transform: `rotate(${ang}deg)` }}
       />
     </div>
   );
