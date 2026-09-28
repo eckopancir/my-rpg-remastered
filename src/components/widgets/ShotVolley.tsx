@@ -3,6 +3,9 @@ import { images } from '../../assets/index';
 import type { ShotLine, ShotKind } from '../../stores/combatGridStore';
 import styles from './BattleGrid.module.css';
 
+/** Центр клетки -> % арены (как в BattleGrid). */
+const cellPct = (c: number): number => ((c + 0.5) / 32) * 100;
+
 interface BulletSpec {
   key: number;
   fromX: number;
@@ -74,10 +77,10 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
       const ty = kind === 'single' ? seg.ey : seg.sy + Math.sin(rad) * dist;
       list.push({
         key: i,
-        fromX: (seg.sx / 31) * 100,
-        fromY: (seg.sy / 31) * 100,
-        toX: (tx / 31) * 100,
-        toY: (ty / 31) * 100,
+        fromX: cellPct(seg.sx),
+        fromY: cellPct(seg.sy),
+        toX: cellPct(tx),
+        toY: cellPct(ty),
         rot: ang + 90,
         delay,
         flight: baseFlight,
@@ -107,8 +110,8 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
 
   const muzzleSize = (kind === 'heal' ? 24 : 28) * Math.min(1, power);
   const mRot = kind === 'heal' ? 0 : (Math.atan2(seg.uy, seg.ux) * 180) / Math.PI + 90;
-  const mzx = (kind === 'heal' ? shot.to.x : seg.sx) / 31 * 100;
-  const mzy = (kind === 'heal' ? shot.to.y : seg.sy) / 31 * 100;
+  const mzx = cellPct(kind === 'heal' ? shot.to.x : seg.sx);
+  const mzy = cellPct(kind === 'heal' ? shot.to.y : seg.sy);
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 40 }}>
@@ -116,10 +119,10 @@ export const ShotVolley = ({ shot }: { shot: ShotLine }) => {
       {shot.type === 'aim' && (
         <svg className={styles.shotSvg}>
           <line
-            x1={`${(shot.from.x / 31) * 100}%`}
-            y1={`${(shot.from.y / 31) * 100}%`}
-            x2={`${(shot.to.x / 31) * 100}%`}
-            y2={`${(shot.to.y / 31) * 100}%`}
+            x1={`${cellPct(shot.from.x)}%`}
+            y1={`${cellPct(shot.from.y)}%`}
+            x2={`${cellPct(shot.to.x)}%`}
+            y2={`${cellPct(shot.to.y)}%`}
             className={`${styles.tracerLine} ${styles.aimShot}`}
           />
         </svg>

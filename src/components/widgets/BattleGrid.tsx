@@ -18,6 +18,9 @@ import styles from './BattleGrid.module.css';
 
 const GRID_SIZE = 32;
 
+/** Центр клетки -> % арены (юниты рисуются по центрам клеток). */
+const cellPct = (c: number): number => ((c + 0.5) / GRID_SIZE) * 100;
+
 function offsetShotPoint(from: { x: number; y: number }, to: { x: number; y: number }, dist = 0.4) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -49,7 +52,7 @@ const PetHitSpark = () => {
   if (!src) return null;
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 41 }}>
-      <div style={{ position: 'absolute', left: `${(hitFx.x / 31) * 100}%`, top: `${(hitFx.y / 31) * 100}%`, width: 0, height: 0 }}>
+      <div style={{ position: 'absolute', left: `${cellPct(hitFx.x)}%`, top: `${cellPct(hitFx.y)}%`, width: 0, height: 0 }}>
         <img
           key={hitFx.id}
           src={src}
@@ -259,8 +262,8 @@ export const BattleGrid = () => {
   const forceDay = useUiStore((s) => s.forceDay);
   const nightOn = isNightTime && !forceDay;
   const stealth = useCombatGridStore((s) => s.stealth);
-  const playerXpct = (playerPos.x / 31) * 100;
-  const playerYpct = (playerPos.y / 31) * 100;
+  const playerXpct = cellPct(playerPos.x);
+  const playerYpct = cellPct(playerPos.y);
 
   // -- Конус зрения как был (75° по направлению взгляда) + память тумана --
   // Видно: рядом (≤2) или конус checkVisibility. Разведанное копим в сторе
@@ -798,8 +801,8 @@ export const BattleGrid = () => {
         {campfire && campfireFrames.length > 0 && (
           <div style={{
             position: 'absolute',
-            left: `${(campfire.x / 31) * 100}%`,
-            top: `${(campfire.y / 31) * 100}%`,
+            left: `${cellPct(campfire.x)}%`,
+            top: `${cellPct(campfire.y)}%`,
             transform: 'translate(-50%, -62%)',
             width: '2.9%', aspectRatio: '1',
             zIndex: 4,
@@ -828,8 +831,8 @@ export const BattleGrid = () => {
         {/* Реплики и статусы — верхний слой: поверх тумана, костра и всех объектов */}
         {enemies.map((e) => {
           if (e.dead || !isCellVisible(e.pos.x, e.pos.y)) return null;
-          const left = `${(e.pos.x / 31) * 100}%`;
-          const top = `${(e.pos.y / 31) * 100}%`;
+          const left = `${cellPct(e.pos.x)}%`;
+          const top = `${cellPct(e.pos.y)}%`;
           const d = Math.hypot(e.pos.x - playerPos.x, e.pos.y - playerPos.y);
           // Подозрение: обычные 5 (в стелсе), часовые — 8, в стелсе 11-12.
           const susR = e.aiRole === 'sentry' ? (stealth ? 12 : 8) : 5;
@@ -937,12 +940,12 @@ export const BattleGrid = () => {
         {showConePreview && coneProf && cursorPos && (() => {
           const R = coneProf.range;
           const baseA = Math.atan2(cursorPos.y - playerPos.y, cursorPos.x - playerPos.x);
-          const pts: string[] = [`${(playerPos.x / 31) * 100}%,${(playerPos.y / 31) * 100}%`];
+          const pts: string[] = [`${cellPct(playerPos.x)}%,${cellPct(playerPos.y)}%`];
           for (let d = -30; d <= 30; d += 5) {
             const a = baseA + (d * Math.PI) / 180;
             const ex = Math.max(0, Math.min(31, playerPos.x + Math.cos(a) * R));
             const ey = Math.max(0, Math.min(31, playerPos.y + Math.sin(a) * R));
-            pts.push(`${(ex / 31) * 100}%,${(ey / 31) * 100}%`);
+            pts.push(`${cellPct(ex)}%,${cellPct(ey)}%`);
           }
           return (
             <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 39 }}>
@@ -959,14 +962,14 @@ export const BattleGrid = () => {
         {/* Flying grenade — animated trajectory from→to */}
         {flyingGrenade && (
           <div className={styles.grenadeFly} style={{
-            left: `${(flyingGrenade.from.x / 31) * 100}%`,
-            top: `${(flyingGrenade.from.y / 31) * 100}%`,
+            left: `${cellPct(flyingGrenade.from.x)}%`,
+            top: `${cellPct(flyingGrenade.from.y)}%`,
             transition: 'left 0.7s cubic-bezier(0.25, 1, 0.5, 1), top 0.7s cubic-bezier(0.25, 1, 0.5, 1)',
           }}>
             <div style={{
               position: 'absolute',
               left: 0, top: 0,
-              transform: `translate(${((flyingGrenade.to.x - flyingGrenade.from.x) / 31) * 100}%, ${((flyingGrenade.to.y - flyingGrenade.from.y) / 31) * 100}%)`,
+              transform: `translate(${(flyingGrenade.to.x - flyingGrenade.from.x) / GRID_SIZE * 100}%, ${(flyingGrenade.to.y - flyingGrenade.from.y) / GRID_SIZE * 100}%)`,
               transition: 'transform 0.7s cubic-bezier(0.25, 1, 0.5, 1)',
             }}>
               💣
@@ -977,8 +980,8 @@ export const BattleGrid = () => {
         {/* Grenade explosion VFX */}
         {globalEffects.filter(e => e.type === 'GRENADE').map((eff, i) => (
           <div key={`explosion-${i}`} className={styles.explosionFx} style={{
-            left: `${(eff.pos.x / 31) * 100}%`,
-            top: `${(eff.pos.y / 31) * 100}%`,
+            left: `${cellPct(eff.pos.x)}%`,
+            top: `${cellPct(eff.pos.y)}%`,
           }}>
             <div className={styles.explosionRing} />
             <div className={styles.explosionFlash} />
@@ -993,8 +996,8 @@ export const BattleGrid = () => {
                 key={i}
                 className={styles.teleportLand}
                 style={{
-                  left: `${(eff.pos.x / 31) * 100}%`,
-                  top: `${(eff.pos.y / 31) * 100}%`,
+                  left: `${cellPct(eff.pos.x)}%`,
+                  top: `${cellPct(eff.pos.y)}%`,
                 }}
               >
                 <div className={styles.teleportWave} />
@@ -1007,8 +1010,8 @@ export const BattleGrid = () => {
                 key={i}
                 className={styles.mine}
                 style={{
-                  left: `${(eff.pos.x / 31) * 100}%`,
-                  top: `${(eff.pos.y / 31) * 100}%`,
+                  left: `${cellPct(eff.pos.x)}%`,
+                  top: `${cellPct(eff.pos.y)}%`,
                 }}
               />
             );
@@ -1018,8 +1021,8 @@ export const BattleGrid = () => {
               key={i}
               className={`${styles.dangerZone} ${eff.type === 'REDZONE' ? styles.redZonePulse : styles.grenadeZone}`}
               style={{
-                left: `${(eff.pos.x / 31) * 100}%`,
-                top: `${(eff.pos.y / 31) * 100}%`,
+                left: `${cellPct(eff.pos.x)}%`,
+                top: `${cellPct(eff.pos.y)}%`,
               }}
             >
               {eff.type === 'REDZONE' && <div className={styles.dangerLabel}>☢️</div>}
@@ -1050,8 +1053,8 @@ export const BattleGrid = () => {
             }
             return (
               <div key={pop.id} className={`${styles.battlePopup} ${styles[pop.type.toLowerCase()] || styles.normal}`} style={{
-                left: `${((pop.x + dx) / 31) * 100}%`,
-                top: `calc(${((pop.y + dy) / 31) * 100}% + ${count * -24 + lift}px)`,
+                left: `${cellPct(pop.x + dx)}%`,
+                top: `calc(${cellPct(pop.y + dy)}% + ${count * -24 + lift}px)`,
                 animationDuration: `${popupLifeMs(pop.type)}ms`,
               }}>
                 {pop.text}
