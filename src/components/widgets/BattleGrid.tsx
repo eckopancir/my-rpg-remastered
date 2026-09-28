@@ -6,7 +6,7 @@ import { useSound } from '../../hooks/useSound';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
-import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petModelImage, petCorpseImage } from '../../assets/index';
+import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petModelImage, petCorpseImage, campfireFrames } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { weaponRangeProfile } from '../../data/ammo';
 import { type PetKind } from '../../data/pets';
@@ -82,11 +82,11 @@ export const BattleGrid = () => {
   const reserve = useCombatGridStore((s) => s.reserve);
   const popups = useCombatGridStore((s) => s.popups);
   const campfire = useCombatGridStore((s) => s.campfire);
-  // Анимация костра: два кадра каждые 100мс.
+  // Анимация костра: 12 кадров по 90мс (цикл ~1.1с).
   const [fireFrame, setFireFrame] = useState(0);
   useEffect(() => {
     if (!isActive || !campfire) return;
-    const t = setInterval(() => setFireFrame((f) => (f + 1) % 2), 300);
+    const t = setInterval(() => setFireFrame((f) => (f + 1) % campfireFrames.length), 90);
     return () => clearInterval(t);
   }, [isActive, campfire]);
   const playerInvisible = useCombatGridStore((s) => s.playerInvisible);
@@ -791,19 +791,19 @@ export const BattleGrid = () => {
           />
         </div>
 
-        {/* Костёр лагеря — виден всегда (свет видно издалека), кадры 300мс */}
-        {campfire && (images.campfire1 || images.campfire2) && (
+        {/* Костёр лагеря — виден всегда (свет видно издалека), 12 кадров */}
+        {campfire && campfireFrames.length > 0 && (
           <div style={{
             position: 'absolute',
             left: `${(campfire.x / 31) * 100}%`,
             top: `${(campfire.y / 31) * 100}%`,
             transform: 'translate(-50%, -62%)',
-            width: '2.9%', aspectRatio: '1',
+            width: '5.8%', aspectRatio: '1',
             zIndex: 4,
             pointerEvents: 'none',
           }}>
             <img
-              src={fireFrame === 0 ? (images.campfire1 || images.campfire2) : (images.campfire2 || images.campfire1)}
+              src={campfireFrames[fireFrame % campfireFrames.length]}
               alt="campfire"
               draggable={false}
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}

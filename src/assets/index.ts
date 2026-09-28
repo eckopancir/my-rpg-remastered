@@ -445,3 +445,9 @@ export const images = {
   armorWorkshop: uiImageMap.get('armorcustom'),
   enemyDead: uiImageMap.get('enemydead'),
 };
+
+/** 12 кадров анимации костра (fire 1..12-Photoroom.png). */
+export const campfireFrames: string[] = Array.from(
+  { length: 12 },
+  (_, i) => battleImageMap.get(`fire ${i + 1}-photoroom`),
+).filter(Boolean) as string[];
