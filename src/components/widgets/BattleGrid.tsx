@@ -639,7 +639,7 @@ export const BattleGrid = () => {
                       'o1'
                     )}
                     alt=""
-                    className={`${styles.obstacleImg} ${obstacle.icon === 'building' ? styles.obstacleBigImg : obstacle.icon === 'car' ? styles.obstacleCarImg : obstacle.icon === 'woods' ? styles.obstacleWoodsImg : styles.obstacleSmallImg}`}
+                    className={`${styles.obstacleImg} ${(obstacle as any).stumpCenter ? styles.obstacleWoodsImg : obstacle.icon === 'building' ? styles.obstacleBigImg : obstacle.icon === 'car' ? styles.obstacleCarImg : obstacle.icon === 'woods' ? styles.obstacleWoodsImg : styles.obstacleSmallImg}`}
                     // Здания, машины, поле и проходимый декор тянутся ровно на свой футпринт от якоря.
                     // Обрезанные камни o1/o2 — чуть меньше клетки (85% по центру).
                     style={(() => {
@@ -654,11 +654,10 @@ export const BattleGrid = () => {
                         return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
                       }
                       if (obstacle.icon === 'small' && ['o32_2', 'penek'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
-                        // Пенёк от срубленного дерева — по визуальному центру кроны +20px вправо-вниз,
-                        // кластерные — мелкие по центру своей клетки.
-                        return (obstacle as any).stumpCenter
-                          ? { width: '42%', height: '42%', left: 'calc(96% + 20px)', top: 'calc(96% + 20px)' }
-                          : { width: '42%', height: '42%', left: '29%', top: '29%' };
+                        // Пенёк от срубленного дерева — та же геометрия, что была у кроны (без сдвигов).
+                        // Кластерные — 42% по центру своей клетки.
+                        if ((obstacle as any).stumpCenter) return undefined;
+                        return { width: '42%', height: '42%', left: '29%', top: '29%' };
                       }
                       // Остальная блокирующая мелочь (o19, колодец) — 85% по центру.
                       if (obstacle.icon === 'small') {
