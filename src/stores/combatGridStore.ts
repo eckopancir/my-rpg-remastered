@@ -729,7 +729,7 @@ function generateObstacles(
   }
 
   // Woods (2x2 walkable) — NOT isHigh, random image.
-  const woodIdxPool = [0, 1, 2, 3, 4, 5];
+  const woodIdxPool = [0, 1, 2, 3, 4, 5, 6, 7, 8];
   const woodsCount = Math.floor(Math.random() * 50) + 10;
   for (let i = 0; i < woodsCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {

@@ -3,12 +3,12 @@
 
 export const BIG_BUILDING_IMAGES = ['o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18'];
 export const CAR_IMAGES = ['o6', 'o6_2', 'o7', 'o7_2', 'o22', 'o23', 'o24', 'o29'];
-export const WOOD_IMAGES = ['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2'];
+export const WOOD_IMAGES = ['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2', 'o30', 'o31', 'o32'];
 export const SMALL_OBSTACLE_IMAGES = ['o1', 'o1_2', 'o2', 'o19', 'o20', 'o21', 'o28'];
 export const FENCE_IMAGE = 'o5';
 
 // Точные наборы из дизайна (не весь icon-тип, а конкретные картинки).
-const EVADE_INSIDE = new Set(['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2']);
+const EVADE_INSIDE = new Set(['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2', 'o30', 'o31', 'o32']);
 const ARMOR_NEAR = new Set(['o24', 'o23', 'o19', 'o7', 'o6', 'o5', 'o2', 'o1', 'o1_2', 'o28', 'o29']);
 const BLOCK_NEAR = new Set(['o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18']);
 
