@@ -762,7 +762,8 @@ function generateObstacles(
     }
   }
 
-  // Small obstacles (1×1) — up to 50, random image, NOT isHigh
+  // Small obstacles (1×1) — up to 50, random image, NOT isHigh.
+  // o20/o21 — декор: полностью проходимые.
   const smallObstacleImagesCount = 5;
   let smallCount = 0;
   let attempts = 0;
@@ -771,9 +772,11 @@ function generateObstacles(
     const x = Math.floor(Math.random() * GRID);
     const y = Math.floor(Math.random() * GRID);
     if (isAreaFree(x, y, 1, 1)) {
+      const imgIdx = Math.floor(Math.random() * smallObstacleImagesCount);
+      const walkable = imgIdx === 3 || imgIdx === 4; // o20, o21
       list.push({
-        id: id++, x, y, w: 1, h: 1, type: 'small', blocks: true, icon: 'small',
-        isHigh: false, imgIndex: Math.floor(Math.random() * smallObstacleImagesCount),
+        id: id++, x, y, w: 1, h: 1, type: 'small', blocks: !walkable, icon: 'small',
+        isHigh: false, imgIndex: imgIdx,
       });
       markArea(x, y, 1, 1);
       smallCount++;

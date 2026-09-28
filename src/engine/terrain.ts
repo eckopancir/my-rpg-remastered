@@ -10,7 +10,7 @@ export const FENCE_IMAGE = 'o5';
 // Точные наборы из дизайна (не весь icon-тип, а конкретные картинки).
 const EVADE_INSIDE = new Set(['o3', 'o4', 'o25', 'o26']);
 const ARMOR_NEAR = new Set(['o24', 'o23', 'o19', 'o7', 'o6', 'o5', 'o2', 'o1']);
-const BLOCK_NEAR = new Set(['o8', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18']);
+const BLOCK_NEAR = new Set(['o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18']);
 
 export const EVASION_WOODS_BONUS = 0.05;
 export const ARMOR_NEAR_BONUS = 0.05;
