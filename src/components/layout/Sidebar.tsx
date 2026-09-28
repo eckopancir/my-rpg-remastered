@@ -78,9 +78,17 @@ export const Sidebar = () => {
                 ...(!alreadyInBattle ? null : { ['--jl-beam' as any]: '#f59e0b' }),
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                <div style={{ fontWeight: 700, color: alreadyInBattle ? '#f59e0b' : '#4ade80', fontSize: 12 }}>
-                  {alreadyInBattle ? '⚔️ УЖЕ В БОЮ' : '⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА'}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+                <div style={{ fontWeight: 700, color: alreadyInBattle ? '#f59e0b' : '#4ade80', fontSize: 12, lineHeight: 1.5 }}>
+                  {alreadyInBattle ? (
+                    '⚔️ УЖЕ В БОЮ'
+                  ) : (
+                    <>
+                      <div>⚔️ ПОДГОТОВКА К БОЮ</div>
+                      <div style={{ whiteSpace: 'pre' }}>{'      ЗАВЕРШЕНА'}</div>
+                      <div style={{ whiteSpace: 'pre', fontSize: 10, color: 'var(--text-muted)' }}>{'      НАЖМИТЕ ДЛЯ НАЧАЛА'}</div>
+                    </>
+                  )}
                 </div>
                 <span
                   title="Убрать зависший бой"
@@ -102,7 +110,6 @@ export const Sidebar = () => {
                   ✕
                 </span>
               </div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>НАЖМИТЕ ДЛЯ НАЧАЛА</div>
             </div>
           )}
           {isExploring && (
