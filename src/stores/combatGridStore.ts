@@ -3759,10 +3759,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       searchCast: null,
       obstacles: s.obstacles.map((o: any) => {
         if (o.id !== cast.id) return o;
-        // Дерево после обыска — пенёк o32_2 1×1 по центру старого футпринта.
+        // Дерево после обыска — пенёк penek.png 1×1 по центру старого футпринта.
         if (isTree) {
           const { searchLoot: _sl, ...rest } = o;
-          return { ...rest, icon: 'small', imgIndex: 7, w: 1, h: 1, blocks: true, stumpCenter: true };
+          return { ...rest, icon: 'small', imgIndex: 8, w: 1, h: 1, blocks: true, stumpCenter: true };
         }
         const { searchLoot: _sl2, ...rest2 } = o;
         return rest2;

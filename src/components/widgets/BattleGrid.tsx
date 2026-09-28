@@ -653,7 +653,7 @@ export const BattleGrid = () => {
                       if (obstacle.icon === 'small' && ['o1', 'o1_2', 'o2'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
                         return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
                       }
-                      if (obstacle.icon === 'small' && SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] === 'o32_2') {
+                      if (obstacle.icon === 'small' && SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] === 'penek') {
                         // Пенёк от срубленного дерева — по визуальному центру кроны +20px вправо-вниз,
                         // кластерные — по центру своей клетки.
                         return (obstacle as any).stumpCenter

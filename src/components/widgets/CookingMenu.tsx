@@ -2,15 +2,19 @@ import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
-import { RECIPES, FOOD_MAP, maxPortionsFor, consumeOneSet, type RecipeDef } from '../../data/food';
+import { RECIPES, FOOD_MAP, maxPortionsFor, consumeOneSet, itemKeyOf, type RecipeDef } from '../../data/food';
+import { GAME_RESOURCES } from '../../data/GameItems';
 import { makeConsumable } from '../../data/consumables';
 import { removeItemFromGrid, tryInsertIntoGrid } from '../../data/backpacks';
 import { playLoopSound, stopLoopSound } from '../../hooks/useSound';
 import { syncNow } from '../../utils/serverSync';
 
-const COOK_SLOTS = 4;
+const COOK_SLOTS = 5;
 const SEC_PER_PORTION = 3;
 const COOK_SOUND = 'c977168fcb66822';
+
+/** Ресурсы для готовки: вода и дрова (идут в слоты как res:Имя). */
+const COOK_RESOURCES = (GAME_RESOURCES as any[]).filter((r: any) => r.name === 'Вода' || r.name === 'Дерево');
 
 export const CookingMenu = () => {
   const showCookingMenu = useCombatGridStore((s) => s.showCookingMenu);
@@ -26,9 +30,22 @@ export const CookingMenu = () => {
   const rawItems = useMemo(() => {
     return backpackItems.filter((i) => {
       const fd = FOOD_MAP[(i as any).abilityId];
-      return fd && fd.isRaw;
+      if (fd && fd.isRaw) return true;
+      // Ресурсы для готовки: вода и дрова.
+      return (i as any).type === 'material' && ((i as any).name === 'Вода' || (i as any).name === 'Дерево');
     });
   }, [backpackItems]);
+
+  const slotView = (s: string | null): { icon?: string; img?: string; name: string } | null => {
+    if (!s) return null;
+    const fd = FOOD_MAP[s];
+    if (fd) return { icon: fd.icon, name: fd.name };
+    if (s.startsWith('res:')) {
+      const def = (GAME_RESOURCES as any[]).find((r: any) => r.name === s.slice(4));
+      if (def) return { img: (def as any).image, name: (def as any).name };
+    }
+    return { name: s };
+  };
 
   const findRecipe = useCallback((): RecipeDef | null => {
     const slotIds = slots.filter(Boolean) as string[];
@@ -141,16 +158,16 @@ export const CookingMenu = () => {
         }}>✕</button>
         <h3 style={{ margin: '0 0 12px', color: '#e67e22', textAlign: 'center' }}>🔥 Костёр — Готовка</h3>
 
-        {/* Cooking slots */}
+        {/* Cooking slots (5-й — дрова, нужны каждому рецепту) */}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
           {slots.map((s, i) => {
-            const fd = s ? FOOD_MAP[s] : null;
+            const v = slotView(s);
             return (
-              <div key={i} onClick={() => handleSlotClick(i)} style={{
+              <div key={i} onClick={() => handleSlotClick(i)} title={i === COOK_SLOTS - 1 ? 'Дрова' : undefined} style={{
                 width: 56, height: 56, border: '2px dashed #555', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: fd ? '#2a2a4e' : 'transparent', cursor: fd ? 'pointer' : 'default', fontSize: 28,
+                background: v ? '#2a2a4e' : 'transparent', cursor: v ? 'pointer' : 'default', fontSize: 28,
               }}>
-                {fd ? fd.icon : <span style={{ color: '#444', fontSize: 16 }}>+</span>}
+                {v ? (v.img ? <img src={v.img} alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} /> : v.icon) : <span style={{ color: '#444', fontSize: 16 }}>+</span>}
               </div>
             );
           })}
@@ -227,14 +244,18 @@ export const CookingMenu = () => {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {rawItems.length === 0 && <span style={{ color: '#555' }}>Нет сырых продуктов</span>}
             {rawItems.map((item) => {
+              const key = itemKeyOf(item);
               const fd = FOOD_MAP[(item as any).abilityId];
+              const resDef = !fd ? (GAME_RESOURCES as any[]).find((r: any) => r.name === (item as any).name) : null;
               const qty = (item.quantity ?? 1) as number;
               return (
-                <div key={item.id} onClick={() => handleAddIngredient((item as any).abilityId)} title={fd?.desc} style={{
+                <div key={item.id} onClick={() => handleAddIngredient(key)} title={fd?.desc} style={{
                   padding: '4px 8px', background: '#2a2a4e', border: '1px solid #444', borderRadius: 6, cursor: 'pointer', fontSize: 13,
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}>
-                  <span style={{ fontSize: 18 }}>{fd?.icon}</span> {fd?.name} ×{qty}
+                  {fd ? <span style={{ fontSize: 18 }}>{fd.icon}</span>
+                    : resDef ? <img src={(resDef as any).image} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
+                    : null} {(fd?.name || (item as any).name)} ×{qty}
                 </div>
               );
             })}
