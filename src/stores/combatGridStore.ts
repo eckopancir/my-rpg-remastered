@@ -3465,6 +3465,18 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const s = get();
     if (!s.isActive || !s.celebration) return;
     const st = get();
+    // Зверь свободно ходит за хозяином (без AP).
+    const pet = st.enemies.find((e: any) => (e as any).isPet && !e.dead && (e.currentHp || 0) > 0 && !e.sleeping);
+    if (pet && getDist(pet.pos, st.playerPos) > 2) {
+      const step = petWalk({ ...pet, petBuffs: [] }, st.playerPos.x, st.playerPos.y, 2, st.obstacles, st.enemies);
+      if (step.cells > 0) {
+        set((s2: any) => ({
+          enemies: s2.enemies.map((e: any) => e.id === (pet as any).id
+            ? { ...e, pos: { x: step.x, y: step.y }, rotation: getAngle(e.pos, { x: step.x, y: step.y }) }
+            : e),
+        }));
+      }
+    }
     const corpses = st.enemies.filter((e: any) =>
       e.dead && Array.isArray((e as any).loot) && (e as any).loot.length > 0 && !(e as any).looted);
     const camp = (st as any).campfire as { x: number; y: number } | undefined;
