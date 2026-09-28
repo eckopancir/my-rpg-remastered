@@ -689,7 +689,7 @@ function generateObstacles(
   // o15 маленькое 4x4 (−30%), остальные 6x5. isHigh, random image.
   // Футпринт = визуал: арт тянется ровно на w×h от якоря.
   // o13 и o17 взаимоисключают друг друга на одной карте, и каждая — максимум 1 шт.
-  const bigCount = Math.floor(Math.random() * 2) + 4;
+  const bigCount = Math.floor(Math.random() * 2) + 3;
   const placedBig = new Set<string>();
   for (let i = 0; i < bigCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
@@ -714,11 +714,10 @@ function generateObstacles(
     }
   }
 
-  // Хвойный лес o32: максимум 1 на карту, сразу после зданий.
-  // Кластер 8-10 деревьев 2×2 рядом (эмуляция леса) + 2 пенька o32_2 (1×1,
-  // непроходимы, без бонусов, чуть меньше клетки).
+  // Хвойный лес: максимум 1 на карту, сразу после зданий.
+  // 8-10 посадок: каждая 50% o32 (2×2) / 50% пенёк o32_2 (1×1, непроходим, без бонусов).
   {
-    const pines = 8 + Math.floor(Math.random() * 3);
+    const plantings = 8 + Math.floor(Math.random() * 3);
     for (let attempt = 0; attempt < 30; attempt++) {
       const cx = Math.floor(Math.random() * (GRID - 10));
       const cy = Math.floor(Math.random() * (GRID - 10));
@@ -728,39 +727,43 @@ function generateObstacles(
           if (isAreaFree(gx, gy, 2, 2)) slots.push([gx, gy]);
         }
       }
-      if (slots.length < pines) continue;
-      for (let i = slots.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [slots[i], slots[j]] = [slots[j], slots[i]];
-      }
-      for (let i = 0; i < pines; i++) {
-        const [sx, sy] = slots[i];
-        if (!isAreaFree(sx, sy, 2, 2)) continue;
-        list.push({
-          id: id++, x: sx, y: sy, w: 2, h: 2, type: 'woods', blocks: true, icon: 'woods',
-          isWalkable: true, isHigh: false, imgIndex: 8, // o32
-        });
-        markArea(sx, sy, 2, 2);
-      }
-      // Пеньки: свободные 1×1 внутри зоны кластера.
       const cells: [number, number][] = [];
       for (let px = cx; px < cx + 10; px++) {
         for (let py = cy; py < cy + 10; py++) {
           if (isAreaFree(px, py, 1, 1)) cells.push([px, py]);
         }
       }
+      if (slots.length + cells.length < plantings) continue;
+      for (let i = slots.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [slots[i], slots[j]] = [slots[j], slots[i]];
+      }
       for (let i = cells.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [cells[i], cells[j]] = [cells[j], cells[i]];
       }
-      for (let i = 0; i < Math.min(2, cells.length); i++) {
-        const [px, py] = cells[i];
-        if (!isAreaFree(px, py, 1, 1)) continue;
-        list.push({
-          id: id++, x: px, y: py, w: 1, h: 1, type: 'small', blocks: true, icon: 'small',
-          isHigh: false, imgIndex: 7, // o32_2
-        });
-        markArea(px, py, 1, 1);
+      let si = 0;
+      let ci = 0;
+      for (let i = 0; i < plantings; i++) {
+        if (Math.random() < 0.5) {
+          while (si < slots.length && !isAreaFree(slots[si][0], slots[si][1], 2, 2)) si++;
+          if (si >= slots.length) continue;
+          const [sx, sy] = slots[si++];
+          list.push({
+            id: id++, x: sx, y: sy, w: 2, h: 2, type: 'woods', blocks: true, icon: 'woods',
+            isWalkable: true, isHigh: false, imgIndex: 8, // o32
+          });
+          markArea(sx, sy, 2, 2);
+        } else {
+          while (ci < cells.length && !isAreaFree(cells[ci][0], cells[ci][1], 1, 1)) ci++;
+          if (ci >= cells.length) continue;
+          const [px, py] = cells[ci++];
+          list.push({
+            id: id++, x: px, y: py, w: 1, h: 1, type: 'small', blocks: true, icon: 'small',
+            isHigh: false, imgIndex: 7, // o32_2
+          });
+          markArea(px, py, 1, 1);
+        }
       }
       break;
     }
