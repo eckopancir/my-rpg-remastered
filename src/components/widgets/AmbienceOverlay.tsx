@@ -148,20 +148,23 @@ export const AmbienceOverlay = () => {
         ctx.fillStyle = g;
         ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
       }
-      // Дым: костёр (если виден) + сгоревший вертолёт o33.
+      // Дым: костёр (если виден) + сгоревший вертолёт o33 (дыма в 2 раза больше).
       {
-        const emitters: { x: number; y: number }[] = [];
-        if (cf && cfSeen) emitters.push({ x: ((cf.x + 0.5) / 32) * w, y: ((cf.y + 0.5) / 32) * h });
+        const emitters: { x: number; y: number; rate: number }[] = [];
+        if (cf && cfSeen) emitters.push({ x: ((cf.x + 0.5) / 32) * w, y: ((cf.y + 0.5) / 32) * h, rate: 1 });
         for (const o of (st as any).obstacles || []) {
           if (o.icon === 'car' && CAR_IMAGES[o.imgIndex] === 'o33') {
-            emitters.push({ x: ((o.x + (o.w ?? 1) / 2) / 32) * w, y: ((o.y + (o.h ?? 1) / 2) / 32) * h });
+            emitters.push({ x: ((o.x + (o.w ?? 1) / 2) / 32) * w, y: ((o.y + (o.h ?? 1) / 2) / 32) * h, rate: 2 });
           }
         }
         smokeAcc += dt;
         while (smokeAcc > 0.12 && smoke.length < 30 && emitters.length > 0) {
           smokeAcc -= 0.12;
           const e = emitters[Math.floor(Math.random() * emitters.length)];
-          smoke.push({ x: e.x + (Math.random() - 0.5) * 8, y: e.y - 6, r: 2, t: 0 });
+          for (let k = 0; k < e.rate; k++) {
+            if (smoke.length >= 30) break;
+            smoke.push({ x: e.x + (Math.random() - 0.5) * 8, y: e.y - 6, r: 2, t: 0 });
+          }
         }
       }
       for (let i = smoke.length - 1; i >= 0; i--) {

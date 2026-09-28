@@ -753,15 +753,31 @@ function generateObstacles(
     }
   }
 
+  // Поле green 10×8 — как большой объект: на карте только оно или o17 или o13.
+  // Механика своя (проходимое, простреливается, без бонусов, прозрачность).
+  let greenPlaced = false;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const x = Math.floor(Math.random() * (GRID - 10));
+    const y = Math.floor(Math.random() * (GRID - 8));
+    if (!isAreaFree(x, y, 10, 8)) continue;
+    list.push({
+      id: id++, x, y, w: 10, h: 8, type: 'field', blocks: true, icon: 'field',
+      isWalkable: true, isHigh: false,
+    });
+    markArea(x, y, 10, 8);
+    greenPlaced = true;
+    break;
+  }
+
   // Big buildings — 3 типоразмера по картинке: o8/o9 большие 8x6 (+30%),
   // o15 маленькое 4x4 (−30%), остальные 6x5. isHigh, random image.
   // Футпринт = визуал: арт тянется ровно на w×h от якоря.
-  // o13 и o17 взаимоисключают друг друга на одной карте, и каждая — максимум 1 шт.
+  // o13 и o17 взаимоисключают друг друга и поле green: только что-то одно, максимум 1 шт.
   const bigCount = Math.floor(Math.random() * 2) + 3;
   const placedBig = new Set<string>();
   for (let i = 0; i < bigCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
-      const pairTaken = placedBig.has('o13') || placedBig.has('o17');
+      const pairTaken = placedBig.has('o13') || placedBig.has('o17') || greenPlaced;
       const pool = BIG_BUILDING_IMAGES.map((k, idx) => ({ k, idx }))
         .filter(({ k }) => !((k === 'o13' || k === 'o17') && pairTaken));
       const pick = pool[Math.floor(Math.random() * pool.length)];
@@ -838,30 +854,21 @@ function generateObstacles(
   }
 
   // Поле green 10×8 — обязательное, проходимое, простреливается, без бонусов,
-  // прозрачность внутри как в лесу.
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const x = Math.floor(Math.random() * (GRID - 10));
-    const y = Math.floor(Math.random() * (GRID - 8));
-    if (!isAreaFree(x, y, 10, 8)) continue;
-    list.push({
-      id: id++, x, y, w: 10, h: 8, type: 'field', blocks: true, icon: 'field',
-      isWalkable: true, isHigh: false,
-    });
-    markArea(x, y, 10, 8);
-    break;
-  }
+  // прозрачность внутри как в лесу. (Старый блок удалён: поле выше, в трио с o13/o17.)
 
-  // o33 (вертолёт) 4×2 — обязательный (тест), непроходим, без бонусов, простреливается.
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const x = Math.floor(Math.random() * (GRID - 4));
-    const y = Math.floor(Math.random() * (GRID - 2));
-    if (!isAreaFree(x, y, 4, 2)) continue;
-    list.push({
-      id: id++, x, y, w: 4, h: 2, type: 'car', blocks: true, icon: 'car',
-      isHigh: false, imgIndex: CAR_IMAGES.indexOf('o33'),
-    });
-    markArea(x, y, 4, 2);
-    break;
+  // o33 (вертолёт) 4×2 — шанс 25% на карту, максимум 1 шт. Непроходим, без бонусов, простреливается.
+  if (Math.random() < 0.25) {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const x = Math.floor(Math.random() * (GRID - 4));
+      const y = Math.floor(Math.random() * (GRID - 2));
+      if (!isAreaFree(x, y, 4, 2)) continue;
+      list.push({
+        id: id++, x, y, w: 4, h: 2, type: 'car', blocks: true, icon: 'car',
+        isHigh: false, imgIndex: CAR_IMAGES.indexOf('o33'),
+      });
+      markArea(x, y, 4, 2);
+      break;
+    }
   }
 
   // Cars — NOT isHigh, random image. o23/o29 большие 2x3, остальные 1x2 (якорь сверху).
