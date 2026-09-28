@@ -233,6 +233,18 @@
   pointer-events: none;
   animation: fireSpark linear infinite;
 }
+/* Метка обыскиваемого объекта (есть лут). */
+@keyframes searchablePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+}
+.searchable-dot {
+  position: absolute; top: 2px; right: 2px; width: 8px; height: 8px;
+  border-radius: 50%; background: #4ade80;
+  box-shadow: 0 0 6px rgba(74,222,128,0.9);
+  animation: searchablePulse 1.2s ease-in-out infinite;
+  pointer-events: none; z-index: 11;
+}
 
 /* Живая зелёная полоска журнала активности (бой готов и кликабелен):
  * луч бежит по контуру рамки, как бегущая линия активного ствола. */
