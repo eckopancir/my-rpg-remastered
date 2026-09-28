@@ -82,11 +82,11 @@ export const BattleGrid = () => {
   const reserve = useCombatGridStore((s) => s.reserve);
   const popups = useCombatGridStore((s) => s.popups);
   const campfire = useCombatGridStore((s) => s.campfire);
-  // Анимация костра: 12 кадров по 200мс (цикл 2.4с).
+  // Анимация костра: 12 кадров (цикл 4с).
   const [fireFrame, setFireFrame] = useState(0);
   useEffect(() => {
     if (!isActive || !campfire) return;
-    const t = setInterval(() => setFireFrame((f) => (f + 1) % campfireFrames.length), 200);
+    const t = setInterval(() => setFireFrame((f) => (f + 1) % campfireFrames.length), 333);
     return () => clearInterval(t);
   }, [isActive, campfire]);
   const playerInvisible = useCombatGridStore((s) => s.playerInvisible);
@@ -808,14 +808,14 @@ export const BattleGrid = () => {
               draggable={false}
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2, 3, 4, 5].map((i) => (
               <span
                 key={i}
                 className="fire-spark"
                 style={{
-                  left: `${30 + i * 14}%`, width: 2, height: 2,
-                  animationDuration: `${1.6 + i * 0.4}s`,
-                  animationDelay: `${(i * 0.5).toFixed(1)}s`,
+                  left: `${22 + i * 11}%`, width: 3, height: 3,
+                  animationDuration: `${1.4 + (i % 3) * 0.4}s`,
+                  animationDelay: `${(i * 0.35).toFixed(2)}s`,
                 }}
               />
             ))}
