@@ -2038,7 +2038,7 @@ export const usePlayerStore = create<PlayerStore>()(
           return;
         }
         const abilId = item.abilityId || '';
-        const RAW_FOOD = ['food_meat', 'food_potato', 'food_water'];
+        const RAW_FOOD = ['food_meat', 'food_potato'];
         if (RAW_FOOD.includes(abilId)) {
           get().addLog(`❌ ${item.displayName || item.name} нужно приготовить на костре!`, 'warning');
           return;
