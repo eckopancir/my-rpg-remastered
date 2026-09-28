@@ -2168,10 +2168,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Нейтральный кабан: 1 шт на арену (шанс ниже; тест — всегда).
     // Никого не трогает, ИИ его игнорирует, ходит по 10-сек таймеру.
     // 50 HP, с трупа — 3-8 мяса. Убить может только игрок.
-    // Тест-арена: игрок один, кабана нет.
+    // Тест-арена: 10 кабанов-мишеней для проверки стрельбы.
     {
-      const NEUTRAL_BOAR_CHANCE = testMode ? 0 : 1.0; // тест: 100%. Прод: 0.2.
-      if (Math.random() < NEUTRAL_BOAR_CHANCE) {
+      const BOARS = testMode ? 10 : (Math.random() < 1.0 ? 1 : 0); // тест: 100%. Прод: 0.2.
+      for (let b = 0; b < BOARS; b++) {
         let spot = { x: Math.max(1, GRID - 4), y: Math.max(1, GRID - 4) };
         for (let a = 0; a < 60; a++) {
           const rx = 1 + Math.floor(Math.random() * (GRID - 2));
@@ -2184,7 +2184,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }
         const meatQty = 2 + Math.floor(Math.random() * 4);
         activeEnemies.push({
-          id: `neutral-boar-${Date.now()}`,
+          id: `neutral-boar-${Date.now()}-${b}-${Math.floor(Math.random() * 1e6)}`,
           name: 'Кабан',
           faction: 'Нейтралы',
           dps: 1, damage: 1,
