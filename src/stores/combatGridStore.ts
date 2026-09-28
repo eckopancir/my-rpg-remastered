@@ -2227,6 +2227,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       bonusSpeed: 0, multiTargetIds: [], isPlacingAoE: false, pendingAoE: null,
     });
     get().addBattleLog(`⚔️ Бой начался! Противников: ${activeEnemies.filter((e) => e.faction !== 'Союзник').length}`);
+    if (get().isRaining) get().addBattleLog('🌧 Идёт дождь');
     // Снайпер Т7 «Стеклянная пушка»: входящий +50%, свой урон +25% на весь бой.
     if ((usePlayerStore.getState().skills['snp_a7_glass'] || 0) > 0) {
       const has = usePlayerStore.getState().activeEffects.some((e: any) => e.id === 'ability_snpb_glass_passive');
