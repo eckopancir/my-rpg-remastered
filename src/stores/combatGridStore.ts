@@ -10,7 +10,7 @@ import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
-import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound, preloadCombatSounds } from '../hooks/useSound';
@@ -699,8 +699,9 @@ function generateObstacles(
     }
   }
 
-  // Cars (1x2, anchor at bottom cell, extends up) — NOT isHigh, random image
-  const carImagesCount = 5;
+  // Cars (1x2, anchor at top cell) — NOT isHigh, random image.
+  // Фон обрезан: арт ровно по футпринту, за соседей не заходит.
+  const carImagesCount = CAR_IMAGES.length;
   const carCount = Math.floor(Math.random() * 5) + 3;
   for (let i = 0; i < carCount; i++) {
     for (let attempt = 0; attempt < 30; attempt++) {
