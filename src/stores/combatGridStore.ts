@@ -1131,6 +1131,13 @@ const CELEBRATE_CORPSE_PHRASES = [
   'жирный хабар',
   'моё',
 ];
+/** Реплики у костра (повторяются с кулдауном). */
+const CELEBRATE_FIRE_PHRASES = [
+  'погреемся',
+  'хорошо у огня',
+  'бой окончен, отдыхаем',
+];
+const CELEBRATE_BARK_CD = 30000;
 
 /** Свободная соседняя клетка точки (для подхода к трупу): не стена, не занята. */
 const celebrateFreeNear = (
@@ -3477,24 +3484,35 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (!c || !c.dead || (c as any).looted || !((c as any).loot || []).length) goal = undefined;
       }
       if (!goal) {
-        let best: any = null;
-        let bestD = Infinity;
-        for (const c of corpses) {
-          if (taken.has(String(c.id))) continue;
-          const d = getDist(e.pos, c.pos);
-          if (d < bestD) { bestD = d; best = c; }
-        }
-        if (best) {
-          const cell = celebrateFreeNear(best.pos.x, best.pos.y, st, takenCells);
-          if (cell) {
-            goal = { x: cell.x, y: cell.y, cId: best.id };
-            taken.add(String(best.id));
+        // Делим стаю: чётные по порядку — к трупам, нечётные — к костру.
+        // Нет трупов/костра — fallback на другое.
+        const allyIdx = st.enemies.filter((o: any) =>
+          o.faction === 'Союзник' && !o.dead && (o.currentHp || 0) > 0 && !o.isPet).findIndex((o: any) => o.id === e.id);
+        const wantFire = allyIdx % 2 === 1;
+        const tryCorpse = () => {
+          let best: any = null;
+          let bestD = Infinity;
+          for (const c of corpses) {
+            if (taken.has(String(c.id))) continue;
+            const d = getDist(e.pos, c.pos);
+            if (d < bestD) { bestD = d; best = c; }
           }
-        }
-        if (!goal && camp) {
+          if (!best) return false;
+          const cell = celebrateFreeNear(best.pos.x, best.pos.y, st, takenCells);
+          if (!cell) return false;
+          goal = { x: cell.x, y: cell.y, cId: best.id };
+          taken.add(String(best.id));
+          return true;
+        };
+        const tryFire = () => {
+          if (!camp) return false;
           const cell = celebrateRingNear(camp, st, takenCells);
-          if (cell) goal = { x: cell.x, y: cell.y };
-        }
+          if (!cell) return false;
+          goal = { x: cell.x, y: cell.y };
+          return true;
+        };
+        if (wantFire) { if (!tryFire()) tryCorpse(); }
+        else if (!tryCorpse()) tryFire();
         if (!goal) return e;
       }
       takenCells.add(`${goal.x},${goal.y}`);
@@ -3502,14 +3520,30 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         (e as any).celebrateGoal.x === goal.x && (e as any).celebrateGoal.y === goal.y &&
         (e as any).celebrateGoal.cId === goal.cId;
       if (e.pos.x === goal.x && e.pos.y === goal.y) {
-        if (goal.cId && !goal.barked) {
-          get().say(e.id, CELEBRATE_CORPSE_PHRASES[Math.floor(Math.random() * CELEBRATE_CORPSE_PHRASES.length)]);
-          changed = true;
-          return { ...e, celebrateGoal: { ...goal, barked: true } };
-        }
-        if (!goal.cId && camp && !(e as any).celebrateFaced) {
-          changed = true;
-          return { ...e, rotation: getAngle(e.pos, camp), celebrateGoal: goal, celebrateFaced: true };
+        const now = Date.now();
+        const lastBark = (e as any).celebrateBarkAt || 0;
+        if (goal.cId) {
+          // У трупа: смотрим на него, болтаем (первый раз + повтор каждые 30с).
+          const c = st.enemies.find((o: any) => o.id === goal!.cId);
+          const rot = c ? getAngle(e.pos, c.pos) : e.rotation;
+          if (!goal.barked || now - lastBark > CELEBRATE_BARK_CD) {
+            get().say(e.id, CELEBRATE_CORPSE_PHRASES[Math.floor(Math.random() * CELEBRATE_CORPSE_PHRASES.length)]);
+            changed = true;
+            return { ...e, rotation: rot, celebrateGoal: { ...goal, barked: true }, celebrateBarkAt: now };
+          }
+          if (!goal.barked || e.rotation !== rot) {
+            changed = true;
+            return { ...e, rotation: rot, celebrateGoal: { ...goal, barked: true } };
+          }
+        } else {
+          // У костра: смотрим на огонь, иногда болтаем.
+          if ((!goal.barked && !(e as any).celebrateFaced) || now - lastBark > CELEBRATE_BARK_CD) {
+            if (now - lastBark > CELEBRATE_BARK_CD && Math.random() < 0.5) {
+              get().say(e.id, CELEBRATE_FIRE_PHRASES[Math.floor(Math.random() * CELEBRATE_FIRE_PHRASES.length)]);
+            }
+            changed = true;
+            return { ...e, rotation: camp ? getAngle(e.pos, camp) : e.rotation, celebrateGoal: { ...goal, barked: true }, celebrateFaced: true, celebrateBarkAt: now };
+          }
         }
         if (!sameGoal) { changed = true; return { ...e, celebrateGoal: goal }; }
         return e;
