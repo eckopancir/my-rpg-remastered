@@ -2,7 +2,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import { useCombatGridStore, clearBattleEntry } from '../../stores/combatGridStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useExplorationStore } from '../../stores/explorationStore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ProgressBar } from '../ui/ProgressBar';
 import styles from './Sidebar.module.css';
 
@@ -24,6 +24,8 @@ export const Sidebar = () => {
   const logs = usePlayerStore((s) => s.logs);
   const isFighting = usePlayerStore((s) => s.combat.isFighting);
   const navigate = useNavigate();
+  const location = useLocation();
+  const alreadyInBattle = isFighting && location.pathname === '/battle';
   const queue = useUiStore((s) => s.queue);
   const craftingTimer = useUiStore((s) => s.craftingTimer);
   const craftingTimerMax = useUiStore((s) => s.craftingTimerMax);
@@ -64,16 +66,22 @@ export const Sidebar = () => {
       <div className={styles.section} style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div className={styles.sectionTitle}>Журнал активности ({queue.length + (craftingTimer > 0 ? 1 : 0) + (isExploring ? 1 : 0) + (isFighting ? 1 : 0)})</div>
         <div className={styles.queue}>
-          {/* Бой готов: живая зелёная полоска, клик — на арену */}
+          {/* Бой готов: живая полоска, клик — на арену; на арене — «УЖЕ В БОЮ» оранжевым */}
           {isFighting && (
             <div
               className={`${styles.queueItem} journal-live`}
-              onClick={() => navigate('/battle')}
-              title="Перейти на арену"
-              style={{ border: '1px solid #22c55e', background: 'rgba(34,197,94,0.08)' }}
+              onClick={() => { if (!alreadyInBattle) navigate('/battle'); }}
+              title={alreadyInBattle ? 'Вы уже на арене' : 'Перейти на арену'}
+              style={{
+                border: `1px solid ${alreadyInBattle ? '#d97706' : '#22c55e'}`,
+                background: alreadyInBattle ? 'rgba(217,119,6,0.08)' : 'rgba(34,197,94,0.08)',
+                ...(!alreadyInBattle ? null : { ['--jl-beam' as any]: '#f59e0b' }),
+              }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                <div style={{ fontWeight: 700, color: '#4ade80', fontSize: 12 }}>⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА</div>
+                <div style={{ fontWeight: 700, color: alreadyInBattle ? '#f59e0b' : '#4ade80', fontSize: 12 }}>
+                  {alreadyInBattle ? '⚔️ УЖЕ В БОЮ' : '⚔️ ПОДГОТОВКА К БОЮ ЗАВЕРШЕНА'}
+                </div>
                 <span
                   title="Убрать зависший бой"
                   onClick={(e) => {

@@ -229,7 +229,7 @@
   inset: 0;
   border-radius: 6px;
   padding: 2px;
-  background: conic-gradient(from var(--jl-a), transparent 0deg, #22c55e 30deg, transparent 70deg);
+  background: conic-gradient(from var(--jl-a), transparent 0deg, var(--jl-beam, #22c55e) 30deg, transparent 70deg);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
