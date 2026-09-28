@@ -37,7 +37,7 @@ export const FOOD_BREAD = F('food_bread', 'Хлеб', '🍞', 2, 30, 'Восст
 
 // ─── Cooked food (crafted from recipes) — цена = сумма ингредиентов ──
 export const FOOD_BOILED_WATER = F('food_boiled_water', 'Кипяченая вода', '♨️', 1, 30, 'Вода × 2. Восстанавливает 1% HP.', false);
-export const FOOD_RAGU = F('food_ragu', 'Рагу', '🍲', 12, 190, 'Картошка + вода + мясо. Восстанавливает 12% HP.', false);
+export const FOOD_RAGU = F('food_ragu', 'Рагу', '🍲', 14, 190, 'Картошка + вода + мясо. Восстанавливает 14% HP.', false);
 export const FOOD_FRIED_MEAT = F('food_fried_meat', 'Жареное мясо', '🍖', 14, 300, 'Мясо × 2. Восстанавливает 14% HP.', false);
 export const FOOD_BOILED_POTATO = F('food_boiled_potato', 'Варёная картошка', '🥔', 10, 40, 'Картошка + вода. Восстанавливает 10% HP.', false);
 export const FOOD_SANDWICH = F('food_sandwich', 'Бутерброд', '🥪', 5, 80, 'Колбаса + хлеб. Восстанавливает 5% HP.', false);
@@ -68,9 +68,9 @@ export const RECIPES: RecipeDef[] = [
     desc: 'Вода × 2 + Дрова = Кипяченая вода (1% HP)',
   },
   {
-    id: 'recipe_ragu', name: 'Рагу', icon: '🍲', result: FOOD_RAGU, healPct: 12,
+    id: 'recipe_ragu', name: 'Рагу', icon: '🍲', result: FOOD_RAGU, healPct: 14,
     ingredients: [{ foodId: 'food_potato', qty: 1 }, { foodId: 'res:Вода', qty: 1, resName: 'Вода' }, { foodId: 'food_meat', qty: 1 }, { foodId: 'res:Дерево', qty: 1, resName: 'Дерево' }],
-    desc: 'Картошка + Вода + Мясо + Дрова = Рагу (12% HP)',
+    desc: 'Картошка + Вода + Мясо + Дрова = Рагу (14% HP)',
   },
   {
     id: 'recipe_fried_meat', name: 'Жареное мясо', icon: '🍖', result: FOOD_FRIED_MEAT, healPct: 14,

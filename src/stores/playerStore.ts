@@ -2046,7 +2046,7 @@ export const usePlayerStore = create<PlayerStore>()(
         // Food: cannot eat during active combat
         const FOOD_HEAL: Record<string, number> = {
           food_sausage: 2, food_apple: 1, food_stew: 3, food_bread: 2,
-          food_ragu: 12, food_fried_meat: 14, food_boiled_potato: 10,
+          food_ragu: 14, food_fried_meat: 14, food_boiled_potato: 10,
           food_sandwich: 5, food_fried_potato: 8, food_boiled_water: 1,
           food_firstaid: 25, food_bandage: 15,
         };
