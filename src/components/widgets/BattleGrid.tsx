@@ -82,7 +82,13 @@ export const BattleGrid = () => {
   const reserve = useCombatGridStore((s) => s.reserve);
   const popups = useCombatGridStore((s) => s.popups);
   const campfire = useCombatGridStore((s) => s.campfire);
-  // Анимация костра: 12 кадров (цикл 4с).
+  // Старый костёр для сравнения (2 кадра, 300мс) — рисуется клеткой правее.
+  const [oldFireFrame, setOldFireFrame] = useState(0);
+  useEffect(() => {
+    if (!isActive || !campfire) return;
+    const t = setInterval(() => setOldFireFrame((f) => (f + 1) % 2), 300);
+    return () => clearInterval(t);
+  }, [isActive, campfire]);
   const [fireFrame, setFireFrame] = useState(0);
   useEffect(() => {
     if (!isActive || !campfire) return;
@@ -805,6 +811,36 @@ export const BattleGrid = () => {
             <img
               src={campfireFrames[fireFrame % campfireFrames.length]}
               alt="campfire"
+              draggable={false}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <span
+                key={i}
+                className="fire-spark"
+                style={{
+                  left: `${22 + i * 11}%`, width: 3, height: 3,
+                  animationDuration: `${1.4 + (i % 3) * 0.4}s`,
+                  animationDelay: `${(i * 0.35).toFixed(2)}s`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+        {/* Старый костёр (fire1/fire2) клеткой правее — для сравнения, тоже с искрами */}
+        {campfire && (images.campfire1 || images.campfire2) && (
+          <div style={{
+            position: 'absolute',
+            left: `${((campfire.x + 1) / 31) * 100}%`,
+            top: `${(campfire.y / 31) * 100}%`,
+            transform: 'translate(-50%, -62%)',
+            width: '2.9%', aspectRatio: '1',
+            zIndex: 4,
+            pointerEvents: 'none',
+          }}>
+            <img
+              src={oldFireFrame === 0 ? (images.campfire1 || images.campfire2) : (images.campfire2 || images.campfire1)}
+              alt="campfire-old"
               draggable={false}
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
