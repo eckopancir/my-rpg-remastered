@@ -3660,7 +3660,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const ob = st.obstacles.find((o: any) => o.id === obId) as any;
     const loot = ob?.searchLoot;
     if (!ob || !loot) return;
-    const label = loot.kind === 'well' ? 'Набираю воду' : loot.kind === 'tree' ? 'Рубка дерева' : 'Обыск машины';
+    const label = loot.kind === 'well' ? 'Набираю воду' : loot.kind === 'tree' ? 'Рубка дерева' : 'Поиск лута';
     const totalMs = loot.kind === 'tree' ? 18000 : 4000;
     if (searchTimer !== null) window.clearTimeout(searchTimer);
     set({ searchCast: { obId, label, totalMs, startedAt: Date.now() } });
