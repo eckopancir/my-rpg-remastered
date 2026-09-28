@@ -124,14 +124,20 @@ export const Battle = () => {
   // Обыск: ближайший объект с лутом впритык (костёр — приоритет).
   const searchTarget = useCombatGridStore((s) => {
     if (!s.isActive || s.turn !== 'player') return null;
+    // Приоритет — поиск лута (машины), потом остальное.
+    let car: any = null;
+    let carD = Infinity;
     let best: any = null;
     let bestD = Infinity;
     for (const o of s.obstacles as any[]) {
       if (!(o as any).searchLoot) continue;
       const d = distToRect(s.playerPos.x, s.playerPos.y, o as any);
-      if (d <= 1 && d < bestD) { bestD = d; best = o; }
+      if (d > 1) continue;
+      if ((o as any).searchLoot.kind === 'car') {
+        if (d < carD) { carD = d; car = o; }
+      } else if (d < bestD) { bestD = d; best = o; }
     }
-    return best;
+    return car ?? best;
   });
   const searchCast = useCombatGridStore((s) => s.searchCast);
   // Труп нейтрала с мясом рядом — собрать через E (без окна).
@@ -304,11 +310,17 @@ export const Battle = () => {
           {
             let best: any = null;
             let bestD = Infinity;
+            let car: any = null;
+            let carD = Infinity;
             for (const o of st.obstacles as any[]) {
               if (!(o as any).searchLoot) continue;
               const d = distToRect(pp.x, pp.y, o as any);
-              if (d <= 1 && d < bestD) { bestD = d; best = o; }
+              if (d > 1) continue;
+              if ((o as any).searchLoot.kind === 'car') {
+                if (d < carD) { carD = d; car = o; }
+              } else if (d < bestD) { bestD = d; best = o; }
             }
+            best = car ?? best;
             if (best) st.startSearchCast(best.id);
           }
           break;
