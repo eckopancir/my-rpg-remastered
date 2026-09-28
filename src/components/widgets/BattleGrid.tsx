@@ -82,11 +82,11 @@ export const BattleGrid = () => {
   const reserve = useCombatGridStore((s) => s.reserve);
   const popups = useCombatGridStore((s) => s.popups);
   const campfire = useCombatGridStore((s) => s.campfire);
-  // Анимация костра: 12 кадров по 90мс (цикл ~1.1с).
+  // Анимация костра: 12 кадров по 150мс (цикл 1.8с).
   const [fireFrame, setFireFrame] = useState(0);
   useEffect(() => {
     if (!isActive || !campfire) return;
-    const t = setInterval(() => setFireFrame((f) => (f + 1) % campfireFrames.length), 90);
+    const t = setInterval(() => setFireFrame((f) => (f + 1) % campfireFrames.length), 150);
     return () => clearInterval(t);
   }, [isActive, campfire]);
   const playerInvisible = useCombatGridStore((s) => s.playerInvisible);
@@ -798,7 +798,7 @@ export const BattleGrid = () => {
             left: `${(campfire.x / 31) * 100}%`,
             top: `${(campfire.y / 31) * 100}%`,
             transform: 'translate(-50%, -62%)',
-            width: '5.8%', aspectRatio: '1',
+            width: '2.9%', aspectRatio: '1',
             zIndex: 4,
             pointerEvents: 'none',
           }}>
