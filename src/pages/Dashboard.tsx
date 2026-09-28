@@ -602,6 +602,19 @@ export const Dashboard = () => {
             }} style={{ fontSize: 11 }}>🧪 Тест-арена (один)</Button>
             <Button size="sm" variant="primary" onClick={() => {
               const cs = useCombatGridStore.getState();
+              if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
+              usePlayerStore.getState().startCombat(1, true);
+              const ok = cs.initCombat(1, undefined, [], undefined, 0, true);
+              if (!ok) {
+                usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+                usePlayerStore.getState().addLog('⚠️ Тест-арена не запустилась', 'warning');
+                return;
+              }
+              useCombatGridStore.setState({ isNightTime: true });
+              navigate('/battle');
+            }} style={{ fontSize: 11 }}>🌙 Тест-арена ночь</Button>
+            <Button size="sm" variant="primary" onClick={() => {
+              const cs = useCombatGridStore.getState();
               cs.setRaining(!cs.isRaining);
               usePlayerStore.getState().addLog(cs.isRaining ? '🌧 Дождь выключен' : '🌧 Дождь включён', 'info');
             }} style={{ fontSize: 11 }}>🌧 Дождь вкл/выкл</Button>

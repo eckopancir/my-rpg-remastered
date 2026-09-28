@@ -151,7 +151,7 @@ export const stopRainLoop = () => {
 };
 
 /** Птицы на карте: играет без остановки, пока нет дождя. */
-const BIRD_KEY = 'phototo73-the-sound-of-birds-in-the-forest-birds-sing-156009';
+const BIRD_KEY = 'forest-birds-singmp3';
 export const playBirdLoop = (volume = 0.2) => {
   const ui = useUiStore.getState();
   if (!ui.soundEnabled) return;
