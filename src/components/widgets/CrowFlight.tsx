@@ -86,7 +86,7 @@ export const CrowFlight = () => {
         position: 'absolute',
         left: `${cellPct(go ? flight.tx : flight.fx)}%`,
         top: `${cellPct(go ? flight.ty : flight.fy)}%`,
-        width: '2.6%',
+        width: '1.95%',
         aspectRatio: '280 / 520',
         transform: 'translate(-50%,-50%)',
         transition: `left ${FLIGHT_MS}ms linear, top ${FLIGHT_MS}ms linear`,
