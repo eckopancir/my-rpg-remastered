@@ -456,3 +456,8 @@ export const campfireFrames: string[] = Array.from(
 export const crowFrames: string[] = ['voron1', 'voron2', 'voron3']
   .map((k) => battleImageMap.get(k))
   .filter(Boolean) as string[];
+
+/** Кадры анимации поля (green/green1, сцена 5с). */
+export const fieldFrames: string[] = ['green', 'green1']
+  .map((k) => battleImageMap.get(k))
+  .filter(Boolean) as string[];

@@ -10,7 +10,7 @@ import { BirdFlock } from './BirdFlock';
 import { LootBackpackWindow } from './LootBackpackWindow';
 import { useUiStore } from '../../stores/uiStore';
 import { useEnemyAI } from '../../hooks/useEnemyAI';
-import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petModelImage, petCorpseImage, campfireFrames } from '../../assets/index';
+import { getEnemyImage, getBattleImage, getCharacterImage, images, petStrikeImage, meleeStrikeImage, petModelImage, petCorpseImage, campfireFrames, fieldFrames } from '../../assets/index';
 import { pickPhrase, STALKER_THANKS } from '../../data/enemyChatter';
 import { weaponRangeProfile } from '../../data/ammo';
 import { type PetKind } from '../../data/pets';
@@ -69,7 +69,7 @@ const PetHitSpark = () => {
   );
 };
 
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, fieldFrames, terrainSummary, isCellWalkable } from '../../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
