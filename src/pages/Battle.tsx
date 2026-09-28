@@ -84,6 +84,7 @@ export const Battle = () => {
 
   const isActive = useCombatGridStore((s) => s.isActive);
   const isTestArena = useCombatGridStore((s) => s.isTestArena);
+  const celebration = useCombatGridStore((s) => s.celebration);
   const ap = useCombatGridStore((s) => s.ap);
   const maxAp = useCombatGridStore((s) => s.maxAp);
   const ammo = useCombatGridStore((s) => s.ammo);
@@ -588,7 +589,7 @@ export const Battle = () => {
                   cursor: turn !== 'player' ? 'not-allowed' : 'pointer',
                   fontSize: 12,
                   opacity: turn !== 'player' ? 0.4 : 1,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
+                  display: celebration ? 'none' : 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4,
                 }}
               >
                 <span>⏭ Конец хода</span>

@@ -356,6 +356,11 @@ export interface CombatGridStore {
   wanderNeutrals: () => void;
   /** Болтовня нейтралов: случайный живой кабан хрюкает. Зовёт 30-сек таймер. */
   neutralChatter: () => void;
+  /** Победа: пошаговый режим выкл, мусорщики празднуют (костёр/трупы), выход — кнопкой финиша. */
+  celebration: boolean;
+  startCelebration: () => void;
+  /** Шаг празднования (зовёт интервал из BattleGrid): союзники идут к целям, у трупов болтают. */
+  celebrationStep: () => void;
   selectedAbility: number | null;
   selectedAbilitySource: 'player' | 'skillBar' | 'pet' | null;
   playerInvisible: boolean;
@@ -1118,6 +1123,62 @@ export const absorbWithShield = (pos: { x: number; y: number }): boolean => {
   return false;
 };
 
+/** Реплики мусорщиков у трупов на праздновании победы. */
+const CELEBRATE_CORPSE_PHRASES = [
+  'опа хабар',
+  'ему это теперь не нужно',
+  'теперь эта точка',
+  'жирный хабар',
+  'моё',
+];
+
+/** Свободная соседняя клетка точки (для подхода к трупу): не стена, не занята. */
+const celebrateFreeNear = (
+  px: number, py: number,
+  st: { obstacles: any[]; enemies: any[]; playerPos: { x: number; y: number } },
+  takenCells: Set<string>,
+): { x: number; y: number } | null => {
+  const dirs = [
+    { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+    { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+  ];
+  for (const d of dirs) {
+    const nx = px + d.dx;
+    const ny = py + d.dy;
+    if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+    if (!isCellWalkable(nx, ny, st.obstacles)) continue;
+    if (nx === st.playerPos.x && ny === st.playerPos.y) continue;
+    if (takenCells.has(`${nx},${ny}`)) continue;
+    if (st.enemies.some((o: any) => !o.dead && (o.currentHp || 0) > 0 && o.pos.x === nx && o.pos.y === ny)) continue;
+    return { x: nx, y: ny };
+  }
+  return null;
+};
+
+/** Свободная клетка кольца вокруг костра. */
+const celebrateRingNear = (
+  camp: { x: number; y: number },
+  st: { obstacles: any[]; enemies: any[]; playerPos: { x: number; y: number } },
+  takenCells: Set<string>,
+): { x: number; y: number } | null => {
+  const ring = [
+    { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+    { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+    { dx: 2, dy: 0 }, { dx: -2, dy: 0 }, { dx: 0, dy: 2 }, { dx: 0, dy: -2 },
+  ];
+  for (const d of ring) {
+    const nx = camp.x + d.dx;
+    const ny = camp.y + d.dy;
+    if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+    if (!isCellWalkable(nx, ny, st.obstacles)) continue;
+    if (nx === st.playerPos.x && ny === st.playerPos.y) continue;
+    if (takenCells.has(`${nx},${ny}`)) continue;
+    if (st.enemies.some((o: any) => !o.dead && (o.currentHp || 0) > 0 && o.pos.x === nx && o.pos.y === ny)) continue;
+    return { x: nx, y: ny };
+  }
+  return null;
+};
+
 export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
   isTestArena: false,
@@ -1429,6 +1490,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   petCommandMode: false,
   petTargetId: null,
   petAiActive: false,
+  celebration: false,
   hitFx: null,
   selectedAbility: null,
   selectedAbilitySource: null,
@@ -2208,7 +2270,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     set({
       isActive: true, isTestArena: !!testMode, isRaining: true, playerPos, enemies: activeEnemies, obstacles,
-      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
+      playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, celebration: false, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
       turn: 'player', ap: BASE_AP, maxAp: BASE_AP, ammo: startAmmo, maxAmmo: ammoCap,
@@ -2271,12 +2333,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   movePlayer: (x, y) => {
     const state = get();
-    if (state.turn !== 'player' || state.ap <= 0 || state.isMoving) return;
+    const free = state.celebration;
+    if (state.turn !== 'player' || state.isMoving) return;
+    if (!free && state.ap <= 0) return;
     if (state.playerRootedTurns > 0) { get().addMessage('⛓️ Снайперская позиция: без движения!'); return; }
     if (!state.isSelected) return;
     const path = findPath({ x: state.playerPos.x, y: state.playerPos.y }, { x, y }, state.obstacles);
     if (path.length === 0) return;
-    if (path.length - 1 > state.ap) { get().addMessage('❌ Не хватает AP'); return; }
+    if (!free && path.length - 1 > state.ap) { get().addMessage('❌ Не хватает AP'); return; }
 
     // Check cell isn't occupied by living enemy
     for (const e of state.enemies) {
@@ -2292,16 +2356,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const animateInterval = setInterval(() => {
       if (step >= path.length) {
         clearInterval(animateInterval);
-        const newAp = state.ap - stepsTaken;
+        const newAp = free ? state.ap : state.ap - stepsTaken;
         set((s) => ({
           playerPos: { x: path[path.length - 1].x, y: path[path.length - 1].y },
           ap: newAp,
           playerRotation: getAngle(path[path.length - 2] || path[0], path[path.length - 1]),
           isMoving: false,
-          message: `🚶 Шагнул (AP: ${newAp}/${s.maxAp})`,
+          message: free ? '🚶 Прогулка' : `🚶 Шагнул (AP: ${newAp}/${s.maxAp})`,
         }));
         stopCombatSound('run');
-        if (newAp <= 0) {
+        if (!free && newAp <= 0) {
           // AP кончились — ход завершается сам. Одни на поле: endTurn просто
           // вернёт полный AP и свободное перемещение; есть враги: ход врага.
           get().endTurn();
@@ -2321,7 +2385,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   handleKeyboardMove: (dx, dy) => {
     const state = get();
-    if (state.turn !== 'player' || state.ap <= 0 || state.isMoving) return;
+    const free = state.celebration;
+    if (state.turn !== 'player' || state.isMoving) return;
+    if (!free && state.ap <= 0) return;
     if (state.playerRootedTurns > 0) { get().addMessage('⛓️ Снайперская позиция: без движения!'); return; }
     const nx = state.playerPos.x + dx;
     const ny = state.playerPos.y + dy;
@@ -2334,16 +2400,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return;
     }
     const angle = getAngle(state.playerPos, { x: nx, y: ny });
-    const newAp = state.ap - 1;
+    const newAp = free ? state.ap : state.ap - 1;
     set({
       playerPos: { x: nx, y: ny },
       ap: newAp,
       playerRotation: angle,
       isDefensiveMode: false,
-      message: `🚶 Шаг (AP: ${newAp}/${state.maxAp})`,
+      message: free ? '🚶 Прогулка' : `🚶 Шаг (AP: ${newAp}/${state.maxAp})`,
     });
     playCombatSound('run', 0.15);
-    if (newAp <= 0) {
+    if (!free && newAp <= 0) {
       // Одни на поле — тоже самозавершение: endTurn вернёт AP и свободный бег.
       get().endTurn();
     }
@@ -3376,6 +3442,96 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const boar = alive[Math.floor(Math.random() * alive.length)];
     const phrases = ['вуф', 'уух', 'гррр'];
     get().say(boar.id, phrases[Math.floor(Math.random() * phrases.length)], 3000);
+  },
+
+  startCelebration: () => {
+    const s = get();
+    if (!s.isActive || s.celebration) return;
+    const allies = s.enemies.filter((e: any) => e.faction === 'Союзник' && !e.dead && (e.currentHp || 0) > 0 && !(e as any).isPet);
+    if (allies.length === 0) return;
+    set({ celebration: true, turn: 'player', ap: s.maxAp });
+    get().addBattleLog('🏆 Победа! Мусорщики празднуют — обыщи трупы, потом жми финиш.');
+    get().addMessage('🏆 Победа! Пошаговый режим выкл — ходи свободно.');
+  },
+
+  celebrationStep: () => {
+    const s = get();
+    if (!s.isActive || !s.celebration) return;
+    const st = get();
+    const corpses = st.enemies.filter((e: any) =>
+      e.dead && Array.isArray((e as any).loot) && (e as any).loot.length > 0 && !(e as any).looted);
+    const camp = (st as any).campfire as { x: number; y: number } | undefined;
+    const taken = new Set<string>();
+    for (const e of st.enemies) {
+      const g = (e as any).celebrateGoal as { cId?: number | string } | undefined;
+      if (g?.cId) taken.add(String(g.cId));
+    }
+    const takenCells = new Set<string>();
+    let changed = false;
+    const next = st.enemies.map((e: any) => {
+      if (e.faction !== 'Союзник' || e.dead || (e.currentHp || 0) <= 0 || e.isPet) return e;
+      let goal = (e as any).celebrateGoal as { x: number; y: number; cId?: number | string; barked?: boolean } | undefined;
+      // Труп снят — цель протухла.
+      if (goal?.cId) {
+        const c = st.enemies.find((o: any) => o.id === goal!.cId);
+        if (!c || !c.dead || (c as any).looted || !((c as any).loot || []).length) goal = undefined;
+      }
+      if (!goal) {
+        let best: any = null;
+        let bestD = Infinity;
+        for (const c of corpses) {
+          if (taken.has(String(c.id))) continue;
+          const d = getDist(e.pos, c.pos);
+          if (d < bestD) { bestD = d; best = c; }
+        }
+        if (best) {
+          const cell = celebrateFreeNear(best.pos.x, best.pos.y, st, takenCells);
+          if (cell) {
+            goal = { x: cell.x, y: cell.y, cId: best.id };
+            taken.add(String(best.id));
+          }
+        }
+        if (!goal && camp) {
+          const cell = celebrateRingNear(camp, st, takenCells);
+          if (cell) goal = { x: cell.x, y: cell.y };
+        }
+        if (!goal) return e;
+      }
+      takenCells.add(`${goal.x},${goal.y}`);
+      const sameGoal = (e as any).celebrateGoal &&
+        (e as any).celebrateGoal.x === goal.x && (e as any).celebrateGoal.y === goal.y &&
+        (e as any).celebrateGoal.cId === goal.cId;
+      if (e.pos.x === goal.x && e.pos.y === goal.y) {
+        if (goal.cId && !goal.barked) {
+          get().say(e.id, CELEBRATE_CORPSE_PHRASES[Math.floor(Math.random() * CELEBRATE_CORPSE_PHRASES.length)]);
+          changed = true;
+          return { ...e, celebrateGoal: { ...goal, barked: true } };
+        }
+        if (!goal.cId && camp && !(e as any).celebrateFaced) {
+          changed = true;
+          return { ...e, rotation: getAngle(e.pos, camp), celebrateGoal: goal, celebrateFaced: true };
+        }
+        if (!sameGoal) { changed = true; return { ...e, celebrateGoal: goal }; }
+        return e;
+      }
+      const path = findPath(e.pos, goal, st.obstacles);
+      const nxt = path && path.length > 1 ? path[1] : null;
+      if (!nxt) {
+        if (!sameGoal) { changed = true; return { ...e, celebrateGoal: goal }; }
+        return e;
+      }
+      if (st.enemies.some((o: any) => o.id !== e.id && !o.dead && (o.currentHp || 0) > 0 && o.pos.x === nxt.x && o.pos.y === nxt.y)) {
+        if (!sameGoal) { changed = true; return { ...e, celebrateGoal: goal }; }
+        return e;
+      }
+      if (nxt.x === st.playerPos.x && nxt.y === st.playerPos.y) {
+        if (!sameGoal) { changed = true; return { ...e, celebrateGoal: goal }; }
+        return e;
+      }
+      changed = true;
+      return { ...e, pos: { x: nxt.x, y: nxt.y }, rotation: getAngle(e.pos, nxt), celebrateGoal: goal };
+    });
+    if (changed) set({ enemies: next });
   },
 
   commandPetAttack: async (enemyId) => {
@@ -4671,6 +4827,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   endTurn: () => {
     stopCombatSound('run');
     const state = get();
+    // Празднование: пошаговости нет — только рефил AP.
+    if (state.celebration) {
+      set({ ap: state.maxAp, turn: 'player' });
+      return;
+    }
     if (state.turn !== 'player' || state.isMoving) return;
     // Check all dead + no reserve -> free movement (союзники не в счёт).
     const allDead = state.enemies.every((e) => e.dead || e.faction === 'Союзник' || (e as any).isNeutral);
@@ -4959,7 +5120,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, isRaining: false, enemies: [], obstacles: [], turn: 'player',
+      isActive: false, isTestArena: false, isRaining: false, celebration: false, enemies: [], obstacles: [], turn: 'player',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

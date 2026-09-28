@@ -128,6 +128,23 @@ export const BattleGrid = () => {
     const hostiles = enemies.filter((e) => e.faction !== 'Союзник' && !(e as any).isNeutral);
     return hostiles.length > 0 && hostiles.every((e) => e.dead) && reserve.length === 0;
   }, [enemies, reserve]);
+  const celebration = useCombatGridStore((s) => s.celebration);
+  // Победа + живые мусорщики → празднование вместо мгновенного финиша.
+  useEffect(() => {
+    if (!canFinish || celebration) return;
+    const allies = useCombatGridStore.getState().enemies.filter(
+      (e: any) => e.faction === 'Союзник' && !e.dead && (e.currentHp || 0) > 0 && !e.isPet,
+    );
+    if (allies.length > 0) useCombatGridStore.getState().startCelebration();
+  }, [canFinish, celebration, enemies]);
+  // Шаг празднования: союзники идут без AP и таймеров ходов.
+  useEffect(() => {
+    if (!celebration) return;
+    const t = window.setInterval(() => {
+      try { useCombatGridStore.getState().celebrationStep(); } catch { /* ignore */ }
+    }, 2500);
+    return () => window.clearInterval(t);
+  }, [celebration]);
   const [hoveredDeadId, setHoveredDeadId] = useState<number | string | null>(null);
   const [playerLocating, setPlayerLocating] = useState(false);
   const isSelectedPrev = useRef(false);
