@@ -512,12 +512,12 @@ export const BattleGrid = () => {
   }, [enemies]);
 
   const obstacleTileMap = useMemo(() => {
-    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number }>();
+    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; w: number; h: number }>();
     for (const ob of obstacles) {
       for (let dx = 0; dx < ob.w; dx++) {
         for (let dy = 0; dy < ob.h; dy++) {
           const isAnchor = dx === 0 && dy === 0;
-          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex });
+          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, w: ob.w ?? 1, h: ob.h ?? 1 });
         }
       }
     }
@@ -606,6 +606,8 @@ export const BattleGrid = () => {
                     )}
                     alt=""
                     className={`${styles.obstacleImg} ${obstacle.icon === 'building' ? styles.obstacleBigImg : obstacle.icon === 'car' ? styles.obstacleCarImg : obstacle.icon === 'woods' ? styles.obstacleWoodsImg : styles.obstacleSmallImg}`}
+                    // Здания тянутся ровно на свой футпринт от якоря (3 типоразмера).
+                    style={obstacle.icon === 'building' ? { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0 } : undefined}
                     draggable={false}
                   />
                 )}

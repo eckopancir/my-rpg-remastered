@@ -10,7 +10,7 @@ import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
-import { applyTerrainToTarget, isCellWalkable } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound, preloadCombatSounds } from '../hooks/useSound';
@@ -676,19 +676,24 @@ function generateObstacles(
     markArea(enemy.pos.x - 1, enemy.pos.y - 1, 3, 3);
   }
 
-  // Big buildings (6x5) — isHigh, random image
-  const bigBuildingImagesCount = 11;
+  // Big buildings — 3 типоразмера по картинке: o8/o9 большие 8x6 (+30%),
+  // o15 маленькое 4x4 (−30%), остальные 6x5. isHigh, random image.
+  // Футпринт = визуал: арт тянется ровно на w×h от якоря.
+  const bigBuildingImagesCount = BIG_BUILDING_IMAGES.length;
   const bigCount = Math.floor(Math.random() * 2) + 3;
   for (let i = 0; i < bigCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
-      const x = Math.floor(Math.random() * (GRID - 6));
-      const y = Math.floor(Math.random() * (GRID - 5));
-      if (isAreaFree(x, y, 6, 5)) {
+      const imgIdx = Math.floor(Math.random() * bigBuildingImagesCount);
+      const imgKey = BIG_BUILDING_IMAGES[imgIdx] ?? '';
+      const [bw, bh] = imgKey === 'o8' || imgKey === 'o9' ? [8, 6] : imgKey === 'o15' ? [4, 4] : [6, 5];
+      const x = Math.floor(Math.random() * (GRID - bw));
+      const y = Math.floor(Math.random() * (GRID - bh));
+      if (isAreaFree(x, y, bw, bh)) {
         list.push({
-          id: id++, x, y, w: 6, h: 5, type: 'building', blocks: true, icon: 'building',
-          isHigh: true, imgIndex: Math.floor(Math.random() * bigBuildingImagesCount),
+          id: id++, x, y, w: bw, h: bh, type: 'building', blocks: true, icon: 'building',
+          isHigh: true, imgIndex: imgIdx,
         });
-        markArea(x, y, 6, 5);
+        markArea(x, y, bw, bh);
         break;
       }
     }
