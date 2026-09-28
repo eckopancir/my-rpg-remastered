@@ -164,8 +164,8 @@
 }
 
 .playerSprite {
-  width: 90%;
-  height: 90%;
+  width: 72%;
+  height: 72%;
   object-fit: contain;
 }
 
