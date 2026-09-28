@@ -872,14 +872,29 @@ function generateObstacles(
     break;
   }
 
-  // Cars — NOT isHigh, random image. o23 большой 2x3, остальные 1x2 (якорь сверху).
+  // o33 2×3 — обязательный (тест), непроходим, без бонусов, простреливается.
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const x = Math.floor(Math.random() * (GRID - 2));
+    const y = Math.floor(Math.random() * (GRID - 3));
+    if (!isAreaFree(x, y, 2, 3)) continue;
+    list.push({
+      id: id++, x, y, w: 2, h: 3, type: 'car', blocks: true, icon: 'car',
+      isHigh: false, imgIndex: CAR_IMAGES.indexOf('o33'),
+    });
+    markArea(x, y, 2, 3);
+    break;
+  }
+
+  // Cars — NOT isHigh, random image. o23/o29 большие 2x3, остальные 1x2 (якорь сверху).
+  // o33 только обязательным спавном выше — из случайного пула исключён.
   // Фон обрезан: арт ровно по футпринту, за соседей не заходит.
-  const carImagesCount = CAR_IMAGES.length;
+  const carPool = CAR_IMAGES.map((k, idx) => ({ k, idx })).filter(({ k }) => k !== 'o33');
   const carCount = Math.floor(Math.random() * 5) + 3;
   for (let i = 0; i < carCount; i++) {
     for (let attempt = 0; attempt < 30; attempt++) {
-      const imgIdx = Math.floor(Math.random() * carImagesCount);
-      const big = CAR_IMAGES[imgIdx] === 'o23' || CAR_IMAGES[imgIdx] === 'o29';
+      const pick = carPool[Math.floor(Math.random() * carPool.length)];
+      const imgIdx = pick.idx;
+      const big = pick.k === 'o23' || pick.k === 'o29';
       const cw = big ? 2 : 1;
       const ch = big ? 3 : 2;
       const x = Math.floor(Math.random() * (GRID - cw + 1));
