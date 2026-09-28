@@ -5,7 +5,7 @@ import { playCombatSound } from '../../hooks/useSound';
 
 const FLIGHT_MS = 7000;
 const EVERY_MS = 10000; // тест: часто. Прод: поднять.
-const NEAR_DIST = 6;
+const NEAR_DIST = 20;
 /** Координаты клеток -> % (центры, как весь оверлей арены). */
 const cellPct = (c: number): number => ((c + 0.5) / 32) * 100;
 
