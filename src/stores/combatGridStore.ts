@@ -679,12 +679,16 @@ function generateObstacles(
   // Big buildings — 3 типоразмера по картинке: o8/o9 большие 8x6 (+30%),
   // o15 маленькое 4x4 (−30%), остальные 6x5. isHigh, random image.
   // Футпринт = визуал: арт тянется ровно на w×h от якоря.
-  const bigBuildingImagesCount = BIG_BUILDING_IMAGES.length;
+  // o13 и o17 взаимоисключают друг друга на одной карте.
   const bigCount = Math.floor(Math.random() * 2) + 3;
+  const placedBig = new Set<string>();
   for (let i = 0; i < bigCount; i++) {
     for (let attempt = 0; attempt < 50; attempt++) {
-      const imgIdx = Math.floor(Math.random() * bigBuildingImagesCount);
-      const imgKey = BIG_BUILDING_IMAGES[imgIdx] ?? '';
+      const pool = BIG_BUILDING_IMAGES.map((k, idx) => ({ k, idx }))
+        .filter(({ k }) => !((placedBig.has('o13') && k === 'o17') || (placedBig.has('o17') && k === 'o13')));
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      const imgIdx = pick.idx;
+      const imgKey = pick.k;
       const [bw, bh] = imgKey === 'o8' || imgKey === 'o9' ? [8, 6] : imgKey === 'o15' ? [4, 4] : [6, 5];
       const x = Math.floor(Math.random() * (GRID - bw));
       const y = Math.floor(Math.random() * (GRID - bh));
@@ -694,6 +698,7 @@ function generateObstacles(
           isHigh: true, imgIndex: imgIdx,
         });
         markArea(x, y, bw, bh);
+        placedBig.add(imgKey);
         break;
       }
     }
