@@ -4450,7 +4450,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       campfire: null,
     }));
     // Режим стройки: враги не ходят (ход не передаётся), AP бесконечные.
-    set({ editorPeace: true, ap: 999, maxAp: 999, turn: 'player' });
+    set({ editorPeace: true, ap: 999999, maxAp: 999999, turn: 'player' });
     return true;
   },
 
@@ -5362,7 +5362,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const state = get();
     // Конструктор: ход никому не передаём, AP всегда полные.
     if (state.editorPeace) {
-      set({ ap: 999, maxAp: 999, turn: 'player' });
+      set({ ap: 999999, maxAp: 999999, turn: 'player' });
       return;
     }
     // Празднование: пошаговости нет — только рефил AP.
