@@ -53,6 +53,20 @@ export const MapEditorPanel = () => {
       useMapEditorStore.getState().setActive(false);
     }
   }, [combatActive]);
+  // Z в конструкторе: развернуть призрак (палитра) или выбранный объект.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyZ') return;
+      const st = useMapEditorStore.getState();
+      if (!st.active) return;
+      const tag = (document.activeElement?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (st.selObId !== null) rotateSelected();
+      else if (st.tool.kind === 'obstacle') st.rotateTool();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   if (!ed.active) return null;
 
   const selOb = ed.selObId !== null
@@ -92,10 +106,45 @@ export const MapEditorPanel = () => {
   return (
     <div style={panel}>
       <div style={{ ...h, fontSize: 13 }}>🛠 Конструктор карт</div>
-      <div style={{ opacity: 0.75, fontSize: 11 }}>
-        Выбранное водится за мышкой — клик ставит. Клик по объекту выбирает,
-        следующий клик переносит. ПКМ — отмена инструмента.
-        Объектов: {(obstacles as any[]).length}, юнитов: {(enemies as any[]).length}
+      <div style={{ fontSize: 11 }}>
+        <div style={{ opacity: 0.85 }}>Объектов: {(obstacles as any[]).length}, юнитов: {(enemies as any[]).length}</div>
+        {(obstacles as any[]).length > 0 && (
+          <div style={{ maxHeight: 132, overflowY: 'auto', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(obstacles as any[]).map((o: any) => {
+              const sel = o.id === ed.selObId;
+              return (
+                <div
+                  key={o.id}
+                  onClick={() => ed.setSel(o.id, null)}
+                  title="Клик — выбрать на карте"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+                    padding: '2px 4px 2px 6px', borderRadius: 4, cursor: 'pointer',
+                    border: sel ? '1px solid #ffd54a' : '1px solid #2a2e37',
+                    background: sel ? '#3a3320' : '#14171d',
+                  }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {o.imgKey || o.icon} {o.w}×{o.h} ({o.x},{o.y}){o.editorRandom ? ' 🎲' : ''}
+                  </span>
+                  <button
+                    style={{ ...btn(false), padding: '0 5px' }}
+                    title="Удалить с карты"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      useCombatGridStore.setState((s: any) => ({
+                        obstacles: s.obstacles.filter((x: any) => x.id !== o.id),
+                      }));
+                      if (ed.selObId === o.id) ed.setSel(null, null);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div style={sec}>
@@ -109,10 +158,10 @@ export const MapEditorPanel = () => {
         <div style={h}>Объекты</div>
         {ed.tool.kind === 'obstacle' && (
           <div style={{ fontSize: 11, marginBottom: 6, opacity: 0.9 }}>
-            Выбрано: {ed.tool.imgKey} {ed.tool.w}×{ed.tool.h}{' '}
+            Выбрано: {ed.tool.imgKey} {ed.tool.w}×{ed.tool.h} ({ed.tool.rot || 0}°){' '}
             <button
               style={btn(false)}
-              title="Развернуть до установки (поменять w/h)"
+              title="Развернуть до установки (Z)"
               onClick={() => ed.rotateTool()}
             >
               🔄 Развернуть
@@ -127,7 +176,7 @@ export const MapEditorPanel = () => {
                 key={`${o.imgKey}_${o.w}x${o.h}_${i}`}
                 style={btn(on)}
                 title={`${o.icon} ${o.w}×${o.h}`}
-                onClick={() => ed.setTool({ kind: 'obstacle', icon: o.icon, imgKey: o.imgKey, w: o.w, h: o.h })}
+                onClick={() => ed.setTool({ kind: 'obstacle', icon: o.icon, imgKey: o.imgKey, w: o.w, h: o.h, rot: 0 })}
               >
                 {o.label} {o.w}×{o.h}
               </button>

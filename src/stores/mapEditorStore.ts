@@ -5,7 +5,7 @@ import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FE
 
 export type EditorTool =
   | { kind: 'select' }
-  | { kind: 'obstacle'; icon: string; imgKey: string; w: number; h: number }
+  | { kind: 'obstacle'; icon: string; imgKey: string; w: number; h: number; rot: number }
   | { kind: 'unit'; side: 'enemy' | 'neutral' | 'ally'; factionKey: string }
   | { kind: 'campfire' };
 
@@ -129,7 +129,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   rotateTool: () => {
     const t = get().tool;
     if (t.kind !== 'obstacle') return;
-    set({ tool: { ...t, w: t.h, h: t.w } });
+    set({ tool: { ...t, w: t.h, h: t.w, rot: ((t.rot || 0) + 90) % 360 } });
   },
   refreshMaps: () => set({ maps: loadSavedMaps() }),
   saveMap: (obstacles, units) => {
@@ -266,7 +266,7 @@ export const placeCampfire = (x: number, y: number): string | null => {
   return null;
 };
 
-const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: number, y: number, random: boolean) => {
+const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: number, y: number, random: boolean, rot = 0) => {
   const pools: Record<string, string[]> = {
     building: BIG_BUILDING_IMAGES,
     car: CAR_IMAGES,
@@ -283,7 +283,7 @@ const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: nu
     isWalkable: icon === 'woods' || icon === 'field',
     isHigh: icon === 'building' || icon === 'fence',
     imgIndex: Math.max(0, (pools[icon] || []).indexOf(imgKey)),
-    rot: 0, editorRandom: random,
+    rot, editorRandom: random,
   };
 };
 
@@ -302,7 +302,7 @@ export const addRandomObstacle = (): string | null => {
     const ry = Math.floor(Math.random() * (32 - ed.tool.h + 1));
     if (!footprintValid(st.obstacles, ed.tool.w, ed.tool.h, rx, ry)) continue;
     if (footprintHitsCamp(ed.tool.w, ed.tool.h, rx, ry)) continue;
-    const ob = buildObstacle(ed.tool.icon, ed.tool.imgKey, ed.tool.w, ed.tool.h, rx, ry, ed.randomSpawn);
+    const ob = buildObstacle(ed.tool.icon, ed.tool.imgKey, ed.tool.w, ed.tool.h, rx, ry, ed.randomSpawn, ed.tool.rot || 0);
     cs.setState((s: any) => ({ obstacles: [...s.obstacles, ob] }));
     ed.setSel(ob.id, null);
     return null;
@@ -378,7 +378,7 @@ export const editorCellClick = (x: number, y: number): void => {
       usePlayerStore.getState().addLog('🧱 Тут занято', 'warning');
       return;
     }
-    const ob = buildObstacle(tool.icon, tool.imgKey, tool.w, tool.h, nx, ny, ed.randomSpawn);
+    const ob = buildObstacle(tool.icon, tool.imgKey, tool.w, tool.h, nx, ny, ed.randomSpawn, tool.rot || 0);
     cs.setState((s: any) => ({ obstacles: [...s.obstacles, ob] }));
     ed.setSel(ob.id, null);
     return;

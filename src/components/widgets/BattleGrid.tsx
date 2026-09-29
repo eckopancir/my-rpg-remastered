@@ -605,13 +605,14 @@ export const BattleGrid = () => {
     let imgKey = '';
     let w = 0;
     let h = 0;
+    let ghostRot = 0;
     let ignoreId: number | string | undefined;
     if (edTool.kind === 'obstacle') {
-      icon = edTool.icon; imgKey = edTool.imgKey; w = edTool.w; h = edTool.h;
+      icon = edTool.icon; imgKey = edTool.imgKey; w = edTool.w; h = edTool.h; ghostRot = edTool.rot || 0;
     } else if (edSelObId !== null) {
       const ob = (obstacles as any[]).find((o: any) => o.id === edSelObId);
       if (!ob) return null;
-      icon = ob.icon; w = ob.w; h = ob.h; ignoreId = ob.id;
+      icon = ob.icon; w = ob.w; h = ob.h; ignoreId = ob.id; ghostRot = (ob as any).rot || 0;
       imgKey = ob.imgKey || (pools[ob.icon] || [])[ob.imgIndex ?? 0] || '';
     } else {
       return null;
@@ -625,7 +626,7 @@ export const BattleGrid = () => {
     const key = imgKey || (pools[icon] || [])[0] || 'o1';
     let src: string | null = null;
     try { src = getBattleImage(key); } catch { src = null; }
-    return { kind: 'ob' as const, ax: nx, ay: ny, cells, valid, src, w, h };
+    return { kind: 'ob' as const, ax: nx, ay: ny, cells, valid, src, w, h, rot: ghostRot };
   }, [edActive, edHover, edTool, edSelObId, edSelCamp, obstacles, enemies]);
 
   if (!isActive) return null;
@@ -730,6 +731,7 @@ export const BattleGrid = () => {
                       position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 4,
                       width: `${ghost!.w * 100}%`, height: `${ghost!.h * 100}%`,
                       opacity: 0.55, objectFit: 'fill',
+                      ...((ghost! as any).rot ? { transform: `rotate(${(ghost! as any).rot}deg)`, transformOrigin: 'center' } : null),
                     }}
                   />
                 )}
