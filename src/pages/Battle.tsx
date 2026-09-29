@@ -8,6 +8,7 @@ import { BattleGrid } from '../components/widgets/BattleGrid';
 import { EnemyGearModal } from '../components/widgets/EnemyGearModal';
 import { BackpackWindow } from '../components/widgets/BackpackWindow';
 import { CookingMenu } from '../components/widgets/CookingMenu';
+import { MapEditorPanel } from '../components/widgets/MapEditorPanel';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist } from '../stores/combatGridStore';
@@ -751,6 +752,7 @@ export const Battle = () => {
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <BattleGrid />
         <CookingMenu />
+        <MapEditorPanel />
         {gearInspectId !== null && (
           <EnemyGearModal enemyId={gearInspectId} onClose={() => setGearInspectId(null)} />
         )}

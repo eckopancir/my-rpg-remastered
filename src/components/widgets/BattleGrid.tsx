@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs } from '../../stores/combatGridStore';
+import { useMapEditorStore, editorCellClick } from '../../stores/mapEditorStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
@@ -76,6 +77,9 @@ export const BattleGrid = () => {
   const enemies = useCombatGridStore((s) => s.enemies);
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const isActive = useCombatGridStore((s) => s.isActive);
+  const edActive = useMapEditorStore((s) => s.active);
+  const edSelObId = useMapEditorStore((s) => s.selObId);
+  const edSelUnitId = useMapEditorStore((s) => s.selUnitId);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
   const petCommandMode = useCombatGridStore((s) => s.petCommandMode);
   const multiTargetIds = useCombatGridStore((s) => s.multiTargetIds);
@@ -387,6 +391,11 @@ export const BattleGrid = () => {
   }, [plannedPath, ap]);
 
   const handleCellClick = useCallback((x: number, y: number) => {
+    // Режим конструктора: клики редактируют карту, а не бой.
+    if (useMapEditorStore.getState().active) {
+      editorCellClick(x, y);
+      return;
+    }
     if (turn !== 'player' || isMoving) return;
     if (useCombatGridStore.getState().isPlacingMine) {
       useCombatGridStore.getState().placeMine(x, y);
@@ -545,12 +554,12 @@ export const BattleGrid = () => {
   }, [enemies]);
 
   const obstacleTileMap = useMemo(() => {
-    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean }>();
+    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean; rot?: number; obId?: number | string }>();
     for (const ob of obstacles) {
       for (let dx = 0; dx < ob.w; dx++) {
         for (let dy = 0; dy < ob.h; dy++) {
           const isAnchor = dx === 0 && dy === 0;
-          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter });
+          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter, rot: (ob as any).rot || 0, obId: (ob as any).id });
         }
       }
     }
@@ -613,11 +622,13 @@ export const BattleGrid = () => {
             const isAllyCell = enemy?.faction === 'Союзник';
             const isNeutralCell = !!(enemy as any)?.isNeutral;
             const visible = isCellVisible(x, y);
+            const edSel = edActive && ((obstacle && (obstacle as any).obId === edSelObId && obstacle.isAnchor) || (enemy && (enemy as any).id === edSelUnitId));
 
             return (
               <div
                 key={i}
                 className={`${styles.cell}${isSel ? ` ${styles.cellActive}` : ''}${pathPoint ? ` ${styles.pathActive}` : ''}${obstacle ? ` ${styles.obstacleCell}` : ''}${isPlayer ? ` ${styles.playerCell}` : ''}${isInRange && turn === 'player' ? ` ${styles.inRange}` : ''}${hovered && !isAllyCell ? ` ${styles.cellCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCellCrosshair}` : ''}`}
+                style={edSel ? { outline: '2px solid #ffd54a', outlineOffset: -2, zIndex: 5 } : undefined}
                 onClick={() => handleCellClick(x, y)}
                 onContextMenu={(e) => e.preventDefault()}
                 onMouseDown={(e) => { if (e.button === 2) { rmbDownCell.current = { x, y }; setRmbHeld(true); } }}
@@ -643,27 +654,33 @@ export const BattleGrid = () => {
                     // Здания, машины, поле и проходимый декор тянутся ровно на свой футпринт от якоря.
                     // Обрезанные камни o1/o2 — чуть меньше клетки (85% по центру).
                     style={(() => {
+                      const rot = obstacle.rot || 0;
+                      const rotStyle = rot ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center' } : null;
                       if (obstacle.icon === 'building' || obstacle.icon === 'field' || (obstacle.icon === 'small' && !obstacle.blocks)) {
-                        return { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0 };
+                        return { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0, ...rotStyle };
                       }
                       // Машины: в длину по футпринту, в ширину +25% по центру.
                       if (obstacle.icon === 'car') {
-                        return { width: `${obstacle.w * 125}%`, height: `${obstacle.h * 100}%`, left: `${-obstacle.w * 12.5}%`, top: 0 };
+                        return { width: `${obstacle.w * 125}%`, height: `${obstacle.h * 100}%`, left: `${-obstacle.w * 12.5}%`, top: 0, ...rotStyle };
+                      }
+                      // Лес и забор тоже крутятся.
+                      if (obstacle.icon === 'woods' || obstacle.icon === 'fence') {
+                        return { width: `${obstacle.w * 100}%`, height: `${obstacle.h * 100}%`, left: 0, top: 0, ...rotStyle };
                       }
                       if (obstacle.icon === 'small' && ['o1', 'o1_2', 'o2'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
-                        return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
+                        return { width: '85%', height: '85%', left: '7.5%', top: '7.5%', ...rotStyle };
                       }
                       if (obstacle.icon === 'small' && ['o32_2', 'penek'].includes(SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] ?? '')) {
                         // Пенёк от срубленного дерева — вдвое меньше кроны, по центру футпринта.
                         // Кластерные — 42% по центру своей клетки.
                         if ((obstacle as any).stumpCenter) {
-                          return { width: '85%', height: '85%', left: '57.5%', top: '57.5%' };
+                          return { width: '85%', height: '85%', left: '57.5%', top: '57.5%', ...rotStyle };
                         }
-                        return { width: '42%', height: '42%', left: '29%', top: '29%' };
+                        return { width: '42%', height: '42%', left: '29%', top: '29%', ...rotStyle };
                       }
                       // Остальная блокирующая мелочь (o19, колодец) — 85% по центру.
                       if (obstacle.icon === 'small') {
-                        return { width: '85%', height: '85%', left: '7.5%', top: '7.5%' };
+                        return { width: '85%', height: '85%', left: '7.5%', top: '7.5%', ...rotStyle };
                       }
                       return undefined;
                     })()}

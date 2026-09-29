@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { usePlayerStore } from '../stores/playerStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
+import { useMapEditorStore } from '../stores/mapEditorStore';
 
 import { useUiStore } from '../stores/uiStore';
 import { useInventoryStore } from '../stores/inventoryStore';
@@ -615,6 +617,14 @@ export const Dashboard = () => {
             }} style={{ fontSize: 11 }}>🌙 Тест-арена ночь</Button>
             <Button size="sm" variant="primary" onClick={() => {
               const cs = useCombatGridStore.getState();
+              if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
+              const ok = cs.startEditor();
+              if (!ok) { usePlayerStore.getState().addLog('⚠️ Конструктор не запустился', 'warning'); return; }
+              useMapEditorStore.getState().setActive(true);
+              navigate('/battle');
+            }} style={{ fontSize: 11 }}>🛠 Конструктор карт</Button>
+            <Button size="sm" variant="primary" onClick={() => {
+              const cs = useCombatGridStore.getState();
               cs.setRaining(!cs.isRaining);
               usePlayerStore.getState().addLog(cs.isRaining ? '🌧 Дождь выключен' : '🌧 Дождь включён', 'info');
             }} style={{ fontSize: 11 }}>🌧 Дождь вкл/выкл</Button>
@@ -647,8 +657,36 @@ export const Dashboard = () => {
               ☀️ Всегда день
             </label>
           </div>
+          <SavedMapsBlock />
         </WapPanel>
       </div>
     </motion.div>
+  );
+};
+
+const SavedMapsBlock = () => {
+  const maps = useMapEditorStore((s) => s.maps);
+  const navigate = useNavigate();
+  React.useEffect(() => { useMapEditorStore.getState().refreshMaps(); }, []);
+  if (maps.length === 0) return null;
+  return (
+    <div style={{ marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>🗺 Сохранённые карты ({maps.length})</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {maps.map((m) => (
+          <span key={m.name} style={{ display: 'inline-flex', gap: 4, alignItems: 'center', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '3px 4px 3px 8px', fontSize: 11 }}>
+            🗺 {m.name} ({m.obstacles.length} об, {m.units.length} юн)
+            <Button size="sm" variant="primary" onClick={() => {
+              const cs = useCombatGridStore.getState();
+              if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
+              const ok = cs.enterCustomMap(m);
+              if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не запустилась', 'warning'); return; }
+              navigate('/battle');
+            }} style={{ fontSize: 11 }}>Войти</Button>
+            <Button size="sm" variant="danger" onClick={() => useMapEditorStore.getState().deleteMap(m.name)} style={{ fontSize: 11 }}>✕</Button>
+          </span>
+        ))}
+      </div>
+    </div>
   );
 };

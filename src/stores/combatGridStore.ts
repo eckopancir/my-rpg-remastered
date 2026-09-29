@@ -14,7 +14,7 @@ import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapa
 import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, obstacleImageKey } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
-import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, preloadCombatSounds } from '../hooks/useSound';
+import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, preloadCombatSounds } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -146,7 +146,7 @@ export interface GridEnemy {
 }
 
 export interface GridObstacle {
-  id: number;
+  id: number | string;
   x: number;
   y: number;
   w: number;
@@ -157,6 +157,12 @@ export interface GridObstacle {
   isWalkable?: boolean;
   isHigh?: boolean;
   imgIndex?: number;
+  /** Поворот арта (0/90/180/270): при 90/270 w/h уже swapped. */
+  rot?: number;
+  /** Лут для обыска (E). */
+  searchLoot?: { kind: string } | null;
+  /** В конструкторе: при входе на карту ставится случайно. */
+  editorRandom?: boolean;
 }
 
 export interface BattlePopup {
@@ -350,6 +356,12 @@ export interface CombatGridStore {
   hitFx: { x: number; y: number; id: number; kind: 'pet' | 'melee' } | null;
   selectPetAbility: (index: number) => void;
   usePetAbility: (index: number, enemyId?: number | string) => void;
+  /** Спавн юнита редактора карт (упрощённый initCombat: без лагеря и волн). */
+  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string) => void;
+  /** Вход на сохранённую карту конструктора. */
+  enterCustomMap: (map: { name: string; music: string; obstacles: any[]; units: any[] }) => boolean;
+  /** Чистая карта для конструктора (редактирование, без врагов). */
+  startEditor: () => boolean;
   /** Ход ИИ питомца (авто-бой при активной способности pet_ai). */
   petAiTurn: () => void;
   petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number }) => boolean;
@@ -4200,6 +4212,194 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
 
   /** Ход ИИ питомца: бежит к ближайшему видимому врагу и бьёт, добив — переключается. Пошагово со звуками. */
+  spawnEditorUnit: (factionKey, side, x, y, behavior) => {
+    const st = get();
+    if (!st.isActive) return;
+    const ps = usePlayerStore.getState();
+    const levelMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
+    const uid = `ed_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+    if (side === 'neutral') {
+      set((s: any) => ({
+        enemies: [...s.enemies, {
+          id: uid, name: 'Кабан', faction: 'Нейтралы', dps: 1, damage: 1,
+          maxHp: 50, currentHp: 50, armor: 0, evasion: 0.05, block: 0,
+          crit: 0, accuracy: 0.5, punching: 0, vampir: 0, regen: 0, speed: 0,
+          pos: { x, y }, rotation: 0, rangeDistance: 1, shotPrice: 1, runAp: 0,
+          skillUse: [], cooldowns: {}, isInvisible: false, invisTurns: 0,
+          aggro: false, knowsPlayer: false, sleeping: behavior === 'sleeping', dead: false, isHit: false,
+          loot: [], looted: true, isMinion: false, isNeutral: true, aiRole: 'patrol',
+        }],
+      }));
+      return;
+    }
+    const base = (ENEMY_BASE_STATS as any)[factionKey];
+    if (!base) return;
+    const isAlly = side === 'ally';
+    const bossGear = factionKey.includes('boss');
+    const BF = bossGear ? 1 : 0.35;
+    const HP_F = bossGear ? 1 : 0.5;
+    const ARM_F = bossGear ? 1 : 0.35;
+    const gear = isAlly
+      ? generateAllyGear(ps.level)
+      : (base.faction === 'Союзник' ? [] : generateEnemyGear(factionKey, ps.level, bossGear ? 'epic' : null));
+    const gb = sumGearStats(gear);
+    const scaledHealth = Math.round(base.health * levelMult * BF + (gb.maxHp || 0) * HP_F);
+    const scaledDamage = Math.round(base.damage * levelMult * BF + (gb.damage || 0));
+    const newSpeed = base.speed * levelMult + (gb.speed || 0);
+    const gearWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
+    const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
+    let enemyLoot: any[] = [];
+    try {
+      enemyLoot = generateLoot(GAME_ITEMS, ps.level, { rank: rankOfEnemy(factionKey, factionKey) });
+    } catch { /* ignore */ }
+    set((s: any) => ({
+      enemies: [...s.enemies, {
+        id: uid,
+        name: isAlly ? 'Мусорщик' : factionKey,
+        faction: isAlly ? 'Союзник' : base.faction || 'Неизвестно',
+        dps: scaledDamage * (1 + (newSpeed || 0)),
+        speed: newSpeed,
+        currentHp: scaledHealth,
+        maxHp: scaledHealth,
+        health: base.health,
+        damage: scaledDamage,
+        armor: Math.round(base.armor * levelMult * BF) + Math.round((gb.armor || 0) * ARM_F),
+        accuracy: Math.min(2, Math.max(0.65, base.accuracy + (gb.accuracy || 0))),
+        evasion: Math.min(1, base.evasion * levelMult + (gb.evasion || 0)),
+        block: Math.min(50, base.block * levelMult + (gb.block || 0) + (gear.some((g: any) => g && g.slot === 'shield') ? 20 : 0)),
+        punching: base.punching * levelMult + (gb.punching || 0),
+        vampir: base.vampir + (gb.vampir || 0),
+        crit: base.crit * levelMult + (gb.crit || 0),
+        regen: (base.regen || 0) * levelMult + (gb.regen || 0),
+        pos: { x, y },
+        isHit: false,
+        dead: false,
+        runAp: base.runAp || 4,
+        rotation: 270,
+        rangeDistance: gearRange || base.rangeDistance || 7,
+        shotPrice: base.shotPrice || 1,
+        skillUse: [],
+        cooldowns: {},
+        isInvisible: false,
+        invisTurns: 0,
+        baseEvasion: base.evasion || 0,
+        isEnraged: false,
+        rageTurns: 0,
+        hasSummoned: false,
+        bigModel: base.bigModel || '100%',
+        isSpinning: false,
+        loot: enemyLoot,
+        looted: false,
+        gear,
+        soundAttack: base.soundAttack || 'shotenemy',
+        nowModel: base.nowModel || 'enemy',
+        deadModel: base.dead || 'dead',
+        avatar: base.avatar || 'enemy',
+        level: base.level || 1,
+        factionKey,
+        aiRole: behavior === 'sleeping' ? 'patrol' : behavior,
+        aggro: false,
+        knowsPlayer: false,
+        sleeping: behavior === 'sleeping',
+        speech: null,
+      }],
+    }));
+  },
+
+  enterCustomMap: (map) => {
+    const cs = get();
+    if (cs.isActive) return false;
+    usePlayerStore.getState().startCombat(1, true);
+    const ok = get().initCombat(1, undefined, [], undefined, 0, true);
+    if (!ok) {
+      usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+      return false;
+    }
+    const pools: Record<string, string[]> = {
+      building: BIG_BUILDING_IMAGES,
+      car: CAR_IMAGES,
+      woods: WOOD_IMAGES,
+      small: SMALL_OBSTACLE_IMAGES,
+      fence: ['o5'],
+      field: ['green1'],
+    };
+    // Раскладка препятствий: фикс + случайные.
+    const occupied = new Set<string>(['2,2']);
+    const isFree = (sx: number, sy: number, w: number, h: number) => {
+      for (let x = sx; x < sx + w; x++) {
+        for (let y = sy; y < sy + h; y++) {
+          if (x < 0 || x >= GRID || y < 0 || y >= GRID) return false;
+          if (occupied.has(`${x},${y}`)) return false;
+        }
+      }
+      return true;
+    };
+    const mark = (sx: number, sy: number, w: number, h: number) => {
+      for (let x = sx; x < sx + w; x++) {
+        for (let y = sy; y < sy + h; y++) occupied.add(`${x},${y}`);
+      }
+    };
+    const obs: any[] = [];
+    let oid = 0;
+    for (const o of map.obstacles || []) {
+      const imgIdx = Math.max(0, (pools[o.icon] || []).indexOf(o.imgKey));
+      if (o.random) {
+        let placed = false;
+        for (let a = 0; a < 60 && !placed; a++) {
+          const rx = Math.floor(Math.random() * (GRID - o.w + 1));
+          const ry = Math.floor(Math.random() * (GRID - o.h + 1));
+          if (!isFree(rx, ry, o.w, o.h)) continue;
+          obs.push({
+            id: `cm_${oid++}`, x: rx, y: ry, w: o.w, h: o.h,
+            type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
+            blocks: true, icon: o.icon, imgKey: o.imgKey || '',
+            isWalkable: o.icon === 'woods' || o.icon === 'field',
+            isHigh: o.icon === 'building' || o.icon === 'fence',
+            imgIndex: imgIdx, rot: o.rot || 0,
+          });
+          mark(rx, ry, o.w, o.h);
+          placed = true;
+        }
+      } else {
+        obs.push({
+          id: `cm_${oid++}`, x: o.x, y: o.y, w: o.w, h: o.h,
+          type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
+          blocks: true, icon: o.icon, imgKey: o.imgKey || '',
+          isWalkable: o.icon === 'woods' || o.icon === 'field',
+          isHigh: o.icon === 'building' || o.icon === 'fence',
+          imgIndex: imgIdx, rot: o.rot || 0,
+        });
+        mark(o.x, o.y, o.w, o.h);
+      }
+    }
+    set((s: any) => ({
+      obstacles: obs,
+      enemies: s.enemies.filter((e: any) => !(e as any).isNeutral),
+    }));
+    for (const u of map.units || []) {
+      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol'); } catch { /* ignore */ }
+    }
+    try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
+    return true;
+  },
+
+  startEditor: () => {
+    const cs = get();
+    if (cs.isActive) return false;
+    usePlayerStore.getState().startCombat(1, true);
+    const ok = get().initCombat(1, undefined, [], undefined, 0, true);
+    if (!ok) {
+      usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+      return false;
+    }
+    // Чистая карта: без препятствий и кабанов.
+    set((s: any) => ({
+      obstacles: [],
+      enemies: s.enemies.filter((e: any) => !(e as any).isNeutral),
+    }));
+    return true;
+  },
+
   petAiTurn: async () => {
     const s = get();
     const pet = s.enemies.find((e: any) => e.isPet && !e.dead);
@@ -5352,6 +5552,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { stopRainLoop(); } catch { /* ignore */ }
     try { stopBirdLoop(); } catch { /* ignore */ }
     try { stopCricketLoop(); } catch { /* ignore */ }
+    try { stopLoopSound('track'); } catch { /* ignore */ }
+    try { stopLoopSound('zemlya-mutantov'); } catch { /* ignore */ }
+    try { stopLoopSound('zvuki-prirody-1_-kapli-dozhdya'); } catch { /* ignore */ }
+    try { stopLoopSound('zvuki-sverchkov1'); } catch { /* ignore */ }
     if (searchTimer !== null) { window.clearTimeout(searchTimer); searchTimer = null; }
     if (searchSound) { try { stopCombatSound(searchSound as any); } catch { /* ignore */ } searchSound = null; }
     usePlayerStore.setState((st: any) => ({
