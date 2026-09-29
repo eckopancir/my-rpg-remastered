@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs } from '../../stores/combatGridStore';
-import { useMapEditorStore, editorCellClick } from '../../stores/mapEditorStore';
+import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid } from '../../stores/mapEditorStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
@@ -80,6 +80,8 @@ export const BattleGrid = () => {
   const edActive = useMapEditorStore((s) => s.active);
   const edSelObId = useMapEditorStore((s) => s.selObId);
   const edSelUnitId = useMapEditorStore((s) => s.selUnitId);
+  const edTool = useMapEditorStore((s) => s.tool);
+  const edHover = useMapEditorStore((s) => s.hover);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
   const petCommandMode = useCombatGridStore((s) => s.petCommandMode);
   const multiTargetIds = useCombatGridStore((s) => s.multiTargetIds);
@@ -520,6 +522,8 @@ export const BattleGrid = () => {
 
   const handleCellHover = useCallback((x: number, y: number) => {
     useCombatGridStore.setState({ cursorPos: { x, y } });
+    // Призрак редактора следует за мышкой.
+    if (useMapEditorStore.getState().active) useMapEditorStore.getState().setHover({ x, y });
   }, []);
 
   const lastHoverRef = useRef<{ x: number; y: number } | null>(null);
@@ -554,17 +558,63 @@ export const BattleGrid = () => {
   }, [enemies]);
 
   const obstacleTileMap = useMemo(() => {
-    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean; rot?: number; obId?: number | string }>();
+    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean; rot?: number; obId?: number | string; random?: boolean }>();
     for (const ob of obstacles) {
       for (let dx = 0; dx < ob.w; dx++) {
         for (let dy = 0; dy < ob.h; dy++) {
           const isAnchor = dx === 0 && dy === 0;
-          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter, rot: (ob as any).rot || 0, obId: (ob as any).id });
+          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter, rot: (ob as any).rot || 0, obId: (ob as any).id, random: !!(ob as any).editorRandom });
         }
       }
     }
     return map;
   }, [obstacles]);
+
+  // Призрак редактора: футпринт за курсором (палитра или перенос выбранного).
+  const ghost = useMemo(() => {
+    if (!edActive || !edHover) return null;
+    const pools: Record<string, string[]> = {
+      building: BIG_BUILDING_IMAGES,
+      car: CAR_IMAGES,
+      woods: WOOD_IMAGES,
+      small: SMALL_OBSTACLE_IMAGES,
+      fence: [FENCE_IMAGE],
+      field: [FIELD_IMAGE],
+    };
+    if (edTool.kind === 'unit') {
+      const busy = enemies.some((e: any) => !e.dead && e.pos.x === edHover.x && e.pos.y === edHover.y);
+      return {
+        kind: 'unit' as const, ax: edHover.x, ay: edHover.y,
+        cells: new Set([`${edHover.x},${edHover.y}`]),
+        valid: !busy, src: null as string | null, w: 1, h: 1,
+      };
+    }
+    let icon = '';
+    let imgKey = '';
+    let w = 0;
+    let h = 0;
+    let ignoreId: number | string | undefined;
+    if (edTool.kind === 'obstacle') {
+      icon = edTool.icon; imgKey = edTool.imgKey; w = edTool.w; h = edTool.h;
+    } else if (edSelObId !== null) {
+      const ob = (obstacles as any[]).find((o: any) => o.id === edSelObId);
+      if (!ob) return null;
+      icon = ob.icon; w = ob.w; h = ob.h; ignoreId = ob.id;
+      imgKey = ob.imgKey || (pools[ob.icon] || [])[ob.imgIndex ?? 0] || '';
+    } else {
+      return null;
+    }
+    const { nx, ny } = clampFootprint(w, h, edHover.x, edHover.y);
+    const valid = footprintValid(obstacles, w, h, nx, ny, ignoreId);
+    const cells = new Set<string>();
+    for (let dx = 0; dx < w; dx++) {
+      for (let dy = 0; dy < h; dy++) cells.add(`${nx + dx},${ny + dy}`);
+    }
+    const key = imgKey || (pools[icon] || [])[0] || 'o1';
+    let src: string | null = null;
+    try { src = getBattleImage(key); } catch { src = null; }
+    return { kind: 'ob' as const, ax: nx, ay: ny, cells, valid, src, w, h };
+  }, [edActive, edHover, edTool, edSelObId, obstacles, enemies]);
 
   if (!isActive) return null;
 
@@ -588,6 +638,12 @@ export const BattleGrid = () => {
             if (e.button !== 2) return;
             isRightMouseDown.current = false;
             setRmbHeld(false);
+            // В конструкторе ПКМ отменяет инструмент (возврат к «Выбрать»).
+            if (useMapEditorStore.getState().active) {
+              useMapEditorStore.getState().setTool({ kind: 'select' });
+              rmbDownCell.current = null;
+              return;
+            }
             // ПКМ-клик без протяжки — инспекция укрытий точки под курсором.
             const down = rmbDownCell.current;
             rmbDownCell.current = null;
@@ -605,7 +661,7 @@ export const BattleGrid = () => {
             st.addPopup(down.x, down.y, s.text, 'BUFF');
             st.addMessage(s.detail);
           }}
-          onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; rmbDownCell.current = null; setRmbHeld(false); }}
+          onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; rmbDownCell.current = null; setRmbHeld(false); if (useMapEditorStore.getState().active) useMapEditorStore.getState().setHover(null); }}
         >
           {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
             const x = i % GRID_SIZE;
@@ -623,6 +679,8 @@ export const BattleGrid = () => {
             const isNeutralCell = !!(enemy as any)?.isNeutral;
             const visible = isCellVisible(x, y);
             const edSel = edActive && ((obstacle && (obstacle as any).obId === edSelObId && obstacle.isAnchor) || (enemy && (enemy as any).id === edSelUnitId));
+            const edGhost = edActive && ghost?.cells.has(`${x},${y}`);
+            const edGhostAnchor = edActive && ghost && ghost.ax === x && ghost.ay === y;
 
             return (
               <div
@@ -634,10 +692,35 @@ export const BattleGrid = () => {
                 onMouseDown={(e) => { if (e.button === 2) { rmbDownCell.current = { x, y }; setRmbHeld(true); } }}
                 onMouseEnter={() => {
                   handleCellHover(x, y);
-                  if (isRightMouseDown.current && !measureRef.current) rotatePlayer(x, y);
+                  if (!edActive && isRightMouseDown.current && !measureRef.current) rotatePlayer(x, y);
                 }}
                 data-invalid={pathPoint?.isInvalid ? 'true' : 'false'}
               >
+                {/* Призрак редактора: футпринт за курсором, зелёный/красный. */}
+                {edGhost && (
+                  <div style={{
+                    position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4,
+                    background: ghost!.valid ? 'rgba(80,220,100,0.35)' : 'rgba(220,60,60,0.35)',
+                    border: ghost!.valid ? '1px dashed rgba(80,220,100,0.9)' : '1px dashed rgba(220,60,60,0.9)',
+                  }} />
+                )}
+                {edGhostAnchor && ghost!.kind === 'ob' && ghost!.src && (
+                  <img
+                    src={ghost!.src}
+                    alt=""
+                    draggable={false}
+                    style={{
+                      position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 4,
+                      width: `${ghost!.w * 100}%`, height: `${ghost!.h * 100}%`,
+                      opacity: 0.55, objectFit: 'fill',
+                    }}
+                  />
+                )}
+                {edGhostAnchor && ghost!.kind === 'unit' && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, opacity: 0.8 }}>
+                    {edTool.kind === 'unit' && edTool.side === 'neutral' ? '🐗' : edTool.kind === 'unit' && edTool.side === 'ally' ? '🤝' : '👹'}
+                  </div>
+                )}
                 {obstacle?.isAnchor && (
                   <img
                     src={getBattleImage(
@@ -690,6 +773,10 @@ export const BattleGrid = () => {
                 {/* Метка: объект можно обыскать (в нём есть лут). Деревья без метки — и так видно. */}
                 {obstacle?.isAnchor && (obstacle as any).hasLoot && obstacle.icon !== 'woods' && (
                   <span className="searchable-dot" title="Можно обыскать (E)" />
+                )}
+                {/* Метка конструктора: объект встанет случайно при входе. */}
+                {edActive && obstacle?.isAnchor && (obstacle as any).random && (
+                  <span title="Случайное место при входе" style={{ position: 'absolute', right: 1, top: 1, zIndex: 6, fontSize: 13, pointerEvents: 'none' }}>🎲</span>
                 )}
                 {waypointNum && !isPlayer && !enemy && (
                   <div className={styles.waypointDot}>{waypointNum}</div>

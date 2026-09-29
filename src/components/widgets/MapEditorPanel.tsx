@@ -1,5 +1,8 @@
 import { useCombatGridStore } from '../../stores/combatGridStore';
-import { useMapEditorStore, UNIT_BEHAVIORS, MAP_MUSIC } from '../../stores/mapEditorStore';
+import {
+  useMapEditorStore, UNIT_BEHAVIORS, MAP_MUSIC,
+  rotateSelected, deleteSelected, toggleSelectedRandom, addRandomObstacle,
+} from '../../stores/mapEditorStore';
 import { ENEMY_BASE_STATS } from '../../engine/enemies';
 import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES } from '../../engine/terrain';
 
@@ -51,25 +54,10 @@ export const MapEditorPanel = () => {
     : null;
 
   const rotateSel = () => {
-    if (!selOb) return;
-    useCombatGridStore.setState((s: any) => ({
-      obstacles: s.obstacles.map((o: any) => (o.id === selOb.id
-        ? { ...o, w: o.h, h: o.w, rot: ((o.rot || 0) + 90) % 360 }
-        : o)),
-    }));
+    rotateSelected();
   };
   const deleteSel = () => {
-    if (selOb) {
-      useCombatGridStore.setState((s: any) => ({
-        obstacles: s.obstacles.filter((o: any) => o.id !== selOb.id),
-      }));
-      ed.setSel(null, null);
-    } else if (selUnit) {
-      useCombatGridStore.setState((s: any) => ({
-        enemies: s.enemies.filter((e: any) => e.id !== (selUnit as any).id),
-      }));
-      ed.setSel(null, null);
-    }
+    deleteSelected();
   };
   const setUnitBehavior = (b: string) => {
     ed.setBehavior(b);
@@ -94,7 +82,8 @@ export const MapEditorPanel = () => {
     <div style={panel}>
       <div style={{ ...h, fontSize: 13 }}>🛠 Конструктор карт</div>
       <div style={{ opacity: 0.75, fontSize: 11 }}>
-        Клик по клетке: поставить / выбрать. Выбранное переносится кликом по новой клетке.
+        Выбранное водится за мышкой — клик ставит. Клик по объекту выбирает,
+        следующий клик переносит. ПКМ — отмена инструмента.
         Объектов: {(obstacles as any[]).length}, юнитов: {(enemies as any[]).length}
       </div>
 
@@ -107,6 +96,18 @@ export const MapEditorPanel = () => {
 
       <div style={sec}>
         <div style={h}>Объекты</div>
+        {ed.tool.kind === 'obstacle' && (
+          <div style={{ fontSize: 11, marginBottom: 6, opacity: 0.9 }}>
+            Выбрано: {ed.tool.imgKey} {ed.tool.w}×{ed.tool.h}{' '}
+            <button
+              style={btn(false)}
+              title="Развернуть до установки (поменять w/h)"
+              onClick={() => ed.rotateTool()}
+            >
+              🔄 Развернуть
+            </button>
+          </div>
+        )}
         <div style={grid}>
           {OB_CATALOG.map((o, i) => {
             const on = ed.tool.kind === 'obstacle' && ed.tool.imgKey === o.imgKey && ed.tool.w === o.w && ed.tool.h === o.h;
@@ -126,6 +127,17 @@ export const MapEditorPanel = () => {
           <input type="checkbox" checked={ed.randomSpawn} onChange={(e) => ed.setRandomSpawn(e.target.checked)} />
           🎲 Случайное место при входе
         </label>
+        <button
+          style={act}
+          disabled={ed.tool.kind !== 'obstacle'}
+          title="Положить выбранный объект на случайное свободное место"
+          onClick={() => {
+            const err = addRandomObstacle();
+            if (err) useCombatGridStore.getState().addBattleLog(`⚠️ ${err}`);
+          }}
+        >
+          ➕ ДОБАВИТЬ
+        </button>
       </div>
 
       <div style={sec}>
@@ -166,10 +178,11 @@ export const MapEditorPanel = () => {
         <div style={sec}>
           <div style={h}>Выбрано</div>
           <div style={{ fontSize: 11, opacity: 0.85 }}>
-            {selOb ? `Объект ${(selOb as any).imgKey || (selOb as any).icon} ${(selOb as any).w}×${(selOb as any).h}` : null}
+            {selOb ? `Объект ${(selOb as any).imgKey || (selOb as any).icon} ${(selOb as any).w}×${(selOb as any).h}${(selOb as any).editorRandom ? ' 🎲 случайный' : ''}` : null}
             {selUnit ? `Юнит ${(selUnit as any).name} (${(selUnit as any).aiRole}${(selUnit as any).sleeping ? '+спит' : ''})` : null}
           </div>
-          {selOb && <button style={act} onClick={rotateSel}>🔄 Повернуть 90°</button>}
+          {selOb && <button style={act} onClick={rotateSel}>🔄 Развернуть 90°</button>}
+          {selOb && <button style={act} onClick={() => toggleSelectedRandom()}>🎲 Случайное/фикс</button>}
           <button style={act} onClick={deleteSel}>🗑 Удалить</button>
         </div>
       )}
