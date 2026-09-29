@@ -486,10 +486,11 @@ export const setZoneText = (zoneId: number | string, text: string): void => {
 
 const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: number, y: number, random: boolean, rot = 0) => {
   const pools: Record<string, string[]> = {
-    building: BIG_BUILDING_IMAGES,
+    // o15/o27 — бывшие здания, o20z/o3zz — зимние варианты: только для конструктора.
+    building: [...BIG_BUILDING_IMAGES, 'o15', 'o27'],
     car: CAR_IMAGES,
-    woods: WOOD_IMAGES,
-    small: SMALL_OBSTACLE_IMAGES,
+    woods: [...WOOD_IMAGES, 'o3zz'],
+    small: [...SMALL_OBSTACLE_IMAGES, 'o20z'],
     fence: [FENCE_IMAGE],
     field: [FIELD_IMAGE],
   };

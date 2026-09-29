@@ -5,7 +5,7 @@ import {
   rotateSelected, deleteSelected, toggleSelectedRandom, addRandomObstacle,
   clearRoute, setUnitFacing, setZoneText,
 } from '../../stores/mapEditorStore';
-import { BATTLE_BGS, getMapImage, getGroundDecals } from '../../assets/index';
+import { BATTLE_BGS, getMapImage, getGroundDecals, getBattleImage } from '../../assets/index';
 import { ENEMY_BASE_STATS } from '../../engine/enemies';
 import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES } from '../../engine/terrain';
 
@@ -14,9 +14,14 @@ const carSize = (k: string) => (k === 'o23' || k === 'o29' ? { w: 2, h: 3 } : { 
 
 const OB_CATALOG: { icon: string; imgKey: string; w: number; h: number; label: string }[] = [
   ...BIG_BUILDING_IMAGES.map((k) => ({ icon: 'building', imgKey: k, ...buildingSize(k), label: k })),
+  // Арты вне пулов генерации — только для конструктора.
+  { icon: 'building', imgKey: 'o15', w: 6, h: 5, label: 'o15' },
+  { icon: 'building', imgKey: 'o27', w: 6, h: 5, label: 'o27' },
   ...CAR_IMAGES.map((k) => ({ icon: 'car', imgKey: k, ...carSize(k), label: k })),
   ...WOOD_IMAGES.map((k) => ({ icon: 'woods', imgKey: k, w: 2, h: 2, label: k })),
+  { icon: 'woods', imgKey: 'o3zz', w: 2, h: 2, label: 'o3zz' },
   ...SMALL_OBSTACLE_IMAGES.map((k) => ({ icon: 'small', imgKey: k, w: 1, h: 1, label: k })),
+  { icon: 'small', imgKey: 'o20z', w: 1, h: 1, label: 'o20z' },
   { icon: 'fence', imgKey: 'o5', w: 1, h: 1, label: 'o5 забор' },
   { icon: 'field', imgKey: 'green1', w: 10, h: 8, label: 'поле 10×8' },
   { icon: 'field', imgKey: 'green1', w: 6, h: 4, label: 'поле 6×4' },
@@ -395,14 +400,16 @@ export const MapEditorPanel = () => {
         <div style={grid}>
           {OB_CATALOG.map((o, i) => {
             const on = ed.tool.kind === 'obstacle' && ed.tool.imgKey === o.imgKey && ed.tool.w === o.w && ed.tool.h === o.h;
+            const thumb = getBattleImage(o.imgKey);
             return (
               <button
                 key={`${o.imgKey}_${o.w}x${o.h}_${i}`}
-                style={btn(on)}
+                style={{ ...btn(on), display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minWidth: 52 }}
                 title={`${o.icon} ${o.w}×${o.h}`}
                 onClick={() => ed.setTool({ kind: 'obstacle', icon: o.icon, imgKey: o.imgKey, w: o.w, h: o.h, rot: 0 })}
               >
-                {o.label} {o.w}×{o.h}
+                {thumb && <img src={thumb} alt={o.label} draggable={false} style={{ width: 44, height: 30, objectFit: 'contain' }} />}
+                <span>{o.label} {o.w}×{o.h}</span>
               </button>
             );
           })}

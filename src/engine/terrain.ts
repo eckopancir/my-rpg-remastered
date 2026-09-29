@@ -44,6 +44,9 @@ const ICON_LABELS: Record<string, string> = {
 
 /** Ключ картинки препятствия — та же логика, что в рендере BattleGrid. */
 export const obstacleImageKey = (o: TerrainObstacle): string => {
+  // Объекты конструктора несут свой ключ (включая арты вне пулов генерации).
+  const own = (o as any).imgKey as string | undefined;
+  if (own) return own;
   const i = o.imgIndex ?? 0;
   if (o.icon === 'building') return BIG_BUILDING_IMAGES[i] ?? '';
   if (o.icon === 'car') return CAR_IMAGES[i] ?? '';
