@@ -650,10 +650,15 @@ export const BattleGrid = () => {
             if (e.button !== 2) return;
             isRightMouseDown.current = false;
             setRmbHeld(false);
-            // В конструкторе ПКМ отменяет инструмент (возврат к «Выбрать»).
+            // В конструкторе ПКМ-клик без протяжки отменяет инструмент (возврат к «Выбрать»).
+            // Протяжка — как обычно разворот персонажа.
             if (useMapEditorStore.getState().active) {
-              useMapEditorStore.getState().setTool({ kind: 'select' });
+              const down = rmbDownCell.current;
               rmbDownCell.current = null;
+              const cur = useCombatGridStore.getState().cursorPos;
+              if (down && cur && down.x === cur.x && down.y === cur.y) {
+                useMapEditorStore.getState().setTool({ kind: 'select' });
+              }
               return;
             }
             // ПКМ-клик без протяжки — инспекция укрытий точки под курсором.
@@ -704,7 +709,7 @@ export const BattleGrid = () => {
                 onMouseDown={(e) => { if (e.button === 2) { rmbDownCell.current = { x, y }; setRmbHeld(true); } }}
                 onMouseEnter={() => {
                   handleCellHover(x, y);
-                  if (!edActive && isRightMouseDown.current && !measureRef.current) rotatePlayer(x, y);
+                  if (isRightMouseDown.current && !measureRef.current) rotatePlayer(x, y);
                 }}
                 data-invalid={pathPoint?.isInvalid ? 'true' : 'false'}
               >

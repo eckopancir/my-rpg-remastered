@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import {
   useMapEditorStore, UNIT_BEHAVIORS, MAP_MUSIC,
@@ -45,6 +46,13 @@ export const MapEditorPanel = () => {
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const enemies = useCombatGridStore((s) => s.enemies);
   const campfire = useCombatGridStore((s) => s.campfire);
+  const combatActive = useCombatGridStore((s) => s.isActive);
+  // Бой кончился/покинут — режим редактора не должен течь в следующий бой.
+  useEffect(() => {
+    if (!combatActive && useMapEditorStore.getState().active) {
+      useMapEditorStore.getState().setActive(false);
+    }
+  }, [combatActive]);
   if (!ed.active) return null;
 
   const selOb = ed.selObId !== null
