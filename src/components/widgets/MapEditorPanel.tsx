@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import {
   useMapEditorStore, UNIT_BEHAVIORS, MAP_MUSIC,
@@ -62,6 +62,33 @@ export const MapEditorPanel = () => {
   }, [combatActive]);
   useEffect(() => { useMapEditorStore.getState().refreshMaps(); }, []);
   const [openName, setOpenName] = useState('');
+  // Перетаскивание панели по экрану (null — пристыкована справа).
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  const startDrag = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button,input,select,textarea')) return;
+    const el = panelRef.current;
+    const parent = el?.parentElement;
+    if (!el || !parent) return;
+    const pr = parent.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: r.left - pr.left, oy: r.top - pr.top };
+    const move = (ev: MouseEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const nx = Math.max(-r.width + 60, Math.min(pr.width - 60, d.ox + ev.clientX - d.sx));
+      const ny = Math.max(0, Math.min(pr.height - 40, d.oy + ev.clientY - d.sy));
+      setPos({ x: nx, y: ny });
+    };
+    const up = () => {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
   const openSaved = () => {
     const st = useMapEditorStore.getState();
     const m = st.maps.find((x) => x.name === openName) || st.maps[0];
@@ -138,8 +165,15 @@ export const MapEditorPanel = () => {
   };
 
   return (
-    <div style={panel}>
-      <div style={{ ...h, fontSize: 13 }}>🛠 Конструктор карт</div>
+    <div ref={panelRef} style={{ ...panel, ...(pos ? { left: pos.x, top: pos.y, right: 'auto' } : null) }}>
+      <div
+        style={{ ...h, fontSize: 13, cursor: 'move', userSelect: 'none' }}
+        title="Тяни чтобы передвинуть, двойной клик — вернуть на место"
+        onMouseDown={startDrag}
+        onDoubleClick={() => setPos(null)}
+      >
+        🛠 Конструктор карт
+      </div>
       <div style={{ fontSize: 11 }}>
         <div style={{ opacity: 0.85 }}>Объектов: {(obstacles as any[]).length}, юнитов: {(enemies as any[]).length}</div>
         <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
