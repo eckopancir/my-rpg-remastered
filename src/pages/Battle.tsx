@@ -471,17 +471,18 @@ export const Battle = () => {
             }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 6 }}>⚡ Очки действий</div>
               <div style={{ display: 'flex', gap: 2, height: 10, marginBottom: 8 }}>
-                {Array.from({ length: maxAp }).map((_, i) => (
+                {Array.from({ length: Math.min(maxAp, 24) }).map((_, i) => (
                   <div key={i} style={{
-                    flex: 1, background: i < ap ? 'linear-gradient(180deg,#fbbf24,#d97706)' : 'rgba(255,255,255,0.08)',
+                    flex: 1, background: i < Math.min(ap, 24) ? 'linear-gradient(180deg,#fbbf24,#d97706)' : 'rgba(255,255,255,0.08)',
                     border: '1px solid rgba(217,119,6,0.35)', borderRadius: 2,
-                    boxShadow: i < ap ? '0 0 6px rgba(251,191,36,0.5)' : 'none',
+                    boxShadow: i < Math.min(ap, 24) ? '0 0 6px rgba(251,191,36,0.5)' : 'none',
                     transition: 'all 0.3s ease',
                   }} />
                 ))}
+                {maxAp > 24 && (<span style={{ fontSize: 10, color: '#fbbf24', marginLeft: 4 }}>∞</span>)}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 13 }}>
-                <span title="Очки действий">⚡ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{ap}/{maxAp}</b></span>
+                <span title="Очки действий">⚡ <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{maxAp > 9999 ? '∞' : `${ap}/${maxAp}`}</b></span>
                 <span title="Дальность стрельбы">📏 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{combatRange}</b></span>
                 <span title={battleAmmoGroup ? `Магазин · ${ammoGroupName(battleAmmoGroup)}` : 'Без оружия'}>🔫 <b style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>{ammo}/{maxAmmo}</b></span>
                 <span title={battleAmmoGroup ? `Запас: ${ammoGroupName(battleAmmoGroup)}` : 'Без оружия'}>📦 <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{battleAmmoReserve}</b></span>
@@ -977,7 +978,7 @@ export const Battle = () => {
               </div>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 4 }}>📊 ОПЕРАТОР</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: 12 }}>
-                <span>⚡ ОД: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{ap}/{maxAp}</b></span>
+                <span>⚡ ОД: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{maxAp > 9999 ? '∞' : `${ap}/${maxAp}`}</b></span>
                 <span>🔫 Маг.: <b style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>{ammo}/{maxAmmo}</b></span>
                 <span>⚔️ Атака: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.damage)}</b></span>
                 <span>🛡️ Броня: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.armor)}</b></span>
