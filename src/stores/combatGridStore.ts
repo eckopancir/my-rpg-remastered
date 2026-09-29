@@ -364,6 +364,8 @@ export interface CombatGridStore {
   enterCustomMap: (map: { name: string; music: string; obstacles: any[]; units: any[]; campfire?: { x: number; y: number } | null }) => boolean;
   /** Чистая карта для конструктора (редактирование, без врагов). */
   startEditor: () => boolean;
+  /** Открыть сохранённую карту в конструкторе для доработки. */
+  loadMapForEdit: (map: { name: string; music: string; obstacles: any[]; units: any[]; campfire?: { x: number; y: number } | null }) => boolean;
   /** Режим стройки: враги не ходят, AP бесконечные. */
   editorPeace: boolean;
   /** Выход из конструктора: обычный бой, AP в норму. */
@@ -4456,6 +4458,50 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   exitEditor: () => {
     set({ editorPeace: false, ap: BASE_AP, maxAp: BASE_AP, turn: 'player' });
+  },
+
+  loadMapForEdit: (map) => {
+    const cs = get();
+    // Из обычного боя карту не открываем — только из редактора или вне боя.
+    if (cs.isActive && !cs.editorPeace) return false;
+    if (!cs.isActive) {
+      usePlayerStore.getState().startCombat(1, true);
+      const ok = get().initCombat(1, undefined, [], undefined, 0, true);
+      if (!ok) {
+        usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+        return false;
+      }
+    }
+    const pools: Record<string, string[]> = {
+      building: BIG_BUILDING_IMAGES,
+      car: CAR_IMAGES,
+      woods: WOOD_IMAGES,
+      small: SMALL_OBSTACLE_IMAGES,
+      fence: ['o5'],
+      field: ['green1'],
+    };
+    // Всё встаёт как сохранено (случайные — на своих местах, с меткой 🎲).
+    const obs = (map.obstacles || []).map((o: any, i: number) => ({
+      id: `ed_${Date.now()}_${i}`,
+      x: o.x, y: o.y, w: o.w, h: o.h,
+      type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
+      blocks: true, icon: o.icon, imgKey: o.imgKey || '',
+      isWalkable: o.icon === 'woods' || o.icon === 'field',
+      isHigh: o.icon === 'building' || o.icon === 'fence',
+      imgIndex: Math.max(0, (pools[o.icon] || []).indexOf(o.imgKey)),
+      rot: o.rot || 0, editorRandom: !!o.random,
+    }));
+    set({
+      obstacles: obs,
+      enemies: [],
+      campfire: (map as any).campfire || null,
+      editorPeace: true, ap: 999999, maxAp: 999999, turn: 'player',
+    });
+    for (const u of map.units || []) {
+      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false); } catch { /* ignore */ }
+    }
+    try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
+    return true;
   },
 
   petAiTurn: async () => {

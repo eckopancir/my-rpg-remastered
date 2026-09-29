@@ -683,6 +683,17 @@ const SavedMapsBlock = () => {
               if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не запустилась', 'warning'); return; }
               navigate('/battle');
             }} style={{ fontSize: 11 }}>Войти</Button>
+            <Button size="sm" variant="primary" onClick={() => {
+              const cs = useCombatGridStore.getState();
+              if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
+              const ok = cs.loadMapForEdit(m);
+              if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не открылась', 'warning'); return; }
+              const ed = useMapEditorStore.getState();
+              ed.setMapName(m.name);
+              ed.setMusic(m.music || 'track');
+              ed.setActive(true);
+              navigate('/battle');
+            }} style={{ fontSize: 11 }}>🛠 Ред.</Button>
             <Button size="sm" variant="danger" onClick={() => useMapEditorStore.getState().deleteMap(m.name)} style={{ fontSize: 11 }}>✕</Button>
           </span>
         ))}

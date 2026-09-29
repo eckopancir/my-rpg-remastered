@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import {
   useMapEditorStore, UNIT_BEHAVIORS, MAP_MUSIC,
@@ -53,6 +53,20 @@ export const MapEditorPanel = () => {
       useMapEditorStore.getState().setActive(false);
     }
   }, [combatActive]);
+  useEffect(() => { useMapEditorStore.getState().refreshMaps(); }, []);
+  const [openName, setOpenName] = useState('');
+  const openSaved = () => {
+    const st = useMapEditorStore.getState();
+    const m = st.maps.find((x) => x.name === openName) || st.maps[0];
+    if (!m) return;
+    const hasWork = (obstacles as any[]).length > 0 || (enemies as any[]).length > 0;
+    if (hasWork && !window.confirm(`Открыть «${m.name}»? Текущая работа будет потеряна.`)) return;
+    const ok = useCombatGridStore.getState().loadMapForEdit(m);
+    if (!ok) return;
+    st.setMapName(m.name);
+    st.setMusic(m.music || 'track');
+    st.setActive(true);
+  };
   // Z в конструкторе: развернуть призрак (палитра) или выбранный объект.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -152,6 +166,26 @@ export const MapEditorPanel = () => {
         <div style={grid}>
           <button style={btn(ed.tool.kind === 'select')} onClick={() => ed.setTool({ kind: 'select' })}>☝ Выбрать</button>
         </div>
+      </div>
+
+      <div style={sec}>
+        <div style={h}>📂 Открыть карту</div>
+        {ed.maps.length === 0 ? (
+          <div style={{ fontSize: 11, opacity: 0.7 }}>Нет сохранённых карт</div>
+        ) : (
+          <div style={{ display: 'flex', gap: 4 }}>
+            <select
+              value={openName || ed.maps[0].name}
+              onChange={(e) => setOpenName(e.target.value)}
+              style={{ fontSize: 11, flex: 1, minWidth: 0 }}
+            >
+              {ed.maps.map((m) => (
+                <option key={m.name} value={m.name}>{m.name} ({m.obstacles.length} об, {m.units.length} юн)</option>
+              ))}
+            </select>
+            <button style={btn(false)} onClick={openSaved}>Открыть</button>
+          </div>
+        )}
       </div>
 
       <div style={sec}>
