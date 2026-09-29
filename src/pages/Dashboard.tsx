@@ -675,7 +675,7 @@ const SavedMapsBlock = () => {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {maps.map((m) => (
           <span key={m.name} style={{ display: 'inline-flex', gap: 4, alignItems: 'center', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '3px 4px 3px 8px', fontSize: 11 }}>
-            🗺 {m.name} ({m.obstacles.length} об, {m.units.length} юн)
+            🗺 {m.name} ({m.obstacles.length} об, {m.units.length} юн{(m as any).campfire ? ', 🔥' : ''})
             <Button size="sm" variant="primary" onClick={() => {
               const cs = useCombatGridStore.getState();
               if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }

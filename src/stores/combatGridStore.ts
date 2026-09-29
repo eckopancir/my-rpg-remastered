@@ -357,11 +357,17 @@ export interface CombatGridStore {
   selectPetAbility: (index: number) => void;
   usePetAbility: (index: number, enemyId?: number | string) => void;
   /** Спавн юнита редактора карт (упрощённый initCombat: без лагеря и волн). */
-  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string) => void;
+  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string, withLoot?: boolean) => void;
+  /** Смена поведения юнита в конструкторе (включая труп/воскрешение + лут трупа). */
+  editorSetUnitBehavior: (unitId: number | string, behavior: string, withLoot: boolean) => void;
   /** Вход на сохранённую карту конструктора. */
-  enterCustomMap: (map: { name: string; music: string; obstacles: any[]; units: any[] }) => boolean;
+  enterCustomMap: (map: { name: string; music: string; obstacles: any[]; units: any[]; campfire?: { x: number; y: number } | null }) => boolean;
   /** Чистая карта для конструктора (редактирование, без врагов). */
   startEditor: () => boolean;
+  /** Режим стройки: враги не ходят, AP бесконечные. */
+  editorPeace: boolean;
+  /** Выход из конструктора: обычный бой, AP в норму. */
+  exitEditor: () => void;
   /** Ход ИИ питомца (авто-бой при активной способности pet_ai). */
   petAiTurn: () => void;
   petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number }) => boolean;
@@ -1260,6 +1266,7 @@ let searchSound: string | null = null;
 export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
   isTestArena: false,
+  editorPeace: false,
   playerPos: { x: 2, y: 2 },
   enemies: [],
   obstacles: [],
@@ -4212,22 +4219,26 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
 
   /** Ход ИИ питомца: бежит к ближайшему видимому врагу и бьёт, добив — переключается. Пошагово со звуками. */
-  spawnEditorUnit: (factionKey, side, x, y, behavior) => {
+  spawnEditorUnit: (factionKey, side, x, y, behavior, withLoot = true) => {
     const st = get();
     if (!st.isActive) return;
     const ps = usePlayerStore.getState();
     const levelMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
     const uid = `ed_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+    const isCorpse = behavior === 'corpse';
     if (side === 'neutral') {
+      const meatQty = 2 + Math.floor(Math.random() * 4);
       set((s: any) => ({
         enemies: [...s.enemies, {
           id: uid, name: 'Кабан', faction: 'Нейтралы', dps: 1, damage: 1,
-          maxHp: 50, currentHp: 50, armor: 0, evasion: 0.05, block: 0,
+          maxHp: 50, currentHp: isCorpse ? 0 : 50, armor: 0, evasion: 0.05, block: 0,
           crit: 0, accuracy: 0.5, punching: 0, vampir: 0, regen: 0, speed: 0,
           pos: { x, y }, rotation: 0, rangeDistance: 1, shotPrice: 1, runAp: 0,
           skillUse: [], cooldowns: {}, isInvisible: false, invisTurns: 0,
-          aggro: false, knowsPlayer: false, sleeping: behavior === 'sleeping', dead: false, isHit: false,
-          loot: [], looted: true, isMinion: false, isNeutral: true, aiRole: 'patrol',
+          aggro: false, knowsPlayer: false, sleeping: behavior === 'sleeping' && !isCorpse, dead: isCorpse, isHit: false,
+          loot: isCorpse ? (withLoot ? [makeConsumable('food_meat', meatQty)] : []) : [],
+          looted: isCorpse ? !withLoot : true,
+          isMinion: false, isNeutral: true, aiRole: 'patrol',
         }],
       }));
       return;
@@ -4273,7 +4284,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         regen: (base.regen || 0) * levelMult + (gb.regen || 0),
         pos: { x, y },
         isHit: false,
-        dead: false,
+        dead: isCorpse,
         runAp: base.runAp || 4,
         rotation: 270,
         rangeDistance: gearRange || base.rangeDistance || 7,
@@ -4288,8 +4299,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         hasSummoned: false,
         bigModel: base.bigModel || '100%',
         isSpinning: false,
-        loot: enemyLoot,
-        looted: false,
+        loot: isCorpse ? (withLoot ? enemyLoot : []) : enemyLoot,
+        looted: isCorpse ? !withLoot : false,
         gear,
         soundAttack: base.soundAttack || 'shotenemy',
         nowModel: base.nowModel || 'enemy',
@@ -4297,12 +4308,50 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         avatar: base.avatar || 'enemy',
         level: base.level || 1,
         factionKey,
-        aiRole: behavior === 'sleeping' ? 'patrol' : behavior,
+        aiRole: behavior === 'sleeping' || isCorpse ? 'patrol' : behavior,
         aggro: false,
         knowsPlayer: false,
-        sleeping: behavior === 'sleeping',
+        sleeping: behavior === 'sleeping' && !isCorpse,
         speech: null,
       }],
+    }));
+  },
+
+  editorSetUnitBehavior: (unitId, behavior, withLoot) => {
+    const u = (get().enemies as any[]).find((e: any) => e.id === unitId);
+    if (!u) return;
+    const isCorpse = behavior === 'corpse';
+    let loot: any[] = u.loot || [];
+    let looted = u.looted;
+    if (isCorpse) {
+      if (withLoot && loot.length === 0) {
+        try {
+          loot = u.isNeutral
+            ? [makeConsumable('food_meat', 2 + Math.floor(Math.random() * 4))]
+            : generateLoot(GAME_ITEMS, usePlayerStore.getState().level, { rank: rankOfEnemy(u.factionKey || u.name, u.factionKey || u.name) });
+        } catch { loot = []; }
+      }
+      if (!withLoot) loot = [];
+      looted = !withLoot;
+    } else if (u.dead) {
+      // Воскрешение: лут сбрасываем — при убийстве выдастся свежий.
+      loot = [];
+      looted = false;
+    }
+    set((s: any) => ({
+      enemies: s.enemies.map((e: any) => (e.id === unitId ? {
+        ...e,
+        dead: isCorpse,
+        currentHp: isCorpse ? 0 : (u.dead ? e.maxHp : e.currentHp),
+        sleeping: behavior === 'sleeping' && !isCorpse,
+        sleepTurns: undefined,
+        aiRole: behavior === 'sleeping' || isCorpse ? 'patrol' : behavior,
+        aggro: false,
+        knowsPlayer: false,
+        speech: null,
+        loot,
+        looted,
+      } : e)),
     }));
   },
 
@@ -4375,9 +4424,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set((s: any) => ({
       obstacles: obs,
       enemies: s.enemies.filter((e: any) => !(e as any).isNeutral),
+      editorPeace: false,
+      campfire: (map as any).campfire || null,
     }));
     for (const u of map.units || []) {
-      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol'); } catch { /* ignore */ }
+      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false); } catch { /* ignore */ }
     }
     try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
     return true;
@@ -4396,8 +4447,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     set((s: any) => ({
       obstacles: [],
       enemies: s.enemies.filter((e: any) => !(e as any).isNeutral),
+      campfire: null,
     }));
+    // Режим стройки: враги не ходят (ход не передаётся), AP бесконечные.
+    set({ editorPeace: true, ap: 999, maxAp: 999, turn: 'player' });
     return true;
+  },
+
+  exitEditor: () => {
+    set({ editorPeace: false, ap: BASE_AP, maxAp: BASE_AP, turn: 'player' });
   },
 
   petAiTurn: async () => {
@@ -5302,6 +5360,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   endTurn: () => {
     stopCombatSound('run');
     const state = get();
+    // Конструктор: ход никому не передаём, AP всегда полные.
+    if (state.editorPeace) {
+      set({ ap: 999, maxAp: 999, turn: 'player' });
+      return;
+    }
     // Празднование: пошаговости нет — только рефил AP.
     if (state.celebration) {
       set({ ap: state.maxAp, turn: 'player' });
@@ -5613,7 +5676,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player',
+      isActive: false, isTestArena: false, editorPeace: false, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

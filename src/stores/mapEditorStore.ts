@@ -6,7 +6,8 @@ import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FE
 export type EditorTool =
   | { kind: 'select' }
   | { kind: 'obstacle'; icon: string; imgKey: string; w: number; h: number }
-  | { kind: 'unit'; side: 'enemy' | 'neutral' | 'ally'; factionKey: string };
+  | { kind: 'unit'; side: 'enemy' | 'neutral' | 'ally'; factionKey: string }
+  | { kind: 'campfire' };
 
 export type SavedMapUnit = {
   factionKey: string;
@@ -14,6 +15,7 @@ export type SavedMapUnit = {
   x: number;
   y: number;
   behavior: string;
+  corpseLoot?: boolean;
 };
 
 export type SavedMapObstacle = {
@@ -32,6 +34,7 @@ export interface SavedMap {
   music: string;
   obstacles: SavedMapObstacle[];
   units: SavedMapUnit[];
+  campfire: { x: number; y: number } | null;
   createdAt: number;
 }
 
@@ -60,6 +63,7 @@ export const UNIT_BEHAVIORS = [
   { id: 'camp', label: 'Лагерь' },
   { id: 'sentry', label: 'Часовой' },
   { id: 'sleeping', label: 'Спит' },
+  { id: 'corpse', label: '💀 Труп' },
 ];
 
 /** Треки для карты. */
@@ -74,20 +78,24 @@ interface MapEditorStore {
   active: boolean;
   tool: EditorTool;
   behavior: string;
+  corpseLoot: boolean;
   randomSpawn: boolean;
   music: string;
   mapName: string;
   maps: SavedMap[];
   selObId: number | string | null;
   selUnitId: number | string | null;
+  selCamp: boolean;
   hover: { x: number; y: number } | null;
   setActive: (v: boolean) => void;
   setTool: (t: EditorTool) => void;
   setBehavior: (b: string) => void;
+  setCorpseLoot: (v: boolean) => void;
   setRandomSpawn: (v: boolean) => void;
   setMusic: (m: string) => void;
   setMapName: (n: string) => void;
   setSel: (obId: number | string | null, unitId: number | string | null) => void;
+  setSelCamp: (v: boolean) => void;
   setHover: (h: { x: number; y: number } | null) => void;
   rotateTool: () => void;
   refreshMaps: () => void;
@@ -99,20 +107,24 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   active: false,
   tool: { kind: 'select' },
   behavior: 'patrol',
+  corpseLoot: true,
   randomSpawn: false,
   music: 'track',
   mapName: '',
   maps: loadSavedMaps(),
   selObId: null,
   selUnitId: null,
+  selCamp: false,
   hover: null,
-  setActive: (active) => set({ active, selObId: null, selUnitId: null, tool: { kind: 'select' }, hover: null }),
-  setTool: (tool) => set({ tool, selObId: null, selUnitId: null }),
+  setActive: (active) => set({ active, selObId: null, selUnitId: null, selCamp: false, tool: { kind: 'select' }, hover: null }),
+  setTool: (tool) => set({ tool, selObId: null, selUnitId: null, selCamp: false }),
   setBehavior: (behavior) => set({ behavior }),
+  setCorpseLoot: (corpseLoot) => set({ corpseLoot }),
   setRandomSpawn: (randomSpawn) => set({ randomSpawn }),
   setMusic: (music) => set({ music }),
   setMapName: (mapName) => set({ mapName }),
-  setSel: (selObId, selUnitId) => set({ selObId, selUnitId }),
+  setSel: (selObId, selUnitId) => set({ selObId, selUnitId, selCamp: false }),
+  setSelCamp: (selCamp) => set({ selCamp, selObId: null, selUnitId: null }),
   setHover: (hover) => set({ hover }),
   rotateTool: () => {
     const t = get().tool;
@@ -124,6 +136,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
     const name = get().mapName.trim();
     if (!name) return 'Дай карте название';
     const maps = loadSavedMaps().filter((m) => m.name !== name);
+    const camp = (useCombatGridStore.getState() as any).campfire as { x: number; y: number } | null;
     maps.push({
       name,
       music: get().music,
@@ -134,8 +147,11 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
       units: (units || []).map((u: any) => ({
         factionKey: (u as any).factionKey || (u as any).name || '',
         side: (u as any).isNeutral ? 'neutral' : (u as any).faction === 'Союзник' ? 'ally' : 'enemy',
-        x: u.pos.x, y: u.pos.y, behavior: (u as any).aiRole || 'patrol',
+        x: u.pos.x, y: u.pos.y,
+        behavior: u.dead ? 'corpse' : ((u as any).aiRole || 'patrol'),
+        corpseLoot: u.dead ? !!((u as any).loot && (u as any).loot.length) : undefined,
       })),
+      campfire: camp ? { x: camp.x, y: camp.y } : null,
       createdAt: Date.now(),
     });
     persistMaps(maps);
@@ -195,10 +211,15 @@ export const rotateSelected = (): void => {
   }));
 };
 
-/** Удалить выбранное (объект или юнит). */
+/** Удалить выбранное (объект, юнит или костёр). */
 export const deleteSelected = (): void => {
   const ed = useMapEditorStore.getState();
   const cs = useCombatGridStore;
+  if (ed.selCamp) {
+    cs.setState({ campfire: null } as any);
+    ed.setSelCamp(false);
+    return;
+  }
   if (ed.selObId !== null) {
     const id = ed.selObId;
     cs.setState((s: any) => ({ obstacles: s.obstacles.filter((o: any) => o.id !== id) }));
@@ -218,6 +239,31 @@ export const toggleSelectedRandom = (): void => {
   cs.setState((s: any) => ({
     obstacles: s.obstacles.map((o: any) => (o.id === ed.selObId ? { ...o, editorRandom: !o.editorRandom } : o)),
   }));
+};
+
+/** Задевает ли футпринт костёр. */
+export const footprintHitsCamp = (w: number, h: number, nx: number, ny: number): boolean => {
+  const camp = (useCombatGridStore.getState() as any).campfire as { x: number; y: number } | null;
+  return !!camp && rectsOverlap(nx, ny, w, h, camp.x, camp.y, 1, 1);
+};
+
+/** Свободна ли клетка под костёр (в границах, без объектов и юнитов). */
+export const campCellFree = (x: number, y: number): boolean => {
+  if (x < 0 || x >= 32 || y < 0 || y >= 32) return false;
+  const st = useCombatGridStore.getState();
+  const hitOb = (st.obstacles as any[]).some((o: any) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
+  if (hitOb) return false;
+  const busy = (st.enemies as any[]).some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y);
+  if (busy) return false;
+  return true;
+};
+
+/** Поставить/перенести костёр. Возвращает текст ошибки или null. */
+export const placeCampfire = (x: number, y: number): string | null => {
+  if (!campCellFree(x, y)) return 'Тут занято';
+  useCombatGridStore.setState({ campfire: { x, y } } as any);
+  useMapEditorStore.getState().setSelCamp(true);
+  return null;
 };
 
 const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: number, y: number, random: boolean) => {
@@ -255,6 +301,7 @@ export const addRandomObstacle = (): string | null => {
     const rx = Math.floor(Math.random() * (32 - ed.tool.w + 1));
     const ry = Math.floor(Math.random() * (32 - ed.tool.h + 1));
     if (!footprintValid(st.obstacles, ed.tool.w, ed.tool.h, rx, ry)) continue;
+    if (footprintHitsCamp(ed.tool.w, ed.tool.h, rx, ry)) continue;
     const ob = buildObstacle(ed.tool.icon, ed.tool.imgKey, ed.tool.w, ed.tool.h, rx, ry, ed.randomSpawn);
     cs.setState((s: any) => ({ obstacles: [...s.obstacles, ob] }));
     ed.setSel(ob.id, null);
@@ -271,8 +318,17 @@ export const editorCellClick = (x: number, y: number): void => {
   const st = cs.getState();
   const tool = ed.tool;
   const findOb = () => (st.obstacles as any[]).find((o: any) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
-  const findUnit = () => (st.enemies as any[]).find((e: any) => !e.dead && e.pos.x === x && e.pos.y === y);
+  // Трупы тоже выбираются и переносятся.
+  const findUnit = () => (st.enemies as any[]).find((e: any) => e.pos.x === x && e.pos.y === y);
   if (tool.kind === 'select') {
+    // Перенос выбранного костра.
+    if (ed.selCamp) {
+      if (campCellFree(x, y)) {
+        cs.setState({ campfire: { x, y } } as any);
+        return;
+      }
+      // Занято — падаем ниже и перевыбираем.
+    }
     if (ed.selObId !== null && ed.selUnitId === null) {
       const ob = (st.obstacles as any[]).find((o: any) => o.id === ed.selObId);
       if (ob) {
@@ -280,7 +336,7 @@ export const editorCellClick = (x: number, y: number): void => {
         const ny = Math.max(0, Math.min(32 - ob.h, y));
         const clash = (st.obstacles as any[]).some((o: any) =>
           o.id !== ob.id && rectsOverlap(nx, ny, ob.w, ob.h, o.x, o.y, o.w, o.h));
-        if (!clash && !(nx <= 2 && ny <= 2 && 2 < nx + ob.w && 2 < ny + ob.h)) {
+        if (!clash && !footprintHitsCamp(ob.w, ob.h, nx, ny) && !(nx <= 2 && ny <= 2 && 2 < nx + ob.w && 2 < ny + ob.h)) {
           cs.setState((s: any) => ({
             obstacles: s.obstacles.map((o: any) => (o.id === ob.id ? { ...o, x: nx, y: ny } : o)),
           }));
@@ -290,21 +346,35 @@ export const editorCellClick = (x: number, y: number): void => {
     }
     if (ed.selUnitId !== null && ed.selObId === null) {
       const u = (st.enemies as any[]).find((e: any) => e.id === ed.selUnitId);
-      if (u && !u.dead) {
-        cs.setState((s: any) => ({
-          enemies: s.enemies.map((e: any) => (e.id === u.id ? { ...e, pos: { x, y } } : e)),
-        }));
-        return;
+      if (u) {
+        const busy = (st.enemies as any[]).some((e: any) => e.id !== u.id && e.pos.x === x && e.pos.y === y);
+        const camp = (st as any).campfire as { x: number; y: number } | null;
+        if (!busy && !(camp && camp.x === x && camp.y === y)) {
+          cs.setState((s: any) => ({
+            enemies: s.enemies.map((e: any) => (e.id === u.id ? { ...e, pos: { x, y } } : e)),
+          }));
+          return;
+        }
       }
+    }
+    const camp = (st as any).campfire as { x: number; y: number } | null;
+    if (camp && camp.x === x && camp.y === y) {
+      ed.setSelCamp(true);
+      return;
     }
     const ob = findOb();
     const u = !ob ? findUnit() : undefined;
     ed.setSel(ob ? (ob as any).id : null, u ? (u as any).id : null);
     return;
   }
+  if (tool.kind === 'campfire') {
+    const err = placeCampfire(x, y);
+    if (err) usePlayerStore.getState().addLog('🔥 Тут занято', 'warning');
+    return;
+  }
   if (tool.kind === 'obstacle') {
     const { nx, ny } = clampFootprint(tool.w, tool.h, x, y);
-    if (!footprintValid(st.obstacles, tool.w, tool.h, nx, ny)) {
+    if (!footprintValid(st.obstacles, tool.w, tool.h, nx, ny) || footprintHitsCamp(tool.w, tool.h, nx, ny)) {
       usePlayerStore.getState().addLog('🧱 Тут занято', 'warning');
       return;
     }
@@ -313,12 +383,14 @@ export const editorCellClick = (x: number, y: number): void => {
     ed.setSel(ob.id, null);
     return;
   }
-  const busy = (st.enemies as any[]).some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y);
-  if (busy) {
+  // Труп тоже занимает клетку; на костёр не ставим.
+  const busy = (st.enemies as any[]).some((e: any) => e.pos.x === x && e.pos.y === y);
+  const campNow = (st as any).campfire as { x: number; y: number } | null;
+  if (busy || (campNow && campNow.x === x && campNow.y === y)) {
     usePlayerStore.getState().addLog('🧍 Клетка занята', 'warning');
     return;
   }
   try {
-    cs.getState().spawnEditorUnit(tool.factionKey, tool.side, x, y, ed.behavior);
+    cs.getState().spawnEditorUnit(tool.factionKey, tool.side, x, y, ed.behavior, ed.corpseLoot);
   } catch { /* ignore */ }
 };

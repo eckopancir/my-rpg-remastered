@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs } from '../../stores/combatGridStore';
-import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid } from '../../stores/mapEditorStore';
+import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, campCellFree } from '../../stores/mapEditorStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
@@ -82,6 +82,8 @@ export const BattleGrid = () => {
   const edSelUnitId = useMapEditorStore((s) => s.selUnitId);
   const edTool = useMapEditorStore((s) => s.tool);
   const edHover = useMapEditorStore((s) => s.hover);
+  const edBehavior = useMapEditorStore((s) => s.behavior);
+  const edSelCamp = useMapEditorStore((s) => s.selCamp);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
   const petCommandMode = useCombatGridStore((s) => s.petCommandMode);
   const multiTargetIds = useCombatGridStore((s) => s.multiTargetIds);
@@ -581,12 +583,22 @@ export const BattleGrid = () => {
       fence: [FENCE_IMAGE],
       field: [FIELD_IMAGE],
     };
+    if (edTool.kind === 'campfire' || (edTool.kind === 'select' && edSelCamp)) {
+      const valid = campCellFree(edHover.x, edHover.y);
+      return {
+        kind: 'camp' as const, ax: edHover.x, ay: edHover.y,
+        cells: new Set([`${edHover.x},${edHover.y}`]),
+        valid, src: null as string | null, w: 1, h: 1,
+      };
+    }
     if (edTool.kind === 'unit') {
-      const busy = enemies.some((e: any) => !e.dead && e.pos.x === edHover.x && e.pos.y === edHover.y);
+      const busy = enemies.some((e: any) => e.pos.x === edHover.x && e.pos.y === edHover.y);
+      const camp = (useCombatGridStore.getState() as any).campfire as { x: number; y: number } | null;
+      const onCamp = !!camp && camp.x === edHover.x && camp.y === edHover.y;
       return {
         kind: 'unit' as const, ax: edHover.x, ay: edHover.y,
         cells: new Set([`${edHover.x},${edHover.y}`]),
-        valid: !busy, src: null as string | null, w: 1, h: 1,
+        valid: !busy && !onCamp, src: null as string | null, w: 1, h: 1,
       };
     }
     let icon = '';
@@ -614,7 +626,7 @@ export const BattleGrid = () => {
     let src: string | null = null;
     try { src = getBattleImage(key); } catch { src = null; }
     return { kind: 'ob' as const, ax: nx, ay: ny, cells, valid, src, w, h };
-  }, [edActive, edHover, edTool, edSelObId, obstacles, enemies]);
+  }, [edActive, edHover, edTool, edSelObId, edSelCamp, obstacles, enemies]);
 
   if (!isActive) return null;
 
@@ -678,7 +690,7 @@ export const BattleGrid = () => {
             const isAllyCell = enemy?.faction === 'Союзник';
             const isNeutralCell = !!(enemy as any)?.isNeutral;
             const visible = isCellVisible(x, y);
-            const edSel = edActive && ((obstacle && (obstacle as any).obId === edSelObId && obstacle.isAnchor) || (enemy && (enemy as any).id === edSelUnitId));
+            const edSel = edActive && ((obstacle && (obstacle as any).obId === edSelObId && obstacle.isAnchor) || (enemy && (enemy as any).id === edSelUnitId) || (edSelUnitId !== null && !enemy && (enemies as any[]).some((e: any) => e.id === edSelUnitId && e.dead && e.pos.x === x && e.pos.y === y)));
             const edGhost = edActive && ghost?.cells.has(`${x},${y}`);
             const edGhostAnchor = edActive && ghost && ghost.ax === x && ghost.ay === y;
 
@@ -718,7 +730,12 @@ export const BattleGrid = () => {
                 )}
                 {edGhostAnchor && ghost!.kind === 'unit' && (
                   <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, opacity: 0.8 }}>
-                    {edTool.kind === 'unit' && edTool.side === 'neutral' ? '🐗' : edTool.kind === 'unit' && edTool.side === 'ally' ? '🤝' : '👹'}
+                    {edBehavior === 'corpse' ? '💀' : edTool.kind === 'unit' && edTool.side === 'neutral' ? '🐗' : edTool.kind === 'unit' && edTool.side === 'ally' ? '🤝' : '👹'}
+                  </div>
+                )}
+                {edGhostAnchor && ghost!.kind === 'camp' && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, opacity: 0.8 }}>
+                    🔥
                   </div>
                 )}
                 {obstacle?.isAnchor && (
@@ -960,6 +977,7 @@ export const BattleGrid = () => {
             width: '2.9%', aspectRatio: '1',
             zIndex: 4,
             pointerEvents: 'none',
+            ...(edActive && edSelCamp ? { outline: '2px solid #ffd54a', outlineOffset: 2, borderRadius: 4 } : null),
           }}>
             <img
               src={campfireFrames[fireFrame % campfireFrames.length]}

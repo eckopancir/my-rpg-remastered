@@ -44,6 +44,7 @@ export const MapEditorPanel = () => {
   const ed = useMapEditorStore();
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const enemies = useCombatGridStore((s) => s.enemies);
+  const campfire = useCombatGridStore((s) => s.campfire);
   if (!ed.active) return null;
 
   const selOb = ed.selObId !== null
@@ -62,11 +63,13 @@ export const MapEditorPanel = () => {
   const setUnitBehavior = (b: string) => {
     ed.setBehavior(b);
     if (selUnit) {
-      useCombatGridStore.setState((s: any) => ({
-        enemies: s.enemies.map((e: any) => (e.id === (selUnit as any).id
-          ? { ...e, aiRole: b === 'sleeping' ? 'patrol' : b, sleeping: b === 'sleeping' }
-          : e)),
-      }));
+      useCombatGridStore.getState().editorSetUnitBehavior((selUnit as any).id, b, ed.corpseLoot);
+    }
+  };
+  const setCorpseLoot = (v: boolean) => {
+    ed.setCorpseLoot(v);
+    if (selUnit && (selUnit as any).dead) {
+      useCombatGridStore.getState().editorSetUnitBehavior((selUnit as any).id, 'corpse', v);
     }
   };
   const save = () => {
@@ -141,6 +144,19 @@ export const MapEditorPanel = () => {
       </div>
 
       <div style={sec}>
+        <div style={h}>Костёр</div>
+        <div style={grid}>
+          <button
+            style={btn(ed.tool.kind === 'campfire')}
+            title="Поставить костёр кликом; клик по костру выбирает, следующий клик переносит"
+            onClick={() => ed.setTool({ kind: 'campfire' })}
+          >
+            🔥 Костёр{campfire ? ` (${(campfire as any).x},${(campfire as any).y})` : ' (нет на карте)'}
+          </button>
+        </div>
+      </div>
+
+      <div style={sec}>
         <div style={h}>Юниты</div>
         <div style={grid}>
           <button
@@ -172,14 +188,21 @@ export const MapEditorPanel = () => {
             ))}
           </select>
         </div>
+        {(ed.behavior === 'corpse' || (selUnit && (selUnit as any).dead)) && (
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6, fontSize: 11 }}>
+            <input type="checkbox" checked={ed.corpseLoot} onChange={(e) => setCorpseLoot(e.target.checked)} />
+            💰 С лутом (можно обыскать)
+          </label>
+        )}
       </div>
 
-      {(selOb || selUnit) && (
+      {(selOb || selUnit || ed.selCamp) && (
         <div style={sec}>
           <div style={h}>Выбрано</div>
           <div style={{ fontSize: 11, opacity: 0.85 }}>
             {selOb ? `Объект ${(selOb as any).imgKey || (selOb as any).icon} ${(selOb as any).w}×${(selOb as any).h}${(selOb as any).editorRandom ? ' 🎲 случайный' : ''}` : null}
-            {selUnit ? `Юнит ${(selUnit as any).name} (${(selUnit as any).aiRole}${(selUnit as any).sleeping ? '+спит' : ''})` : null}
+            {selUnit ? `Юнит ${(selUnit as any).name} (${(selUnit as any).dead ? '💀 труп' + (((selUnit as any).loot || []).length ? ', с лутом' : ', без лута') : `${(selUnit as any).aiRole}${(selUnit as any).sleeping ? '+спит' : ''}`})` : null}
+            {ed.selCamp && campfire ? `🔥 Костёр (${(campfire as any).x},${(campfire as any).y})` : null}
           </div>
           {selOb && <button style={act} onClick={rotateSel}>🔄 Развернуть 90°</button>}
           {selOb && <button style={act} onClick={() => toggleSelectedRandom()}>🎲 Случайное/фикс</button>}
@@ -214,7 +237,7 @@ export const MapEditorPanel = () => {
         >
           🧹 Очистить
         </button>
-        <button style={act} onClick={() => ed.setActive(false)}>🚪 Выйти из конструктора</button>
+        <button style={act} onClick={() => { useCombatGridStore.getState().exitEditor(); ed.setActive(false); }}>🚪 Выйти из конструктора</button>
       </div>
     </div>
   );
