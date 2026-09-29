@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs } from '../../stores/combatGridStore';
 import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, campCellFree, paintDecal, finishZoneRect } from '../../stores/mapEditorStore';
+import { DecalLayer } from './DecalLayer';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useSound } from '../../hooks/useSound';
@@ -90,7 +91,6 @@ export const BattleGrid = () => {
   const edBrushSize = useMapEditorStore((s) => s.brushSize);
   const edHoverF = useMapEditorStore((s) => s.hoverF);
   const battleBg = useCombatGridStore((s) => s.battleBg);
-  const decals = useCombatGridStore((s) => s.decals);
   const zones = useCombatGridStore((s) => s.zones);
   const fogLevel = useCombatGridStore((s) => s.fogLevel);
   const selectedEnemy = useCombatGridStore((s) => s.selectedEnemy);
@@ -740,31 +740,8 @@ export const BattleGrid = () => {
         {/* Darken background to hide map grid lines */}
         <div className={styles.bgDarken} />
 
-        {/* Штампы кисти-ручки: свободные круги под объектами. */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          {(decals || []).map((d: any, i: number) => {
-            const src = getBattleImage(d.imgKey);
-            if (!src) return null;
-            const sz = d.size || 1;
-            return (
-              <img
-                key={i}
-                src={src}
-                alt=""
-                draggable={false}
-                style={{
-                  position: 'absolute',
-                  left: `${(d.x / GRID_SIZE) * 100}%`,
-                  top: `${(d.y / GRID_SIZE) * 100}%`,
-                  width: `${(sz / GRID_SIZE) * 100}%`,
-                  aspectRatio: '1',
-                  transform: 'translate(-50%,-50%)',
-                  objectFit: 'contain',
-                }}
-              />
-            );
-          })}
-        </div>
+        {/* Штампы кисти-ручки: canvas со сваркой пересечений (без швов). */}
+        <DecalLayer />
 
         <div className={styles.gridOverlay}
           ref={overlayRef}
