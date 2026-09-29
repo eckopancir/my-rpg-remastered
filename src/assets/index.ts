@@ -422,6 +422,29 @@ export const getEnemyImage = (faction: string, enemyName: string, modelKey?: str
   return characterImageMap.get('enemy');
 };
 
+/** Фоны арены для конструктора карт. */
+export const BATTLE_BGS = [
+  { id: 'mapbattle', label: 'Трава' },
+  { id: 'mapbattle2', label: 'Трава 2' },
+  { id: 'mapbattle3', label: 'Пустырь' },
+  { id: 'mapbattletop', label: 'Вид сверху' },
+  { id: 'mapbattletop2', label: 'Вид сверху 2' },
+];
+
+export const getMapImage = (key: string): string | undefined => {
+  return mapImageMap.get((key || '').toLowerCase()) || mapImageMap.get('mapbattle');
+};
+
+/** Текстуры кисти земли: всё из battle/ с префиксом ground_ (подхватится само при заливке). */
+export const getGroundDecals = (): string[] => {
+  const out = [...battleImageMap.keys()].filter((k) => k.startsWith('ground_')).sort();
+  // Встроенные fallback-земли, пока авторские текстуры рисуются.
+  for (const fb of ['green1', 'green']) {
+    if (battleImageMap.has(fb) && !out.includes(fb)) out.push(fb);
+  }
+  return out;
+};
+
 export const images = {
   battleArena: battleImageMap.get('arena'),
   mapMain: mapImageMap.get('map'),

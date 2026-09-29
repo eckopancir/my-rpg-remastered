@@ -400,6 +400,40 @@ export const useEnemyAI = () => {
               if (updatedEnemies.some((o: any) => o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.pos.x === nx && o.pos.y === ny)) return null;
               return { x: nx, y: ny };
             };
+            // Маршрут из конструктора: идём по точкам кругом.
+            const route = (enemy as any).patrolRoute as { x: number; y: number }[] | undefined;
+            if (route && route.length >= 2) {
+              let idx = (enemy as any).patrolIdx || 0;
+              let wp = route[idx % route.length];
+              if (enemy.pos.x === wp.x && enemy.pos.y === wp.y) {
+                idx = (idx + 1) % route.length;
+                wp = route[idx];
+              }
+              const ordered = [...pDirs].sort((a, b) =>
+                (Math.abs(enemy.pos.x + a.dx - wp.x) + Math.abs(enemy.pos.y + a.dy - wp.y))
+                - (Math.abs(enemy.pos.x + b.dx - wp.x) + Math.abs(enemy.pos.y + b.dy - wp.y)));
+              let moved = false;
+              for (const d of ordered) {
+                const s = tryStep(d);
+                if (s) {
+                  enemy.pos = { ...s };
+                  enemy.patrolDir = { ...d };
+                  (enemy as any).patrolIdx = idx;
+                  enemy.rotation = getAngle({ x: s.x - d.dx, y: s.y - d.dy }, s);
+                  updatedEnemies[i] = { ...enemy };
+                  useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                  moved = true;
+                  break;
+                }
+              }
+              if (!moved) {
+                // Точка недостижима прямо сейчас — пропускаем.
+                (enemy as any).patrolIdx = (idx + 1) % route.length;
+                updatedEnemies[i] = { ...enemy };
+              }
+              if (withChatter && Math.random() < 0.15 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(PATROL_CHATTER));
+              return;
+            }
             let step = tryStep(dir);
             if (!step) {
               // Босс — пробуем все 8 направлений, обычный — 1 случайное
@@ -501,9 +535,12 @@ export const useEnemyAI = () => {
             if (Math.random() < 0.2 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(CAMP_CHATTER));
           } else if (enemy.aiRole === 'sentry') {
             // Часовой: вертится (новый поворот), докладывает по рации.
-            const rot = Math.floor(Math.random() * 360);
-            updatedEnemies[i] = { ...enemy, rotation: rot };
-            useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            // Фиксированный взгляд из конструктора — не вертится.
+            if (!(enemy as any).fixedRotation) {
+              const rot = Math.floor(Math.random() * 360);
+              updatedEnemies[i] = { ...enemy, rotation: rot };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            }
             if (Math.random() < 0.1 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(SENTRY_RADIO));
             // Видит цель в дальности — открывает огонь, но с места не сходит.
             // Скрытного часовой замечает только в 10 клетках.

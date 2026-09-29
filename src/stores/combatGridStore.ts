@@ -165,6 +165,20 @@ export interface GridObstacle {
   editorRandom?: boolean;
 }
 
+/** Зона конструктора карт: спавн игрока / выход / триггер-засада. */
+export interface MapZone {
+  id: number | string;
+  kind: 'spawn' | 'exit' | 'trigger';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Текст триггера. */
+  text?: string;
+  /** Триггер одноразовый. */
+  used?: boolean;
+}
+
 export interface BattlePopup {
   id: string;
   x: number;
@@ -357,7 +371,7 @@ export interface CombatGridStore {
   selectPetAbility: (index: number) => void;
   usePetAbility: (index: number, enemyId?: number | string) => void;
   /** Спавн юнита редактора карт (упрощённый initCombat: без лагеря и волн). */
-  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string, withLoot?: boolean) => void;
+  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string, withLoot?: boolean, route?: { x: number; y: number }[]) => void;
   /** Смена поведения юнита в конструкторе (включая труп/воскрешение + лут трупа). */
   editorSetUnitBehavior: (unitId: number | string, behavior: string, withLoot: boolean) => void;
   /** Вход на сохранённую карту конструктора. */
@@ -370,6 +384,16 @@ export interface CombatGridStore {
   editorPeace: boolean;
   /** Выход из конструктора: обычный бой, AP в норму. */
   exitEditor: () => void;
+  /** Фон арены (конструктор карт). */
+  battleBg: string;
+  /** Штампы кисти земли (не блочат, под юнитами). */
+  decals: { x: number; y: number; imgKey: string }[];
+  /** Зоны карты: спавн/выход/триггер. */
+  zones: MapZone[];
+  /** Погодный туман 0–100 (конструктор карт). */
+  fogLevel: number;
+  /** Проверка зон под игроком (выход/триггер). */
+  checkZones: () => void;
   /** Ход ИИ питомца (авто-бой при активной способности pet_ai). */
   petAiTurn: () => void;
   petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number }) => boolean;
@@ -1269,6 +1293,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
   isTestArena: false,
   editorPeace: false,
+  battleBg: 'mapbattle',
+  decals: [],
+  zones: [],
+  fogLevel: 0,
   playerPos: { x: 2, y: 2 },
   enemies: [],
   obstacles: [],
@@ -2419,6 +2447,36 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
   },
 
+  /** Зоны карты: выход завершает бой, триггер — реплика + пробуждение спящих (засада). */
+  checkZones: () => {
+    const st = get();
+    if (!st.isActive || st.editorPeace || st.celebration || st.turn !== 'player') return;
+    if (!st.zones || st.zones.length === 0) return;
+    const p = st.playerPos;
+    const inside = (z: MapZone) => p.x >= z.x && p.x < z.x + z.w && p.y >= z.y && p.y < z.y + z.h;
+    const exit = st.zones.find((z) => z.kind === 'exit' && inside(z));
+    if (exit) {
+      get().addBattleLog('🚪 Выход с карты!');
+      get().addMessage('🚪 Уходим с карты...');
+      get().finishBattle();
+      return;
+    }
+    const trig = st.zones.find((z) => z.kind === 'trigger' && !z.used && inside(z));
+    if (trig) {
+      set((s: any) => ({
+        zones: s.zones.map((z: any) => (z.id === trig.id ? { ...z, used: true } : z)),
+        enemies: s.enemies.map((e: any) => ((e as any).sleeping
+          ? { ...e, sleeping: false, sleepTurns: undefined, aggro: true, knowsPlayer: true }
+          : e)),
+      }));
+      if (trig.text) {
+        get().addMessage(`💬 ${trig.text}`);
+        get().addBattleLog(`💬 ${trig.text}`);
+      }
+      get().addBattleLog('⚠️ Засада! Спящие проснулись!');
+    }
+  },
+
   movePlayer: (x, y) => {
     const state = get();
     const free = state.celebration;
@@ -2459,6 +2517,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           // вернёт полный AP и свободное перемещение; есть враги: ход врага.
           get().endTurn();
         }
+        get().checkZones();
         return;
       }
       const prev = path[step - 1];
@@ -2503,6 +2562,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       // Одни на поле — тоже самозавершение: endTurn вернёт AP и свободный бег.
       get().endTurn();
     }
+    get().checkZones();
   },
 
   rotatePlayer: (x, y) => {
@@ -4221,7 +4281,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
 
   /** Ход ИИ питомца: бежит к ближайшему видимому врагу и бьёт, добив — переключается. Пошагово со звуками. */
-  spawnEditorUnit: (factionKey, side, x, y, behavior, withLoot = true) => {
+  spawnEditorUnit: (factionKey, side, x, y, behavior, withLoot = true, route) => {
     const st = get();
     if (!st.isActive) return;
     const ps = usePlayerStore.getState();
@@ -4315,6 +4375,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         knowsPlayer: false,
         sleeping: behavior === 'sleeping' && !isCorpse,
         speech: null,
+        patrolRoute: route && route.length >= 2 ? route.map((p) => ({ x: p.x, y: p.y })) : undefined,
+        patrolIdx: 0,
       }],
     }));
   },
@@ -4428,9 +4490,21 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       enemies: s.enemies.filter((e: any) => !(e as any).isNeutral),
       editorPeace: false,
       campfire: (map as any).campfire || null,
+      battleBg: (map as any).bg || 'mapbattle',
+      decals: Array.isArray((map as any).decals) ? (map as any).decals : [],
+      zones: Array.isArray((map as any).zones) ? (map as any).zones.map((z: any) => ({ ...z, used: false })) : [],
+      fogLevel: (map as any).weather?.fog ?? 0,
+      isRaining: !!(map as any).weather?.rain,
+      isNightTime: !!(map as any).weather?.night,
     }));
+    // Спавн игрока из зоны (центр первой spawn-зоны).
+    {
+      const zs: MapZone[] = (map as any).zones || [];
+      const sp = zs.find((z) => z.kind === 'spawn');
+      if (sp) set({ playerPos: { x: sp.x + Math.floor(sp.w / 2), y: sp.y + Math.floor(sp.h / 2) } });
+    }
     for (const u of map.units || []) {
-      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false); } catch { /* ignore */ }
+      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
     }
     try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
     return true;
@@ -4452,12 +4526,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       campfire: null,
     }));
     // Режим стройки: враги не ходят (ход не передаётся), AP бесконечные.
-    set({ editorPeace: true, ap: 999999, maxAp: 999999, turn: 'player' });
+    set({ editorPeace: true, ap: 999999, maxAp: 999999, turn: 'player', battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, isNightTime: false });
     return true;
   },
 
   exitEditor: () => {
-    set({ editorPeace: false, ap: BASE_AP, maxAp: BASE_AP, turn: 'player' });
+    const dayForced = useUiStore.getState().forceDay;
+    const h = new Date().getHours();
+    set({ editorPeace: false, ap: BASE_AP, maxAp: BASE_AP, turn: 'player', isRaining: false, fogLevel: 0, isNightTime: !dayForced && h >= 0 && h < 6 });
   },
 
   loadMapForEdit: (map) => {
@@ -4496,9 +4572,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       enemies: [],
       campfire: (map as any).campfire || null,
       editorPeace: true, ap: 999999, maxAp: 999999, turn: 'player',
+      battleBg: (map as any).bg || 'mapbattle',
+      decals: Array.isArray((map as any).decals) ? (map as any).decals : [],
+      zones: Array.isArray((map as any).zones) ? (map as any).zones : [],
+      fogLevel: (map as any).weather?.fog ?? 0,
+      isRaining: !!(map as any).weather?.rain,
+      isNightTime: !!(map as any).weather?.night,
     });
     for (const u of map.units || []) {
-      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false); } catch { /* ignore */ }
+      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
     }
     try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
     return true;
@@ -5722,7 +5804,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, editorPeace: false, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player',
+      isActive: false, isTestArena: false, editorPeace: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

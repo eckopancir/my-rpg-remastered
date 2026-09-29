@@ -3,7 +3,9 @@ import { useCombatGridStore } from '../../stores/combatGridStore';
 import {
   useMapEditorStore, UNIT_BEHAVIORS, MAP_MUSIC,
   rotateSelected, deleteSelected, toggleSelectedRandom, addRandomObstacle,
+  clearRoute, setUnitFacing, setZoneText,
 } from '../../stores/mapEditorStore';
+import { BATTLE_BGS, getMapImage, getGroundDecals } from '../../assets/index';
 import { ENEMY_BASE_STATS } from '../../engine/enemies';
 import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES } from '../../engine/terrain';
 
@@ -47,6 +49,11 @@ export const MapEditorPanel = () => {
   const enemies = useCombatGridStore((s) => s.enemies);
   const campfire = useCombatGridStore((s) => s.campfire);
   const combatActive = useCombatGridStore((s) => s.isActive);
+  const battleBg = useCombatGridStore((s) => s.battleBg);
+  const isRaining = useCombatGridStore((s) => s.isRaining);
+  const isNight = useCombatGridStore((s) => s.isNightTime);
+  const fogLevel = useCombatGridStore((s) => s.fogLevel);
+  const zones = useCombatGridStore((s) => s.zones);
   // Бой кончился/покинут — режим редактора не должен течь в следующий бой.
   useEffect(() => {
     if (!combatActive && useMapEditorStore.getState().active) {
@@ -68,13 +75,24 @@ export const MapEditorPanel = () => {
     st.setActive(true);
   };
   // Z в конструкторе: развернуть призрак (палитра) или выбранный объект.
+  // Ctrl+Z / Ctrl+Y: отмена / повтор.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code !== 'KeyZ') return;
       const st = useMapEditorStore.getState();
       if (!st.active) return;
       const tag = (document.activeElement?.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) {
+        e.preventDefault();
+        st.undo();
+        return;
+      }
+      if (((e.ctrlKey || e.metaKey) && e.code === 'KeyY') || ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && e.shiftKey)) {
+        e.preventDefault();
+        st.redo();
+        return;
+      }
+      if (e.code !== 'KeyZ' || e.ctrlKey || e.metaKey) return;
       if (st.selObId !== null) rotateSelected();
       else if (st.tool.kind === 'obstacle') st.rotateTool();
     };
@@ -99,12 +117,14 @@ export const MapEditorPanel = () => {
   const setUnitBehavior = (b: string) => {
     ed.setBehavior(b);
     if (selUnit) {
+      ed.pushHistory();
       useCombatGridStore.getState().editorSetUnitBehavior((selUnit as any).id, b, ed.corpseLoot);
     }
   };
   const setCorpseLoot = (v: boolean) => {
     ed.setCorpseLoot(v);
     if (selUnit && (selUnit as any).dead) {
+      ed.pushHistory();
       useCombatGridStore.getState().editorSetUnitBehavior((selUnit as any).id, 'corpse', v);
     }
   };
@@ -122,6 +142,10 @@ export const MapEditorPanel = () => {
       <div style={{ ...h, fontSize: 13 }}>🛠 Конструктор карт</div>
       <div style={{ fontSize: 11 }}>
         <div style={{ opacity: 0.85 }}>Объектов: {(obstacles as any[]).length}, юнитов: {(enemies as any[]).length}</div>
+        <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+          <button style={btn(false)} disabled={!ed.canUndo()} title="Ctrl+Z" onClick={() => ed.undo()}>↩ Отмена</button>
+          <button style={btn(false)} disabled={!ed.canRedo()} title="Ctrl+Y" onClick={() => ed.redo()}>↪ Повтор</button>
+        </div>
         {(obstacles as any[]).length > 0 && (
           <div style={{ maxHeight: 132, overflowY: 'auto', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
             {(obstacles as any[]).map((o: any) => {
@@ -157,6 +181,121 @@ export const MapEditorPanel = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div style={sec}>
+        <div style={h}>🖼 Фон арены</div>
+        <div style={grid}>
+          {BATTLE_BGS.map((b) => (
+            <button
+              key={b.id}
+              style={{ ...btn(battleBg === b.id), display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
+              title={b.label}
+              onClick={() => useCombatGridStore.setState({ battleBg: b.id })}
+            >
+              <img src={getMapImage(b.id)} alt={b.label} draggable={false} style={{ width: 72, height: 44, objectFit: 'cover', borderRadius: 3 }} />
+              {b.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={h}>⛅ Погода карты</div>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11 }}>
+          <input type="checkbox" checked={!!isRaining} onChange={(e) => useCombatGridStore.setState({ isRaining: e.target.checked })} />
+          🌧 Дождь
+        </label>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, marginTop: 4 }}>
+          <input type="checkbox" checked={!!isNight} onChange={(e) => useCombatGridStore.setState({ isNightTime: e.target.checked })} />
+          🌙 Ночь (режет меткость!)
+        </label>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, marginTop: 4 }}>
+          🌫 Туман
+          <input
+            type="range" min={0} max={100} value={fogLevel || 0}
+            onChange={(e) => useCombatGridStore.setState({ fogLevel: Number(e.target.value) })}
+            style={{ flex: 1 }}
+          />
+          {fogLevel || 0}%
+        </label>
+      </div>
+
+      <div style={sec}>
+        <div style={h}>🖌 Кисть земли</div>
+        <div style={grid}>
+          {getGroundDecals().map((k) => (
+            <button
+              key={k}
+              style={btn(ed.tool.kind === 'brush' && ed.tool.imgKey === k)}
+              title="Рисовать протяжкой ЛКМ"
+              onClick={() => ed.setTool({ kind: 'brush', imgKey: k })}
+            >
+              {k}
+            </button>
+          ))}
+          <button style={btn(ed.tool.kind === 'eraser')} onClick={() => ed.setTool({ kind: 'eraser' })}>🧽 Ластик</button>
+        </div>
+        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>
+          Протяжка ЛКМ рисует. Свои текстуры: залей ground_*.png в battle/ — появятся сами.
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={h}>📐 Зоны</div>
+        <div style={grid}>
+          <button
+            style={btn(ed.tool.kind === 'zone' && ed.zoneKind === 'spawn')}
+            title="Точка появления игрока (одна)"
+            onClick={() => { ed.setZoneKind('spawn'); ed.setTool({ kind: 'zone' }); }}
+          >
+            🟢 Спавн
+          </button>
+          <button
+            style={btn(ed.tool.kind === 'zone' && ed.zoneKind === 'exit')}
+            title="Встал — бой завершён"
+            onClick={() => { ed.setZoneKind('exit'); ed.setTool({ kind: 'zone' }); }}
+          >
+            🚪 Выход
+          </button>
+          <button
+            style={btn(ed.tool.kind === 'zone' && ed.zoneKind === 'trigger')}
+            title="Встал — реплика + пробуждение спящих"
+            onClick={() => { ed.setZoneKind('trigger'); ed.setTool({ kind: 'zone' }); }}
+          >
+            💜 Триггер
+          </button>
+        </div>
+        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>Тяни прямоугольник ЛКМ по карте.</div>
+        {(zones || []).length > 0 && (
+          <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(zones || []).map((z: any) => (
+              <div
+                key={z.id}
+                onClick={() => ed.setSelZone(z.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+                  padding: '2px 4px 2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 11,
+                  border: z.id === ed.selZoneId ? '1px solid #ffd54a' : '1px solid #2a2e37',
+                  background: z.id === ed.selZoneId ? '#3a3320' : '#14171d',
+                }}
+              >
+                <span>{z.kind === 'spawn' ? '🟢' : z.kind === 'exit' ? '🚪' : '💜'} {z.kind} {z.w}×{z.h} ({z.x},{z.y})</span>
+                <button
+                  style={{ ...btn(false), padding: '0 5px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    ed.pushHistory();
+                    useCombatGridStore.setState((s: any) => ({ zones: (s.zones || []).filter((x: any) => x.id !== z.id) }));
+                    if (ed.selZoneId === z.id) ed.setSelZone(null);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -285,16 +424,62 @@ export const MapEditorPanel = () => {
             💰 С лутом (можно обыскать)
           </label>
         )}
+        <div style={{ marginTop: 6 }}>
+          <button
+            style={btn(ed.tool.kind === 'route')}
+            title="Кликай точки по карте (макс 12, ходят кругом)"
+            onClick={() => ed.setTool({ kind: 'route' })}
+          >
+            📍 Маршрут патруля
+          </button>
+        </div>
+        {selUnit && !(selUnit as any).dead && (
+          <div style={{ marginTop: 6, fontSize: 11 }}>
+            <div style={{ opacity: 0.8 }}>
+              Точек: {((selUnit as any).patrolRoute || []).length}
+              {((selUnit as any).patrolRoute || []).length > 0 && (
+                <button style={{ ...btn(false), marginLeft: 6 }} onClick={() => clearRoute((selUnit as any).id)}>Очистить</button>
+              )}
+            </div>
+            <div style={{ opacity: 0.8, marginTop: 4 }}>Взгляд:</div>
+            <div style={grid}>
+              {[
+                { l: '↖', d: -135 }, { l: '↑', d: -90 }, { l: '↗', d: -45 },
+                { l: '←', d: 180 }, { l: '→', d: 0 },
+                { l: '↙', d: 135 }, { l: '↓', d: 90 }, { l: '↘', d: 45 },
+              ].map((f) => (
+                <button key={f.l} style={btn(false)} title={`Смотреть ${f.l}`} onClick={() => setUnitFacing((selUnit as any).id, f.d)}>
+                  {f.l}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {(selOb || selUnit || ed.selCamp) && (
+      {(selOb || selUnit || ed.selCamp || ed.selZoneId !== null) && (
         <div style={sec}>
           <div style={h}>Выбрано</div>
           <div style={{ fontSize: 11, opacity: 0.85 }}>
             {selOb ? `Объект ${(selOb as any).imgKey || (selOb as any).icon} ${(selOb as any).w}×${(selOb as any).h}${(selOb as any).editorRandom ? ' 🎲 случайный' : ''}` : null}
             {selUnit ? `Юнит ${(selUnit as any).name} (${(selUnit as any).dead ? '💀 труп' + (((selUnit as any).loot || []).length ? ', с лутом' : ', без лута') : `${(selUnit as any).aiRole}${(selUnit as any).sleeping ? '+спит' : ''}`})` : null}
             {ed.selCamp && campfire ? `🔥 Костёр (${(campfire as any).x},${(campfire as any).y})` : null}
+            {ed.selZoneId !== null ? (() => {
+              const z = (zones || []).find((zz: any) => zz.id === ed.selZoneId) as any;
+              return z ? `${z.kind === 'spawn' ? '🟢 Спавн' : z.kind === 'exit' ? '🚪 Выход' : '💜 Триггер'} ${z.w}×${z.h} (${z.x},${z.y})` : 'Зона';
+            })() : null}
           </div>
+          {ed.selZoneId !== null && (() => {
+            const z = (zones || []).find((zz: any) => zz.id === ed.selZoneId) as any;
+            return z && z.kind === 'trigger' ? (
+              <input
+                value={z.text || ''}
+                onChange={(e) => setZoneText(z.id, e.target.value)}
+                placeholder="Реплика триггера…"
+                style={{ width: '100%', fontSize: 11, padding: 4, marginTop: 4, borderRadius: 4, border: '1px solid #4a505c', background: '#14171d', color: '#fff' }}
+              />
+            ) : null;
+          })()}
           {selOb && <button style={act} onClick={rotateSel}>🔄 Развернуть 90°</button>}
           {selOb && <button style={act} onClick={() => toggleSelectedRandom()}>🎲 Случайное/фикс</button>}
           <button style={act} onClick={deleteSel}>🗑 Удалить</button>
@@ -322,7 +507,8 @@ export const MapEditorPanel = () => {
         <button
           style={act}
           onClick={() => {
-            useCombatGridStore.setState({ obstacles: [], enemies: [] });
+            ed.pushHistory();
+            useCombatGridStore.setState({ obstacles: [], enemies: [], decals: [], zones: [], campfire: null });
             ed.setSel(null, null);
           }}
         >
