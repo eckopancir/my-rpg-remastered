@@ -179,6 +179,12 @@ export interface MapZone {
   used?: boolean;
 }
 
+/** Декали кисти: новый формат свободный (x,y дробные + диаметр), старый клеточный мигрирует. */
+export const migrateDecals = (list: any[]): { x: number; y: number; imgKey: string; size: number }[] =>
+  (Array.isArray(list) ? list : []).map((d: any) => (d && typeof d.size === 'number'
+    ? { x: d.x, y: d.y, imgKey: d.imgKey, size: d.size }
+    : { x: (d?.x ?? 0) + 0.5, y: (d?.y ?? 0) + 0.5, imgKey: d?.imgKey || '', size: 1 }));
+
 export interface BattlePopup {
   id: string;
   x: number;
@@ -387,7 +393,7 @@ export interface CombatGridStore {
   /** Фон арены (конструктор карт). */
   battleBg: string;
   /** Штампы кисти земли (не блочат, под юнитами). */
-  decals: { x: number; y: number; imgKey: string }[];
+  decals: { x: number; y: number; imgKey: string; size?: number }[];
   /** Зоны карты: спавн/выход/триггер. */
   zones: MapZone[];
   /** Погодный туман 0–100 (конструктор карт). */
@@ -4491,7 +4497,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       editorPeace: false,
       campfire: (map as any).campfire || null,
       battleBg: (map as any).bg || 'mapbattle',
-      decals: Array.isArray((map as any).decals) ? (map as any).decals : [],
+      decals: migrateDecals((map as any).decals),
       zones: Array.isArray((map as any).zones) ? (map as any).zones.map((z: any) => ({ ...z, used: false })) : [],
       fogLevel: (map as any).weather?.fog ?? 0,
       isRaining: !!(map as any).weather?.rain,
@@ -4573,7 +4579,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       campfire: (map as any).campfire || null,
       editorPeace: true, ap: 999999, maxAp: 999999, turn: 'player',
       battleBg: (map as any).bg || 'mapbattle',
-      decals: Array.isArray((map as any).decals) ? (map as any).decals : [],
+      decals: migrateDecals((map as any).decals),
       zones: Array.isArray((map as any).zones) ? (map as any).zones : [],
       fogLevel: (map as any).weather?.fog ?? 0,
       isRaining: !!(map as any).weather?.rain,

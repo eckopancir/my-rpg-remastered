@@ -88,6 +88,7 @@ export const BattleGrid = () => {
   const edZoneKind = useMapEditorStore((s) => s.zoneKind);
   const edDragStart = useMapEditorStore((s) => s.dragStart);
   const edBrushSize = useMapEditorStore((s) => s.brushSize);
+  const edHoverF = useMapEditorStore((s) => s.hoverF);
   const battleBg = useCombatGridStore((s) => s.battleBg);
   const decals = useCombatGridStore((s) => s.decals);
   const zones = useCombatGridStore((s) => s.zones);
@@ -197,6 +198,19 @@ export const BattleGrid = () => {
     return () => window.removeEventListener('mouseup', up);
   }, [measuring]);
   const gridRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const lastStampRef = useRef<{ x: number; y: number } | null>(null);
+  // Координаты кисти в клетках (дробные) из события мыши.
+  const evToArena = (e: React.MouseEvent) => {
+    const el = overlayRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return null;
+    return {
+      x: ((e.clientX - r.left) / r.width) * GRID_SIZE,
+      y: ((e.clientY - r.top) / r.height) * GRID_SIZE,
+    };
+  };
   const fogCanvasRef = useRef<HTMLCanvasElement>(null);
   // Клетка нажатия ПКМ — для инспекции точки при клике без протяжки.
   const rmbDownCell = useRef<{ x: number; y: number } | null>(null);
@@ -664,13 +678,6 @@ export const BattleGrid = () => {
     return { kind: 'ob' as const, ax: nx, ay: ny, cells, valid, src, w, h, rot: ghostRot };
   }, [edActive, edHover, edTool, edSelObId, edSelCamp, edBrushSize, obstacles, enemies]);
 
-  // Декали земли по клеткам.
-  const decalMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const d of decals || []) map.set(`${d.x},${d.y}`, d.imgKey);
-    return map;
-  }, [decals]);
-
   // Зоны по клеткам (id зоны-якоря для выбора).
   const zoneTileMap = useMemo(() => {
     const map = new Map<string, { id: number | string; kind: string; ax: number; ay: number }[]>();
@@ -733,14 +740,75 @@ export const BattleGrid = () => {
         {/* Darken background to hide map grid lines */}
         <div className={styles.bgDarken} />
 
+        {/* Штампы кисти-ручки: свободные круги под объектами. */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          {(decals || []).map((d: any, i: number) => {
+            const src = getBattleImage(d.imgKey);
+            if (!src) return null;
+            const sz = d.size || 1;
+            return (
+              <img
+                key={i}
+                src={src}
+                alt=""
+                draggable={false}
+                style={{
+                  position: 'absolute',
+                  left: `${(d.x / GRID_SIZE) * 100}%`,
+                  top: `${(d.y / GRID_SIZE) * 100}%`,
+                  width: `${(sz / GRID_SIZE) * 100}%`,
+                  aspectRatio: '1',
+                  transform: 'translate(-50%,-50%)',
+                  objectFit: 'contain',
+                }}
+              />
+            );
+          })}
+        </div>
+
         <div className={styles.gridOverlay}
+          ref={overlayRef}
           onContextMenu={(e) => e.preventDefault()}
           style={{ cursor: `url("${pricelImg}") 12 12, crosshair` }}
-          onMouseDown={(e) => { if (e.button === 2) { isRightMouseDown.current = true; setRmbHeld(true); } }}
+          onMouseDown={(e) => {
+            if (e.button === 2) { isRightMouseDown.current = true; setRmbHeld(true); return; }
+            // Кисть-ручка: начало штриха в свободных координатах.
+            if (e.button === 0 && useMapEditorStore.getState().active) {
+              const ed = useMapEditorStore.getState();
+              const pos = evToArena(e);
+              if (pos && ed.tool.kind === 'brush') {
+                ed.pushHistory();
+                ed.setStrokeActive(true);
+                paintDecal(pos.x, pos.y, ed.tool.imgKey, ed.brushSize);
+                lastStampRef.current = pos;
+              } else if (pos && ed.tool.kind === 'eraser') {
+                ed.pushHistory();
+                ed.setStrokeActive(true);
+                paintDecal(pos.x, pos.y, null, ed.brushSize);
+                lastStampRef.current = pos;
+              }
+            }
+          }}
+          onMouseMove={(e) => {
+            if (!useMapEditorStore.getState().active) return;
+            const ed = useMapEditorStore.getState();
+            const pos = evToArena(e);
+            if (!pos) return;
+            ed.setHoverF({ x: pos.x, y: pos.y });
+            if (ed.strokeActive && (ed.tool.kind === 'brush' || ed.tool.kind === 'eraser')) {
+              const last = lastStampRef.current;
+              const step = Math.max(0.1, ed.brushSize * ed.brushDensity);
+              if (!last || Math.hypot(pos.x - last.x, pos.y - last.y) >= step) {
+                paintDecal(pos.x, pos.y, ed.tool.kind === 'brush' ? ed.tool.imgKey : null, ed.brushSize);
+                lastStampRef.current = pos;
+              }
+            }
+          }}
           onMouseUp={(e) => {
             // Конструктор: конец штриха кисти / прямоугольника зоны.
             if (e.button === 0 && useMapEditorStore.getState().active) {
               const ed = useMapEditorStore.getState();
+              lastStampRef.current = null;
               if (ed.strokeActive) ed.setStrokeActive(false);
               if (ed.dragStart && ed.tool.kind === 'zone') {
                 const cur = useCombatGridStore.getState().cursorPos;
@@ -778,7 +846,7 @@ export const BattleGrid = () => {
             st.addPopup(down.x, down.y, s.text, 'BUFF');
             st.addMessage(s.detail);
           }}
-          onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; rmbDownCell.current = null; setRmbHeld(false); if (useMapEditorStore.getState().active) { const ed = useMapEditorStore.getState(); ed.setHover(null); if (ed.strokeActive) ed.setStrokeActive(false); if (ed.dragStart) ed.setDragStart(null); } }}
+          onMouseLeave={() => { lastHoverRef.current = null; setPlannedPath([]); isRightMouseDown.current = false; rmbDownCell.current = null; setRmbHeld(false); lastStampRef.current = null; if (useMapEditorStore.getState().active) { const ed = useMapEditorStore.getState(); ed.setHover(null); ed.setHoverF(null); if (ed.strokeActive) ed.setStrokeActive(false); if (ed.dragStart) ed.setDragStart(null); } }}
         >
           {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
             const x = i % GRID_SIZE;
@@ -796,9 +864,8 @@ export const BattleGrid = () => {
             const isNeutralCell = !!(enemy as any)?.isNeutral;
             const visible = isCellVisible(x, y);
             const edSel = edActive && ((obstacle && (obstacle as any).obId === edSelObId && obstacle.isAnchor) || (enemy && (enemy as any).id === edSelUnitId) || (edSelUnitId !== null && !enemy && (enemies as any[]).some((e: any) => e.id === edSelUnitId && e.dead && e.pos.x === x && e.pos.y === y)));
-            const edGhost = edActive && ghost?.cells.has(`${x},${y}`);
-            const edGhostAnchor = edActive && ghost && ghost.ax === x && ghost.ay === y;
-            const decalKey = decalMap.get(`${x},${y}`);
+            const edGhost = edActive && ghost && ghost.kind !== 'decal' && ghost.cells.has(`${x},${y}`);
+            const edGhostAnchor = edActive && ghost && ghost.kind !== 'decal' && ghost.ax === x && ghost.ay === y;
             const zoneHere = zoneTileMap.get(`${x},${y}`);
             const routeNum = selRouteMap.get(`${x},${y}`);
             const zoneDraftHere = edActive && zoneDraft?.cells.has(`${x},${y}`);
@@ -812,18 +879,10 @@ export const BattleGrid = () => {
                 onContextMenu={(e) => e.preventDefault()}
                 onMouseDown={(e) => {
                   if (e.button === 2) { rmbDownCell.current = { x, y }; setRmbHeld(true); return; }
-                  // Конструктор: начало штриха кисти / прямоугольника зоны.
+                  // Зона: начало прямоугольника (кисть стартует на оверлее).
                   if (e.button === 0 && useMapEditorStore.getState().active) {
                     const ed = useMapEditorStore.getState();
-                    if (ed.tool.kind === 'brush') {
-                      ed.pushHistory();
-                      ed.setStrokeActive(true);
-                      paintDecal(x, y, ed.tool.imgKey, ed.brushSize);
-                    } else if (ed.tool.kind === 'eraser') {
-                      ed.pushHistory();
-                      ed.setStrokeActive(true);
-                      paintDecal(x, y, null, ed.brushSize);
-                    } else if (ed.tool.kind === 'zone') {
+                    if (ed.tool.kind === 'zone') {
                       ed.setDragStart({ x, y });
                     }
                   }
@@ -831,12 +890,6 @@ export const BattleGrid = () => {
                 onMouseEnter={() => {
                   handleCellHover(x, y);
                   if (isRightMouseDown.current && !measureRef.current) rotatePlayer(x, y);
-                  // Протяжка кисти по клеткам.
-                  const ed = useMapEditorStore.getState();
-                  if (ed.active && ed.strokeActive) {
-                    if (ed.tool.kind === 'brush') paintDecal(x, y, ed.tool.imgKey, ed.brushSize);
-                    else if (ed.tool.kind === 'eraser') paintDecal(x, y, null, ed.brushSize);
-                  }
                 }}
                 data-invalid={pathPoint?.isInvalid ? 'true' : 'false'}
               >
@@ -871,19 +924,10 @@ export const BattleGrid = () => {
                     🔥
                   </div>
                 )}
-                {edGhostAnchor && (ghost!.kind === 'route' || ghost!.kind === 'decal') && (
+                {edGhostAnchor && (ghost!.kind === 'route' || ghost!.kind === 'decal') && ghost!.kind === 'route' && (
                   <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, opacity: 0.85 }}>
-                    {ghost!.kind === 'route' ? '📍' : '🖌'}
+                    📍
                   </div>
-                )}
-                {/* Декаль земли — под объектами. */}
-                {decalKey && getBattleImage(decalKey) && (
-                  <img
-                    src={getBattleImage(decalKey)}
-                    alt=""
-                    draggable={false}
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.92, pointerEvents: 'none' }}
-                  />
                 )}
                 {/* Зоны: в редакторе цветной контур + подпись, в игре только выход. */}
                 {zoneHere && (edActive ? zoneHere : zoneHere.filter((z) => z.kind === 'exit')).map((z) => {
@@ -1122,6 +1166,23 @@ export const BattleGrid = () => {
             );
           })}
         </div>
+
+        {/* Круг-призрак кисти-ручки (диаметр = размер кисти). */}
+        {edActive && (edTool.kind === 'brush' || edTool.kind === 'eraser') && edHoverF && (
+          <div style={{
+            position: 'absolute',
+            left: `${(edHoverF.x / GRID_SIZE) * 100}%`,
+            top: `${(edHoverF.y / GRID_SIZE) * 100}%`,
+            width: `${(edBrushSize / GRID_SIZE) * 100}%`,
+            aspectRatio: '1',
+            transform: 'translate(-50%,-50%)',
+            borderRadius: '50%',
+            border: `2px dashed ${edTool.kind === 'brush' ? 'rgba(120,220,255,0.95)' : 'rgba(255,120,120,0.95)'}`,
+            background: edTool.kind === 'brush' ? 'rgba(120,220,255,0.12)' : 'rgba(255,120,120,0.12)',
+            pointerEvents: 'none',
+            zIndex: 15,
+          }} />
+        )}
 
         {/* Hit flash overlay */}
         {isPlayerHit && <div className={styles.hitFlash} />}

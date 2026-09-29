@@ -224,15 +224,24 @@ export const MapEditorPanel = () => {
       </div>
 
       <div style={sec}>
-        <div style={h}>🖌 Кисть земли</div>
+        <div style={h}>🖌 Кисть-ручка</div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11, marginBottom: 4 }}>
-          Размер:
+          Диаметр:
           {[1, 2, 3, 4, 5].map((n) => (
-            <button key={n} style={btn(ed.brushSize === n)} title={`Кисть ${n}×${n}`} onClick={() => ed.setBrushSize(n)}>
-              {n}×{n}
+            <button key={n} style={btn(ed.brushSize === n)} title={`Диаметр ${n} кл`} onClick={() => ed.setBrushSize(n)}>
+              {n}
             </button>
           ))}
         </div>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, marginBottom: 4 }}>
+          Плотность
+          <input
+            type="range" min={15} max={100} value={Math.round(ed.brushDensity * 100)}
+            onChange={(e) => ed.setBrushDensity(Number(e.target.value) / 100)}
+            style={{ flex: 1 }}
+          />
+          {Math.round(ed.brushDensity * 100)}%
+        </label>
         <div style={grid}>
           {getGroundDecals().map((k) => (
             <button
