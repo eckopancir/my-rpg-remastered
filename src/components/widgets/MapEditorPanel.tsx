@@ -225,6 +225,14 @@ export const MapEditorPanel = () => {
 
       <div style={sec}>
         <div style={h}>🖌 Кисть земли</div>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11, marginBottom: 4 }}>
+          Размер:
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} style={btn(ed.brushSize === n)} title={`Кисть ${n}×${n}`} onClick={() => ed.setBrushSize(n)}>
+              {n}×{n}
+            </button>
+          ))}
+        </div>
         <div style={grid}>
           {getGroundDecals().map((k) => (
             <button

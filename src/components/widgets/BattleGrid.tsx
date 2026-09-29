@@ -87,6 +87,7 @@ export const BattleGrid = () => {
   const edSelZoneId = useMapEditorStore((s) => s.selZoneId);
   const edZoneKind = useMapEditorStore((s) => s.zoneKind);
   const edDragStart = useMapEditorStore((s) => s.dragStart);
+  const edBrushSize = useMapEditorStore((s) => s.brushSize);
   const battleBg = useCombatGridStore((s) => s.battleBg);
   const decals = useCombatGridStore((s) => s.decals);
   const zones = useCombatGridStore((s) => s.zones);
@@ -593,9 +594,19 @@ export const BattleGrid = () => {
       field: [FIELD_IMAGE],
     };
     if (edTool.kind === 'brush' || edTool.kind === 'eraser') {
+      const r = Math.floor(Math.max(1, edBrushSize || 1) / 2);
+      const cells = new Set<string>();
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) {
+          const cx = edHover.x + dx;
+          const cy = edHover.y + dy;
+          if (cx < 0 || cx >= 32 || cy < 0 || cy >= 32) continue;
+          cells.add(`${cx},${cy}`);
+        }
+      }
       return {
         kind: 'decal' as const, ax: edHover.x, ay: edHover.y,
-        cells: new Set([`${edHover.x},${edHover.y}`]),
+        cells,
         valid: true, src: null as string | null, w: 1, h: 1,
       };
     }
@@ -651,7 +662,7 @@ export const BattleGrid = () => {
     let src: string | null = null;
     try { src = getBattleImage(key); } catch { src = null; }
     return { kind: 'ob' as const, ax: nx, ay: ny, cells, valid, src, w, h, rot: ghostRot };
-  }, [edActive, edHover, edTool, edSelObId, edSelCamp, obstacles, enemies]);
+  }, [edActive, edHover, edTool, edSelObId, edSelCamp, edBrushSize, obstacles, enemies]);
 
   // Декали земли по клеткам.
   const decalMap = useMemo(() => {
@@ -807,11 +818,11 @@ export const BattleGrid = () => {
                     if (ed.tool.kind === 'brush') {
                       ed.pushHistory();
                       ed.setStrokeActive(true);
-                      paintDecal(x, y, ed.tool.imgKey);
+                      paintDecal(x, y, ed.tool.imgKey, ed.brushSize);
                     } else if (ed.tool.kind === 'eraser') {
                       ed.pushHistory();
                       ed.setStrokeActive(true);
-                      paintDecal(x, y, null);
+                      paintDecal(x, y, null, ed.brushSize);
                     } else if (ed.tool.kind === 'zone') {
                       ed.setDragStart({ x, y });
                     }
@@ -823,8 +834,8 @@ export const BattleGrid = () => {
                   // Протяжка кисти по клеткам.
                   const ed = useMapEditorStore.getState();
                   if (ed.active && ed.strokeActive) {
-                    if (ed.tool.kind === 'brush') paintDecal(x, y, ed.tool.imgKey);
-                    else if (ed.tool.kind === 'eraser') paintDecal(x, y, null);
+                    if (ed.tool.kind === 'brush') paintDecal(x, y, ed.tool.imgKey, ed.brushSize);
+                    else if (ed.tool.kind === 'eraser') paintDecal(x, y, null, ed.brushSize);
                   }
                 }}
                 data-invalid={pathPoint?.isInvalid ? 'true' : 'false'}

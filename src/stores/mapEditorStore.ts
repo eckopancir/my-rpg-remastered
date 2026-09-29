@@ -99,6 +99,7 @@ interface MapEditorStore {
   zoneKind: 'spawn' | 'exit' | 'trigger';
   dragStart: { x: number; y: number } | null;
   strokeActive: boolean;
+  brushSize: number;
   hover: { x: number; y: number } | null;
   setActive: (v: boolean) => void;
   setTool: (t: EditorTool) => void;
@@ -113,6 +114,7 @@ interface MapEditorStore {
   setZoneKind: (k: 'spawn' | 'exit' | 'trigger') => void;
   setDragStart: (p: { x: number; y: number } | null) => void;
   setStrokeActive: (v: boolean) => void;
+  setBrushSize: (n: number) => void;
   /** Снимок для undo/redo. */
   pushHistory: () => void;
   undo: () => void;
@@ -147,6 +149,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   zoneKind: 'spawn',
   dragStart: null,
   strokeActive: false,
+  brushSize: 2,
   hover: null,
   setActive: (active) => {
     if (active) get().clearHistory();
@@ -164,6 +167,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   setZoneKind: (zoneKind) => set({ zoneKind }),
   setDragStart: (dragStart) => set({ dragStart }),
   setStrokeActive: (strokeActive) => set({ strokeActive }),
+  setBrushSize: (n) => set({ brushSize: Math.max(1, Math.min(5, Math.round(n) || 1)) }),
   setHover: (hover) => set({ hover }),
   rotateTool: () => {
     const t = get().tool;
@@ -377,21 +381,31 @@ export const placeCampfire = (x: number, y: number): string | null => {
   return null;
 };
 
-/** Штрих кисти: поставить/снять декаль (историю пушит начало штриха). */
-export const paintDecal = (x: number, y: number, imgKey: string | null): void => {
-  if (x < 0 || x >= 32 || y < 0 || y >= 32) return;
+/** Штрих кисти: поставить/снять декаль квадратом brushSize (историю пушит начало штриха). */
+export const paintDecal = (x: number, y: number, imgKey: string | null, size = 1): void => {
+  const r = Math.floor(Math.max(1, size) / 2);
+  const cells: { x: number; y: number }[] = [];
+  for (let dx = -r; dx <= r; dx++) {
+    for (let dy = -r; dy <= r; dy++) {
+      const cx = x + dx;
+      const cy = y + dy;
+      if (cx < 0 || cx >= 32 || cy < 0 || cy >= 32) continue;
+      cells.push({ x: cx, y: cy });
+    }
+  }
+  if (cells.length === 0) return;
   const cs = useCombatGridStore;
   if (imgKey === null) {
-    const has = (cs.getState().decals || []).some((d: any) => d.x === x && d.y === y);
+    const has = (cs.getState().decals || []).some((d: any) => cells.some((c) => c.x === d.x && c.y === d.y));
     if (!has) return;
-    cs.setState((s: any) => ({ decals: (s.decals || []).filter((d: any) => !(d.x === x && d.y === y)) }));
+    const kill = new Set(cells.map((c) => `${c.x},${c.y}`));
+    cs.setState((s: any) => ({ decals: (s.decals || []).filter((d: any) => !kill.has(`${d.x},${d.y}`)) }));
     return;
   }
-  const cur = (cs.getState().decals || []).find((d: any) => d.x === x && d.y === y);
-  if (cur && cur.imgKey === imgKey) return;
-  cs.setState((s: any) => ({
-    decals: [...(s.decals || []).filter((d: any) => !(d.x === x && d.y === y)), { x, y, imgKey }],
-  }));
+  cs.setState((s: any) => {
+    const rest = (s.decals || []).filter((d: any) => !cells.some((c) => c.x === d.x && c.y === d.y));
+    return { decals: [...rest, ...cells.map((c) => ({ x: c.x, y: c.y, imgKey }))] };
+  });
 };
 
 /** Завершить прямоугольник зоны из dragStart в точку (x,y). */
@@ -575,12 +589,12 @@ export const editorCellClick = (x: number, y: number): void => {
   }
   if (tool.kind === 'brush') {
     ed.pushHistory();
-    paintDecal(x, y, tool.imgKey);
+    paintDecal(x, y, tool.imgKey, ed.brushSize);
     return;
   }
   if (tool.kind === 'eraser') {
     ed.pushHistory();
-    paintDecal(x, y, null);
+    paintDecal(x, y, null, ed.brushSize);
     return;
   }
   if (tool.kind === 'route') {
