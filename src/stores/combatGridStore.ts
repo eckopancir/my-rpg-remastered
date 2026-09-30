@@ -4451,6 +4451,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const levelMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
     const uid = `ed_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
     const isCorpse = behavior === 'corpse';
+    // Разворот при установке — случайный, иначе все стоят лицом на север (на игрока).
+    const spawnRot = Math.floor(Math.random() * 360);
     // В резерв (подкрепление карты): на поле не встаёт, придёт в свой ход.
     const destKey = toReserve ? 'pendingReinforce' : 'enemies';
     if (side === 'neutral') {
@@ -4460,7 +4462,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           id: uid, name: 'Кабан', faction: 'Нейтралы', dps: 1, damage: 1,
           maxHp: 50, currentHp: isCorpse ? 0 : 50, armor: 0, evasion: 0.05, block: 0,
           crit: 0, accuracy: 0.5, punching: 0, vampir: 0, regen: 0, speed: 0,
-          pos: { x, y }, rotation: 0, rangeDistance: 1, shotPrice: 1, runAp: 0,
+          pos: { x, y }, rotation: spawnRot, rangeDistance: 1, shotPrice: 1, runAp: 0,
           skillUse: [], cooldowns: {}, isInvisible: false, invisTurns: 0,
           aggro: false, knowsPlayer: false, sleeping: behavior === 'sleeping' && !isCorpse, deepSleep: behavior === 'sleeping' && !isCorpse, dead: isCorpse, isHit: false,
           loot: isCorpse ? (withLoot ? [makeConsumable('food_meat', meatQty)] : []) : [],
@@ -4518,7 +4520,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         isHit: false,
         dead: isCorpse,
         runAp: base.runAp || 4,
-        rotation: 270,
+        rotation: spawnRot,
         rangeDistance: gearRange || base.rangeDistance || 7,
         shotPrice: base.shotPrice || 1,
         skillUse: [],
