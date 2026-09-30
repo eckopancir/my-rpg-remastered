@@ -248,13 +248,13 @@ export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { k
   return { kind: 'burst', count: 2, power: 1 };
 };
 
-/** Пул выстрелов винтовки врага: назначается раз на бой, не меняется. */
+/** Пул выстрелов винтовки: только военные стрелки (и союзники с автоматом). */
 export const ENEMY_RIFLE_SHOTS = ['shot1', 'shot2', 'shot3', 'shot6', 'shot7', 'shot4', 'shot5'];
-/** Длинные: глушить, когда враг закончил ход. */
+/** Длинные: глушить, когда стрелок закончил ход. */
 export const ENEMY_LONG_SHOTS = new Set(['shot4', 'shot5']);
-/** Раздать винтовочному врагу его звук (soundAttack 'shotenemy' = автомат). */
-export const rollEnemyShotSound = (soundAttack?: string): { sound?: string; long?: boolean } => {
-  if (soundAttack && soundAttack !== 'shotenemy') return {};
+/** Раздать военному стрелку его звук на весь бой. Остальные — свой базовый. */
+export const rollEnemyShotSound = (factionKey?: string): { sound?: string; long?: boolean } => {
+  if (factionKey !== 'Военные (original)') return {};
   const s = ENEMY_RIFLE_SHOTS[Math.floor(Math.random() * ENEMY_RIFLE_SHOTS.length)];
   return { sound: s, long: ENEMY_LONG_SHOTS.has(s) };
 };
@@ -2007,7 +2007,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       } catch (e) { /* ignore */ }
 
       // Винтовка врага: личный звук из пула на весь бой.
-      const shotRoll = rollEnemyShotSound(base.soundAttack);
+      const shotRoll = rollEnemyShotSound(factionKey);
 
       enemies.push({
         id: i,
@@ -2247,7 +2247,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const aGearRange = aGearWeapon ? weaponRangeProfile(aGearWeapon).range : 0;
         const aGearGroup = aGearWeapon ? ammoTypeForWeapon(aGearWeapon) : 'rifle';
         const aSound = aGearGroup === 'pistol' ? 'pistol' : aGearGroup === 'shell' ? 'drob' : aGearGroup === 'sniper' ? 'sniper' : aGearGroup === 'mg' ? 'пулемет' : 'shotenemy';
-        const aShot = aSound === 'shotenemy' ? rollEnemyShotSound(aSound) : {};
+        const aShot = aSound === 'shotenemy' ? rollEnemyShotSound('Военные (original)') : {};
         activeEnemies.push({
           id: `ally_${a}_${Date.now()}`,
           name: 'Мусорщик',
@@ -3340,7 +3340,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const player = usePlayerStore.getState();
         const spawnPos = { x: state.playerPos.x + 1, y: state.playerPos.y };
         get().addPopup(spawnPos.x, spawnPos.y, '👥 ПРИЗЫВ!', 'SPECIAL');
-        const cloneShot = rollEnemyShotSound('shotenemy');
+        const cloneShot = rollEnemyShotSound('Военные (original)');
         const clone: GridEnemy = {
           id: `clone_${Date.now()}`,
           name: 'Клон',
@@ -4391,12 +4391,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const newSpeed = base.speed * levelMult + (gb.speed || 0);
     const gearWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
     const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
-    // Союзник: группа ствола из гира (автомат — пул, как в обычных боях).
+    // Союзник: группа ствола из гира (автомат — пул, как военные стрелки).
     const edGearGroup = isAlly && gearWeapon ? ammoTypeForWeapon(gearWeapon) : null;
     const edRifle = isAlly
       ? !!edGearGroup && !['pistol', 'shell', 'sniper', 'mg'].includes(edGearGroup)
-      : (base.soundAttack || 'shotenemy') === 'shotenemy';
-    const edShot = edRifle ? rollEnemyShotSound('shotenemy') : {};
+      : factionKey === 'Военные (original)';
+    const edShot = edRifle ? rollEnemyShotSound('Военные (original)') : {};
     let enemyLoot: any[] = [];
     try {
       enemyLoot = generateLoot(GAME_ITEMS, ps.level, { rank: rankOfEnemy(factionKey, factionKey) });
@@ -5416,7 +5416,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       usedCells.add(`${spawnX},${spawnY}`);
 
       const newId = `wave-${Date.now()}-${i}`;
-      const waveShot = rollEnemyShotSound((base as any).soundAttack);
+      const waveShot = rollEnemyShotSound((base as any).factionKey);
       newEnemies.push({
         id: newId,
         name: base.faction || 'Враг',
