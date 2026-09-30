@@ -74,27 +74,30 @@ const NightDarkness = () => {
         ctx.arc(cx, cy, R, 0, Math.PI * 2);
         ctx.fill();
       };
-      // Широкий конус прожектора (100°): слоёные секторы с мягким краем.
+      // Широкий конус прожектора (100°): веер из 24 ломтиков с косинусным
+      // профилем — гладко, как ночное зрение, без видимых переходов.
       const cone = (axC: number, ayC: number, angRad: number, lenPx: number, halfRad: number) => {
         const ax = (axC / GRID_SIZE) * W;
         const ay = (ayC / GRID_SIZE) * H;
-        const layers = [
-          { w: 1.0, a: 0.45 },
-          { w: 0.65, a: 0.7 },
-          { w: 0.38, a: 1.0 },
-        ];
-        for (const L of layers) {
-          const ha = halfRad * L.w;
-          const ex = ax + Math.cos(angRad) * lenPx;
-          const ey = ay + Math.sin(angRad) * lenPx;
-          const g = ctx.createLinearGradient(ax, ay, ex, ey);
-          g.addColorStop(0, `rgba(0,0,0,${L.a.toFixed(2)})`);
-          g.addColorStop(0.7, `rgba(0,0,0,${(L.a * 0.6).toFixed(2)})`);
+        const N = 24;
+        const ex0 = Math.cos(angRad);
+        const ey0 = Math.sin(angRad);
+        for (let i = 0; i < N; i++) {
+          const f0 = i / N;
+          const f1 = (i + 1) / N;
+          const a0 = angRad - halfRad + f0 * 2 * halfRad;
+          const a1 = angRad - halfRad + f1 * 2 * halfRad;
+          const prof = Math.pow(Math.cos((((f0 + f1) / 2) - 0.5) * Math.PI), 1.5);
+          if (prof <= 0.01) continue;
+          const g = ctx.createLinearGradient(ax, ay, ax + ex0 * lenPx, ay + ey0 * lenPx);
+          g.addColorStop(0, `rgba(0,0,0,${(0.55 * prof).toFixed(3)})`);
+          g.addColorStop(0.65, `rgba(0,0,0,${(0.4 * prof).toFixed(3)})`);
           g.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.fillStyle = g;
           ctx.beginPath();
           ctx.moveTo(ax, ay);
-          ctx.arc(ax, ay, lenPx, angRad - ha, angRad + ha);
+          ctx.lineTo(ax + Math.cos(a0) * lenPx, ay + Math.sin(a0) * lenPx);
+          ctx.lineTo(ax + Math.cos(a1) * lenPx, ay + Math.sin(a1) * lenPx);
           ctx.closePath();
           ctx.fill();
         }
@@ -113,22 +116,34 @@ const NightDarkness = () => {
           const L = (LIGHT_LEVELS as any)[key];
           hole(o.x + (o.w ?? 1) / 2, o.y + (o.h ?? 1) / 2, L.r * 1.3 * px);
         } else if (key === 'fonar') {
-          // Прожектор: луч 100° качается ±45° от базового направления (Z).
+          // Прожектор: луч 100° качается ±45° от базового направления (Z), медленно.
           // Фаза от позиции — разные прожекторы не синхронны.
+          // Моделька доворачивается за лучом напрямую через DOM (без шторма ре-рендеров).
           const base = ((o.rot || 0) % 360) * (Math.PI / 180);
           const ox = o.x + (o.w ?? 1) / 2;
           const oy = o.y + (o.h ?? 1) / 2;
-          const ang = base + (Math.PI / 4) * Math.sin(((t * 2 * Math.PI) / 6) + ox + oy);
+          const ang = base + (Math.PI / 4) * Math.sin(((t * 2 * Math.PI) / 30) + ox + oy);
           cone(
             ox + Math.cos(ang) * 0.4, oy + Math.sin(ang) * 0.4,
             ang, FONAR_LIGHT.rNight * 1.3 * px, (50 * Math.PI) / 180,
           );
+          const el = parent.querySelector(`[data-fonar="${o.id}"]`) as HTMLElement | null;
+          if (el) el.style.transform = `rotate(${(ang * 180) / Math.PI}deg)`;
         }
       }
       ctx.globalCompositeOperation = 'source-over';
     };
     raf = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      // Ночь кончилась — вернуть модельки в базовый разворот.
+      try {
+        parent.querySelectorAll('[data-fonar]').forEach((el) => {
+          const base = (el as HTMLElement).dataset.fonarBase || '0';
+          (el as HTMLElement).style.transform = `rotate(${base}deg)`;
+        });
+      } catch { /* ignore */ }
+    };
   }, [nightOn]);
 
   if (!nightOn) return null;
@@ -1141,6 +1156,9 @@ export const BattleGrid = () => {
                       return undefined;
                     })()}
                     draggable={false}
+                    {...((obstacle as any).imgKey === 'fonar'
+                      ? { 'data-fonar': String((obstacle as any).obId ?? ''), 'data-fonar-base': String(obstacle.rot || 0) }
+                      : null)}
                   />
                 )}
                 {/* Метка: объект можно обыскать (в нём есть лут). Деревья без метки — и так видно. */}
