@@ -5,7 +5,7 @@ import labBg from '../assets/images/characters/Химическая лабора
 import patrolBg from '../assets/images/characters/Военный патруль.png';
 import stalkerBg from '../assets/images/characters/stalker1.png';
 import baseBg from '../assets/images/characters/Военная база.png';
-import { MAP_555555 } from './customMaps/map_555555';
+import { MAP_BAZA } from './customMaps/map_baza';
 
 export type EnemyShortName = 'tank' | 'melee' | 'sniper' | 'drob' | 'original' | 'medic' | 'boss';
 
@@ -45,6 +45,8 @@ export interface GeneratedCard {
   image: string;
   description?: string;
   customMapName?: string;
+  /** Множитель тира (1 + 0.2×тир) для кастомных карт. */
+  tierMult?: number;
   sl: number;
   rarity: { name: string; tier: number; slBonus: number; color: string };
   totalSl: number;
@@ -180,8 +182,8 @@ const CARD_TEMPLATES: CardTemplate[] = [
     slMin: 45, slMax: 45,
     enemyMin: 17, enemyMax: 17,
     givesAllies: true,
-    customMap: MAP_555555,
-    customMapName: '555555',
+    customMap: MAP_BAZA,
+    customMapName: 'baza',
     fixedSl: 45,
     fixedChip: 350,
     fixedXp: 1400,
@@ -190,7 +192,7 @@ const CARD_TEMPLATES: CardTemplate[] = [
 
 /** Вшитые карты конструктора по имени (для карточек MAP). */
 export const CUSTOM_MAPS: Record<string, any> = {
-  '555555': MAP_555555,
+  'baza': MAP_BAZA,
 };
 
 /** Короткое имя типа из factionKey карты («Военные (sniper)» → sniper). */
@@ -242,7 +244,7 @@ export function generateCards(): GeneratedCard[] {
   const cards: GeneratedCard[] = [];
   for (let i = 0; i < 9; i++) {
     const template = CARD_TEMPLATES[Math.floor(Math.random() * CARD_TEMPLATES.length)];
-    // Карта конструктора: всё фиксировано (состав, награды, SL).
+    // Карта конструктора: всё фиксировано (состав, награды, SL), редкость роллится.
     if (template.customMap) {
       const units = (template.customMap.units || []) as any[];
       const foes = units.filter((u) => u.side === 'enemy');
@@ -250,7 +252,10 @@ export function generateCards(): GeneratedCard[] {
       const enemyTypes = foes
         .map((u) => shortFromFactionKey(u.factionKey || ''))
         .filter((t): t is EnemyShortName => !!t);
+      const rarity = weightedRandom(CARD_RARITY_TIERS);
       const sl = template.fixedSl ?? template.slMin;
+      const totalSl = sl + rarity.slBonus;
+      const tierMult = 1 + 0.2 * rarity.tier;
       cards.push({
         id: `card_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
         templateId: template.id,
@@ -258,14 +263,15 @@ export function generateCards(): GeneratedCard[] {
         image: template.image,
         description: template.description,
         customMapName: template.customMapName,
+        tierMult,
         sl,
-        rarity: { name: 'Обычный', tier: 0, slBonus: 0, color: 'white' },
-        totalSl: sl,
+        rarity: { name: rarity.name, tier: rarity.tier, slBonus: rarity.slBonus, color: rarity.color },
+        totalSl,
         enemyTypes,
         enemyCount: foes.length,
         allyCount: allies.length,
-        chipReward: template.fixedChip ?? 300,
-        xpReward: template.fixedXp ?? 1200,
+        chipReward: Math.round((template.fixedChip ?? 300) * tierMult),
+        xpReward: Math.round((template.fixedXp ?? 1200) * tierMult),
         type: 'combat',
       });
       continue;

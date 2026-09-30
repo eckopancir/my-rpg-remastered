@@ -17,6 +17,7 @@ export interface ExpeditionEntry {
     cardRarityName: string;
     allyCount?: number;
     customMapName?: string;
+    tierMult?: number;
   };
 }
 

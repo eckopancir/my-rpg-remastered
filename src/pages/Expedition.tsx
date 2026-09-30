@@ -110,6 +110,7 @@ export const Expedition = () => {
         cardRarityName: card.rarity.name,
         allyCount: card.allyCount || 0,
         customMapName: (card as any).customMapName,
+        tierMult: (card as any).tierMult || 1,
       },
     };
 

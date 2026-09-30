@@ -1,8 +1,8 @@
-/* Карта конструктора «555555» (Военная база): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
-export const MAP_555555: any = {
-    "name": "555555",
+/* Карта конструктора «baza» (Военная база): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
+export const MAP_BAZA: any = {
+    "name": "baza",
     "music": "zvuki-sverchkov1",
-    "music2": "redfaction2",
+    "music2": "red_faction_2_41 - Multiplayer 2",
     "musicCombatOnly": true,
     "introBarks": [
         "в атаку!!!",
@@ -19,7 +19,7 @@ export const MAP_555555: any = {
     "bg": "mapbattle",
     "weather": {
         "rain": false,
-        "night": false,
+        "night": true,
         "fog": 0
     },
     "obstacles": [

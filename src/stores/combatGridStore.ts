@@ -429,11 +429,11 @@ export interface CombatGridStore {
   selectPetAbility: (index: number) => void;
   usePetAbility: (index: number, enemyId?: number | string) => void;
   /** Спавн юнита редактора карт (упрощённый initCombat: без лагеря и волн). */
-  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string, withLoot?: boolean, route?: { x: number; y: number }[]) => void;
+  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string, withLoot?: boolean, route?: { x: number; y: number }[], statMult?: number) => void;
   /** Смена поведения юнита в конструкторе (включая труп/воскрешение + лут трупа). */
   editorSetUnitBehavior: (unitId: number | string, behavior: string, withLoot: boolean) => void;
   /** Вход на сохранённую карту конструктора. */
-  enterCustomMap: (map: { name: string; music: string; obstacles: any[]; units: any[]; campfire?: { x: number; y: number } | null }) => boolean;
+  enterCustomMap: (map: { name: string; music: string; obstacles: any[]; units: any[]; campfire?: { x: number; y: number } | null }, opts?: { tierMult?: number; rarity?: string | null }) => boolean;
   /** Чистая карта для конструктора (редактирование, без врагов). */
   startEditor: () => boolean;
   /** Открыть сохранённую карту в конструкторе для доработки. */
@@ -1994,8 +1994,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return c;
     };
     // Усилитель надетого по тиру карточки (t0 +0%, далее +20% за тир).
-    // Действует только на урон: тир = агрессия. Броня/HP — как надето,
-    // иначе на высоких тирах вырастают DR-стены.
+    // Тир = агрессия по всем характеристикам: урон/HP/броня/реген ×тир (гир — как надет).
+    // Внимание: на высоких тирах возможны DR-стены — так задумано.
     const cardMult = cardTierMult(cardRewards?.cardRarityName);
     // Доли базы и шмота (кривые разные: база ×0.2/ур., шмот ×0.05/ур.):
     // HP 0.35/0.5, броня 0.35/0.35, урон 0.35/×тир — ближе всего к старым средним.
@@ -2015,8 +2015,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const ARM_F = bossGear ? 1 : 0.35;
       const gear = noGear ? [] : generateEnemyGear(factionKey, player.level, bossGear ? 'epic' : null);
       const gb = sumGearStats(gear);
-      const scaledHealth = Math.round(base.health * totalMult * BF + (gb.maxHp || 0) * HP_F);
-      const scaledDamage = Math.round(base.damage * totalMult * BF + (gb.damage || 0) * cardMult);
+      const scaledHealth = Math.round(base.health * totalMult * BF * cardMult + (gb.maxHp || 0) * HP_F);
+      const scaledDamage = Math.round(base.damage * totalMult * BF * cardMult + (gb.damage || 0) * cardMult);
       const newSpeed = base.speed * totalMult + (gb.speed || 0);
       // Дистанция боя — по надетому стволу (дробь близко, снайперка далеко).
       const gearWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
@@ -2051,7 +2051,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         maxHp: scaledHealth,
         health: base.health,
         damage: scaledDamage,
-        armor: Math.round(base.armor * totalMult * BF) + Math.round((gb.armor || 0) * ARM_F),
+        armor: Math.round(base.armor * totalMult * BF * cardMult) + Math.round((gb.armor || 0) * ARM_F),
         // Точность не роняем ниже 0.65: иначе низкобазовые (0.8) со штрафами ствола не попадают вообще.
         accuracy: Math.min(2, Math.max(0.65, base.accuracy + accuracyAdd + (gb.accuracy || 0))),
         evasion: Math.min(1, base.evasion * totalMult + (gb.evasion || 0)),
@@ -2061,7 +2061,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
         vampir: base.vampir + (gb.vampir || 0),
         crit: base.crit * totalMult + (gb.crit || 0),
-        regen: (base.regen || 0) * totalMult + (gb.regen || 0),
+        regen: (base.regen || 0) * totalMult * cardMult + (gb.regen || 0),
         pos: { x: spawnX, y: spawnY },
         isHit: false,
         dead: false,
@@ -2266,13 +2266,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         // статы гира — теми же долями, что у врагов.
         const aGear = generateAllyGear(playerLevel);
         const agb = sumGearStats(aGear);
-        const aHp = Math.round(aBase.health * aTotalMult * 1.3 + (agb.maxHp || 0) * 0.5);
+        const aHp = Math.round(aBase.health * aTotalMult * 1.3 * cardMult + (agb.maxHp || 0) * 0.5);
         // Хабар с мёртвого мусорщика — как с обычного стрелка.
         let aLoot: any[] = [];
         try {
           aLoot = generateLoot(GAME_ITEMS, playerLevel, { rank: 'regular' });
         } catch { /* ignore */ }
-        const aDmg = Math.round(aBase.damage * aTotalMult + (agb.damage || 0));
+        const aDmg = Math.round(aBase.damage * aTotalMult * cardMult + (agb.damage || 0));
         const aSpeed = aBase.speed * aTotalMult + (agb.speed || 0);
         // Дистанция и звук — по надетому стволу.
         const aGearWeapon = aGear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
@@ -2291,7 +2291,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           maxHp: aHp,
           health: aBase.health,
           damage: aDmg,
-          armor: Math.round(aBase.armor * aTotalMult) + Math.round((agb.armor || 0) * 0.35),
+          armor: Math.round(aBase.armor * aTotalMult * cardMult) + Math.round((agb.armor || 0) * 0.35),
           accuracy: Math.min(2, Math.max(0.65, aBase.accuracy + accuracyAdd + (agb.accuracy || 0))),
           evasion: Math.min(1, aBase.evasion * aTotalMult + (agb.evasion || 0)),
           block: Math.min(50, aBase.block * aTotalMult + (agb.block || 0)),
@@ -2299,7 +2299,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
           vampir: aBase.vampir + (agb.vampir || 0),
           crit: aBase.crit * aTotalMult + (agb.crit || 0),
-          regen: (aBase.regen || 0) * aTotalMult + (agb.regen || 0),
+          regen: (aBase.regen || 0) * aTotalMult * cardMult + (agb.regen || 0),
           pos: spot,
           isHit: false,
           dead: false,
@@ -4413,7 +4413,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
 
   /** Ход ИИ питомца: бежит к ближайшему видимому врагу и бьёт, добив — переключается. Пошагово со звуками. */
-  spawnEditorUnit: (factionKey, side, x, y, behavior, withLoot = true, route) => {
+  spawnEditorUnit: (factionKey, side, x, y, behavior, withLoot = true, route, statMult = 1) => {
     const st = get();
     if (!st.isActive) return;
     const ps = usePlayerStore.getState();
@@ -4451,8 +4451,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ? generateAllyGear(ps.level)
       : (base.faction === 'Союзник' ? [] : generateEnemyGear(factionKey, ps.level, bossGear ? 'epic' : null));
     const gb = sumGearStats(gear);
-    const scaledHealth = Math.round(base.health * levelMult * BF + (gb.maxHp || 0) * HP_F);
-    const scaledDamage = Math.round(base.damage * levelMult * BF + (gb.damage || 0));
+    const scaledHealth = Math.round(base.health * levelMult * BF * statMult + (gb.maxHp || 0) * HP_F);
+    const scaledDamage = Math.round(base.damage * levelMult * BF * statMult + (gb.damage || 0));
     const newSpeed = base.speed * levelMult + (gb.speed || 0);
     const gearWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
     const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
@@ -4473,14 +4473,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         maxHp: scaledHealth,
         health: base.health,
         damage: scaledDamage,
-        armor: Math.round(base.armor * levelMult * BF) + Math.round((gb.armor || 0) * ARM_F),
+        armor: Math.round(base.armor * levelMult * BF * statMult) + Math.round((gb.armor || 0) * ARM_F),
         accuracy: Math.min(2, Math.max(0.65, base.accuracy + (gb.accuracy || 0))),
         evasion: Math.min(1, base.evasion * levelMult + (gb.evasion || 0)),
         block: Math.min(50, base.block * levelMult + (gb.block || 0) + (gear.some((g: any) => g && g.slot === 'shield') ? 20 : 0)),
         punching: base.punching * levelMult + (gb.punching || 0),
         vampir: base.vampir + (gb.vampir || 0),
         crit: base.crit * levelMult + (gb.crit || 0),
-        regen: (base.regen || 0) * levelMult + (gb.regen || 0),
+        regen: (base.regen || 0) * levelMult * statMult + (gb.regen || 0),
         pos: { x, y },
         isHit: false,
         dead: isCorpse,
@@ -4559,7 +4559,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
   },
 
-  enterCustomMap: (map) => {
+  enterCustomMap: (map, opts) => {
     const cs = get();
     if (cs.isActive) return false;
     usePlayerStore.getState().startCombat(1, true);
@@ -4632,7 +4632,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       obstacles: obs,
       enemies: s.enemies.filter((e: any) => !(e as any).isNeutral),
       editorPeace: false,
-      cardRarityName: null,
+      cardRarityName: opts?.rarity ?? null,
       campfire: (map as any).campfire || null,
       battleBg: (map as any).bg || 'mapbattle',
       decals: migrateDecals((map as any).decals),
@@ -4652,7 +4652,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       if (sp) set({ playerPos: { x: sp.x + Math.floor(sp.w / 2), y: sp.y + Math.floor(sp.h / 2) } });
     }
     for (const u of map.units || []) {
-      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
+      try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute, opts?.tierMult ?? 1); } catch { /* ignore */ }
     }
     // Боевой клич: мусорщики орут на входе и весь 1-й ход, пока игрок его не закончит.
     {
@@ -5464,8 +5464,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const ARM_F = bossGear ? 1 : 0.35;
       const gear = noGear ? [] : generateEnemyGear((base as any).factionKey, playerLevel, bossGear ? 'epic' : null);
       const gb = sumGearStats(gear);
-      const waveHealth = Math.round(base.scaledHealth * BF + (gb.maxHp || 0) * HP_F);
-      const waveDamage = Math.round(base.scaledDamage * BF + (gb.damage || 0) * cardMult);
+      const waveHealth = Math.round(base.scaledHealth * BF * cardMult + (gb.maxHp || 0) * HP_F);
+      const waveDamage = Math.round(base.scaledDamage * BF * cardMult + (gb.damage || 0) * cardMult);
       const waveSpeed = base.scaledSpeed + (gb.speed || 0);
       // Дистанция волны — по надетому стволу.
       const waveWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
@@ -5497,7 +5497,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         maxHp: waveHealth,
         health: base.health,
         damage: waveDamage,
-        armor: Math.round(base.scaledArmor * BF) + Math.round((gb.armor || 0) * ARM_F),
+        armor: Math.round(base.scaledArmor * BF * cardMult) + Math.round((gb.armor || 0) * ARM_F),
         accuracy: Math.min(2, Math.max(0.65, base.scaledAccuracy + (gb.accuracy || 0))),
         evasion: Math.min(1, base.scaledEvasion + (gb.evasion || 0)),
         // Щит в гире — +20 блока как у игрока (кап 50%).
@@ -5505,7 +5505,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         punching: base.scaledPunching + (gb.punching || 0),
         vampir: base.scaledVampir + (gb.vampir || 0),
         crit: base.scaledCrit + (gb.crit || 0),
-        regen: base.scaledRegen + (gb.regen || 0),
+        regen: base.scaledRegen * cardMult + (gb.regen || 0),
         pos: { x: spawnX, y: spawnY },
         isHit: false,
         dead: false,

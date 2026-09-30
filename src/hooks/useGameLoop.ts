@@ -40,7 +40,7 @@ export const useGameLoop = () => {
           const cmapName = completedExp.cardData?.customMapName;
           const cmap = cmapName ? CUSTOM_MAPS[cmapName] : null;
           if (cmap) {
-            // Битва на готовой карте конструктора: награды карточки, без сундука редкости.
+            // Битва на готовой карте конструктора: награды и сундук — с карточки, статы — с тиром.
             usePlayerStore.setState((st: any) => ({
               combat: {
                 ...st.combat,
@@ -48,8 +48,10 @@ export const useGameLoop = () => {
                 enemyExpReward: completedExp.cardData.xpReward,
               },
             }));
-            useCombatGridStore.setState({ cardRarityName: null } as any);
-            const ok = useCombatGridStore.getState().enterCustomMap(cmap);
+            const ok = useCombatGridStore.getState().enterCustomMap(cmap, {
+              tierMult: completedExp.cardData.tierMult || 1,
+              rarity: completedExp.cardData.cardRarityName || null,
+            });
             if (!ok) throw new Error('enterCustomMap failed');
           } else {
             const ok = useCombatGridStore.getState().initCombat(
