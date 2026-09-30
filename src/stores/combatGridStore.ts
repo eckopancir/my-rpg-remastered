@@ -11,7 +11,7 @@ import { tryInsertIntoGrid } from '../data/backpacks';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
-import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, obstacleImageKey, WALK_THROUGH_PROPS } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, WALK_THROUGH_PROPS } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, preloadCombatSounds } from '../hooks/useSound';
