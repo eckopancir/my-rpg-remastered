@@ -31,9 +31,6 @@ const GRID_SIZE = 32;
 const NightDarkness = () => {
   const isNightTime = useCombatGridStore((s) => s.isNightTime);
   const forceDay = useUiStore((s) => s.forceDay);
-  const playerPos = useCombatGridStore((s) => s.playerPos);
-  const obstacles = useCombatGridStore((s) => s.obstacles);
-  const exploredCells = useCombatGridStore((s) => s.exploredCells);
   const ref = useRef<HTMLCanvasElement>(null);
   const nightOn = isNightTime && !forceDay;
 
@@ -42,82 +39,97 @@ const NightDarkness = () => {
     const cv = ref.current;
     const parent = cv?.parentElement;
     if (!cv || !parent) return;
-    const W = parent.clientWidth || 800;
-    const H = parent.clientHeight || 800;
-    cv.width = W;
-    cv.height = H;
-    const ctx = cv.getContext('2d');
-    if (!ctx) return;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(2,10,4,0.84)';
-    ctx.fillRect(0, 0, W, H);
-    ctx.globalCompositeOperation = 'destination-out';
-    const hole = (cxC: number, cyC: number, rPx: number) => {
-      const cx = (cxC / GRID_SIZE) * W;
-      const cy = (cyC / GRID_SIZE) * H;
-      const R = Math.max(4, rPx);
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-      g.addColorStop(0, 'rgba(0,0,0,1)');
-      g.addColorStop(0.55, 'rgba(0,0,0,1)');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.fill();
-    };
-    // Круг героя.
-    hole(playerPos.x + 0.5, playerPos.y + 0.5, 202);
-    // Узкий конус прожектора: слоёные секторы с мягким краем (реализм).
-    const cone = (axC: number, ayC: number, angRad: number, lenPx: number, halfRad: number) => {
-      const ax = (axC / GRID_SIZE) * W;
-      const ay = (ayC / GRID_SIZE) * H;
-      const layers = [
-        { w: 1.0, a: 0.45 },
-        { w: 0.65, a: 0.7 },
-        { w: 0.38, a: 1.0 },
-      ];
-      for (const L of layers) {
-        const ha = halfRad * L.w;
-        const ex = ax + Math.cos(angRad) * lenPx;
-        const ey = ay + Math.sin(angRad) * lenPx;
-        const g = ctx.createLinearGradient(ax, ay, ex, ey);
-        g.addColorStop(0, `rgba(0,0,0,${L.a.toFixed(2)})`);
-        g.addColorStop(0.7, `rgba(0,0,0,${(L.a * 0.6).toFixed(2)})`);
+    let raf = 0;
+    const render = (now: number) => {
+      raf = requestAnimationFrame(render);
+      if (document.hidden) return;
+      const st = useCombatGridStore.getState();
+      const W = parent.clientWidth || 800;
+      const H = parent.clientHeight || 800;
+      if (cv.width !== W || cv.height !== H) {
+        cv.width = W;
+        cv.height = H;
+      }
+      const ctx = cv.getContext('2d');
+      if (!ctx) return;
+      const t = now / 1000;
+      const playerPos = st.playerPos;
+      const obstacles = (st as any).obstacles || [];
+      const exploredCells = (st as any).exploredCells;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(2,10,4,0.84)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'destination-out';
+      const hole = (cxC: number, cyC: number, rPx: number) => {
+        const cx = (cxC / GRID_SIZE) * W;
+        const cy = (cyC / GRID_SIZE) * H;
+        const R = Math.max(4, rPx);
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+        g.addColorStop(0, 'rgba(0,0,0,1)');
+        g.addColorStop(0.55, 'rgba(0,0,0,1)');
         g.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.moveTo(ax, ay);
-        ctx.arc(ax, ay, lenPx, angRad - ha, angRad + ha);
-        ctx.closePath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
         ctx.fill();
+      };
+      // Широкий конус прожектора (100°): слоёные секторы с мягким краем.
+      const cone = (axC: number, ayC: number, angRad: number, lenPx: number, halfRad: number) => {
+        const ax = (axC / GRID_SIZE) * W;
+        const ay = (ayC / GRID_SIZE) * H;
+        const layers = [
+          { w: 1.0, a: 0.45 },
+          { w: 0.65, a: 0.7 },
+          { w: 0.38, a: 1.0 },
+        ];
+        for (const L of layers) {
+          const ha = halfRad * L.w;
+          const ex = ax + Math.cos(angRad) * lenPx;
+          const ey = ay + Math.sin(angRad) * lenPx;
+          const g = ctx.createLinearGradient(ax, ay, ex, ey);
+          g.addColorStop(0, `rgba(0,0,0,${L.a.toFixed(2)})`);
+          g.addColorStop(0.7, `rgba(0,0,0,${(L.a * 0.6).toFixed(2)})`);
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.arc(ax, ay, lenPx, angRad - ha, angRad + ha);
+          ctx.closePath();
+          ctx.fill();
+        }
+      };
+      // Круг героя.
+      hole(playerPos.x + 0.5, playerPos.y + 0.5, 202);
+      const px = Math.min(W, H) / GRID_SIZE;
+      const seen = (x: number, y: number) => {
+        if (!exploredCells) return true;
+        return !!(exploredCells as any)[`${x},${y}`];
+      };
+      for (const o of obstacles as any[]) {
+        if (!seen(o.x, o.y)) continue;
+        const key = o.imgKey as string | undefined;
+        if (o.icon === 'light' && key && (LIGHT_LEVELS as any)[key]) {
+          const L = (LIGHT_LEVELS as any)[key];
+          hole(o.x + (o.w ?? 1) / 2, o.y + (o.h ?? 1) / 2, L.r * 1.3 * px);
+        } else if (key === 'fonar') {
+          // Прожектор: луч 100° качается ±45° от базового направления (Z).
+          // Фаза от позиции — разные прожекторы не синхронны.
+          const base = ((o.rot || 0) % 360) * (Math.PI / 180);
+          const ox = o.x + (o.w ?? 1) / 2;
+          const oy = o.y + (o.h ?? 1) / 2;
+          const ang = base + (Math.PI / 4) * Math.sin(((t * 2 * Math.PI) / 6) + ox + oy);
+          cone(
+            ox + Math.cos(ang) * 0.4, oy + Math.sin(ang) * 0.4,
+            ang, FONAR_LIGHT.rNight * 1.3 * px, (50 * Math.PI) / 180,
+          );
+        }
       }
+      ctx.globalCompositeOperation = 'source-over';
     };
-    const px = Math.min(W, H) / GRID_SIZE;
-    const seen = (x: number, y: number) => {
-      if (!exploredCells) return true;
-      return !!(exploredCells as any)[`${x},${y}`];
-    };
-    for (const o of (obstacles || []) as any[]) {
-      if (!seen(o.x, o.y)) continue;
-      const key = o.imgKey as string | undefined;
-      if (o.icon === 'light' && key && (LIGHT_LEVELS as any)[key]) {
-        const L = (LIGHT_LEVELS as any)[key];
-        hole(o.x + (o.w ?? 1) / 2, o.y + (o.h ?? 1) / 2, L.r * 1.3 * px);
-      } else if (key === 'fonar') {
-        // Прожектор: только вперёд узким конусом, вокруг себя не светит.
-        // Разворот арта (Z) крутит и направление луча.
-        const rot = ((o.rot || 0) % 360) * (Math.PI / 180);
-        const ox = o.x + (o.w ?? 1) / 2;
-        const oy = o.y + (o.h ?? 1) / 2;
-        cone(
-          ox + Math.cos(rot) * 0.4, oy + Math.sin(rot) * 0.4,
-          rot, FONAR_LIGHT.rNight * 1.3 * px, (13 * Math.PI) / 180,
-        );
-      }
-    }
-    ctx.globalCompositeOperation = 'source-over';
-  }, [nightOn, playerPos, obstacles, exploredCells]);
+    raf = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(raf);
+  }, [nightOn]);
 
   if (!nightOn) return null;
   return <canvas ref={ref} className={styles.fogCanvas} style={{ width: '100%', height: '100%' }} />;
