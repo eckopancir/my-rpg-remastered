@@ -98,16 +98,24 @@ export const MapEditorPanel = () => {
     window.addEventListener('mouseup', up);
   };
   const openSaved = () => {
-    const st = useMapEditorStore.getState();
-    const m = st.maps.find((x) => x.name === openName) || st.maps[0];
-    if (!m) return;
-    const hasWork = (obstacles as any[]).length > 0 || (enemies as any[]).length > 0;
-    if (hasWork && !window.confirm(`Открыть «${m.name}»? Текущая работа будет потеряна.`)) return;
-    const ok = useCombatGridStore.getState().loadMapForEdit(m);
-    if (!ok) return;
-    st.setMapName(m.name);
-    st.setMusic(m.music || 'track');
-    st.setActive(true);
+    try {
+      const st = useMapEditorStore.getState();
+      const m = st.maps.find((x) => x.name === openName) || st.maps[0];
+      if (!m) return;
+      const hasWork = (obstacles as any[]).length > 0 || (enemies as any[]).length > 0;
+      if (hasWork && !window.confirm(`Открыть «${m.name}»? Текущая работа будет потеряна.`)) return;
+      const ok = useCombatGridStore.getState().loadMapForEdit(m);
+      if (!ok) {
+        useCombatGridStore.getState().addBattleLog('⚠️ Карта не открылась');
+        return;
+      }
+      st.setMapName(m.name);
+      st.setMusic(m.music || 'track');
+      st.setActive(true);
+    } catch (err) {
+      try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
+      useCombatGridStore.getState().addBattleLog(`⚠️ Ошибка открытия: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
   // Z в конструкторе: развернуть призрак (палитра) или выбранный объект.
   // Ctrl+Z / Ctrl+Y: отмена / повтор.

@@ -677,23 +677,33 @@ const SavedMapsBlock = () => {
           <span key={m.name} style={{ display: 'inline-flex', gap: 4, alignItems: 'center', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '3px 4px 3px 8px', fontSize: 11 }}>
             🗺 {m.name} ({m.obstacles.length} об, {m.units.length} юн{(m as any).campfire ? ', 🔥' : ''})
             <Button size="sm" variant="primary" onClick={() => {
-              const cs = useCombatGridStore.getState();
-              if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
-              useMapEditorStore.getState().setActive(false);
-              const ok = cs.enterCustomMap(m);
-              if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не запустилась', 'warning'); return; }
-              navigate('/battle');
+              try {
+                const cs = useCombatGridStore.getState();
+                if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
+                useMapEditorStore.getState().setActive(false);
+                const ok = cs.enterCustomMap(m);
+                if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не запустилась', 'warning'); return; }
+                navigate('/battle');
+              } catch (err) {
+                try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
+                usePlayerStore.getState().addLog(`⚠️ Ошибка входа: ${err instanceof Error ? err.message : String(err)}`, 'warning');
+              }
             }} style={{ fontSize: 11 }}>Войти</Button>
             <Button size="sm" variant="primary" onClick={() => {
-              const cs = useCombatGridStore.getState();
-              if (cs.isActive && !window.confirm('Бой уже идёт. Открыть карту вместо него?')) return;
-              const ok = cs.loadMapForEdit(m);
-              if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не открылась', 'warning'); return; }
-              const ed = useMapEditorStore.getState();
-              ed.setMapName(m.name);
-              ed.setMusic(m.music || 'track');
-              ed.setActive(true);
-              navigate('/battle');
+              try {
+                const cs = useCombatGridStore.getState();
+                if (cs.isActive && !window.confirm('Бой уже идёт. Открыть карту вместо него?')) return;
+                const ok = cs.loadMapForEdit(m);
+                if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не открылась', 'warning'); return; }
+                const ed = useMapEditorStore.getState();
+                ed.setMapName(m.name);
+                ed.setMusic(m.music || 'track');
+                ed.setActive(true);
+                navigate('/battle');
+              } catch (err) {
+                try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
+                usePlayerStore.getState().addLog(`⚠️ Ошибка открытия: ${err instanceof Error ? err.message : String(err)}`, 'warning');
+              }
             }} style={{ fontSize: 11 }}>🛠 Ред.</Button>
             <Button size="sm" variant="danger" onClick={() => useMapEditorStore.getState().deleteMap(m.name)} style={{ fontSize: 11 }}>✕</Button>
           </span>

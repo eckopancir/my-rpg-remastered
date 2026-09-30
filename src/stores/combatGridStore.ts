@@ -4438,6 +4438,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
       return false;
     }
+    try {
     const pools: Record<string, string[]> = {
       building: BIG_BUILDING_IMAGES,
       car: CAR_IMAGES,
@@ -4519,7 +4520,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
     }
     try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
+    get().addBattleLog(`▶ Вход на карту «${(map as any).name || ''}»: ${(map.obstacles || []).length} об, ${(map.units || []).length} юн`);
     return true;
+    } catch (err) {
+      // Не оставляем полусобранный случайный бой + висящий флаг в журнале.
+      try { get().cleanup(); } catch { /* ignore */ }
+      usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+      usePlayerStore.getState().addLog(`⚠️ Карта не открылась: ${err instanceof Error ? err.message : String(err)}`, 'warning');
+      return false;
+    }
   },
 
   startEditor: () => {
@@ -4559,6 +4568,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         return false;
       }
     }
+    try {
     const pools: Record<string, string[]> = {
       building: BIG_BUILDING_IMAGES,
       car: CAR_IMAGES,
@@ -4598,6 +4608,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
     get().addBattleLog(`🗺 Карта «${(map as any).name || ''}» открыта: ${(map.obstacles || []).length} об, ${(map.units || []).length} юн`);
     return true;
+    } catch (err) {
+      try { get().cleanup(); } catch { /* ignore */ }
+      usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
+      usePlayerStore.getState().addLog(`⚠️ Карта не открылась: ${err instanceof Error ? err.message : String(err)}`, 'warning');
+      return false;
+    }
   },
 
   petAiTurn: async () => {
