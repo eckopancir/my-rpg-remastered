@@ -413,7 +413,7 @@ export const buildMapObject = (name: string, music: string, obstacles: any[], un
       factionKey: (u as any).factionKey || (u as any).name || '',
       side: (u as any).isNeutral ? 'neutral' : (u as any).faction === 'Союзник' ? 'ally' : 'enemy',
       x: u.pos.x, y: u.pos.y,
-      behavior: u.dead ? 'corpse' : ((u as any).aiRole || 'patrol'),
+      behavior: u.dead ? 'corpse' : (u.sleeping ? 'sleeping' : ((u as any).aiRole || 'patrol')), // Сон — флаг: иначе спящий сохранялся как patrol.
       corpseLoot: u.dead ? !!((u as any).loot && (u as any).loot.length) : undefined,
       patrolRoute: Array.isArray((u as any).patrolRoute) && (u as any).patrolRoute.length >= 2
         ? (u as any).patrolRoute.map((p: any) => ({ x: p.x, y: p.y }))
