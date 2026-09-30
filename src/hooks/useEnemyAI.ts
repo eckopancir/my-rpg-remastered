@@ -521,8 +521,8 @@ export const useEnemyAI = () => {
             continue;
           }
           // Вне боя: 5% в ход уснуть на 3 хода (после тревоги сон запрещён).
-          // Подкрепление не спит — патрулирует. Боссы не спят никогда.
-          if (!enemy.sleeping && enemy.aiRole !== 'reinforce' && !isBossEnemy(enemy.name, (enemy as any).factionKey) && !useCombatGridStore.getState().noSleep && Math.random() < 0.05) {
+          // Подкрепление не спит — патрулирует. Боссы не спят никогда. Обычные стоят на посту.
+          if (!enemy.sleeping && enemy.aiRole !== 'reinforce' && enemy.aiRole !== 'normal' && !isBossEnemy(enemy.name, (enemy as any).factionKey) && !useCombatGridStore.getState().noSleep && Math.random() < 0.05) {
             enemy.sleeping = true;
             enemy.sleepTurns = 3;
             enemy.speech = null;
