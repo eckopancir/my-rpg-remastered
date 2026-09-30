@@ -637,7 +637,7 @@ export const MapEditorPanel = () => {
             {selOb ? ((selOb as any).icon === 'light'
               ? `💡 Свет ${(selOb as any).imgKey} (r=${(LIGHT_LEVELS as any)[(selOb as any).imgKey]?.r ?? '?'})`
               : `Объект ${(selOb as any).imgKey || (selOb as any).icon} ${(selOb as any).w}×${(selOb as any).h}${(selOb as any).editorRandom ? ' 🎲 случайный' : ''}${(selOb as any).shootThrough ? ' (прострел)' : ''}`) : null}
-            {selUnit ? `Юнит ${(selUnit as any).name} (${(selUnit as any).dead ? '💀 труп' + (((selUnit as any).loot || []).length ? ', с лутом' : ', без лута') : `${(selUnit as any).aiRole}${(selUnit as any).sleeping ? '+спит' : ''}`})` : null}
+            {selUnit ? `Юнит ${(selUnit as any).name} (${(selUnit as any).dead ? '💀 труп' + (((selUnit as any).loot || []).length ? ', с лутом' : ', без лута') : `${(selUnit as any).aiRole === 'normal' ? 'обычный' : (selUnit as any).aiRole}${(selUnit as any).sleeping ? '+спит' : ''}`})` : null}
             {ed.selCamp && campfire ? `🔥 Костёр (${(campfire as any).x},${(campfire as any).y})` : null}
             {ed.selZoneId !== null ? (() => {
               const z = (zones || []).find((zz: any) => zz.id === ed.selZoneId) as any;

@@ -107,7 +107,7 @@ export interface GridEnemy {
   stunTurns?: number;
   lifetime?: number;
   // Camp life: роль в лагере, сон, агро, облачко реплики.
-  aiRole?: 'camp' | 'sentry' | 'patrol' | 'reinforce';
+  aiRole?: 'camp' | 'sentry' | 'patrol' | 'reinforce' | 'normal';
   sleeping?: boolean;
   aggro?: boolean;
   coverSeeker?: boolean;

@@ -82,6 +82,7 @@ const persistMaps = (maps: SavedMap[]) => {
 
 /** Поведения из движка ИИ. */
 export const UNIT_BEHAVIORS = [
+  { id: 'normal', label: 'Обычный' },
   { id: 'patrol', label: 'Патруль' },
   { id: 'camp', label: 'Лагерь' },
   { id: 'sentry', label: 'Часовой' },
