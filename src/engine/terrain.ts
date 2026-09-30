@@ -9,9 +9,10 @@ export const FENCE_IMAGE = 'o5';
 export const FIELD_IMAGE = 'green1';
 
 // Точные наборы из дизайна (не весь icon-тип, а конкретные картинки).
-const EVADE_INSIDE = new Set(['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2', 'o30', 'o31', 'o32']);
-const ARMOR_NEAR = new Set(['o24', 'o23', 'o19', 'o7', 'o6', 'o5', 'o2', 'o1', 'o1_2', 'o28', 'o29']);
-const BLOCK_NEAR = new Set(['o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18']);
+const EVADE_INSIDE = new Set(['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2', 'o30', 'o31', 'o32', 'o3zz']);
+const ARMOR_NEAR = new Set(['o24', 'o23', 'o19', 'o7', 'o6', 'o5', 'o2', 'o1', 'o1_2', 'o28', 'o29',
+  'o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41']);
+const BLOCK_NEAR = new Set(['o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o27', 'o48']);
 
 export const EVASION_WOODS_BONUS = 0.05;
 export const ARMOR_NEAR_BONUS = 0.05;
