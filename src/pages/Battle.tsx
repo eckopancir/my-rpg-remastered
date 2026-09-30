@@ -788,6 +788,18 @@ export const Battle = () => {
 
       {/* Center - Battle Grid */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+        {isActive && (
+          <div style={{
+            position: 'absolute', top: 34, left: '50%', transform: 'translateX(-50%)', zIndex: 50,
+            pointerEvents: 'none', fontSize: 15, fontWeight: 800, letterSpacing: 1,
+            padding: '4px 16px', borderRadius: 8,
+            color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+            background: turn === 'player' ? 'rgba(34,197,94,0.25)' : 'rgba(220,38,38,0.35)',
+            border: turn === 'player' ? '1px solid rgba(34,197,94,0.6)' : '1px solid rgba(220,38,38,0.7)',
+          }}>
+            {turn === 'player' ? `⭐ Твой ход — раунд #${turnCount}` : `⏳ Ход врага — раунд #${turnCount}`}
+          </div>
+        )}
         <BattleGrid />
         <CookingMenu />
         <MapEditorPanel />
