@@ -685,7 +685,7 @@ const SavedMapsBlock = () => {
             }} style={{ fontSize: 11 }}>Войти</Button>
             <Button size="sm" variant="primary" onClick={() => {
               const cs = useCombatGridStore.getState();
-              if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
+              if (cs.isActive && !window.confirm('Бой уже идёт. Открыть карту вместо него?')) return;
               const ok = cs.loadMapForEdit(m);
               if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не открылась', 'warning'); return; }
               const ed = useMapEditorStore.getState();

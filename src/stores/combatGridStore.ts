@@ -4550,8 +4550,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   loadMapForEdit: (map) => {
     const cs = get();
-    // Из обычного боя карту не открываем — только из редактора или вне боя.
-    if (cs.isActive && !cs.editorPeace) return false;
+    // Открытие всегда пересобирает поле: зависший/старый бой не мешает.
     if (!cs.isActive) {
       usePlayerStore.getState().startCombat(1, true);
       const ok = get().initCombat(1, undefined, [], undefined, 0, true);
@@ -4597,6 +4596,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
     }
     try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
+    get().addBattleLog(`🗺 Карта «${(map as any).name || ''}» открыта: ${(map.obstacles || []).length} об, ${(map.units || []).length} юн`);
     return true;
   },
 

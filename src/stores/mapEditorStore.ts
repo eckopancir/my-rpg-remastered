@@ -503,8 +503,8 @@ export const PROP_SIZES: Record<string, { w: number; h: number }> = {
   o43: { w: 2, h: 3 },
   o40: { w: 2, h: 3 },
   o44: { w: 2, h: 4 },
-  o45: { w: 2, h: 2 },
-  o46: { w: 2, h: 2 },
+  o45: { w: 3, h: 3 },
+  o46: { w: 3, h: 3 },
   o41: { w: 4, h: 4 },
   fonar: { w: 1, h: 1 },
 };

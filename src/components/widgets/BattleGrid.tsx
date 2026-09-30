@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs } from '../../stores/combatGridStore';
-import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, campCellFree, paintDecal, finishZoneRect, LIGHT_LEVELS } from '../../stores/mapEditorStore';
+import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, campCellFree, paintDecal, finishZoneRect, LIGHT_LEVELS, FONAR_LIGHT } from '../../stores/mapEditorStore';
 import { DecalLayer } from './DecalLayer';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
@@ -22,6 +22,83 @@ import type { GridEnemy } from '../../stores/combatGridStore';
 import styles from './BattleGrid.module.css';
 
 const GRID_SIZE = 32;
+
+/**
+ * Ночная темнота с дырками света: игрок + лампы/фонари открывают местность,
+ * как днём — без жёлтых засветов. Один canvas: заливаем темноту и вырезаем
+ * (destination-out) круги с мягким краем. Перерисовка только при изменениях.
+ */
+const NightDarkness = () => {
+  const isNightTime = useCombatGridStore((s) => s.isNightTime);
+  const forceDay = useUiStore((s) => s.forceDay);
+  const playerPos = useCombatGridStore((s) => s.playerPos);
+  const obstacles = useCombatGridStore((s) => s.obstacles);
+  const exploredCells = useCombatGridStore((s) => s.exploredCells);
+  const ref = useRef<HTMLCanvasElement>(null);
+  const nightOn = isNightTime && !forceDay;
+
+  useEffect(() => {
+    if (!nightOn) return;
+    const cv = ref.current;
+    const parent = cv?.parentElement;
+    if (!cv || !parent) return;
+    const W = parent.clientWidth || 800;
+    const H = parent.clientHeight || 800;
+    cv.width = W;
+    cv.height = H;
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(2,10,4,0.84)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'destination-out';
+    const hole = (cxC: number, cyC: number, rPx: number) => {
+      const cx = (cxC / GRID_SIZE) * W;
+      const cy = (cyC / GRID_SIZE) * H;
+      const R = Math.max(4, rPx);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      g.addColorStop(0, 'rgba(0,0,0,1)');
+      g.addColorStop(0.55, 'rgba(0,0,0,1)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    // Круг героя.
+    hole(playerPos.x + 0.5, playerPos.y + 0.5, 202);
+    const px = Math.min(W, H) / GRID_SIZE;
+    const seen = (x: number, y: number) => {
+      if (!exploredCells) return true;
+      return !!(exploredCells as any)[`${x},${y}`];
+    };
+    for (const o of (obstacles || []) as any[]) {
+      if (!seen(o.x, o.y)) continue;
+      const key = o.imgKey as string | undefined;
+      if (o.icon === 'light' && key && (LIGHT_LEVELS as any)[key]) {
+        const L = (LIGHT_LEVELS as any)[key];
+        hole(o.x + (o.w ?? 1) / 2, o.y + (o.h ?? 1) / 2, L.r * 1.3 * px);
+      } else if (key === 'fonar') {
+        // Прожектор: свет справа от корпуса, крутится с разворотом.
+        const rot = (o.rot || 0) % 360;
+        let dx = FONAR_LIGHT.dx;
+        let dy = FONAR_LIGHT.dy;
+        if (rot === 90) { dx = -dy; dy = FONAR_LIGHT.dx; }
+        else if (rot === 180) { dx = -FONAR_LIGHT.dx; dy = -FONAR_LIGHT.dy; }
+        else if (rot === 270) { dx = FONAR_LIGHT.dy; dy = -FONAR_LIGHT.dx; }
+        hole(
+          o.x + (o.w ?? 1) / 2 + dx, o.y + (o.h ?? 1) / 2 + dy,
+          FONAR_LIGHT.rNight * 1.3 * px,
+        );
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }, [nightOn, playerPos, obstacles, exploredCells]);
+
+  if (!nightOn) return null;
+  return <canvas ref={ref} className={styles.fogCanvas} style={{ width: '100%', height: '100%' }} />;
+};
 
 /**
  * Стиль картинки препятствия с честным разворотом.
@@ -329,12 +406,7 @@ export const BattleGrid = () => {
     return set;
   }, [obstacles]);
 
-  const isNightTime = useCombatGridStore((s) => s.isNightTime);
-  const forceDay = useUiStore((s) => s.forceDay);
-  const nightOn = isNightTime && !forceDay;
   const stealth = useCombatGridStore((s) => s.stealth);
-  const playerXpct = cellPct(playerPos.x);
-  const playerYpct = cellPct(playerPos.y);
 
   // -- Конус зрения как был (75° по направлению взгляда) + память тумана --
   // Видно: рядом (≤2) или конус checkVisibility. Разведанное копим в сторе
@@ -743,11 +815,7 @@ export const BattleGrid = () => {
   return (
     <div className={`${styles.container}${isShaking ? ` ${styles.arenaShake}` : ''}`}>
       <div className={styles.battleScreen} ref={gridRef} style={{ backgroundImage: `url(${getMapImage(battleBg || 'mapbattle') || images.mapBattle})`, marginTop: 30 }}>
-        {nightOn && (
-          <div className={styles.fogCanvas} style={{
-            background: `radial-gradient(circle 202px at ${playerXpct}% ${playerYpct}%, transparent 0%, rgba(0,10,0,0.7) 60%, rgba(0,0,0,0.9) 120%)`,
-          }} />
-        )}
+        <NightDarkness />
 
         {/* Погодный туман карты (конструктор): молочно-серая пелена. */}
         {(fogLevel || 0) > 0 && (
