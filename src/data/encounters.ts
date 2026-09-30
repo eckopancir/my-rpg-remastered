@@ -5,7 +5,7 @@ import labBg from '../assets/images/characters/Химическая лабора
 import patrolBg from '../assets/images/characters/Военный патруль.png';
 import stalkerBg from '../assets/images/characters/stalker1.png';
 import baseBg from '../assets/images/characters/Военная база.png';
-import { MAP_BAZA } from './customMaps/map_baza';
+import { MAP_BAZA5 } from './customMaps/map_baza5';
 
 export type EnemyShortName = 'tank' | 'melee' | 'sniper' | 'drob' | 'original' | 'medic' | 'boss';
 
@@ -182,8 +182,8 @@ const CARD_TEMPLATES: CardTemplate[] = [
     slMin: 45, slMax: 45,
     enemyMin: 17, enemyMax: 17,
     givesAllies: true,
-    customMap: MAP_BAZA,
-    customMapName: 'baza',
+    customMap: MAP_BAZA5,
+    customMapName: 'baza5',
     fixedSl: 45,
     fixedChip: 350,
     fixedXp: 1400,
@@ -192,7 +192,7 @@ const CARD_TEMPLATES: CardTemplate[] = [
 
 /** Вшитые карты конструктора по имени (для карточек MAP). */
 export const CUSTOM_MAPS: Record<string, any> = {
-  'baza': MAP_BAZA,
+  'baza5': MAP_BAZA5,
 };
 
 /** Короткое имя типа из factionKey карты («Военные (sniper)» → sniper). */

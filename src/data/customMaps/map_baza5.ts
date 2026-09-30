@@ -1,6 +1,6 @@
-/* Карта конструктора «baza» (Военная база): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
-export const MAP_BAZA: any = {
-    "name": "baza",
+/* Карта конструктора «baza5» (Военная база): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
+export const MAP_BAZA5: any = {
+    "name": "baza5",
     "music": "zvuki-sverchkov1",
     "music2": "red_faction_2_41 - Multiplayer 2",
     "musicCombatOnly": true,
@@ -1646,7 +1646,7 @@ export const MAP_BAZA: any = {
         {
             "icon": "light",
             "imgKey": "light4",
-            "x": 6,
+            "x": 5,
             "y": 22,
             "w": 1,
             "h": 1,
@@ -1780,21 +1780,21 @@ export const MAP_BAZA: any = {
             "side": "enemy",
             "x": 9,
             "y": 13,
-            "behavior": "patrol"
+            "behavior": "sleeping"
         },
         {
             "factionKey": "Военные (sniper)",
             "side": "enemy",
             "x": 17,
             "y": 18,
-            "behavior": "patrol"
+            "behavior": "sleeping"
         },
         {
             "factionKey": "Военные (original)",
             "side": "enemy",
             "x": 8,
             "y": 22,
-            "behavior": "patrol"
+            "behavior": "camp"
         },
         {
             "factionKey": "Военные (boss)",
@@ -1829,14 +1829,14 @@ export const MAP_BAZA: any = {
             "side": "enemy",
             "x": 6,
             "y": 22,
-            "behavior": "camp"
+            "behavior": "sleeping"
         },
         {
             "factionKey": "Военные (sniper)",
             "side": "enemy",
             "x": 5,
             "y": 20,
-            "behavior": "sentry"
+            "behavior": "patrol"
         },
         {
             "factionKey": "Военные (original)",
@@ -1850,7 +1850,7 @@ export const MAP_BAZA: any = {
             "side": "enemy",
             "x": 24,
             "y": 19,
-            "behavior": "sentry"
+            "behavior": "camp"
         },
         {
             "factionKey": "Военные (drob)",
@@ -2195,24 +2195,35 @@ export const MAP_BAZA: any = {
     ],
     "zones": [
         {
-            "id": "zone_1790741876582",
+            "id": "zone_1790799270768",
             "kind": "spawn",
-            "x": 12,
+            "x": 13,
             "y": 3,
             "w": 1,
             "h": 1,
             "text": ""
         },
         {
-            "id": "zone_1790741879646_642217",
+            "id": "zone_1790799376054_736159",
             "kind": "exit",
-            "x": 12,
-            "y": 2,
+            "x": 13,
+            "y": 1,
+            "w": 1,
+            "h": 1,
+            "text": ""
+        },
+        {
+            "id": "zone_1790799377013_562758",
+            "kind": "exit",
+            "x": 13,
+            "y": 1,
             "w": 1,
             "h": 1,
             "text": ""
         }
     ],
+    "garrison": [],
+    "reinforceTurn": 39,
     "campfire": {
         "x": 7,
         "y": 22
