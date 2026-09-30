@@ -522,7 +522,7 @@ export const FONAR_LIGHT = { dx: 1.2, dy: 0, r: 3.2, rNight: 4.6, day: 0.15, nig
 const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: number, y: number, random: boolean, rot = 0) => {
   const pools: Record<string, string[]> = {
     // o15/o27 — бывшие здания, o20z/o3zz — зимние варианты: только для конструктора.
-    building: [...BIG_BUILDING_IMAGES, 'o15', 'o27'],
+    building: [...BIG_BUILDING_IMAGES, 'o15', 'o27', 'o48'],
     car: CAR_IMAGES,
     woods: [...WOOD_IMAGES, 'o3zz'],
     small: [...SMALL_OBSTACLE_IMAGES, 'o20z'],

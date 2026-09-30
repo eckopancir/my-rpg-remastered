@@ -24,6 +24,7 @@ const OB_CATALOG: { icon: string; imgKey: string; w: number; h: number; label: s
   ...SMALL_OBSTACLE_IMAGES.map((k) => ({ icon: 'small', imgKey: k, w: 1, h: 1, label: k })),
   { icon: 'small', imgKey: 'o20z', w: 1, h: 1, label: 'o20z' },
   ...Object.entries(PROP_SIZES).map(([k, s]) => ({ icon: 'prop', imgKey: k, w: s.w, h: s.h, label: k })),
+  { icon: 'building', imgKey: 'o48', w: 8, h: 4, label: 'o48 барак' },
   { icon: 'fence', imgKey: 'o5', w: 1, h: 1, label: 'o5 забор' },
   { icon: 'field', imgKey: 'green1', w: 10, h: 8, label: 'поле 10×8' },
   { icon: 'field', imgKey: 'green1', w: 6, h: 4, label: 'поле 6×4' },
