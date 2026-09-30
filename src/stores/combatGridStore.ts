@@ -11,7 +11,7 @@ import { tryInsertIntoGrid } from '../data/backpacks';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
-import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, WALK_THROUGH_PROPS } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, isObstacleWalkable, isObstacleBlocking } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, preloadCombatSounds } from '../hooks/useSound';
@@ -4478,8 +4478,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           obs.push({
             id: `cm_${oid++}`, x: rx, y: ry, w: o.w, h: o.h,
             type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
-            blocks: o.icon !== 'light' && !(o.icon === 'prop' && WALK_THROUGH_PROPS.has(o.imgKey || '')), icon: o.icon, imgKey: o.imgKey || '',
-            isWalkable: o.icon === 'light' || o.icon === 'woods' || o.icon === 'field' || (o.icon === 'prop' && WALK_THROUGH_PROPS.has(o.imgKey || '')),
+            blocks: isObstacleBlocking(o.icon, o.imgKey || ''), icon: o.icon, imgKey: o.imgKey || '',
+            isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
             isHigh: o.icon === 'building' || o.icon === 'fence',
             imgIndex: imgIdx, rot: o.rot || 0, shootThrough: o.icon === 'prop',
           });
@@ -4490,8 +4490,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         obs.push({
           id: `cm_${oid++}`, x: o.x, y: o.y, w: o.w, h: o.h,
           type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
-          blocks: o.icon !== 'light' && !(o.icon === 'prop' && WALK_THROUGH_PROPS.has(o.imgKey || '')), icon: o.icon, imgKey: o.imgKey || '',
-          isWalkable: o.icon === 'light' || o.icon === 'woods' || o.icon === 'field' || (o.icon === 'prop' && WALK_THROUGH_PROPS.has(o.imgKey || '')),
+          blocks: isObstacleBlocking(o.icon, o.imgKey || ''), icon: o.icon, imgKey: o.imgKey || '',
+          isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
           isHigh: o.icon === 'building' || o.icon === 'fence',
           imgIndex: imgIdx, rot: o.rot || 0, shootThrough: o.icon === 'prop',
         });
@@ -4584,8 +4584,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       id: `ed_${Date.now()}_${i}`,
       x: o.x, y: o.y, w: o.w, h: o.h,
       type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
-      blocks: o.icon !== 'light' && !(o.icon === 'prop' && WALK_THROUGH_PROPS.has(o.imgKey || '')), icon: o.icon, imgKey: o.imgKey || '',
-      isWalkable: o.icon === 'light' || o.icon === 'woods' || o.icon === 'field' || (o.icon === 'prop' && WALK_THROUGH_PROPS.has(o.imgKey || '')),
+      blocks: isObstacleBlocking(o.icon, o.imgKey || ''), icon: o.icon, imgKey: o.imgKey || '',
+      isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
       isHigh: o.icon === 'building' || o.icon === 'fence',
       imgIndex: Math.max(0, (pools[o.icon] || []).indexOf(o.imgKey)),
       rot: o.rot || 0, editorRandom: !!o.random, shootThrough: o.icon === 'prop',

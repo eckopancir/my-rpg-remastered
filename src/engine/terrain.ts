@@ -47,6 +47,23 @@ const ICON_LABELS: Record<string, string> = {
 /** Реквизит, сквозь который можно ходить (декор без коллизии). */
 export const WALK_THROUGH_PROPS = new Set(['o45', 'o46']);
 
+/** Проходимая мелочь (декор): o20/o21 и зимний o20z. */
+export const WALKABLE_SMALL = new Set(['o20', 'o21', 'o20z']);
+
+/** Проходимо ли препятствие (можно встать/пройти). */
+export const isObstacleWalkable = (icon?: string, imgKey?: string): boolean =>
+  icon === 'light' || icon === 'woods' || icon === 'field' ||
+  (icon === 'prop' && WALK_THROUGH_PROPS.has(imgKey || '')) ||
+  (icon === 'small' && WALKABLE_SMALL.has(imgKey || ''));
+
+/** Блочит ли препятствие движение (лампы и проходимый декор — нет; лес/поле блочат флагом как в генерации, но проходимы). */
+export const isObstacleBlocking = (icon?: string, imgKey?: string): boolean => {
+  if (icon === 'light') return false;
+  if (icon === 'prop' && WALK_THROUGH_PROPS.has(imgKey || '')) return false;
+  if (icon === 'small' && WALKABLE_SMALL.has(imgKey || '')) return false;
+  return true;
+};
+
 /** Ключ картинки препятствия — та же логика, что в рендере BattleGrid. */
 export const obstacleImageKey = (o: TerrainObstacle): string => {
   // Объекты конструктора несут свой ключ (включая арты вне пулов генерации).
