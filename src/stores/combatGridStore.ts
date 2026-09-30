@@ -402,6 +402,11 @@ export interface CombatGridStore {
   fogLevel: number;
   /** Проверка зон под игроком (выход/триггер). */
   checkZones: () => void;
+  /** Подтверждение выхода с карты (зона exit): спросить, вернуться ли на базу. */
+  exitConfirm: boolean;
+  requestExit: () => void;
+  cancelExit: () => void;
+  confirmExit: () => void;
   /** Ход ИИ питомца (авто-бой при активной способности pet_ai). */
   petAiTurn: () => void;
   petStrikeAt: (targetId: number | string, mult?: number, opts?: { stun?: number; healPct?: number; knockback?: number }) => boolean;
@@ -1303,6 +1308,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
   isTestArena: false,
   editorPeace: false,
+  exitConfirm: false,
   battleBg: 'mapbattle',
   decals: [],
   zones: [],
@@ -2457,7 +2463,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
   },
 
-  /** Зоны карты: выход завершает бой, триггер — реплика + пробуждение спящих (засада). */
+  /** Зоны карты: выход спрашивает подтверждение, триггер — реплика + пробуждение спящих (засада). */
   checkZones: () => {
     const st = get();
     if (!st.isActive || st.editorPeace || st.celebration || st.turn !== 'player') return;
@@ -2465,10 +2471,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const p = st.playerPos;
     const inside = (z: MapZone) => p.x >= z.x && p.x < z.x + z.w && p.y >= z.y && p.y < z.y + z.h;
     const exit = st.zones.find((z) => z.kind === 'exit' && inside(z));
-    if (exit) {
-      get().addBattleLog('🚪 Выход с карты!');
-      get().addMessage('🚪 Уходим с карты...');
-      get().finishBattle();
+    if (exit && !st.exitConfirm) {
+      get().requestExit();
       return;
     }
     const trig = st.zones.find((z) => z.kind === 'trigger' && !z.used && inside(z));
@@ -2485,6 +2489,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
       get().addBattleLog('⚠️ Засада! Спящие проснулись!');
     }
+  },
+
+  requestExit: () => {
+    set({ exitConfirm: true });
+    get().addMessage('🚪 Зона выхода. Вернуться на базу?');
+  },
+
+  cancelExit: () => set({ exitConfirm: false }),
+
+  confirmExit: () => {
+    set({ exitConfirm: false });
+    get().addBattleLog('🚪 Выход с карты!');
+    get().finishBattle();
   },
 
   movePlayer: (x, y) => {
@@ -4318,6 +4335,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const base = (ENEMY_BASE_STATS as any)[factionKey];
     if (!base) return;
     const isAlly = side === 'ally';
+    const allyModel = isAlly
+      ? ['stalker1', 'stalker2', 'stalker3'][Math.floor(Math.random() * 3)]
+      : null;
     const bossGear = factionKey.includes('boss');
     const BF = bossGear ? 1 : 0.35;
     const HP_F = bossGear ? 1 : 0.5;
@@ -4375,9 +4395,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         looted: isCorpse ? !withLoot : false,
         gear,
         soundAttack: base.soundAttack || 'shotenemy',
-        nowModel: base.nowModel || 'enemy',
+        // Мусорщик: одна из 3 моделек сталкеров наугад (как в обычных боях).
+        nowModel: allyModel || base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',
-        avatar: base.avatar || 'enemy',
+        avatar: allyModel || base.avatar || 'enemy',
         level: base.level || 1,
         factionKey,
         aiRole: behavior === 'sleeping' || isCorpse ? 'patrol' : behavior,
@@ -5835,7 +5856,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, editorPeace: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player',
+      isActive: false, isTestArena: false, editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

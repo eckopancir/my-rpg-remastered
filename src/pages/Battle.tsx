@@ -72,6 +72,43 @@ const SKILL_ICONS: Record<string, string> = {
   stimulant: '💉', summoner: '👥',
 };
 
+/** Подтверждение выхода с карты (зона exit конструктора). */
+const ExitConfirmModal = () => {
+  const open = useCombatGridStore((s) => s.exitConfirm);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Escape') useCombatGridStore.getState().cancelExit();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open ]);
+  if (!open) return null;
+  const cs = useCombatGridStore.getState();
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 2000,
+      background: 'rgba(0,0,0,0.55)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        background: 'linear-gradient(180deg, #1a1410, #0d0a07)',
+        border: '1px solid rgba(251,191,36,0.4)', borderRadius: 10,
+        padding: '18px 22px', maxWidth: 340, textAlign: 'center',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
+      }}>
+        <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8 }}>🚪 Зона выхода</div>
+        <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 14 }}>Вернуться на базу? Прогресс боя будет завершён.</div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <Button size="sm" variant="primary" onClick={() => cs.confirmExit()}>Вернуться на базу</Button>
+          <Button size="sm" variant="primary" onClick={() => cs.cancelExit()}>Остаться</Button>
+        </div>
+        <div style={{ fontSize: 10, opacity: 0.5, marginTop: 8 }}>Esc — остаться</div>
+      </div>
+    </div>
+  );
+};
+
 export const Battle = () => {
   const navigate = useNavigate();
   const combat = usePlayerStore((s) => s.combat);
@@ -760,6 +797,7 @@ export const Battle = () => {
         {showBackpack && (
           <BackpackWindow onClose={() => setShowBackpack(false)} />
         )}
+        <ExitConfirmModal />
         {/* Vignette */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,
