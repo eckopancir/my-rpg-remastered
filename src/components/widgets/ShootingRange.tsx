@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WapHeader } from '../ui/WapHeader';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
-import { playCombatSound } from '../../hooks/useSound';
+import { playCombatSound, playShotSound } from '../../hooks/useSound';
 import { calculateCombatResult, calcPureDamage, shotKindForPlayerWeapon } from '../../stores/combatGridStore';
 import { calcExtraShots } from '../../utils/itemPower';
 import { effectiveAmmoCapacity } from '../../data/ammo';
@@ -262,7 +262,8 @@ export const ShootingRange = ({ onClose }: Props) => {
     for (let sIdx = 0; sIdx < shots; sIdx++) {
       if (a <= 0 || h <= 0) break;
       a -= 1;
-      playCombatSound(snd, 0.27, 'range');
+      // Звук и длительность — как на баттл-арене (класс оружия + капы длинных).
+      playShotSound(snd, 0.27, 'range');
       const result = calculateCombatResult(attackerStats, targetStats);
       shotCount += 1;
 
