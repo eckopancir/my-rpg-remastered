@@ -122,6 +122,10 @@ const CAPPED_DEFAULT_MS = 1200;
 const cappedTimers = new Map<string, any>();
 const LONG_SHOT_SOUNDS = new Set(['пулемет']);
 const SHORT_CAPPED_SOUNDS = new Set(['automatic-shots-burst-with-a-silencer']);
+/** Фиксированная длительность отдельных сэмплов (мс). */
+const FIXED_SHOT_MS: Record<string, number> = {
+  'пистолет с глушителем': 800,
+};
 export const playCappedSound = (name: string, volume = 0.4, ms = CAPPED_DEFAULT_MS, channel: SoundChannel = 'arena') => {
   playCombatSound(name, volume, channel);
   const t = cappedTimers.get(name);
@@ -130,7 +134,8 @@ export const playCappedSound = (name: string, volume = 0.4, ms = CAPPED_DEFAULT_
 };
 /** Выстрел с учётом длины: длинные режутся, короткие как были. */
 export const playShotSound = (name: string, volume = 0.4, channel: SoundChannel = 'arena') => {
-  if (SHORT_CAPPED_SOUNDS.has(name)) playCappedSound(name, volume, 300, channel);
+  if (name in FIXED_SHOT_MS) playCappedSound(name, volume, FIXED_SHOT_MS[name], channel);
+  else if (SHORT_CAPPED_SOUNDS.has(name)) playCappedSound(name, volume, 300, channel);
   else if (LONG_SHOT_SOUNDS.has(name)) playCappedSound(name, volume, CAPPED_DEFAULT_MS, channel);
   else playCombatSound(name, volume, channel);
 };
