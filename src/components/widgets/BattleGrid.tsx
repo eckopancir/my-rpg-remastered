@@ -394,8 +394,18 @@ export const BattleGrid = () => {
       // Звук выстрела — от класса оружия (из данных игры); иначе старый shot1/2.
       // Играет на КАЖДЫЙ новый shotLine (включая бонус-выстрелы за скорость),
       // а не только по фронту null→set — таймеры залпов иначе глушат друг друга.
-      // Длинные (пулемёт, глушитель) режутся на 1.2с.
-      playShotSound((shotLine.sound || (Math.random() > 0.5 ? 'shot1' : 'shot2')) as any, 0.4);
+      // У вражеских без sound молчим: звук уже сыграл ИИ, иначе дубль старым.
+      const snd = (shotLine as any).sound;
+      if (snd) {
+        playShotSound(snd, 0.4);
+      } else {
+        const st = useCombatGridStore.getState();
+        const from = (shotLine as any).from;
+        const isPlayer = !!from && from.x === st.playerPos.x && from.y === st.playerPos.y;
+        const isPet = !isPlayer && !!from && st.enemies.some((e: any) =>
+          (e as any).isPet && !e.dead && e.pos.x === from.x && e.pos.y === from.y);
+        if (isPlayer || isPet) playShotSound(Math.random() > 0.5 ? 'shot1' : 'shot2', 0.4);
+      }
     }
     prevShotLine.current = shotLine;
   }, [shotLine]);
