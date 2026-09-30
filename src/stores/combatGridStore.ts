@@ -15,7 +15,7 @@ import { getBulletImage } from '../assets/index';
 import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
-import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, startMapMusic, stopPlaylist, stopMapMusic, preloadCombatSounds } from '../hooks/useSound';
+import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, startMapMusic, stopPlaylist, stopMapMusic, playShotSound, preloadCombatSounds } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -3091,10 +3091,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             setTimeout(() => {
               const s = get();
               set({ flyingGrenade: null });
-              const radius = Math.ceil(Math.sqrt(2) / 2);
+              // Цель могла сдвинуться/умереть за 1.6с — бьём по актуальной позиции.
+              const tgtNow = s.enemies.find((e: GridEnemy) => e.id === targetEnemy.id && !e.dead && e.currentHp > 0);
+              const cx = tgtNow ? tgtNow.pos.x : targetEnemy.pos.x;
+              const cy = tgtNow ? tgtNow.pos.y : targetEnemy.pos.y;
+              const radius = dmgEffect.aoe || 1;
               const enemies = s.enemies.map((e: GridEnemy) => {
                 if (e.dead) return e;
-                const dist = Math.abs(e.pos.x - targetEnemy.pos.x) + Math.abs(e.pos.y - targetEnemy.pos.y);
+                const dist = Math.abs(e.pos.x - cx) + Math.abs(e.pos.y - cy);
                 if (dist <= radius) {
                   const finalDmg = Math.round(dmg * (1 - dist * 0.15));
                   e.currentHp = Math.max(0, e.currentHp - finalDmg);
@@ -3118,7 +3122,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               get().triggerShake();
               // Add explosion global effect
               set((st: any) => ({
-                globalEffects: [...st.globalEffects, { type: 'GRENADE' as const, pos: { ...targetEnemy.pos }, damage: 0, timer: 2 }],
+                globalEffects: [...st.globalEffects, { type: 'GRENADE' as const, pos: { x: cx, y: cy }, damage: 0, timer: 2 }],
               }));
               setTimeout(() => set((st: any) => ({ globalEffects: st.globalEffects.filter((g: any) => g.timer > 1) })), 2000);
             }, 1600);
@@ -3133,10 +3137,13 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             setTimeout(() => {
               const s = get();
               set({ flyingGrenade: null });
-              const radius = Math.ceil(Math.sqrt(2) / 2);
+              const tgtNow = s.enemies.find((e: GridEnemy) => e.id === targetEnemy.id && !e.dead && e.currentHp > 0);
+              const cx = tgtNow ? tgtNow.pos.x : targetEnemy.pos.x;
+              const cy = tgtNow ? tgtNow.pos.y : targetEnemy.pos.y;
+              const radius = dmgEffect.aoe || 1;
               const enemies = s.enemies.map((e: GridEnemy) => {
                 if (e.dead) return e;
-                const dist = Math.abs(e.pos.x - targetEnemy.pos.x) + Math.abs(e.pos.y - targetEnemy.pos.y);
+                const dist = Math.abs(e.pos.x - cx) + Math.abs(e.pos.y - cy);
                 if (dist <= radius) {
                   const finalDmg = Math.round(dmg * (1 - dist * 0.15));
                   e.currentHp = Math.max(0, e.currentHp - finalDmg);
@@ -3153,7 +3160,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
               get().triggerShake();
               // Add explosion global effect
               set((st: any) => ({
-                globalEffects: [...st.globalEffects, { type: 'GRENADE' as const, pos: { ...targetEnemy.pos }, damage: 0, timer: 2 }],
+                globalEffects: [...st.globalEffects, { type: 'GRENADE' as const, pos: { x: cx, y: cy }, damage: 0, timer: 2 }],
               }));
               setTimeout(() => set((st: any) => ({ globalEffects: st.globalEffects.filter((g: any) => g.timer > 1) })), 2000);
             }, 1600);
