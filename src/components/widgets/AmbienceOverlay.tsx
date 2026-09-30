@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useUiStore } from '../../stores/uiStore';
 import { CAR_IMAGES } from '../../engine/terrain';
+import { LIGHT_LEVELS, FONAR_LIGHT } from '../../stores/mapEditorStore';
 import { playBirdLoop, stopBirdLoop, playCricketLoop, stopCricketLoop } from '../../hooks/useSound';
 
 /** Эмбиент карты: дрейф тумана + тени облаков + пыль + светлячки (ночь) + дым и свет костра. */
@@ -147,6 +148,49 @@ export const AmbienceOverlay = () => {
         g.addColorStop(1, 'rgba(255,150,50,0)');
         ctx.fillStyle = g;
         ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+      }
+      // Конструкторские источники света: лампы-невидимки + фонарь-прожектор.
+      // Только разведанные клетки; ночью ярче и шире, с живым мерцанием.
+      {
+        const px = Math.min(w, h) / 32;
+        const explored = (st as any).exploredCells;
+        const drawGlow = (cxC: number, cyC: number, rC: number, a: number) => {
+          const cx = (cxC / 32) * w;
+          const cy = (cyC / 32) * h;
+          const R = Math.max(2, rC * px);
+          const A = Math.max(0, Math.min(0.85, a));
+          const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+          g.addColorStop(0, `rgba(255,214,140,${A.toFixed(2)})`);
+          g.addColorStop(0.5, `rgba(255,200,120,${(A * 0.45).toFixed(2)})`);
+          g.addColorStop(1, 'rgba(255,200,120,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+        };
+        for (const o of (st as any).obstacles || []) {
+          const ox = (o as any).x + (((o as any).w ?? 1) / 2);
+          const oy = (o as any).y + (((o as any).h ?? 1) / 2);
+          if (!explored || !explored[`${(o as any).x},${(o as any).y}`]) continue;
+          const key = (o as any).imgKey as string | undefined;
+          if ((o as any).icon === 'light' && key && (LIGHT_LEVELS as any)[key]) {
+            const L = (LIGHT_LEVELS as any)[key];
+            const fl = 0.94 + 0.06 * Math.sin(t * 7 + ox + oy);
+            drawGlow(ox, oy, night ? L.r * 1.3 : L.r, (night ? L.night : L.day) * fl);
+          } else if (key === 'fonar') {
+            // Прожектор: свет справа от корпуса, поворачивается вместе с разворотом.
+            const rot = ((o as any).rot || 0) % 360;
+            let dx = FONAR_LIGHT.dx;
+            let dy = FONAR_LIGHT.dy;
+            if (rot === 90) { dx = -dy; dy = FONAR_LIGHT.dx; }
+            else if (rot === 180) { dx = -FONAR_LIGHT.dx; dy = -FONAR_LIGHT.dy; }
+            else if (rot === 270) { dx = FONAR_LIGHT.dy; dy = -FONAR_LIGHT.dx; }
+            const fl = 0.86 + 0.09 * Math.sin(t * 11.3 + oy) + 0.05 * Math.sin(t * 27.7 + 1.7);
+            drawGlow(
+              ox + dx, oy + dy,
+              night ? FONAR_LIGHT.rNight * 1.3 : FONAR_LIGHT.r,
+              (night ? FONAR_LIGHT.night : FONAR_LIGHT.day) * fl,
+            );
+          }
+        }
       }
       // Дым: костёр (если виден) + сгоревший вертолёт o33 (дыма в 2 раза больше).
       {

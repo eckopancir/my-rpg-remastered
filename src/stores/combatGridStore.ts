@@ -163,6 +163,8 @@ export interface GridObstacle {
   searchLoot?: { kind: string } | null;
   /** В конструкторе: при входе на карту ставится случайно. */
   editorRandom?: boolean;
+  /** Реквизит: ходить нельзя, стрелять сквозь — можно. */
+  shootThrough?: boolean;
 }
 
 /** Зона конструктора карт: спавн игрока / выход / триггер-засада. */
@@ -587,6 +589,8 @@ export const checkVisibility = (
     const checkY = Math.round(viewerPos.y + (dy * i) / steps);
     if (!isValidCell(checkX, checkY)) continue;
     const isBlocking = obstacles.some((obs) => {
+      // Реквизит (ящики, фонари, вертолёт): ходить нельзя, пули летят сквозь.
+      if ((obs as any).shootThrough) return false;
       if (!(obs.isHigh || (obs.blocks && !obs.isWalkable))) return false;
       // Большие уже проверены rect-тестом выше (с грацией углов) — тут их пропускаем.
       try { if (SHOT_BLOCK_KEYS.has(obstacleImageKey(obs as any))) return false; } catch { /* ignore */ }
@@ -4441,6 +4445,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       small: SMALL_OBSTACLE_IMAGES,
       fence: ['o5'],
       field: ['green1'],
+      prop: ['o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41', 'fonar'],
+      light: ['light1', 'light2', 'light3', 'light4', 'light5'],
     };
     // Раскладка препятствий: фикс + случайные.
     const occupied = new Set<string>(['2,2']);
@@ -4471,10 +4477,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           obs.push({
             id: `cm_${oid++}`, x: rx, y: ry, w: o.w, h: o.h,
             type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
-            blocks: true, icon: o.icon, imgKey: o.imgKey || '',
-            isWalkable: o.icon === 'woods' || o.icon === 'field',
+            blocks: o.icon !== 'light', icon: o.icon, imgKey: o.imgKey || '',
+            isWalkable: o.icon === 'light' || o.icon === 'woods' || o.icon === 'field',
             isHigh: o.icon === 'building' || o.icon === 'fence',
-            imgIndex: imgIdx, rot: o.rot || 0,
+            imgIndex: imgIdx, rot: o.rot || 0, shootThrough: o.icon === 'prop',
           });
           mark(rx, ry, o.w, o.h);
           placed = true;
@@ -4483,10 +4489,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         obs.push({
           id: `cm_${oid++}`, x: o.x, y: o.y, w: o.w, h: o.h,
           type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
-          blocks: true, icon: o.icon, imgKey: o.imgKey || '',
-          isWalkable: o.icon === 'woods' || o.icon === 'field',
+          blocks: o.icon !== 'light', icon: o.icon, imgKey: o.imgKey || '',
+          isWalkable: o.icon === 'light' || o.icon === 'woods' || o.icon === 'field',
           isHigh: o.icon === 'building' || o.icon === 'fence',
-          imgIndex: imgIdx, rot: o.rot || 0,
+          imgIndex: imgIdx, rot: o.rot || 0, shootThrough: o.icon === 'prop',
         });
         mark(o.x, o.y, o.w, o.h);
       }
@@ -4561,17 +4567,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       small: SMALL_OBSTACLE_IMAGES,
       fence: ['o5'],
       field: ['green1'],
+      prop: ['o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41', 'fonar'],
+      light: ['light1', 'light2', 'light3', 'light4', 'light5'],
     };
     // Всё встаёт как сохранено (случайные — на своих местах, с меткой 🎲).
     const obs = (map.obstacles || []).map((o: any, i: number) => ({
       id: `ed_${Date.now()}_${i}`,
       x: o.x, y: o.y, w: o.w, h: o.h,
       type: o.icon === 'woods' ? 'woods' : o.icon === 'field' ? 'field' : o.icon === 'fence' ? 'fence' : o.icon === 'car' ? 'car' : 'small',
-      blocks: true, icon: o.icon, imgKey: o.imgKey || '',
-      isWalkable: o.icon === 'woods' || o.icon === 'field',
+      blocks: o.icon !== 'light', icon: o.icon, imgKey: o.imgKey || '',
+      isWalkable: o.icon === 'light' || o.icon === 'woods' || o.icon === 'field',
       isHigh: o.icon === 'building' || o.icon === 'fence',
       imgIndex: Math.max(0, (pools[o.icon] || []).indexOf(o.imgKey)),
-      rot: o.rot || 0, editorRandom: !!o.random,
+      rot: o.rot || 0, editorRandom: !!o.random, shootThrough: o.icon === 'prop',
     }));
     set({
       obstacles: obs,

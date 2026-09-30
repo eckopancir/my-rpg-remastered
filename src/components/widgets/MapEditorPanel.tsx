@@ -4,6 +4,7 @@ import {
   useMapEditorStore, UNIT_BEHAVIORS, MAP_MUSIC,
   rotateSelected, deleteSelected, toggleSelectedRandom, addRandomObstacle,
   clearRoute, setUnitFacing, setZoneText,
+  PROP_SIZES, LIGHT_LEVELS,
 } from '../../stores/mapEditorStore';
 import { BATTLE_BGS, getMapImage, getGroundDecals, getBattleImage } from '../../assets/index';
 import { ENEMY_BASE_STATS } from '../../engine/enemies';
@@ -22,6 +23,7 @@ const OB_CATALOG: { icon: string; imgKey: string; w: number; h: number; label: s
   { icon: 'woods', imgKey: 'o3zz', w: 2, h: 2, label: 'o3zz' },
   ...SMALL_OBSTACLE_IMAGES.map((k) => ({ icon: 'small', imgKey: k, w: 1, h: 1, label: k })),
   { icon: 'small', imgKey: 'o20z', w: 1, h: 1, label: 'o20z' },
+  ...Object.entries(PROP_SIZES).map(([k, s]) => ({ icon: 'prop', imgKey: k, w: s.w, h: s.h, label: k })),
   { icon: 'fence', imgKey: 'o5', w: 1, h: 1, label: 'o5 забор' },
   { icon: 'field', imgKey: 'green1', w: 10, h: 8, label: 'поле 10×8' },
   { icon: 'field', imgKey: 'green1', w: 6, h: 4, label: 'поле 6×4' },
@@ -432,6 +434,28 @@ export const MapEditorPanel = () => {
       </div>
 
       <div style={sec}>
+        <div style={h}>💡 Лампы (невидимки, только свет)</div>
+        <div style={grid}>
+          {Object.entries(LIGHT_LEVELS).map(([k, L], i) => {
+            const on = ed.tool.kind === 'obstacle' && (ed.tool as any).imgKey === k;
+            return (
+              <button
+                key={k}
+                style={btn(on)}
+                title={`Радиус ${L.r} кл, свет ${i + 1}/5`}
+                onClick={() => ed.setTool({ kind: 'obstacle', icon: 'light', imgKey: k, w: 1, h: 1, rot: 0 })}
+              >
+                💡{i + 1} r{L.r}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>
+          Ставятся кликом, в игре не видны. Ходить сквозь можно, светят всегда (ночью ярче).
+        </div>
+      </div>
+
+      <div style={sec}>
         <div style={h}>Костёр</div>
         <div style={grid}>
           <button
@@ -519,7 +543,9 @@ export const MapEditorPanel = () => {
         <div style={sec}>
           <div style={h}>Выбрано</div>
           <div style={{ fontSize: 11, opacity: 0.85 }}>
-            {selOb ? `Объект ${(selOb as any).imgKey || (selOb as any).icon} ${(selOb as any).w}×${(selOb as any).h}${(selOb as any).editorRandom ? ' 🎲 случайный' : ''}` : null}
+            {selOb ? ((selOb as any).icon === 'light'
+              ? `💡 Свет ${(selOb as any).imgKey} (r=${(LIGHT_LEVELS as any)[(selOb as any).imgKey]?.r ?? '?'})`
+              : `Объект ${(selOb as any).imgKey || (selOb as any).icon} ${(selOb as any).w}×${(selOb as any).h}${(selOb as any).editorRandom ? ' 🎲 случайный' : ''}${(selOb as any).shootThrough ? ' (прострел)' : ''}`) : null}
             {selUnit ? `Юнит ${(selUnit as any).name} (${(selUnit as any).dead ? '💀 труп' + (((selUnit as any).loot || []).length ? ', с лутом' : ', без лута') : `${(selUnit as any).aiRole}${(selUnit as any).sleeping ? '+спит' : ''}`})` : null}
             {ed.selCamp && campfire ? `🔥 Костёр (${(campfire as any).x},${(campfire as any).y})` : null}
             {ed.selZoneId !== null ? (() => {

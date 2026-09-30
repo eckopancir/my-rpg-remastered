@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs } from '../../stores/combatGridStore';
-import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, campCellFree, paintDecal, finishZoneRect } from '../../stores/mapEditorStore';
+import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, campCellFree, paintDecal, finishZoneRect, LIGHT_LEVELS } from '../../stores/mapEditorStore';
 import { DecalLayer } from './DecalLayer';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
@@ -956,7 +956,33 @@ export const BattleGrid = () => {
                     <span style={{ fontSize: 11, fontWeight: 800, background: '#1c7ed6', color: '#fff', borderRadius: 8, padding: '0 5px' }}>{routeNum}</span>
                   </div>
                 )}
-                {obstacle?.isAnchor && (
+                {obstacle?.isAnchor && (obstacle as any).icon === 'light' && edActive && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
+                    {(() => {
+                      const lvl = (LIGHT_LEVELS as any)[(obstacle as any).imgKey];
+                      const r = lvl ? lvl.r : 2;
+                      const num = String((obstacle as any).imgKey || '').replace('light', '') || '?';
+                      return (
+                        <>
+                          <div style={{
+                            position: 'absolute',
+                            left: `${(0.5 - r) * 100}%`, top: `${(0.5 - r) * 100}%`,
+                            width: `${2 * r * 100}%`, aspectRatio: '1',
+                            borderRadius: '50%', border: '1px dashed rgba(255,213,74,0.8)',
+                            background: 'rgba(255,213,74,0.07)',
+                          }} />
+                          <span style={{
+                            position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+                            fontSize: 14, filter: 'drop-shadow(0 0 3px #000)',
+                          }}>
+                            💡{num}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+                {obstacle?.isAnchor && (obstacle as any).icon !== 'light' && (
                   <img
                     src={getBattleImage(
                       (obstacle as any).imgKey ||
@@ -978,6 +1004,10 @@ export const BattleGrid = () => {
                       const rotOnly = rot ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center' } : null;
                       const key = (obstacle as any).imgKey
                         || (obstacle.icon === 'small' ? SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] : '');
+                      // Реквизит (ящики, вертолёт, фонарь): весь футпринт, ходить нельзя, пули сквозь.
+                      if (obstacle.icon === 'prop') {
+                        return obstacleImgStyle(obstacle.w, obstacle.h, rot);
+                      }
                       if (obstacle.icon === 'building' || obstacle.icon === 'field' || (obstacle.icon === 'small' && !obstacle.blocks)) {
                         return obstacleImgStyle(obstacle.w, obstacle.h, rot);
                       }

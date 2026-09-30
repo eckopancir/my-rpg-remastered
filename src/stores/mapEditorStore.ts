@@ -303,11 +303,11 @@ export const clampFootprint = (w: number, h: number, x: number, y: number) => ({
 export const hitsSpawn = (nx: number, ny: number, w: number, h: number) =>
   nx <= 2 && ny <= 2 && 2 < nx + w && 2 < ny + h;
 
-/** Валиден ли футпринт (без пересечений и спавна). */
+/** Валиден ли футпринт (без пересечений и спавна). Невидимый свет не мешает. */
 export const footprintValid = (obstacles: any[], w: number, h: number, nx: number, ny: number, ignoreId?: number | string): boolean => {
   if (hitsSpawn(nx, ny, w, h)) return false;
   return !(obstacles as any[]).some((o: any) =>
-    o.id !== ignoreId && rectsOverlap(nx, ny, w, h, o.x, o.y, o.w, o.h));
+    o.id !== ignoreId && o.icon !== 'light' && rectsOverlap(nx, ny, w, h, o.x, o.y, o.w, o.h));
 };
 
 /** Повернуть выбранный объект на 90° (w/h swap + rot). */
@@ -379,11 +379,11 @@ export const footprintHitsCamp = (w: number, h: number, nx: number, ny: number):
   return !!camp && rectsOverlap(nx, ny, w, h, camp.x, camp.y, 1, 1);
 };
 
-/** Свободна ли клетка под костёр (в границах, без объектов и юнитов). */
+/** Свободна ли клетка под костёр (в границах, без объектов и юнитов; свет не мешает). */
 export const campCellFree = (x: number, y: number): boolean => {
   if (x < 0 || x >= 32 || y < 0 || y >= 32) return false;
   const st = useCombatGridStore.getState();
-  const hitOb = (st.obstacles as any[]).some((o: any) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
+  const hitOb = (st.obstacles as any[]).some((o: any) => o.icon !== 'light' && x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
   if (hitOb) return false;
   const busy = (st.enemies as any[]).some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y);
   if (busy) return false;
@@ -484,6 +484,41 @@ export const setZoneText = (zoneId: number | string, text: string): void => {
   }));
 };
 
+/** Реквизит конструктора: ходить нельзя, стрелять сквозь можно. */
+export const PROP_IMAGES = [
+  'o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8',
+  'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41', 'fonar',
+];
+/** Футпринты реквизита (проверены по аспекту арта). */
+export const PROP_SIZES: Record<string, { w: number; h: number }> = {
+  o5_2: { w: 1, h: 1 },
+  o5_3: { w: 2, h: 1 },
+  o5_4: { w: 1, h: 1 },
+  o5_5: { w: 1, h: 1 },
+  o5_6: { w: 1, h: 1 },
+  o5_7: { w: 1, h: 2 },
+  o5_8: { w: 1, h: 1 },
+  o47: { w: 1, h: 2 },
+  o42: { w: 2, h: 3 },
+  o43: { w: 2, h: 3 },
+  o40: { w: 1, h: 2 },
+  o44: { w: 2, h: 3 },
+  o45: { w: 2, h: 2 },
+  o46: { w: 2, h: 2 },
+  o41: { w: 4, h: 4 },
+  fonar: { w: 1, h: 1 },
+};
+/** Невидимые лампы: уровень света (радиус в клетках, альфа днём/ночью). */
+export const LIGHT_LEVELS: Record<string, { r: number; day: number; night: number }> = {
+  light1: { r: 2, day: 0.10, night: 0.22 },
+  light2: { r: 3, day: 0.12, night: 0.30 },
+  light3: { r: 4.5, day: 0.14, night: 0.38 },
+  light4: { r: 6, day: 0.16, night: 0.46 },
+  light5: { r: 8, day: 0.18, night: 0.55 },
+};
+/** Прожектор фонаря: смещение света от центра корпуса (кл), радиус, альфа. */
+export const FONAR_LIGHT = { dx: 1.2, dy: 0, r: 3.2, rNight: 4.6, day: 0.15, night: 0.5 };
+
 const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: number, y: number, random: boolean, rot = 0) => {
   const pools: Record<string, string[]> = {
     // o15/o27 — бывшие здания, o20z/o3zz — зимние варианты: только для конструктора.
@@ -493,16 +528,21 @@ const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: nu
     small: [...SMALL_OBSTACLE_IMAGES, 'o20z'],
     fence: [FENCE_IMAGE],
     field: [FIELD_IMAGE],
+    prop: PROP_IMAGES,
+    light: ['light1', 'light2', 'light3', 'light4', 'light5'],
   };
+  const isLight = icon === 'light';
+  const isProp = icon === 'prop';
   return {
     id: `edob_${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
     x, y, w, h,
     type: icon === 'woods' ? 'woods' : icon === 'field' ? 'field' : icon === 'fence' ? 'fence' : icon === 'car' ? 'car' : 'small',
-    blocks: true, icon, imgKey,
-    isWalkable: icon === 'woods' || icon === 'field',
+    blocks: !isLight, icon, imgKey,
+    isWalkable: isLight || icon === 'woods' || icon === 'field',
     isHigh: icon === 'building' || icon === 'fence',
     imgIndex: Math.max(0, (pools[icon] || []).indexOf(imgKey)),
     rot, editorRandom: random,
+    shootThrough: isProp,
   };
 };
 
@@ -556,7 +596,7 @@ export const editorCellClick = (x: number, y: number): void => {
         const nx = Math.max(0, Math.min(32 - ob.w, x));
         const ny = Math.max(0, Math.min(32 - ob.h, y));
         const clash = (st.obstacles as any[]).some((o: any) =>
-          o.id !== ob.id && rectsOverlap(nx, ny, ob.w, ob.h, o.x, o.y, o.w, o.h));
+          o.id !== ob.id && o.icon !== 'light' && rectsOverlap(nx, ny, ob.w, ob.h, o.x, o.y, o.w, o.h));
         if (!clash && !footprintHitsCamp(ob.w, ob.h, nx, ny) && !(nx <= 2 && ny <= 2 && 2 < nx + ob.w && 2 < ny + ob.h)) {
           ed.pushHistory();
           cs.setState((s: any) => ({

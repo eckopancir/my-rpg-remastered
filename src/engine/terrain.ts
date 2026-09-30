@@ -40,6 +40,8 @@ const ICON_LABELS: Record<string, string> = {
   woods: '🌲 Лес',
   small: '📦 Хлам',
   fence: '🧱 Забор',
+  prop: '📦 Реквизит',
+  light: '💡 Свет',
 };
 
 /** Ключ картинки препятствия — та же логика, что в рендере BattleGrid. */
