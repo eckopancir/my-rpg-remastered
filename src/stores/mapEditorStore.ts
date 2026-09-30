@@ -491,7 +491,7 @@ export const PROP_IMAGES = [
 ];
 /** Футпринты реквизита (проверены по аспекту арта). */
 export const PROP_SIZES: Record<string, { w: number; h: number }> = {
-  o5_2: { w: 1, h: 1 },
+  o5_2: { w: 2, h: 2 },
   o5_3: { w: 2, h: 1 },
   o5_4: { w: 1, h: 1 },
   o5_5: { w: 1, h: 1 },
