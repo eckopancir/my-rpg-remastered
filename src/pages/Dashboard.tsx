@@ -624,6 +624,7 @@ export const Dashboard = () => {
               ed0.setMapName('');
               ed0.setMusic('track');
               ed0.setMusic2('__none');
+              ed0.setMusicCombatOnly(false);
               ed0.setIntroBarks('');
               ed0.setActive(true);
               navigate('/battle');
@@ -704,6 +705,7 @@ const SavedMapsBlock = () => {
                 ed.setMapName(m.name);
                 ed.setMusic(m.music || 'track');
                 ed.setMusic2((m as any).music2 || '__none');
+                ed.setMusicCombatOnly(!!(m as any).musicCombatOnly);
                 ed.setIntroBarks((((m as any).introBarks || []) as string[]).join('\n'));
                 ed.setActive(true);
                 navigate('/battle');

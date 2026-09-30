@@ -14,7 +14,7 @@ import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getTerrainBonus, distToRect } from '../engine/terrain';
-import { useSound, playCombatSound, stopCombatSound } from '../hooks/useSound';
+import { useSound, playCombatSound, stopCombatSound, startMapMusic } from '../hooks/useSound';
 import { getEnemyImage, getCharacterImage, images, getSniperImage, petAvatarImage } from '../assets/index';
 import { SkillBar } from '../components/widgets/SkillBar';
 
@@ -98,6 +98,27 @@ const TurnFlash = () => {
       <div style={{ fontSize: 13, fontWeight: 400, opacity: 0.85, fontFamily: 'var(--font-mono)' }}>раунд #{turnCount}</div>
     </div>
   );
+};
+
+/** Триггер музыки карты в режиме «только в бою»: старт на первом агро/ходе врага. */
+const MapMusicTrigger = () => {
+  const isActive = useCombatGridStore((s) => s.isActive);
+  const peace = useCombatGridStore((s) => s.editorPeace);
+  const celebration = useCombatGridStore((s) => s.celebration);
+  const only = useCombatGridStore((s) => s.musicCombatOnly);
+  const started = useCombatGridStore((s) => s.mapMusicStarted);
+  const turn = useCombatGridStore((s) => s.turn);
+  const anyAggro = useCombatGridStore((s) => s.enemies.some((e: any) => (e as any).aggro && !e.dead));
+  const m1 = useCombatGridStore((s) => s.mapMusic);
+  const m2 = useCombatGridStore((s) => s.mapMusic2);
+  useEffect(() => {
+    if (!isActive || peace || celebration || started || !only) return;
+    if (turn === 'enemy' || anyAggro) {
+      try { startMapMusic(m1, m2, 0.35); } catch { /* ignore */ }
+      useCombatGridStore.setState({ mapMusicStarted: true });
+    }
+  }, [isActive, peace, celebration, started, only, turn, anyAggro, m1, m2]);
+  return null;
 };
 
 /** Подтверждение выхода с карты (зона exit конструктора). */
@@ -220,7 +241,8 @@ export const Battle = () => {
   });
   const useLabel = !nearCampfire && !meatTarget && searchTarget
     ? ((searchTarget as any).searchLoot?.kind === 'well' ? '🪣 Набрать воды'
-      : (searchTarget as any).searchLoot?.kind === 'tree' ? '🪓 Рубка дров' : '🔍 Поиск лута')
+      : (searchTarget as any).searchLoot?.kind === 'tree' ? '🪓 Рубка дров'
+      : (searchTarget as any).searchLoot?.kind === 'ammo_crate' ? '🎯 Патроны' : '🔍 Поиск лута')
     : null;
   const useTarget = nearCampfire
     ? { kind: 'camp' as const }
@@ -817,6 +839,7 @@ export const Battle = () => {
       {/* Center - Battle Grid */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <TurnFlash />
+        <MapMusicTrigger />
         <BattleGrid />
         <CookingMenu />
         <MapEditorPanel />

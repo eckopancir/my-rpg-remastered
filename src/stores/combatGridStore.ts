@@ -10,11 +10,12 @@ import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { tryInsertIntoGrid } from '../data/backpacks';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
-import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
-import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, isObstacleWalkable, isObstacleBlocking, isShootThrough } from '../engine/terrain';
+import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality, makeBulletPack } from '../data/ammo';
+import { getBulletImage } from '../assets/index';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
-import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, startMapMusic, stopPlaylist, preloadCombatSounds } from '../hooks/useSound';
+import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, startMapMusic, stopPlaylist, stopMapMusic, preloadCombatSounds } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -451,6 +452,11 @@ export interface CombatGridStore {
   fogLevel: number;
   /** Проверка зон под игроком (выход/триггер). */
   checkZones: () => void;
+  /** Музыка карты: треки, режим «только в бою», запущена ли. */
+  mapMusic: string;
+  mapMusic2: string;
+  musicCombatOnly: boolean;
+  mapMusicStarted: boolean;
   /** Подтверждение выхода с карты (зона exit): спросить, вернуться ли на базу. */
   exitConfirm: boolean;
   requestExit: () => void;
@@ -1358,6 +1364,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isTestArena: false,
   editorPeace: false,
   exitConfirm: false,
+  mapMusic: 'track',
+  mapMusic2: '__none',
+  musicCombatOnly: false,
+  mapMusicStarted: false,
   battleBg: 'mapbattle',
   decals: [],
   zones: [],
@@ -2707,8 +2717,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
 
     // Активные способности требуют расходник из рюкзака (пассивки ammo_* — бесплатно).
-    // Капстоун/снайпер бесплатные — пропуск расходника
-    const isFree = ability.id.startsWith('cap_') || (ability as any).free === true;
+    // Капстоун/снайпер бесплатные — пропуск расходника.
+    // Сетовые (setb_*) и классовые ветки (snp_/mln_/sht_*) — тоже без расходника.
+    const isFree = ability.id.startsWith('cap_')
+      || ability.id.startsWith('setb_')
+      || ability.id.startsWith('snp_')
+      || ability.id.startsWith('mln_')
+      || ability.id.startsWith('sht_')
+      || (ability as any).free === true;
     if (!ability.passive && !isFree) {
       const ps = usePlayerStore.getState();
       const stack = ps.backpackGrid.items.find((i) => i.type === 'consumable' && (i as any).abilityId === ability.id);
@@ -3688,6 +3704,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!s.isActive || s.celebration) return;
     const allies = s.enemies.filter((e: any) => e.faction === 'Союзник' && !e.dead && (e.currentHp || 0) > 0 && !(e as any).isPet);
     if (allies.length === 0) return;
+    // Все враги убиты — музыку боя (режим «только в бою») глушим.
+    try { stopMapMusic(); } catch { /* ignore */ }
     set({ celebration: true, turn: 'player', ap: s.maxAp });
     get().addBattleLog('🏆 Победа! Мусорщики празднуют — обыщи трупы, потом жми финиш.');
     get().addMessage('🏆 Победа! Пошаговый режим выкл — ходи свободно.');
@@ -3900,6 +3918,31 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     } else if (loot.kind === 'tree') {
       def = (GAME_RESOURCES as any[]).find((r: any) => r.name === 'Дерево');
       qty = 10 + Math.floor(Math.random() * 6);
+    } else if (loot.kind === 'ammo_crate') {
+      // Ящик o47: патроны случайной группы 10–20, в рюкзак с учётом пачек.
+      const groups = ['pistol', 'rifle', 'sniper', 'shell', 'mg'] as const;
+      const g = groups[Math.floor(Math.random() * groups.length)];
+      qty = 10 + Math.floor(Math.random() * 11);
+      const pst0 = usePlayerStore.getState();
+      const ammoItem: any = makeBulletPack(g, qty, 'Обычный');
+      const res0 = tryInsertIntoGrid(pst0.backpackGrid, ammoItem);
+      if (!res0.moved && res0.leftoverQty >= qty) {
+        set({ searchCast: null });
+        get().addMessage('🎒 Рюкзак полон!');
+        return;
+      }
+      usePlayerStore.setState({ backpackGrid: res0.grid } as any);
+      if (res0.leftoverQty > 0) get().addMessage(`🎒 Влезло частично, осталось снаружи: ${res0.leftoverQty} шт.`);
+      set((s: any) => ({
+        searchCast: null,
+        obstacles: s.obstacles.map((o: any) => {
+          if (o.id !== cast.id) return o;
+          const { searchLoot: _sl3, ...rest3 } = o;
+          return rest3;
+        }),
+      }));
+      get().addLootPopup(px, py, getBulletImage(ammoItem.name), `+${qty - res0.leftoverQty} ${ammoItem.name}`);
+      return;
     } else {
       const pool = (GAME_RESOURCES as any[]).filter((r: any) => r.name !== 'Вода' && r.name !== 'Дерево');
       def = pool[Math.floor(Math.random() * pool.length)];
@@ -4568,7 +4611,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             blocks: isObstacleBlocking(o.icon, o.imgKey || ''), icon: o.icon, imgKey: o.imgKey || '',
             isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
             isHigh: o.icon === 'building' || o.icon === 'fence',
-            imgIndex: imgIdx, rot: o.rot || 0, shootThrough: isShootThrough(o.icon, o.imgKey || ''),
+            imgIndex: imgIdx, rot: o.rot || 0, shootThrough: isShootThrough(o.icon, o.imgKey || ''), searchLoot: searchLootForProp(o.icon, o.imgKey || ''),
           });
           mark(rx, ry, o.w, o.h);
           placed = true;
@@ -4596,6 +4639,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       fogLevel: (map as any).weather?.fog ?? 0,
       isRaining: !!(map as any).weather?.rain,
       isNightTime: !!(map as any).weather?.night,
+      mapMusic: map.music || 'track',
+      mapMusic2: (map as any).music2 || '__none',
+      musicCombatOnly: !!(map as any).musicCombatOnly,
+      mapMusicStarted: false,
     }));
     // Спавн игрока из зоны (центр первой spawn-зоны).
     {
@@ -4650,7 +4697,11 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }, 3500);
       }
     }
-    try { startMapMusic(map.music, (map as any).music2, 0.35); } catch { /* ignore */ }
+    try {
+      // Режим «только в бою»: до первого агро/хода врага — тишина (стартует триггер).
+      if (!(map as any).musicCombatOnly) startMapMusic(map.music, (map as any).music2, 0.35);
+      else set({ mapMusicStarted: false });
+    } catch { /* ignore */ }
     get().addBattleLog(`▶ Вход на карту «${(map as any).name || ''}»: ${(map.obstacles || []).length} об, ${(map.units || []).length} юн`);
     return true;
     } catch (err) {
@@ -4719,7 +4770,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
       isHigh: o.icon === 'building' || o.icon === 'fence',
       imgIndex: Math.max(0, (pools[o.icon] || []).indexOf(o.imgKey)),
-      rot: o.rot || 0, editorRandom: !!o.random, shootThrough: o.icon === 'prop',
+      rot: o.rot || 0, editorRandom: !!o.random, shootThrough: isShootThrough(o.icon, o.imgKey || ''), searchLoot: searchLootForProp(o.icon, o.imgKey || ''),
     }));
     set({
       obstacles: obs,
@@ -5911,6 +5962,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { stopLoopSound('basic music'); } catch { /* ignore */ }
     try { stopLoopSound('redfaction2'); } catch { /* ignore */ }
     try { stopPlaylist(); } catch { /* ignore */ }
+    try { stopMapMusic(); } catch { /* ignore */ }
     // Длинные выстрелы не должны тянуться после боя.
     try { stopCombatSound('shot4'); } catch { /* ignore */ }
     try { stopCombatSound('shot5'); } catch { /* ignore */ }
@@ -5976,7 +6028,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player',
+      isActive: false, isTestArena: false, editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player', musicCombatOnly: false, mapMusicStarted: false, mapMusic: 'track', mapMusic2: '__none',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

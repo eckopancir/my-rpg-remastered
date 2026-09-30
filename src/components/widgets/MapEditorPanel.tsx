@@ -112,6 +112,7 @@ export const MapEditorPanel = () => {
       st.setMapName(m.name);
       st.setMusic(m.music || 'track');
       st.setMusic2((m as any).music2 || '__none');
+      st.setMusicCombatOnly(!!(m as any).musicCombatOnly);
       st.setIntroBarks((((m as any).introBarks || []) as string[]).join('\n'));
       st.setActive(true);
     } catch (err) {
@@ -631,6 +632,10 @@ export const MapEditorPanel = () => {
             <option key={m.id} value={m.id}>{m.label}</option>
           ))}
         </select>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, marginTop: 4 }}>
+          <input type="checkbox" checked={!!ed.musicCombatOnly} onChange={(e) => ed.setMusicCombatOnly(e.target.checked)} />
+          🎵 Только в бою (до агро — тишина)
+        </label>
       </div>
 
       <div style={sec}>

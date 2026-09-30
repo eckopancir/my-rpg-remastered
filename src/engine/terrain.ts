@@ -72,6 +72,15 @@ export const isObstacleBlocking = (icon?: string, imgKey?: string): boolean => {
   return true;
 };
 
+/** Лут-метка объекта конструктора (паритет с генерацией): лес — дерево, машины — лут, колодец — вода, ящик o47 — патроны. */
+export const searchLootForProp = (icon?: string, imgKey?: string): { kind: string; charges?: number } | null => {
+  if (icon === 'woods') return { kind: 'tree' };
+  if (icon === 'car') return { kind: 'car' };
+  if (icon === 'small' && imgKey === 'o28') return { kind: 'well', charges: 3 };
+  if (icon === 'prop' && imgKey === 'o47') return { kind: 'ammo_crate' };
+  return null;
+};
+
 /** Ключ картинки препятствия — та же логика, что в рендере BattleGrid. */
 export const obstacleImageKey = (o: TerrainObstacle): string => {
   // Объекты конструктора несут свой ключ (включая арты вне пулов генерации).

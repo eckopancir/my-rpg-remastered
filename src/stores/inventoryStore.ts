@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Item } from '../types/items';
+import { consolidateStacks } from '../data/backpacks';
 import { demoteModStats, healWronglyDemoted } from '../utils/itemStats';
 
 export type InvTab = 'weapons' | 'armor' | 'mods' | 'materials' | 'all';
@@ -66,12 +67,11 @@ export const useInventoryStore = create<InventoryStore>()(
       setItems: (items) => set({ items }),
       // Upsert по id: повторный add с тем же id обновляет, а не дублирует.
       // Страхует от двойных выдач (покупка/крафт/награды + ретраи).
+      // Стакаемое (патроны/ресурсы/расходники) — досыпать в существующие + собрать стаки.
       addItem: (item) => set((s) => {
         const idx = s.items.findIndex((i) => i.id === item.id);
-        if (idx === -1) return { items: [...s.items, item] };
-        const updated = [...s.items];
-        updated[idx] = item;
-        return { items: updated };
+        const base = idx === -1 ? [...s.items, item] : s.items.map((i, j) => (j === idx ? item : i));
+        return { items: consolidateStacks(base as any[]).items as any };
       }),
       removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
       decrementItem: (id) => set((s) => {

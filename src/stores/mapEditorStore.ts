@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { useCombatGridStore } from './combatGridStore';
 import { usePlayerStore } from './playerStore';
 import { useAuthStore } from './authStore';
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, isObstacleWalkable, isObstacleBlocking, isShootThrough } from '../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp } from '../engine/terrain';
 
 export type EditorTool =
   | { kind: 'select' }
@@ -39,6 +39,7 @@ export interface SavedMap {
   name: string;
   music: string;
   music2?: string;
+  musicCombatOnly?: boolean;
   introBarks?: string[];
   bg: string;
   weather: { rain: boolean; night: boolean; fog: number };
@@ -97,6 +98,7 @@ interface MapEditorStore {
   randomSpawn: boolean;
   music: string;
   music2: string;
+  musicCombatOnly: boolean;
   introBarks: string;
   mapName: string;
   maps: SavedMap[];
@@ -116,6 +118,7 @@ interface MapEditorStore {
   setRandomSpawn: (v: boolean) => void;
   setMusic: (m: string) => void;
   setMusic2: (m: string) => void;
+  setMusicCombatOnly: (v: boolean) => void;
   setIntroBarks: (s: string) => void;
   setMapName: (n: string) => void;
   setSel: (obId: number | string | null, unitId: number | string | null) => void;
@@ -165,6 +168,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   randomSpawn: false,
   music: 'track',
   music2: '__none',
+  musicCombatOnly: false,
   introBarks: '',
   mapName: '',
   maps: loadSavedMaps(),
@@ -191,6 +195,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   setRandomSpawn: (randomSpawn) => set({ randomSpawn }),
   setMusic: (music) => set({ music }),
   setMusic2: (music2) => set({ music2 }),
+  setMusicCombatOnly: (musicCombatOnly) => set({ musicCombatOnly }),
   setIntroBarks: (introBarks) => set({ introBarks }),
   setMapName: (mapName) => set({ mapName }),
   setSel: (selObId, selUnitId) => set({ selObId, selUnitId, selCamp: false, selZoneId: null }),
@@ -237,6 +242,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
       name: src.name.trim(),
       music: typeof src.music === 'string' ? src.music : 'track',
       music2: typeof src.music2 === 'string' ? src.music2 : '__none',
+      musicCombatOnly: !!src.musicCombatOnly,
       introBarks: Array.isArray(src.introBarks) ? src.introBarks.filter((s: any) => typeof s === 'string').map((s: string) => s.slice(0, 80)).slice(0, 20) : [],
       bg: typeof src.bg === 'string' ? src.bg : 'mapbattle',
       weather: {
@@ -355,6 +361,7 @@ export const buildMapObject = (name: string, music: string, obstacles: any[], un
     name,
     music,
     music2: useMapEditorStore.getState().music2 || '__none',
+    musicCombatOnly: !!useMapEditorStore.getState().musicCombatOnly,
     introBarks: useMapEditorStore.getState().introBarks.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 20),
     bg: cs.battleBg || 'mapbattle',
     weather: {
@@ -656,6 +663,7 @@ const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: nu
     imgIndex: Math.max(0, (pools[icon] || []).indexOf(imgKey)),
     rot, editorRandom: random,
     shootThrough: isShootThrough(icon, imgKey),
+    searchLoot: searchLootForProp(icon, imgKey),
   };
 };
 

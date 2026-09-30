@@ -156,6 +156,13 @@ export const playPlaylist = (a: string, b: string, volume = 0.35) => {
     try { playLoopSound(n, volume); } catch { /* noop */ }
   }
 };
+/** Остановить всю музыку карт (плейлист + все треки-лупы). Глобальный плеер не трогаем. */
+export const stopMapMusic = () => {
+  try { stopPlaylist(); } catch { /* noop */ }
+  for (const n of ['track', 'basic music', 'redfaction2', 'zemlya-mutantov', 'zvuki-prirody-1_-kapli-dozhdya', 'zvuki-sverchkov1']) {
+    try { stopLoopSound(n); } catch { /* noop */ }
+  }
+};
 /** Музыка карты: нет / один трек лупом / два одновременно слоем. */
 export const startMapMusic = (music?: string, music2?: string, volume = 0.35) => {
   stopPlaylist();

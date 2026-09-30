@@ -133,6 +133,31 @@ export const tryInsertInto = (contents: Item[], slots: number, item: Item): Inse
     }
     return { contents: next, moved: qty < ((item.quantity ?? 1) as number), leftoverQty: qty };
   }
+  // Ресурсы: досыпать в неполные стаки (до 10).
+  if (item.type === 'material') {
+    const origQty = ((item.quantity ?? 1) as number);
+    let qty = origQty;
+    const mq = (item as any).quality || 'Обычный';
+    for (const c of next) {
+      if (qty <= 0) break;
+      if (c.type === 'material' && c.name === item.name && ((c as any).quality || 'Обычный') === mq && ((c.quantity ?? 1) as number) < MATERIAL_STACK) {
+        const room = MATERIAL_STACK - ((c.quantity ?? 1) as number);
+        const mv = Math.min(room, qty);
+        c.quantity = ((c.quantity ?? 1) as number) + mv;
+        c.displayName = `${c.name} x${c.quantity}`;
+        qty -= mv;
+      }
+    }
+    if (qty > 0) {
+      while (qty > 0) {
+        if (next.length >= slots) break;
+        const mv = Math.min(MATERIAL_STACK, qty);
+        next.push({ ...item, id: `${item.id}_p${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, quantity: mv, displayName: `${item.name} x${mv}` });
+        qty -= mv;
+      }
+    }
+    return { contents: next, moved: true, leftoverQty: qty };
+  }
   // Расходники: досыпать в стак той же способности (как патроны) — слот не нужен.
   if (item.type === 'consumable') {
     const origQty = ((item.quantity ?? 1) as number);
@@ -227,6 +252,97 @@ export const createGrid = (slots: number): BackpackGrid => {
   return { w, h, slots, cells, items: [] };
 };
 
+/** Размер стака ресурсов в рюкзаке (порох, дерево, вода и т.д.). */
+export const MATERIAL_STACK = 10;
+
+/** Ключ стака для объединения (пули — группа+качество, ресурсы — имя+качество, расходники — способность). */
+export const stackKeyOf = (it: any): string | null => {
+  if (!it) return null;
+  if (it.type === 'bullet') return `b|${(it.ammoGroup as AmmoGroup) || 'rifle'}|${it.quality || 'Обычный'}`;
+  if (it.type === 'material') return `m|${it.name}|${it.quality || 'Обычный'}`;
+  if (it.type === 'consumable') return `c|${(it as any).abilityId}|${it.name}`;
+  return null;
+};
+
+/** Кап стака (патроны — по группе, ресурсы — 10, расходники — без капа). */
+export const stackCapOf = (it: any): number => {
+  if (!it) return 1;
+  if (it.type === 'bullet') return maxStackFor(((it as any).ammoGroup as AmmoGroup) || 'rifle');
+  if (it.type === 'material') return MATERIAL_STACK;
+  return Infinity;
+};
+
+/** Подпись стака после объединения. */
+export const stackDisplayName = (it: any): string => {
+  const q = (it.quantity ?? 1) as number;
+  if (it.type === 'bullet') {
+    const bq = (it as any).quality || 'Обычный';
+    return bq === 'Обычный' ? `${it.name} x${q}` : `${it.name} x${q} · ${bq}`;
+  }
+  if (it.type === 'material' || it.type === 'consumable') return q > 1 ? `${it.name} x${q}` : it.name;
+  return it.displayName || it.name;
+};
+
+/**
+ * Объединить стаки в плоском списке (инвентарь): досыпать в первые неполные,
+ * лишнее — отдельными пачками по капу. Возвращает новый список.
+ */
+export const consolidateStacks = (items: Item[]): { items: Item[]; merged: boolean } => {
+  const buckets = new Map<string, Item[]>();
+  const singles: Item[] = [];
+  for (const it of items) {
+    const k = stackKeyOf(it as any);
+    if (!k) { singles.push(it); continue; }
+    const arr = buckets.get(k) || [];
+    arr.push(it);
+    buckets.set(k, arr);
+  }
+  let merged = false;
+  const out: Item[] = [...singles];
+  for (const arr of buckets.values()) {
+    if (arr.length <= 1) { out.push(...arr); continue; }
+    const cap = stackCapOf(arr[0] as any);
+    const acc: Item[] = [];
+    for (const it of arr) {
+      const qty = ((it.quantity ?? 1) as number);
+      let rest = qty;
+      for (const a of acc) {
+        if (rest <= 0) break;
+        const room = cap - (((a as any).quantity ?? 1) as number);
+        if (room <= 0) continue;
+        const mv = Math.min(room, rest);
+        (a as any).quantity = (((a as any).quantity ?? 1) as number) + mv;
+        rest -= mv;
+        merged = true;
+      }
+      if (rest > 0) acc.push({ ...(it as any), quantity: rest });
+      else merged = true;
+    }
+    for (const a of acc) (a as any).displayName = stackDisplayName(a as any);
+    out.push(...(acc as Item[]));
+  }
+  return { items: out, merged };
+};
+
+/** Объединить стаки в сетке рюкзака (нестакаемое не трогаем, ячейки не едут). */
+export const consolidateGridStacks = (grid: BackpackGrid): { grid: BackpackGrid; merged: boolean } => {
+  const stackables = grid.items.filter((i) => stackKeyOf(i as any));
+  if (stackables.length < 2) return { grid, merged: false };
+  const keepIds = new Set(grid.items.filter((i) => !stackKeyOf(i as any)).map((i) => i.id));
+  const { items: mergedList, merged } = consolidateStacks(stackables as Item[]);
+  if (!merged) return { grid, merged: false };
+  // Убираем старые стакаемые, кладём объединённые (места хватит — ячеек стало меньше).
+  let next: BackpackGrid = {
+    ...grid,
+    cells: grid.cells.map((row) => row.map((cid) => (cid && !keepIds.has(cid) ? null : cid))),
+    items: grid.items.filter((i) => keepIds.has(i.id)),
+  };
+  for (const it of mergedList) {
+    const res = tryInsertIntoGrid(next, it as Item);
+    next = res.grid;
+  }
+  return { grid: next, merged: true };
+};
 /** Сколько ячеек валидно (старые сейвы без slots → вся сетка). */
 export const gridSlots = (grid: BackpackGrid): number => grid.slots ?? grid.w * grid.h;
 
@@ -313,6 +429,34 @@ export const tryInsertIntoGrid = (grid: BackpackGrid, item: Item): { grid: Backp
       const bulletItem = { ...item, id, quantity: mv, gridX: slot.x, gridY: slot.y, gridW: 1, gridH: 1 };
       cells[slot.y][slot.x] = id;
       items.push(bulletItem);
+      qty -= mv;
+    }
+    return { grid: { ...grid, cells, items }, moved: qty < ((item.quantity ?? 1) as number), leftoverQty: qty };
+  }
+  // Ресурсы: досыпать в неполные стаки (до 10), остаток — новыми ячейками.
+  if (item.type === 'material') {
+    const cap = MATERIAL_STACK;
+    const mq = (item as any).quality || 'Обычный';
+    let qty = (item.quantity ?? 1) as number;
+    const cells = grid.cells.map((row) => [...row]);
+    const items = grid.items.map((i) => ({ ...i }));
+    for (const it of items) {
+      if (qty <= 0) break;
+      if (it.type === 'material' && it.name === item.name && ((it as any).quality || 'Обычный') === mq && ((it.quantity ?? 1) as number) < cap) {
+        const room = cap - ((it.quantity ?? 1) as number);
+        const mv = Math.min(room, qty);
+        it.quantity = ((it.quantity ?? 1) as number) + mv;
+        qty -= mv;
+        it.displayName = `${it.name} x${it.quantity}`;
+      }
+    }
+    while (qty > 0) {
+      const slot = findFreeSlot({ ...grid, cells, items }, 1, 1);
+      if (!slot) break;
+      const mv = Math.min(cap, qty);
+      const id = `${item.id}_p${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      cells[slot.y][slot.x] = id;
+      items.push({ ...item, id, quantity: mv, displayName: `${item.name} x${mv}`, gridX: slot.x, gridY: slot.y, gridW: 1, gridH: 1 });
       qty -= mv;
     }
     return { grid: { ...grid, cells, items }, moved: qty < ((item.quantity ?? 1) as number), leftoverQty: qty };

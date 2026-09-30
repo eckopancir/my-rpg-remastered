@@ -16,7 +16,7 @@ import { SNIPER_ABILITIES, SNIPER_BY_ID, SNIPER_META, sniperCanAllocate, sniperB
 import { PET_ABILITIES, PET_BY_ID, PET_META, PET_FREE_DEFS, petCanAllocate, petBattleAbilities, petFindInvalid, petBranchAuras, isPetBranchHidden, type PetKind, type PetBattleAbility } from '../data/pets';
 import { MELEE_ABILITIES, MELEE_BY_ID, MELEE_META, meleeCanAllocate, meleeBattleAbilities, meleeFindInvalid } from '../data/melee';
 import { SHOOTER_ABILITIES, SHOOTER_BY_ID, SHOOTER_META, shooterCanAllocate, shooterBattleAbilities, shooterFindInvalid } from '../data/shooter';
-import { backpackSlotsFor, backpackDefByName, backpackSlots, makeBackpack, tryInsertInto, createGrid, tryInsertIntoGrid, removeItemFromGrid, findFreeSlot, placeItemAt, type BackpackGrid } from '../data/backpacks';
+import { backpackSlotsFor, backpackDefByName, backpackSlots, makeBackpack, tryInsertInto, createGrid, tryInsertIntoGrid, removeItemFromGrid, findFreeSlot, placeItemAt, consolidateGridStacks, type BackpackGrid } from '../data/backpacks';
 import { takeAmmoFrom, countAmmo, makeBulletPack, addAmmoToPack, ammoTypeForWeapon, type AmmoGroup } from '../data/ammo';
 import { syncNow } from '../utils/serverSync';
 import { modLevelMult, demoteModStats, effectiveItemStats, healWronglyDemoted } from '../utils/itemStats';
@@ -216,6 +216,10 @@ interface PlayerStore {
   getActiveWeapon: () => Item | null;
   putInBackpack: (itemId: string) => string;
   takeOutBackpack: (itemId: string) => void;
+  /** Надеть предмет прямо из рюкзака (false — слот занят, предмет возвращён). */
+  equipFromBackpack: (itemId: string) => boolean;
+  /** Объединить стаки в рюкзаке (true — что-то объединилось). */
+  consolidateBackpack: () => boolean;
   emptyBackpackToInventory: () => number;
   clearBackpack: () => void;
   ensureBackpack: () => void;
@@ -953,6 +957,35 @@ export const usePlayerStore = create<PlayerStore>()(
         useInventoryStore.getState().addItem(item);
         syncNow();
         get().recalcAbilities();
+      },
+
+      equipFromBackpack: (itemId) => {
+        const s = get();
+        const item = s.backpackGrid.items.find((i) => i.id === itemId);
+        if (!item || !(item as any).slot) return false;
+        const slot = (item as any).slot as EquipmentSlot;
+        const { gridX: _gx, gridY: _gy, gridW: _gw, gridH: _gh, ...clean } = item as any;
+        set({ backpackGrid: removeItemFromGrid(s.backpackGrid, itemId) });
+        const ok = get().equipItem(slot, clean as any);
+        if (!ok) {
+          // Слот занят — вернуть предмет обратно в рюкзак.
+          const res = tryInsertIntoGrid(get().backpackGrid, item as any);
+          set({ backpackGrid: res.grid });
+          if (res.leftoverQty > 0) useInventoryStore.getState().addItem({ ...(item as any), quantity: res.leftoverQty });
+          return false;
+        }
+        syncNow();
+        get().recalcAbilities();
+        return true;
+      },
+
+      consolidateBackpack: () => {
+        const s = get();
+        const { grid, merged } = consolidateGridStacks(s.backpackGrid);
+        if (!merged) return false;
+        set({ backpackGrid: grid });
+        syncNow();
+        return true;
       },
 
       clearBackpack: () => { const pack = get().equipment.backpack; set({ backpackGrid: createGrid(backpackSlotsFor(pack)) }); syncNow(); get().recalcAbilities(); },

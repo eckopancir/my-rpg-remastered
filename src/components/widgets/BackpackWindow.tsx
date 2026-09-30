@@ -169,7 +169,9 @@ export const BackpackWindow = ({ onClose }: Props) => {
                   const abilId = (item as any).abilityId || '';
                   const isFood = item.type === 'consumable' && FOOD_MAP[abilId];
                   const isConsumable = item.type === 'consumable';
-                  if (isFood || isConsumable) {
+                  const isEquippable = !!(item as any).slot && (item as any).slot !== 'backpack'
+                    && item.type !== 'bullet' && item.type !== 'material' && !isConsumable;
+                  if (isFood || isConsumable || isEquippable) {
                     setCtxMenu({ x: e.clientX, y: e.clientY, item });
                   }
                 }}
@@ -279,6 +281,24 @@ export const BackpackWindow = ({ onClose }: Props) => {
           >
             {inCombat ? 'На арене нельзя' : `Выложить всё (${contents.length})`}
           </button>
+          <button
+            onClick={() => {
+              const merged = usePlayerStore.getState().consolidateBackpack();
+              playSound('laying-out-a-travel-mat', 0.5);
+              addLog(merged ? '🧩 Стаки объединены.' : '🧩 Объединять нечего.', 'info');
+            }}
+            disabled={contents.length === 0 || inCombat}
+            title="Сложить одинаковые патроны/ресурсы/расходники в общие стаки"
+            style={{
+              width: '100%', padding: '6px 0', marginTop: 6,
+              background: contents.length === 0 || inCombat ? 'transparent' : 'rgba(34,197,94,0.12)',
+              border: '1px solid rgba(34,197,94,0.4)', borderRadius: 6,
+              color: contents.length === 0 || inCombat ? 'var(--text-muted)' : '#4ade80',
+              cursor: contents.length === 0 || inCombat ? 'default' : 'pointer', fontSize: 12, fontWeight: 600,
+            }}
+          >
+            {inCombat ? 'На арене нельзя' : '🧩 Объединить стаки'}
+          </button>
         </div>
         {tip && <ItemTooltip item={tip.item} x={tip.x} y={tip.y} />}
 
@@ -289,6 +309,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
             border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: 4, minWidth: 140,
             boxShadow: '0 16px 48px rgba(0,0,0,0.75)',
           }}>
+            {(ctxMenu.item.type === 'consumable') && (
             <button onClick={() => {
               const item = ctxMenu.item;
               const abilId = (item as any).abilityId || '';
@@ -310,6 +331,33 @@ export const BackpackWindow = ({ onClose }: Props) => {
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >🍖 Использовать</button>
+            )}
+            {(() => {
+              const it = ctxMenu.item as any;
+              const canWear = it && it.slot && it.slot !== 'backpack' && it.type !== 'bullet' && it.type !== 'material' && it.type !== 'consumable';
+              if (!canWear) return null;
+              return (
+                <button onClick={() => {
+                  if (inCombat) { addLog('⚔️ На арене нельзя переодеваться!', 'warning'); setCtxMenu(null); return; }
+                  const ok = usePlayerStore.getState().equipFromBackpack(ctxMenu.item.id);
+                  if (ok) {
+                    playSound('install', 0.5);
+                    addLog(`⛓️ ${ctxMenu.item.displayName || ctxMenu.item.name} надет прямо из рюкзака.`, 'info');
+                    onClose();
+                  } else {
+                    addLog('❌ Слот занят. Сначала снимите предмет.', 'warning');
+                  }
+                  setCtxMenu(null);
+                }}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
+                    color: inCombat ? '#666' : '#eee', cursor: inCombat ? 'not-allowed' : 'pointer', fontSize: 13, borderRadius: 4,
+                  }}
+                  onMouseEnter={(e) => { if (!inCombat) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >{inCombat ? '⚔️ Нельзя на арене' : '⛓️ Надеть'}</button>
+              );
+            })()}
             <button onClick={() => {
               if (inCombat) { addLog('⚔️ На арене нельзя доставать из рюкзака!', 'warning'); setCtxMenu(null); return; }
               takeOutBackpack(ctxMenu.item.id);
