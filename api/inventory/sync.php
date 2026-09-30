@@ -40,5 +40,6 @@ try {
     jsonResponse(['ok' => true, 'count' => count($input['items'])]);
 } catch (Exception $e) {
     $pdo->rollBack();
+    error_log('[inventory_sync] user=' . ($user['id'] ?? '?') . ' items=' . count($input['items'] ?? []) . ' err=' . $e->getMessage());
     jsonResponse(['error' => 'Sync failed: ' . $e->getMessage()], 500);
 }
