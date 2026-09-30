@@ -14,7 +14,7 @@ import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapa
 import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, isObstacleWalkable, isObstacleBlocking } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
-import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, preloadCombatSounds } from '../hooks/useSound';
+import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, startMapMusic, stopPlaylist, preloadCombatSounds } from '../hooks/useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
@@ -4540,7 +4540,51 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (const u of map.units || []) {
       try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
     }
-    try { if (map.music && map.music !== '__none') playLoopSound(map.music, 0.35); } catch { /* ignore */ }
+    // Боевой клич: мусорщики орут на входе и весь 1-й ход, пока игрок его не закончит.
+    {
+      const barks = Array.isArray((map as any).introBarks)
+        ? (map as any).introBarks.filter((s: any) => typeof s === 'string' && s.trim()).map((s: string) => s.trim().slice(0, 80))
+        : [];
+      if (barks.length > 0) {
+        const now = Date.now();
+        let i = 0;
+        set((s: any) => ({
+          enemies: s.enemies.map((e: any) => {
+            if ((e as any).faction !== 'Союзник' || e.dead) return e;
+            const k = i++;
+            return { ...e, speech: barks[k % barks.length], speechUntil: now + 5000 + k * 1500, introBark: true };
+          }),
+        }));
+        // Добивка волной каждые 3.5с, пока идёт 1-й ход игрока; в конце — снять остатки.
+        const bid = (get() as any).battleId;
+        const barkTimer = setInterval(() => {
+          try {
+            const st = get();
+            if ((st as any).battleId !== bid || !st.isActive) { clearInterval(barkTimer); return; }
+            if (st.turn !== 'player' || (st.turnCount || 1) > 1) {
+              set((s: any) => ({
+                enemies: s.enemies.map((e: any) => ((e as any).introBark
+                  ? { ...e, speech: null, speechUntil: undefined, introBark: undefined }
+                  : e)),
+              }));
+              clearInterval(barkTimer);
+              return;
+            }
+            const allies = (st.enemies as any[]).filter((e: any) =>
+              (e as any).faction === 'Союзник' && !e.dead && (e.currentHp || 0) > 0 && !e.speech);
+            if (allies.length === 0) return;
+            const pick = allies[Math.floor(Math.random() * allies.length)];
+            const text = barks[Math.floor(Math.random() * barks.length)];
+            set((s: any) => ({
+              enemies: s.enemies.map((e: any) => (e.id === pick.id
+                ? { ...e, speech: text, speechUntil: Date.now() + 5000, introBark: true }
+                : e)),
+            }));
+          } catch { /* ignore */ }
+        }, 3500);
+      }
+    }
+    try { startMapMusic(map.music, (map as any).music2, 0.35); } catch { /* ignore */ }
     get().addBattleLog(`▶ Вход на карту «${(map as any).name || ''}»: ${(map.obstacles || []).length} об, ${(map.units || []).length} юн`);
     return true;
     } catch (err) {
@@ -4626,7 +4670,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (const u of map.units || []) {
       try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
     }
-    try { if (map.music && map.music !== '__none') playLoopSound(map.music, 0.35); } catch { /* ignore */ }
+    try { startMapMusic(map.music, (map as any).music2, 0.35); } catch { /* ignore */ }
     get().addBattleLog(`🗺 Карта «${(map as any).name || ''}» открыта: ${(map.obstacles || []).length} об, ${(map.units || []).length} юн`);
     return true;
     } catch (err) {
@@ -5796,6 +5840,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { stopCricketLoop(); } catch { /* ignore */ }
     try { stopLoopSound('track'); } catch { /* ignore */ }
     try { stopLoopSound('basic music'); } catch { /* ignore */ }
+    try { stopLoopSound('redfaction2'); } catch { /* ignore */ }
+    try { stopPlaylist(); } catch { /* ignore */ }
     try { stopLoopSound('zemlya-mutantov'); } catch { /* ignore */ }
     try { stopLoopSound('zvuki-prirody-1_-kapli-dozhdya'); } catch { /* ignore */ }
     try { stopLoopSound('zvuki-sverchkov1'); } catch { /* ignore */ }

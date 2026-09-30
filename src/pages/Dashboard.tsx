@@ -620,7 +620,12 @@ export const Dashboard = () => {
               if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
               const ok = cs.startEditor();
               if (!ok) { usePlayerStore.getState().addLog('⚠️ Конструктор не запустился', 'warning'); return; }
-              useMapEditorStore.getState().setActive(true);
+              const ed0 = useMapEditorStore.getState();
+              ed0.setMapName('');
+              ed0.setMusic('track');
+              ed0.setMusic2('__none');
+              ed0.setIntroBarks('');
+              ed0.setActive(true);
               navigate('/battle');
             }} style={{ fontSize: 11 }}>🛠 Конструктор карт</Button>
             <Button size="sm" variant="primary" onClick={() => {
@@ -698,6 +703,8 @@ const SavedMapsBlock = () => {
                 const ed = useMapEditorStore.getState();
                 ed.setMapName(m.name);
                 ed.setMusic(m.music || 'track');
+                ed.setMusic2((m as any).music2 || '__none');
+                ed.setIntroBarks((((m as any).introBarks || []) as string[]).join('\n'));
                 ed.setActive(true);
                 navigate('/battle');
               } catch (err) {

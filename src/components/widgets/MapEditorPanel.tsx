@@ -111,6 +111,8 @@ export const MapEditorPanel = () => {
       }
       st.setMapName(m.name);
       st.setMusic(m.music || 'track');
+      st.setMusic2((m as any).music2 || '__none');
+      st.setIntroBarks((((m as any).introBarks || []) as string[]).join('\n'));
       st.setActive(true);
     } catch (err) {
       try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
@@ -623,6 +625,24 @@ export const MapEditorPanel = () => {
             <option key={m.id} value={m.id}>{m.label}</option>
           ))}
         </select>
+        <div style={{ fontSize: 10, opacity: 0.7, margin: '4px 0 2px' }}>Вторая — следом по очереди:</div>
+        <select value={ed.music2} onChange={(e) => ed.setMusic2(e.target.value)} style={{ fontSize: 11, width: '100%' }}>
+          {MAP_MUSIC.map((m) => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div style={sec}>
+        <div style={h}>📢 Боевой клич (вскрики на входе)</div>
+        <textarea
+          value={ed.introBarks}
+          onChange={(e) => ed.setIntroBarks(e.target.value)}
+          placeholder={'в атаку!!!\nза мусорку\nсмерть воякам'}
+          rows={4}
+          style={{ width: '100%', fontSize: 11, padding: 4, borderRadius: 4, border: '1px solid #4a505c', background: '#14171d', color: '#fff', resize: 'vertical' }}
+        />
+        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>По строке на крик, мусорщики орут волной.</div>
       </div>
 
       <div style={sec}>

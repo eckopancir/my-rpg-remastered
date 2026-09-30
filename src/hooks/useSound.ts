@@ -117,6 +117,45 @@ export const stopLoopSound = (name: string) => {
   }
 };
 
+/** Плейлист карты: два трека по очереди (второй — music2). */
+let playlistStop: (() => void) | null = null;
+export const stopPlaylist = () => {
+  try { playlistStop?.(); } catch { /* noop */ }
+  playlistStop = null;
+};
+export const playPlaylist = (a: string, b: string, volume = 0.35) => {
+  stopPlaylist();
+  const ui = useUiStore.getState();
+  if (!ui.soundEnabled) return;
+  const sa = audioMap.get(a);
+  const sb = audioMap.get(b);
+  if (!sa || !sb) return;
+  const vol = Math.max(0, Math.min(1, volume * (ui.arenaVolume ?? 1)));
+  const ea = new Audio(sa);
+  const eb = new Audio(sb);
+  ea.volume = vol;
+  eb.volume = vol;
+  let stopped = false;
+  ea.onended = () => { if (!stopped) { try { eb.currentTime = 0; eb.play().catch(() => {}); } catch { /* noop */ } } };
+  eb.onended = () => { if (!stopped) { try { ea.currentTime = 0; ea.play().catch(() => {}); } catch { /* noop */ } } };
+  playlistStop = () => {
+    stopped = true;
+    try { ea.onended = null; eb.onended = null; ea.pause(); eb.pause(); } catch { /* noop */ }
+  };
+  ea.play().catch(() => {});
+};
+/** Музыка карты: нет / один трек лупом / два по очереди. */
+export const startMapMusic = (music?: string, music2?: string, volume = 0.35) => {
+  stopPlaylist();
+  const a = (music || '').trim();
+  const b = (music2 || '').trim();
+  if (a && a !== '__none' && b && b !== '__none') {
+    playPlaylist(a, b, volume);
+  } else if (a && a !== '__none') {
+    try { playLoopSound(a, volume); } catch { /* noop */ }
+  }
+};
+
 /** Дождь: первый проход с начала, дальше — с 1:20 (там ровный шум без вступления). */
 let rainAudio: HTMLAudioElement | null = null;
 export const playRainLoop = (volume = 0.25) => {

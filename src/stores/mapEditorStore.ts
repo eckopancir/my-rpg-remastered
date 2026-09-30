@@ -38,6 +38,8 @@ export type SavedMapObstacle = {
 export interface SavedMap {
   name: string;
   music: string;
+  music2?: string;
+  introBarks?: string[];
   bg: string;
   weather: { rain: boolean; night: boolean; fog: number };
   obstacles: SavedMapObstacle[];
@@ -93,6 +95,8 @@ interface MapEditorStore {
   corpseLoot: boolean;
   randomSpawn: boolean;
   music: string;
+  music2: string;
+  introBarks: string;
   mapName: string;
   maps: SavedMap[];
   selObId: number | string | null;
@@ -110,6 +114,8 @@ interface MapEditorStore {
   setCorpseLoot: (v: boolean) => void;
   setRandomSpawn: (v: boolean) => void;
   setMusic: (m: string) => void;
+  setMusic2: (m: string) => void;
+  setIntroBarks: (s: string) => void;
   setMapName: (n: string) => void;
   setSel: (obId: number | string | null, unitId: number | string | null) => void;
   setSelCamp: (v: boolean) => void;
@@ -157,6 +163,8 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   corpseLoot: true,
   randomSpawn: false,
   music: 'track',
+  music2: '__none',
+  introBarks: '',
   mapName: '',
   maps: loadSavedMaps(),
   past: [],
@@ -181,6 +189,8 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   setCorpseLoot: (corpseLoot) => set({ corpseLoot }),
   setRandomSpawn: (randomSpawn) => set({ randomSpawn }),
   setMusic: (music) => set({ music }),
+  setMusic2: (music2) => set({ music2 }),
+  setIntroBarks: (introBarks) => set({ introBarks }),
   setMapName: (mapName) => set({ mapName }),
   setSel: (selObId, selUnitId) => set({ selObId, selUnitId, selCamp: false, selZoneId: null }),
   setSelCamp: (selCamp) => set({ selCamp, selObId: null, selUnitId: null, selZoneId: null }),
@@ -225,6 +235,8 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
     maps.push({
       name: src.name.trim(),
       music: typeof src.music === 'string' ? src.music : 'track',
+      music2: typeof src.music2 === 'string' ? src.music2 : '__none',
+      introBarks: Array.isArray(src.introBarks) ? src.introBarks.filter((s: any) => typeof s === 'string').map((s: string) => s.slice(0, 80)).slice(0, 20) : [],
       bg: typeof src.bg === 'string' ? src.bg : 'mapbattle',
       weather: {
         rain: !!src.weather?.rain,
@@ -341,6 +353,8 @@ export const buildMapObject = (name: string, music: string, obstacles: any[], un
   return {
     name,
     music,
+    music2: useMapEditorStore.getState().music2 || '__none',
+    introBarks: useMapEditorStore.getState().introBarks.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 20),
     bg: cs.battleBg || 'mapbattle',
     weather: {
       rain: !!cs.isRaining,
