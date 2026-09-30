@@ -68,6 +68,31 @@ const NightDarkness = () => {
     };
     // Круг героя.
     hole(playerPos.x + 0.5, playerPos.y + 0.5, 202);
+    // Узкий конус прожектора: слоёные секторы с мягким краем (реализм).
+    const cone = (axC: number, ayC: number, angRad: number, lenPx: number, halfRad: number) => {
+      const ax = (axC / GRID_SIZE) * W;
+      const ay = (ayC / GRID_SIZE) * H;
+      const layers = [
+        { w: 1.0, a: 0.45 },
+        { w: 0.65, a: 0.7 },
+        { w: 0.38, a: 1.0 },
+      ];
+      for (const L of layers) {
+        const ha = halfRad * L.w;
+        const ex = ax + Math.cos(angRad) * lenPx;
+        const ey = ay + Math.sin(angRad) * lenPx;
+        const g = ctx.createLinearGradient(ax, ay, ex, ey);
+        g.addColorStop(0, `rgba(0,0,0,${L.a.toFixed(2)})`);
+        g.addColorStop(0.7, `rgba(0,0,0,${(L.a * 0.6).toFixed(2)})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.arc(ax, ay, lenPx, angRad - ha, angRad + ha);
+        ctx.closePath();
+        ctx.fill();
+      }
+    };
     const px = Math.min(W, H) / GRID_SIZE;
     const seen = (x: number, y: number) => {
       if (!exploredCells) return true;
@@ -80,16 +105,14 @@ const NightDarkness = () => {
         const L = (LIGHT_LEVELS as any)[key];
         hole(o.x + (o.w ?? 1) / 2, o.y + (o.h ?? 1) / 2, L.r * 1.3 * px);
       } else if (key === 'fonar') {
-        // Прожектор: свет справа от корпуса, крутится с разворотом.
-        const rot = (o.rot || 0) % 360;
-        let dx = FONAR_LIGHT.dx;
-        let dy = FONAR_LIGHT.dy;
-        if (rot === 90) { dx = -dy; dy = FONAR_LIGHT.dx; }
-        else if (rot === 180) { dx = -FONAR_LIGHT.dx; dy = -FONAR_LIGHT.dy; }
-        else if (rot === 270) { dx = FONAR_LIGHT.dy; dy = -FONAR_LIGHT.dx; }
-        hole(
-          o.x + (o.w ?? 1) / 2 + dx, o.y + (o.h ?? 1) / 2 + dy,
-          FONAR_LIGHT.rNight * 1.3 * px,
+        // Прожектор: только вперёд узким конусом, вокруг себя не светит.
+        // Разворот арта (Z) крутит и направление луча.
+        const rot = ((o.rot || 0) % 360) * (Math.PI / 180);
+        const ox = o.x + (o.w ?? 1) / 2;
+        const oy = o.y + (o.h ?? 1) / 2;
+        cone(
+          ox + Math.cos(rot) * 0.4, oy + Math.sin(rot) * 0.4,
+          rot, FONAR_LIGHT.rNight * 1.3 * px, (13 * Math.PI) / 180,
         );
       }
     }
