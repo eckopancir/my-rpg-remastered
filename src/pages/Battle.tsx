@@ -72,6 +72,34 @@ const SKILL_ICONS: Record<string, string> = {
   stimulant: '💉', summoner: '👥',
 };
 
+/** Вспышка хода по центру арены: показалась и пропала (1.4с). */
+const TurnFlash = () => {
+  const turn = useCombatGridStore((s) => s.turn);
+  const turnCount = useCombatGridStore((s) => s.turnCount);
+  const isActive = useCombatGridStore((s) => s.isActive);
+  const [show, setShow] = useState(false);
+  const key = `${turn}#${turnCount}`;
+  useEffect(() => {
+    if (!isActive) return;
+    setShow(true);
+    const t = setTimeout(() => setShow(false), 1400);
+    return () => clearTimeout(t);
+  }, [key, isActive]);
+  if (!isActive || !show) return null;
+  return (
+    <div style={{
+      position: 'absolute', left: '50%', top: '38%', transform: 'translate(-50%,-50%)',
+      zIndex: 500, pointerEvents: 'none', textAlign: 'center',
+      fontSize: 26, fontWeight: 800, letterSpacing: 1,
+      color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.9)',
+      animation: 'turnFlash 1.4s ease-out forwards',
+    }}>
+      <div>{turn === 'player' ? '⭐ Твой ход' : '⏳ Ход врага'}</div>
+      <div style={{ fontSize: 13, fontWeight: 400, opacity: 0.85, fontFamily: 'var(--font-mono)' }}>раунд #{turnCount}</div>
+    </div>
+  );
+};
+
 /** Подтверждение выхода с карты (зона exit конструктора). */
 const ExitConfirmModal = () => {
   const open = useCombatGridStore((s) => s.exitConfirm);
@@ -754,21 +782,6 @@ export const Battle = () => {
 
             </div>
 
-            {/* Чей ход — компактно под худом */}
-            {isActive && (
-              <div style={{
-                borderRadius: 8, padding: '6px 10px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                fontSize: 12, fontWeight: 800,
-                color: turn === 'player' ? '#4ade80' : '#f87171',
-                background: turn === 'player' ? 'rgba(34,197,94,0.08)' : 'rgba(220,38,38,0.10)',
-                border: turn === 'player' ? '1px solid rgba(34,197,94,0.35)' : '1px solid rgba(220,38,38,0.45)',
-              }}>
-                <span>{turn === 'player' ? '⭐ Твой ход' : '⏳ Ход врага'}</span>
-                <span style={{ opacity: 0.75, fontFamily: 'var(--font-mono)', fontWeight: 400 }}>раунд #{turnCount}</span>
-              </div>
-            )}
-
             {/* Battle log — таб, свёрнут по умолчанию */}
             <div style={{
               borderRadius: 8, overflow: 'hidden',
@@ -803,6 +816,7 @@ export const Battle = () => {
 
       {/* Center - Battle Grid */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+        <TurnFlash />
         <BattleGrid />
         <CookingMenu />
         <MapEditorPanel />

@@ -3,6 +3,14 @@
   to { opacity: 1; }
 }
 
+/* Вспышка хода по центру арены: выросла, повисела, растворилась. */
+@keyframes turnFlash {
+  0% { opacity: 0; transform: translate(-50%,-50%) scale(0.85); }
+  15% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  70% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(1.05); }
+}
+
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
