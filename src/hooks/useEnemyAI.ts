@@ -285,7 +285,9 @@ export const useEnemyAI = () => {
           const matesFight = updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
             && o.aggro && getDist(o.pos, enemy.pos) <= 15);
-          if ((!isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= wakeR) || matesFight) {
+          // Глубокий сон (поставлен в конструкторе): proximity не будит, только бой рядом/урон/триггер.
+          const proxWake = !(enemy as any).deepSleep && !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= wakeR;
+          if (proxWake || matesFight) {
             enemy.sleeping = false;
             enemy.aggro = true;
             enemy.knowsPlayer = true;

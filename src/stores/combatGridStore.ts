@@ -120,6 +120,8 @@ export interface GridEnemy {
   knowsPlayer?: boolean;
   // Естественный сон: осталось ходов (undefined — спит до побудки).
   sleepTurns?: number;
+  /** Глубокий сон из конструктора: proximity не будит (только бой рядом/урон/триггер). */
+  deepSleep?: boolean;
   // Режим поиска трупа (!!!): идёт к найденному телу.
   searching?: boolean;
   // Ход поднятия тревоги: вспышка «!!!» рисуется только ~1 ход (turnCount - alertTurn <= 1).
@@ -4429,7 +4431,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           crit: 0, accuracy: 0.5, punching: 0, vampir: 0, regen: 0, speed: 0,
           pos: { x, y }, rotation: 0, rangeDistance: 1, shotPrice: 1, runAp: 0,
           skillUse: [], cooldowns: {}, isInvisible: false, invisTurns: 0,
-          aggro: false, knowsPlayer: false, sleeping: behavior === 'sleeping' && !isCorpse, dead: isCorpse, isHit: false,
+          aggro: false, knowsPlayer: false, sleeping: behavior === 'sleeping' && !isCorpse, deepSleep: behavior === 'sleeping' && !isCorpse, dead: isCorpse, isHit: false,
           loot: isCorpse ? (withLoot ? [makeConsumable('food_meat', meatQty)] : []) : [],
           looted: isCorpse ? !withLoot : true,
           isMinion: false, isNeutral: true, aiRole: 'patrol',
@@ -4514,6 +4516,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         aggro: false,
         knowsPlayer: false,
         sleeping: behavior === 'sleeping' && !isCorpse,
+        deepSleep: behavior === 'sleeping' && !isCorpse,
         speech: null,
         patrolRoute: route && route.length >= 2 ? route.map((p) => ({ x: p.x, y: p.y })) : undefined,
         patrolIdx: 0,
@@ -4542,13 +4545,15 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       loot = [];
       looted = false;
     }
+    const toSleep = behavior === 'sleeping' && !isCorpse;
     set((s: any) => ({
       enemies: s.enemies.map((e: any) => (e.id === unitId ? {
         ...e,
         dead: isCorpse,
         currentHp: isCorpse ? 0 : (u.dead ? e.maxHp : e.currentHp),
-        sleeping: behavior === 'sleeping' && !isCorpse,
+        sleeping: toSleep,
         sleepTurns: undefined,
+        deepSleep: toSleep,
         aiRole: behavior === 'sleeping' || isCorpse ? 'patrol' : behavior,
         aggro: false,
         knowsPlayer: false,
