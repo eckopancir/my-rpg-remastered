@@ -249,7 +249,7 @@ export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { k
 };
 
 /** Пул выстрелов винтовки: только военные стрелки (и союзники с автоматом). */
-export const ENEMY_RIFLE_SHOTS = ['shot1', 'shot2', 'shot3', 'shot6', 'shot7', 'shot4', 'shot5'];
+export const ENEMY_RIFLE_SHOTS = ['shot1', 'shot2', 'shot3', 'shot6', 'shot7', 'shot4', 'shot5', 'shot8', 'shot9', 'shot10', 'shot11', 'shot12'];
 /** Длинные: глушить, когда стрелок закончил ход. */
 export const ENEMY_LONG_SHOTS = new Set(['shot4', 'shot5']);
 /** Раздать военному стрелку его звук на весь бой. Остальные — свой базовый. */
@@ -298,7 +298,11 @@ export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; powe
   if (g === 'shell') return { kind: 'spread', count: 8, power: 1.1, sound: 'drob' };
   if (g === 'sniper') return { kind: 'single', count: 1, power: 1.3, sound: 'sniper' };
   if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1, fast: true, sound: 'пулемет' };
-  if (g === 'pistol') return { kind: 'single', count: 1, power: 1, sound: 'pistol' };
+  if (g === 'pistol') {
+    // Пистолет с глушителем — свой тихий выстрел.
+    if (hasSilencer(w)) return { kind: 'single', count: 1, power: 1, sound: 'пистолет с глушителем' };
+    return { kind: 'single', count: 1, power: 1, sound: 'pistol' };
+  }
   // Автомат игрока: с глушителем — длинная очередь (оборвётся следующим выстрелом),
   // без — случайный из пула на каждый выстрел.
   if (hasSilencer(w)) return { kind: 'single', count: 1, power: 1, sound: 'automatic-shots-burst-with-a-silencer' };
@@ -1890,7 +1894,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!testMode) saveBattleEntry({ difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount });
     // Прогрев звуков боя: первый выстрел без задержки декодирования.
     preloadCombatSounds([
-      'shot1', 'shot2', 'shot3', 'shot4', 'shot5', 'shot6', 'shot7', 'automat', 'automatic-shots-burst-with-a-silencer', 'пулемет', 'shotenemy', 'pistol', 'sniper', 'drob',
+      'shot1', 'shot2', 'shot3', 'shot4', 'shot5', 'shot6', 'shot7', 'shot8', 'shot9', 'shot10', 'shot11', 'shot12', 'automat', 'automatic-shots-burst-with-a-silencer', 'пистолет с глушителем', 'пулемет', 'shotenemy', 'pistol', 'sniper', 'drob',
       'bazooka_sound_effect', 'grenadegun', 'reload', 'reloading',
       'crit', 'evasion', 'block', 'invis', 'Aeon_Disk',
     ]);
