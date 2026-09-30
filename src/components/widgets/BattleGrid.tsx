@@ -1161,10 +1161,6 @@ export const BattleGrid = () => {
                       : null)}
                   />
                 )}
-                {/* Метка: объект можно обыскать (в нём есть лут). Деревья без метки — и так видно. */}
-                {obstacle?.isAnchor && (obstacle as any).hasLoot && obstacle.icon !== 'woods' && (
-                  <span className="searchable-dot" title="Можно обыскать (E)" />
-                )}
                 {/* Метка конструктора: объект встанет случайно при входе. */}
                 {edActive && obstacle?.isAnchor && (obstacle as any).random && (
                   <span title="Случайное место при входе" style={{ position: 'absolute', right: 1, top: 1, zIndex: 6, fontSize: 13, pointerEvents: 'none' }}>🎲</span>
