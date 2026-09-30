@@ -44,6 +44,9 @@ const ICON_LABELS: Record<string, string> = {
   light: '💡 Свет',
 };
 
+/** Реквизит, сквозь который можно ходить (декор без коллизии). */
+export const WALK_THROUGH_PROPS = new Set(['o45', 'o46']);
+
 /** Ключ картинки препятствия — та же логика, что в рендере BattleGrid. */
 export const obstacleImageKey = (o: TerrainObstacle): string => {
   // Объекты конструктора несут свой ключ (включая арты вне пулов генерации).

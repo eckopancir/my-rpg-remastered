@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useCombatGridStore } from './combatGridStore';
 import { usePlayerStore } from './playerStore';
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE } from '../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, WALK_THROUGH_PROPS } from '../engine/terrain';
 
 export type EditorTool =
   | { kind: 'select' }
@@ -533,12 +533,13 @@ const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: nu
   };
   const isLight = icon === 'light';
   const isProp = icon === 'prop';
+  const walkThrough = isProp && WALK_THROUGH_PROPS.has(imgKey);
   return {
     id: `edob_${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
     x, y, w, h,
     type: icon === 'woods' ? 'woods' : icon === 'field' ? 'field' : icon === 'fence' ? 'fence' : icon === 'car' ? 'car' : 'small',
-    blocks: !isLight, icon, imgKey,
-    isWalkable: isLight || icon === 'woods' || icon === 'field',
+    blocks: !isLight && !walkThrough, icon, imgKey,
+    isWalkable: isLight || walkThrough || icon === 'woods' || icon === 'field',
     isHigh: icon === 'building' || icon === 'fence',
     imgIndex: Math.max(0, (pools[icon] || []).indexOf(imgKey)),
     rot, editorRandom: random,
