@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { useCombatGridStore } from './combatGridStore';
 import { usePlayerStore } from './playerStore';
+import { useAuthStore } from './authStore';
 import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, isObstacleWalkable, isObstacleBlocking } from '../engine/terrain';
 
 export type EditorTool =
@@ -137,6 +138,16 @@ interface MapEditorStore {
   refreshMaps: () => void;
   saveMap: (obstacles: any[], units: any[]) => string | null;
   deleteMap: (name: string) => void;
+  /** Импорт карты из JSON-файла (валидация + sanitize). */
+  importMap: (m: SavedMap) => string | null;
+  /** Карты на сервере (метаданные). */
+  serverMaps: { name: string; updatedAt: string; obstacles: number; units: number }[];
+  refreshServerMaps: () => Promise<string | null>;
+  /** Залить текущую карту на сервер (видно разработчику). */
+  uploadCurrentMap: () => Promise<string | null>;
+  /** Скачать карту с сервера в локальный список. */
+  downloadServerMap: (name: string) => Promise<string | null>;
+  deleteServerMap: (name: string) => Promise<string | null>;
 }
 
 export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
@@ -196,40 +207,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
     const name = get().mapName.trim();
     if (!name) return 'Дай карте название';
     const maps = loadSavedMaps().filter((m) => m.name !== name);
-    const camp = (useCombatGridStore.getState() as any).campfire as { x: number; y: number } | null;
-    maps.push({
-      name,
-      music: get().music,
-      bg: (useCombatGridStore.getState() as any).battleBg || 'mapbattle',
-      weather: {
-        rain: !!(useCombatGridStore.getState() as any).isRaining,
-        night: !!(useCombatGridStore.getState() as any).isNightTime,
-        fog: (useCombatGridStore.getState() as any).fogLevel || 0,
-      },
-      obstacles: (obstacles || []).map((o: any) => ({
-        icon: o.icon, imgKey: o.imgKey || '', x: o.x, y: o.y, w: o.w, h: o.h,
-        rot: o.rot || 0, random: !!o.editorRandom,
-      })),
-      units: (units || []).map((u: any) => ({
-        factionKey: (u as any).factionKey || (u as any).name || '',
-        side: (u as any).isNeutral ? 'neutral' : (u as any).faction === 'Союзник' ? 'ally' : 'enemy',
-        x: u.pos.x, y: u.pos.y,
-        behavior: u.dead ? 'corpse' : ((u as any).aiRole || 'patrol'),
-        corpseLoot: u.dead ? !!((u as any).loot && (u as any).loot.length) : undefined,
-        patrolRoute: Array.isArray((u as any).patrolRoute) && (u as any).patrolRoute.length >= 2
-          ? (u as any).patrolRoute.map((p: any) => ({ x: p.x, y: p.y }))
-          : undefined,
-      })),
-      decals: ((useCombatGridStore.getState() as any).decals || []).map((d: any) => ({
-        x: Math.round((d.x ?? 0) * 100) / 100, y: Math.round((d.y ?? 0) * 100) / 100,
-        imgKey: d.imgKey, size: d.size || 1,
-      })),
-      zones: ((useCombatGridStore.getState() as any).zones || []).map((z: any) => ({
-        id: String(z.id), kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, text: z.text || '',
-      })),
-      campfire: camp ? { x: camp.x, y: camp.y } : null,
-      createdAt: Date.now(),
-    });
+    maps.push(buildMapObject(name, get().music, obstacles, units));
     persistMaps(maps);
     set({ maps });
     return null;
@@ -238,6 +216,73 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
     const maps = loadSavedMaps().filter((m) => m.name !== name);
     persistMaps(maps);
     set({ maps });
+  },
+  importMap: (m) => {
+    const src = m as any;
+    if (!src || typeof src.name !== 'string' || !src.name.trim()) return 'Нет названия карты';
+    if (!Array.isArray(src.obstacles) || !Array.isArray(src.units)) return 'Битый файл карты';
+    const maps = loadSavedMaps().filter((x) => x.name !== src.name.trim());
+    maps.push({
+      name: src.name.trim(),
+      music: typeof src.music === 'string' ? src.music : 'track',
+      bg: typeof src.bg === 'string' ? src.bg : 'mapbattle',
+      weather: {
+        rain: !!src.weather?.rain,
+        night: !!src.weather?.night,
+        fog: Math.max(0, Math.min(100, Number(src.weather?.fog) || 0)),
+      },
+      obstacles: src.obstacles,
+      units: src.units,
+      decals: Array.isArray(src.decals) ? src.decals : [],
+      zones: Array.isArray(src.zones) ? src.zones : [],
+      campfire: src.campfire && typeof src.campfire.x === 'number' ? { x: src.campfire.x, y: src.campfire.y } : null,
+      createdAt: Date.now(),
+    });
+    persistMaps(maps);
+    set({ maps });
+    return null;
+  },
+  serverMaps: [],
+  refreshServerMaps: async () => {
+    try {
+      const data = await mapsApi('list.php');
+      set({ serverMaps: Array.isArray(data.maps) ? data.maps : [] });
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  },
+  uploadCurrentMap: async () => {
+    try {
+      const st = get();
+      const name = st.mapName.trim();
+      if (!name) return 'Дай карте название';
+      const cs = useCombatGridStore.getState();
+      const map = buildMapObject(name, st.music, (cs as any).obstacles, (cs as any).enemies);
+      await mapsApi('save.php', { method: 'POST', body: JSON.stringify({ name, map }) });
+      await get().refreshServerMaps();
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  },
+  downloadServerMap: async (name: string) => {
+    try {
+      const data = await mapsApi(`load.php?name=${encodeURIComponent(name)}`);
+      if (!data || !data.map) return 'Пустой ответ сервера';
+      return get().importMap(data.map as SavedMap);
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  },
+  deleteServerMap: async (name: string) => {
+    try {
+      await mapsApi('delete.php', { method: 'POST', body: JSON.stringify({ name }) });
+      await get().refreshServerMaps();
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
   },
   pushHistory: () => {
     const cs = useCombatGridStore.getState() as any;
@@ -288,6 +333,58 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
 }));
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** Объект карты для сохранения (локально/файл/сервер) из текущего состояния боя. */
+export const buildMapObject = (name: string, music: string, obstacles: any[], units: any[]): SavedMap => {
+  const cs = useCombatGridStore.getState() as any;
+  const camp = cs.campfire as { x: number; y: number } | null;
+  return {
+    name,
+    music,
+    bg: cs.battleBg || 'mapbattle',
+    weather: {
+      rain: !!cs.isRaining,
+      night: !!cs.isNightTime,
+      fog: cs.fogLevel || 0,
+    },
+    obstacles: (obstacles || []).map((o: any) => ({
+      icon: o.icon, imgKey: o.imgKey || '', x: o.x, y: o.y, w: o.w, h: o.h,
+      rot: o.rot || 0, random: !!o.editorRandom,
+    })),
+    units: (units || []).map((u: any) => ({
+      factionKey: (u as any).factionKey || (u as any).name || '',
+      side: (u as any).isNeutral ? 'neutral' : (u as any).faction === 'Союзник' ? 'ally' : 'enemy',
+      x: u.pos.x, y: u.pos.y,
+      behavior: u.dead ? 'corpse' : ((u as any).aiRole || 'patrol'),
+      corpseLoot: u.dead ? !!((u as any).loot && (u as any).loot.length) : undefined,
+      patrolRoute: Array.isArray((u as any).patrolRoute) && (u as any).patrolRoute.length >= 2
+        ? (u as any).patrolRoute.map((p: any) => ({ x: p.x, y: p.y }))
+        : undefined,
+    })),
+    decals: (cs.decals || []).map((d: any) => ({
+      x: Math.round((d.x ?? 0) * 100) / 100, y: Math.round((d.y ?? 0) * 100) / 100,
+      imgKey: d.imgKey, size: d.size || 1,
+    })),
+    zones: (cs.zones || []).map((z: any) => ({
+      id: String(z.id), kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, text: z.text || '',
+    })),
+    campfire: camp ? { x: camp.x, y: camp.y } : null,
+    createdAt: Date.now(),
+  };
+};
+
+/** Запрос к API карт (авторизация по токену). */
+const mapsApi = async (path: string, init?: RequestInit): Promise<any> => {
+  const token = useAuthStore.getState().token;
+  if (!token) throw new Error('Войди в аккаунт');
+  const res = await fetch(`/api/maps/${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...((init && init.headers) || {}) },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || (data as any).error) throw new Error((data as any).error || `HTTP ${res.status}`);
+  return data;
+};
 
 /** Пересечение прямоугольников. */
 const rectsOverlap = (

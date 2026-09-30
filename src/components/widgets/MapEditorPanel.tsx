@@ -189,6 +189,33 @@ export const MapEditorPanel = () => {
     }
     useCombatGridStore.getState().addBattleLog(`💾 Карта «${ed.mapName.trim()}» сохранена`);
   };
+  const fileRef = useRef<HTMLInputElement>(null);
+  const exportFile = () => {
+    const st = useMapEditorStore.getState();
+    const m = st.maps.find((x) => x.name === (openName || st.maps[0]?.name || ''));
+    if (!m) {
+      useCombatGridStore.getState().addBattleLog('⚠️ Нет карты для экспорта');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(m, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `map-${m.name}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  };
+  const importFile = (f: File) => {
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const err = useMapEditorStore.getState().importMap(JSON.parse(String(rd.result)));
+        useCombatGridStore.getState().addBattleLog(err ? `⚠️ ${err}` : '📥 Карта импортирована');
+      } catch {
+        useCombatGridStore.getState().addBattleLog('⚠️ Битый JSON');
+      }
+    };
+    rd.readAsText(f);
+  };
 
   return (
     <div ref={panelRef} style={{ ...panel, ...(pos ? { left: pos.x, top: pos.y, right: 'auto' } : null) }}>
@@ -599,6 +626,72 @@ export const MapEditorPanel = () => {
       </div>
 
       <div style={sec}>
+        <div style={h}>☁ Сервер (видно разработчику)</div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <button
+            style={act}
+            title="Залить карту с текущим названием на сервер"
+            onClick={async () => {
+              const err = await useMapEditorStore.getState().uploadCurrentMap();
+              useCombatGridStore.getState().addBattleLog(err ? `⚠️ ${err}` : `☁ Карта «${useMapEditorStore.getState().mapName.trim()}» на сервере`);
+            }}
+          >
+            ⬆ Залить
+          </button>
+          <button
+            style={act}
+            onClick={async () => {
+              const err = await useMapEditorStore.getState().refreshServerMaps();
+              if (err) useCombatGridStore.getState().addBattleLog(`⚠️ ${err}`);
+            }}
+          >
+            🔄 Список
+          </button>
+        </div>
+        {(ed.serverMaps || []).length > 0 && (
+          <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {ed.serverMaps.map((m) => (
+              <div
+                key={m.name}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+                  padding: '2px 4px 2px 6px', borderRadius: 4, fontSize: 11,
+                  border: '1px solid #2a2e37', background: '#14171d',
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  ☁ {m.name} ({m.obstacles} об, {m.units} юн)
+                </span>
+                <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                  <button
+                    style={{ ...btn(false), padding: '0 5px' }}
+                    title="Скачать в локальный список"
+                    onClick={async () => {
+                      const err = await useMapEditorStore.getState().downloadServerMap(m.name);
+                      useCombatGridStore.getState().addBattleLog(err ? `⚠️ ${err}` : `📥 «${m.name}» скачана локально`);
+                    }}
+                  >
+                    ⬇
+                  </button>
+                  <button
+                    style={{ ...btn(false), padding: '0 5px' }}
+                    title="Удалить с сервера"
+                    onClick={async () => {
+                      if (!window.confirm(`Удалить «${m.name}» с сервера?`)) return;
+                      const err = await useMapEditorStore.getState().deleteServerMap(m.name);
+                      if (err) useCombatGridStore.getState().addBattleLog(`⚠️ ${err}`);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={sec}>
         <div style={h}>Сохранить</div>
         <input
           value={ed.mapName}
@@ -607,6 +700,16 @@ export const MapEditorPanel = () => {
           style={{ width: '100%', fontSize: 12, padding: 4, borderRadius: 4, border: '1px solid #4a505c', background: '#14171d', color: '#fff' }}
         />
         <button style={act} onClick={save}>💾 Сохранить карту</button>
+        <button style={act} onClick={exportFile} title="Скачать выбранную карту JSON-файлом">📤 Экспорт</button>
+        <button style={act} onClick={() => fileRef.current?.click()} title="Загрузить карту из JSON-файла">📥 Импорт</button>
+        <input
+          ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files && e.target.files[0];
+            if (f) importFile(f);
+            e.target.value = '';
+          }}
+        />
         <button
           style={act}
           onClick={() => {
