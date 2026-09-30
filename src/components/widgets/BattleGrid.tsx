@@ -4,7 +4,7 @@ import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, cam
 import { DecalLayer } from './DecalLayer';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
-import { useSound } from '../../hooks/useSound';
+import { playCombatSound } from '../../hooks/useSound';
 import { RainOverlay } from './RainOverlay';
 import { CrowFlight } from './CrowFlight';
 import { AmbienceOverlay } from './AmbienceOverlay';
@@ -329,7 +329,6 @@ export const BattleGrid = () => {
   const closeLoot = useCombatGridStore((s) => s.closeLoot);
   const setLooted = useCombatGridStore((s) => s.setLooted);
   const setEnemyLootById = useCombatGridStore((s) => s.setEnemyLootById);
-  const { playSound } = useSound();
   const showEnemyHpNumbers = useUiStore((s) => s.showEnemyHpNumbers);
   // Дальность для замера: базовая +3 в защитном режиме (как в attackEnemy).
   const combatRange = useCombatGridStore((s) => s.range);
@@ -395,25 +394,26 @@ export const BattleGrid = () => {
       // Звук выстрела — от класса оружия (из данных игры); иначе старый shot1/2.
       // Играет на КАЖДЫЙ новый shotLine (включая бонус-выстрелы за скорость),
       // а не только по фронту null→set — таймеры залпов иначе глушат друг друга.
-      playSound((shotLine.sound || (Math.random() > 0.5 ? 'shot1' : 'shot2')) as any);
+      // Канал арены, как у врагов (иначе тише через громкость UI).
+      playCombatSound((shotLine.sound || (Math.random() > 0.5 ? 'shot1' : 'shot2')) as any, 0.4);
     }
     prevShotLine.current = shotLine;
-  }, [shotLine, playSound]);
+  }, [shotLine]);
 
   useEffect(() => {
-    if (isPlayerHit && !prevPlayerHit.current) playSound('block');
+    if (isPlayerHit && !prevPlayerHit.current) playCombatSound('block', 0.4);
     prevPlayerHit.current = isPlayerHit;
-  }, [isPlayerHit, playSound]);
+  }, [isPlayerHit]);
 
   useEffect(() => {
     if (popups.length > prevPopupsLen.current && popups.length > 0) {
       const last = popups[popups.length - 1];
-      if (last.type === 'CRIT') playSound('crit');
-      else if (last.type === 'EVASION') playSound('evasion');
-      else if (last.type === 'BLOCK') playSound('block');
+      if (last.type === 'CRIT') playCombatSound('crit', 0.4);
+      else if (last.type === 'EVASION') playCombatSound('evasion', 0.4);
+      else if (last.type === 'BLOCK') playCombatSound('block', 0.4);
     }
     prevPopupsLen.current = popups.length;
-  }, [popups, playSound]);
+  }, [popups]);
 
   // Death sounds — when an enemy dies, play its soundAttack + optional death sound
   // (тихая смерть от скрытного убийства — без звуков).
@@ -423,18 +423,18 @@ export const BattleGrid = () => {
       if (e.dead && !prevEnemiesDead.current.has(e.id)) {
         prevEnemiesDead.current.add(e.id);
         if (!(e as any).silentDeath) {
-          if (e.soundAttack) playSound(e.soundAttack);
+          if (e.soundAttack) playCombatSound(e.soundAttack, 0.4);
           if (!(e as any).isNeutral) {
             const screamIdx = Math.floor(Math.random() * 5) + 1;
-            playSound(`wilhelm_scream${screamIdx}`);
+            playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
           }
-          playSound('chips');
+          playCombatSound('chips', 0.4);
         }
       }
     }
     // Clear set when combat ends
     if (!isActive) prevEnemiesDead.current = new Set();
-  }, [enemies, isActive, playSound]);
+  }, [enemies, isActive]);
 
   // -- Helpers --
   // Проходимый декор прозрачности не даёт — только лес, поле и пеньки.

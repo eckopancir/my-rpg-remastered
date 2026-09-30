@@ -4,7 +4,7 @@ import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
 import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
-import { playCombatSound } from './useSound';
+import { playCombatSound, stopCombatSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { rollGearOnDeath } from '../engine/enemyGear';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
@@ -789,7 +789,8 @@ export const useEnemyAI = () => {
             const angle = getAngle(enemy.pos, targetPos);
             // Play enemy attack sound
             const sk = shotKindForEnemy(enemy);
-            const atkSound = enemy.soundAttack || 'shotenemy';
+            // Винтовка: личный звук на весь бой; длинный глушим в конце хода.
+            const atkSound = (enemy as any).shotSound || enemy.soundAttack || 'shotenemy';
             playCombatSound(atkSound, 0.4);
             useCombatGridStore.setState({
               shotLine: { from: enemy.pos, to: targetPos, kind: sk.kind, count: sk.count, power: sk.power, fast: sk.fast },
@@ -967,7 +968,7 @@ export const useEnemyAI = () => {
               if (curAfter.currentHp <= 0) break;
 
               const eAngle = getAngle(enemy.pos, targetPos);
-              const eAtkSound = enemy.soundAttack || 'shotenemy';
+              const eAtkSound = (enemy as any).shotSound || enemy.soundAttack || 'shotenemy';
               playCombatSound(eAtkSound, 0.4);
               const sk2 = shotKindForEnemy(enemy);
               useCombatGridStore.setState({
@@ -1136,6 +1137,10 @@ export const useEnemyAI = () => {
             } else { break; }
           } else { break; }
         }
+        // Длинный выстрел (shot4/shot5): ход этого врага кончился — глушим.
+        try {
+          if ((enemy as any).shotLong && (enemy as any).shotSound) stopCombatSound((enemy as any).shotSound);
+        } catch { /* ignore */ }
       }
 
       // Mine proximity detection & detonation

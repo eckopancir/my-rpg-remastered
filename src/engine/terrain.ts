@@ -48,6 +48,13 @@ const ICON_LABELS: Record<string, string> = {
 /** Реквизит, сквозь который можно ходить (декор без коллизии). */
 export const WALK_THROUGH_PROPS = new Set(['o45', 'o46']);
 
+/** Большой забор: реквизит, но пули не пропускает (как o5). */
+export const SHOTSTOP_PROPS = new Set(['o5_2', 'o5_3']);
+
+/** Простреливается ли реквизит насквозь. */
+export const isShootThrough = (icon?: string, imgKey?: string): boolean =>
+  icon === 'prop' && !SHOTSTOP_PROPS.has(imgKey || '');
+
 /** Проходимая мелочь (декор): o20/o21 и зимний o20z. */
 export const WALKABLE_SMALL = new Set(['o20', 'o21', 'o20z']);
 

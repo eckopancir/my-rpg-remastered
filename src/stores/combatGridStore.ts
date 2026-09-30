@@ -11,7 +11,7 @@ import { tryInsertIntoGrid } from '../data/backpacks';
 import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality } from '../data/ammo';
-import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, isObstacleWalkable, isObstacleBlocking } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, isObstacleWalkable, isObstacleBlocking, isShootThrough } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, startMapMusic, stopPlaylist, preloadCombatSounds } from '../hooks/useSound';
@@ -125,6 +125,10 @@ export interface GridEnemy {
   alertTurn?: number;
   // Был часовым до тревоги: белый «!» остаётся и в бою.
   wasSentry?: boolean;
+  /** Звук выстрела винтовки на весь бой (пул shot1-7): назначается раз при спавне. */
+  shotSound?: string;
+  /** Длинный звук (shot4/shot5): глушить по окончании хода врага. */
+  shotLong?: boolean;
   // Тихая смерть (скрытное убийство): без крика и звуков смерти.
   silentDeath?: boolean;
   // Стихийные дебафы игрока (горение/токсин/экстро/ЭМИ): живут 10 раундов.
@@ -244,6 +248,27 @@ export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { k
   return { kind: 'burst', count: 2, power: 1 };
 };
 
+/** Пул выстрелов винтовки врага: назначается раз на бой, не меняется. */
+export const ENEMY_RIFLE_SHOTS = ['shot1', 'shot2', 'shot3', 'shot6', 'shot7', 'shot4', 'shot5'];
+/** Длинные: глушить, когда враг закончил ход. */
+export const ENEMY_LONG_SHOTS = new Set(['shot4', 'shot5']);
+/** Раздать винтовочному врагу его звук (soundAttack 'shotenemy' = автомат). */
+export const rollEnemyShotSound = (soundAttack?: string): { sound?: string; long?: boolean } => {
+  if (soundAttack && soundAttack !== 'shotenemy') return {};
+  const s = ENEMY_RIFLE_SHOTS[Math.floor(Math.random() * ENEMY_RIFLE_SHOTS.length)];
+  return { sound: s, long: ENEMY_LONG_SHOTS.has(s) };
+};
+
+/** Глушитель на автомате игрока (мод mod_muzzle «Глушитель …»). */
+export const hasSilencer = (w: any): boolean => {
+  try {
+    const m = w?.mods?.['mod_muzzle'];
+    const n = String((m as any)?.name || m || '');
+    return /глушитель/i.test(n);
+  } catch {
+    return false;
+  }
+};
 /** Паттерн выстрела игрока по его оружию: дробь — веер, снайпа — 1, пулемёт — очередь. */
 export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; power: number; fast?: boolean; sound?: string } => {
   const w = usePlayerStore.getState().getActiveWeapon();
@@ -255,9 +280,12 @@ export const shotKindForPlayerWeapon = (): { kind: ShotKind; count: number; powe
   const g = ammoTypeForWeapon(w);
   if (g === 'shell') return { kind: 'spread', count: 8, power: 1.1, sound: 'drob' };
   if (g === 'sniper') return { kind: 'single', count: 1, power: 1.3, sound: 'sniper' };
-  if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1, fast: true, sound: 'm134' };
+  if (g === 'mg') return { kind: 'burst', count: 3, power: 1.1, fast: true, sound: 'пулемет' };
   if (g === 'pistol') return { kind: 'single', count: 1, power: 1, sound: 'pistol' };
-  return { kind: 'single', count: 1, power: 1, sound: 'shotenemy' };
+  // Автомат игрока: с глушителем — длинная очередь (оборвётся следующим выстрелом),
+  // без — случайный из пула на каждый выстрел.
+  if (hasSilencer(w)) return { kind: 'single', count: 1, power: 1, sound: 'automatic-shots-burst-with-a-silencer' };
+  return { kind: 'single', count: 1, power: 1, sound: Math.random() < 0.5 ? 'shot1' : 'automat' };
 };
 
 /** Класс активного ствола для бонусов стрелка: автомат (weapon2) / пистолет / тяжёлое (+isMg для пулемёта). */
@@ -532,7 +560,7 @@ export const checkVisibility = (
   // Большие объекты (здания o8–o19 + o29, забор o5) блочат всем (мы/враги/союзники)
   // всем футпринтом, а не якорной клеткой. Углы/край — грация: касание < 0.75 клетки не блочит.
   const SHOT_BLOCK_KEYS = new Set([
-    'o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o19', 'o27', 'o29', 'o5', 'o48',
+    'o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o19', 'o27', 'o29', 'o5', 'o48', 'o5_2', 'o5_3',
   ]);
   const rects: { x: number; y: number; w: number; h: number }[] = [];
   try {
@@ -1845,7 +1873,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (!testMode) saveBattleEntry({ difficulty, encounteredFaction, cardEnemyKeys, cardRewards, allyCount });
     // Прогрев звуков боя: первый выстрел без задержки декодирования.
     preloadCombatSounds([
-      'shot1', 'shot2', 'shotenemy', 'pistol', 'sniper', 'drob', 'm134',
+      'shot1', 'shot2', 'shot3', 'shot4', 'shot5', 'shot6', 'shot7', 'automat', 'automatic-shots-burst-with-a-silencer', 'пулемет', 'shotenemy', 'pistol', 'sniper', 'drob',
       'bazooka_sound_effect', 'grenadegun', 'reload', 'reloading',
       'crit', 'evasion', 'block', 'invis', 'Aeon_Disk',
     ]);
@@ -1978,6 +2006,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         }).map((item) => ({ ...item, parentEnemyId: i }));
       } catch (e) { /* ignore */ }
 
+      // Винтовка врага: личный звук из пула на весь бой.
+      const shotRoll = rollEnemyShotSound(base.soundAttack);
+
       enemies.push({
         id: i,
         name: factionKey,
@@ -2020,6 +2051,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         looted: false,
         gear,
         soundAttack: base.soundAttack || 'shotenemy',
+        shotSound: shotRoll.sound,
+        shotLong: shotRoll.long,
         nowModel: base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',
         avatar: base.avatar || 'enemy',
@@ -2213,7 +2246,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const aGearWeapon = aGear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
         const aGearRange = aGearWeapon ? weaponRangeProfile(aGearWeapon).range : 0;
         const aGearGroup = aGearWeapon ? ammoTypeForWeapon(aGearWeapon) : 'rifle';
-        const aSound = aGearGroup === 'pistol' ? 'pistol' : aGearGroup === 'shell' ? 'drob' : aGearGroup === 'sniper' ? 'sniper' : aGearGroup === 'mg' ? 'm134' : 'shotenemy';
+        const aSound = aGearGroup === 'pistol' ? 'pistol' : aGearGroup === 'shell' ? 'drob' : aGearGroup === 'sniper' ? 'sniper' : aGearGroup === 'mg' ? 'пулемет' : 'shotenemy';
         activeEnemies.push({
           id: `ally_${a}_${Date.now()}`,
           name: 'Мусорщик',
@@ -2673,7 +2706,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (ability.id === 'barrage') {
       const alive = state.enemies.filter((e) => !e.dead && e.currentHp > 0);
       if (alive.length === 0) { set({ selectedAbility: null, selectedAbilitySource: null }); return; }
-      playCombatSound('m134', 0.3);
+      playCombatSound('пулемет', 0.3);
       get().addBattleLog(`🌊 ${ability.name}: 20 выстрелов по случайным целям!`);
       const baseDmg = usePlayerStore.getState().stats.damage || 5;
       for (let i = 0; i < 20; i++) {
@@ -2714,7 +2747,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         set({ selectedAbility: null, selectedAbilitySource: null });
         return;
       }
-      playCombatSound('m134', 0.3);
+      playCombatSound('пулемет', 0.3);
       get().addBattleLog(`🌊 ${ability.name}: ${shots} выстрелов по случайным целям (патроны не тратятся)!`);
       const baseDmg = (usePlayerStore.getState().stats.damage || 5) + shooterGunDamage();
       for (let i = 0; i < shots; i++) {
@@ -4355,6 +4388,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try {
       enemyLoot = generateLoot(GAME_ITEMS, ps.level, { rank: rankOfEnemy(factionKey, factionKey) });
     } catch { /* ignore */ }
+    const edShot = rollEnemyShotSound(base.soundAttack);
     set((s: any) => ({
       enemies: [...s.enemies, {
         id: uid,
@@ -4395,6 +4429,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         looted: isCorpse ? !withLoot : false,
         gear,
         soundAttack: base.soundAttack || 'shotenemy',
+        shotSound: edShot.sound,
+        shotLong: edShot.long,
         // Мусорщик: одна из 3 моделек сталкеров наугад (как в обычных боях).
         nowModel: allyModel || base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',
@@ -4502,7 +4538,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             blocks: isObstacleBlocking(o.icon, o.imgKey || ''), icon: o.icon, imgKey: o.imgKey || '',
             isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
             isHigh: o.icon === 'building' || o.icon === 'fence',
-            imgIndex: imgIdx, rot: o.rot || 0, shootThrough: o.icon === 'prop',
+            imgIndex: imgIdx, rot: o.rot || 0, shootThrough: isShootThrough(o.icon, o.imgKey || ''),
           });
           mark(rx, ry, o.w, o.h);
           placed = true;
@@ -5368,6 +5404,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       usedCells.add(`${spawnX},${spawnY}`);
 
       const newId = `wave-${Date.now()}-${i}`;
+      const waveShot = rollEnemyShotSound((base as any).soundAttack);
       newEnemies.push({
         id: newId,
         name: base.faction || 'Враг',
@@ -5408,6 +5445,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         looted: false,
         gear,
         soundAttack: base.soundAttack || 'shotenemy',
+        shotSound: (typeof waveShot !== 'undefined' ? waveShot.sound : rollEnemyShotSound(base.soundAttack).sound),
+        shotLong: (typeof waveShot !== 'undefined' ? waveShot.long : rollEnemyShotSound(base.soundAttack).long),
         nowModel: base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',
         avatar: base.avatar || 'enemy',
@@ -5842,6 +5881,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { stopLoopSound('basic music'); } catch { /* ignore */ }
     try { stopLoopSound('redfaction2'); } catch { /* ignore */ }
     try { stopPlaylist(); } catch { /* ignore */ }
+    // Длинные выстрелы не должны тянуться после боя.
+    try { stopCombatSound('shot4'); } catch { /* ignore */ }
+    try { stopCombatSound('shot5'); } catch { /* ignore */ }
+    try { stopCombatSound('automatic-shots-burst-with-a-silencer'); } catch { /* ignore */ }
     try { stopLoopSound('zemlya-mutantov'); } catch { /* ignore */ }
     try { stopLoopSound('zvuki-prirody-1_-kapli-dozhdya'); } catch { /* ignore */ }
     try { stopLoopSound('zvuki-sverchkov1'); } catch { /* ignore */ }
@@ -6054,7 +6097,7 @@ export async function executeSkill(
 
     case 'madness': {
       const angle = getAngle(enemy.pos, pPos);
-      playCombatSound('m134', 0.3);
+      playCombatSound('пулемет', 0.3);
       set((s: any) => ({
         enemies: s.enemies.map((e: GridEnemy) => e.id === enemy.id ? { ...e, rotation: angle } : e),
       }));
@@ -6223,7 +6266,7 @@ export async function executeSkill(
     case 'leadenrain': {
       // Свинцовый дождь: 4 прицельных выстрела подряд.
       if (dist > (enemy.rangeDistance || 8) + 2 || enemy.cooldowns?.['leadenrain'] > 0) return null;
-      playCombatSound('m134', 0.4);
+      playCombatSound('пулемет', 0.4);
       get().say(enemy.id, 'Свинца не жалеть!');
       set({ shotLine: { from: enemy.pos, to: { ...pPos }, kind: 'single', count: 1, power: 1.2 } });
       const rainDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 1.2;

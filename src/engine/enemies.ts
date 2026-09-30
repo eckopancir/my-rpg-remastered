@@ -90,7 +90,7 @@ export const ENEMY_BASE_STATS: Record<string, EnemyBaseDefinition> = {
     regen: 2, block: 0.3, punching: 0.02, accuracy: 0.8, vampir: 0.02,
     expRewardMultiplier: 5, rangeDistance: 8, runAp: 5, shotPrice: 1,
     skillUse: ['madness', 'rage'], bigModel: '130%', faction: 'Военные',
-    soundAttack: 'm134', nowModel: 'military3', dead: 'dead', avatar: 'military3', level: 5,
+    soundAttack: 'пулемет', nowModel: 'military3', dead: 'dead', avatar: 'military3', level: 5,
   },
 };
 

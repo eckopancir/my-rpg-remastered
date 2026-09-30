@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { useCombatGridStore } from './combatGridStore';
 import { usePlayerStore } from './playerStore';
 import { useAuthStore } from './authStore';
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, isObstacleWalkable, isObstacleBlocking } from '../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, isObstacleWalkable, isObstacleBlocking, isShootThrough } from '../engine/terrain';
 
 export type EditorTool =
   | { kind: 'select' }
@@ -645,8 +645,6 @@ const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: nu
     prop: PROP_IMAGES,
     light: ['light1', 'light2', 'light3', 'light4', 'light5'],
   };
-  const isLight = icon === 'light';
-  const isProp = icon === 'prop';
   const walkThrough = isObstacleWalkable(icon, imgKey);
   return {
     id: `edob_${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
@@ -657,7 +655,7 @@ const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: nu
     isHigh: icon === 'building' || icon === 'fence',
     imgIndex: Math.max(0, (pools[icon] || []).indexOf(imgKey)),
     rot, editorRandom: random,
-    shootThrough: isProp,
+    shootThrough: isShootThrough(icon, imgKey),
   };
 };
 
