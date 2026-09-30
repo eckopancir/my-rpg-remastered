@@ -303,7 +303,7 @@ export const CustomizationModal = ({ item, slot, onClose }: Props) => {
                 gap: 12, cursor: 'zoom-out',
               }}
             >
-              <img src={itemImg} alt={liveItem?.displayName || liveItem?.name} style={{ maxWidth: '86vw', maxHeight: '78vh', objectFit: 'contain', transform: 'scale(2)', filter: 'drop-shadow(0 12px 40px rgba(0,0,0,0.8))' }} draggable={false} />
+              <img src={itemImg} alt={liveItem?.displayName || liveItem?.name} style={{ maxWidth: '86vw', maxHeight: '78vh', objectFit: 'contain', transform: 'scale(1.4)', filter: 'drop-shadow(0 12px 40px rgba(0,0,0,0.8))' }} draggable={false} />
               <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 600 }}>
                 {liveItem?.displayName || liveItem?.name}
               </span>
