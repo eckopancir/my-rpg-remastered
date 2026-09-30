@@ -259,6 +259,23 @@ export const rollEnemyShotSound = (factionKey?: string): { sound?: string; long?
   return { sound: s, long: ENEMY_LONG_SHOTS.has(s) };
 };
 
+/** Звук выстрела по надетому стволу (танк с пистолетом — пистолет и т.д.). */
+export const gearShotSound = (gearWeapon: any, factionKey?: string): { sound?: string; long?: boolean } => {
+  if (!gearWeapon) return {};
+  const g = ammoTypeForWeapon(gearWeapon);
+  if (g === 'mg') return { sound: 'пулемет' };
+  if (g === 'pistol') return { sound: 'pistol' };
+  if (g === 'shell') return { sound: 'drob' };
+  if (g === 'sniper') {
+    return { sound: SNIPER_SHOTS[Math.floor(Math.random() * SNIPER_SHOTS.length)] };
+  }
+  if (factionKey === 'Военные (original)') return rollEnemyShotSound(factionKey);
+  return {};
+};
+
+/** Пул выстрелов снайпера: свой звук на весь бой. */
+export const SNIPER_SHOTS = ['sniper', 'snayperskoy'];
+
 /** Глушитель на автомате игрока (мод mod_muzzle «Глушитель …»). */
 export const hasSilencer = (w: any): boolean => {
   try {
@@ -2007,7 +2024,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       } catch (e) { /* ignore */ }
 
       // Винтовка врага: личный звук из пула на весь бой.
-      const shotRoll = rollEnemyShotSound(factionKey);
+      // Звук — по надетому стволу (танк с пистолетом стреляет пистолетом).
+      const shotRoll = gearShotSound(gearWeapon, factionKey);
 
       enemies.push({
         id: i,
@@ -2247,7 +2265,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const aGearRange = aGearWeapon ? weaponRangeProfile(aGearWeapon).range : 0;
         const aGearGroup = aGearWeapon ? ammoTypeForWeapon(aGearWeapon) : 'rifle';
         const aSound = aGearGroup === 'pistol' ? 'pistol' : aGearGroup === 'shell' ? 'drob' : aGearGroup === 'sniper' ? 'sniper' : aGearGroup === 'mg' ? 'пулемет' : 'shotenemy';
-        const aShot = aSound === 'shotenemy' ? rollEnemyShotSound('Военные (original)') : {};
+        const aShot = gearShotSound(aGearWeapon, 'Военные (original)');
         activeEnemies.push({
           id: `ally_${a}_${Date.now()}`,
           name: 'Мусорщик',
@@ -4391,12 +4409,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const newSpeed = base.speed * levelMult + (gb.speed || 0);
     const gearWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
     const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
-    // Союзник: группа ствола из гира (автомат — пул, как военные стрелки).
-    const edGearGroup = isAlly && gearWeapon ? ammoTypeForWeapon(gearWeapon) : null;
-    const edRifle = isAlly
-      ? !!edGearGroup && !['pistol', 'shell', 'sniper', 'mg'].includes(edGearGroup)
-      : factionKey === 'Военные (original)';
-    const edShot = edRifle ? rollEnemyShotSound('Военные (original)') : {};
+    // Звук — по надетому стволу (танк с пистолетом, снайпер из пула и т.д.).
+    const edShot = gearShotSound(gearWeapon, isAlly ? 'Военные (original)' : factionKey);
     let enemyLoot: any[] = [];
     try {
       enemyLoot = generateLoot(GAME_ITEMS, ps.level, { rank: rankOfEnemy(factionKey, factionKey) });
@@ -5416,7 +5430,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       usedCells.add(`${spawnX},${spawnY}`);
 
       const newId = `wave-${Date.now()}-${i}`;
-      const waveShot = rollEnemyShotSound((base as any).factionKey);
+      const waveShot = gearShotSound(waveWeapon, (base as any).factionKey);
       newEnemies.push({
         id: newId,
         name: base.faction || 'Враг',
