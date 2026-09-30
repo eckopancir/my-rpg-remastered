@@ -160,8 +160,9 @@ export const AmbienceOverlay = () => {
         }
         for (const z of (st as any).zones || []) {
           if ((z as any).kind !== 'exit') continue;
-          const zx = ((z.x + Math.random() * (z.w || 1)) / 32) * w;
-          const zy = ((z.y + Math.random() * (z.h || 1)) / 32) * h;
+          // Из одной точки по центру зоны (как у костра), столбом вверх.
+          const zx = ((z.x + (z.w || 1) / 2) / 32) * w;
+          const zy = ((z.y + (z.h || 1) / 2) / 32) * h;
           emitters.push({ x: zx, y: zy, rate: 3, red: true });
         }
         smokeAcc += dt;
