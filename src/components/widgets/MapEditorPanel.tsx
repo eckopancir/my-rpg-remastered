@@ -135,7 +135,17 @@ export const MapEditorPanel = () => {
         st.redo();
         return;
       }
-      if (e.code !== 'KeyZ' || e.ctrlKey || e.metaKey) return;
+      if (e.code !== 'KeyZ' || e.ctrlKey || e.metaKey) {
+        // C — удалить выбранное (только конструктор).
+        if (e.code === 'KeyC' && !e.ctrlKey && !e.metaKey) {
+          const s = useMapEditorStore.getState();
+          if (s.selObId !== null || s.selUnitId !== null || s.selCamp || s.selZoneId !== null) {
+            e.preventDefault();
+            deleteSelected();
+          }
+        }
+        return;
+      }
       if (st.selObId !== null) rotateSelected();
       else if (st.tool.kind === 'obstacle') st.rotateTool();
     };
