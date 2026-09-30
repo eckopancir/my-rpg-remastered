@@ -114,6 +114,8 @@ export const MapEditorPanel = () => {
       st.setMusic2((m as any).music2 || '__none');
       st.setMusicCombatOnly(!!(m as any).musicCombatOnly);
       st.setIntroBarks((((m as any).introBarks || []) as string[]).join('\n'));
+      st.setGarrison(Array.isArray((m as any).garrison) ? (m as any).garrison : []);
+      st.setReinforceTurn((m as any).reinforceTurn || 39);
       st.setActive(true);
     } catch (err) {
       try { useCombatGridStore.getState().cleanup(); } catch { /* ignore */ }
@@ -358,7 +360,7 @@ export const MapEditorPanel = () => {
             title="Точка появления игрока (одна)"
             onClick={() => { ed.setZoneKind('spawn'); ed.setTool({ kind: 'zone' }); }}
           >
-            🟢 Спавн
+            🟢 Спавн игрока
           </button>
           <button
             style={btn(ed.tool.kind === 'zone' && ed.zoneKind === 'exit')}
@@ -373,6 +375,13 @@ export const MapEditorPanel = () => {
             onClick={() => { ed.setZoneKind('trigger'); ed.setTool({ kind: 'zone' }); }}
           >
             💜 Триггер
+          </button>
+          <button
+            style={btn(ed.tool.kind === 'zone' && ed.zoneKind === 'reinforce')}
+            title="Откуда придёт подкрепление"
+            onClick={() => { ed.setZoneKind('reinforce'); ed.setTool({ kind: 'zone' }); }}
+          >
+            🟦 Подкрепление
           </button>
         </div>
         <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>Тяни прямоугольник ЛКМ по карте.</div>
@@ -389,7 +398,7 @@ export const MapEditorPanel = () => {
                   background: z.id === ed.selZoneId ? '#3a3320' : '#14171d',
                 }}
               >
-                <span>{z.kind === 'spawn' ? '🟢' : z.kind === 'exit' ? '🚪' : '💜'} {z.kind} {z.w}×{z.h} ({z.x},{z.y})</span>
+                <span>{z.kind === 'spawn' ? '🟢' : z.kind === 'exit' ? '🚪' : z.kind === 'reinforce' ? '🟦' : '💜'} {z.kind} {z.w}×{z.h} ({z.x},{z.y})</span>
                 <button
                   style={{ ...btn(false), padding: '0 5px' }}
                   onClick={(e) => {
@@ -564,6 +573,39 @@ export const MapEditorPanel = () => {
             📍 Маршрут патруля
           </button>
         </div>
+        <div style={{ marginTop: 6, borderTop: '1px dashed #2a2e37', paddingTop: 6 }}>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11 }}>
+            <input type="checkbox" checked={ed.toReinforce} onChange={(e) => ed.setToReinforce(e.target.checked)} />
+            📦 Ставить в подкрепление (не на карту)
+          </label>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, marginTop: 4 }}>
+            Ход прихода:
+            <input
+              type="number" min={1} max={200} value={ed.reinforceTurn}
+              onChange={(e) => ed.setReinforceTurn(Number(e.target.value))}
+              style={{ width: 60, fontSize: 11, padding: 2, borderRadius: 4, border: '1px solid #4a505c', background: '#14171d', color: '#fff' }}
+            />
+          </label>
+          {(ed.garrison || []).length > 0 && (
+            <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 110, overflowY: 'auto' }}>
+              {(ed.garrison || []).map((g: any, i: number) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+                    padding: '2px 4px 2px 6px', borderRadius: 4, fontSize: 11,
+                    border: '1px solid #2a2e37', background: '#14171d',
+                  }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    📦 {g.side === 'neutral' ? 'Кабан' : g.side === 'ally' ? 'Мусорщик' : g.factionKey} ({g.behavior})
+                  </span>
+                  <button style={{ ...btn(false), padding: '0 5px' }} title="Убрать из подкрепления" onClick={() => ed.removeGarrison(i)}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         {selUnit && !(selUnit as any).dead && (
           <div style={{ marginTop: 6, fontSize: 11 }}>
             <div style={{ opacity: 0.8 }}>
@@ -599,7 +641,7 @@ export const MapEditorPanel = () => {
             {ed.selCamp && campfire ? `🔥 Костёр (${(campfire as any).x},${(campfire as any).y})` : null}
             {ed.selZoneId !== null ? (() => {
               const z = (zones || []).find((zz: any) => zz.id === ed.selZoneId) as any;
-              return z ? `${z.kind === 'spawn' ? '🟢 Спавн' : z.kind === 'exit' ? '🚪 Выход' : '💜 Триггер'} ${z.w}×${z.h} (${z.x},${z.y})` : 'Зона';
+              return z ? `${z.kind === 'spawn' ? '🟢 Спавн игрока' : z.kind === 'exit' ? '🚪 Выход' : z.kind === 'reinforce' ? '🟦 Подкрепление' : '💜 Триггер'} ${z.w}×${z.h} (${z.x},${z.y})` : 'Зона';
             })() : null}
           </div>
           {ed.selZoneId !== null && (() => {

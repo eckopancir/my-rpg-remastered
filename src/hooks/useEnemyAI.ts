@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, buildShotLog, executeSkill, absorbWithShield, isBossEnemy, shotKindForEnemy, petEffStats, isMeleeFighter, type GlobalEffect } from '../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, buildShotLog, executeSkill, absorbWithShield, isBossEnemy, shotKindForEnemy, petEffStats, isMeleeFighter, spotDist, type GlobalEffect } from '../stores/combatGridStore';
 import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
 import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
@@ -219,10 +219,10 @@ export const useEnemyAI = () => {
       const playerStats = usePlayerStore.getState().stats;
       const isPlayerInvisible = useCombatGridStore.getState().playerInvisible;
 
-      // Подкрепление на 40 ходу: отложенные враги с угла карты.
+      // Подкрепление в свой ход: отложенные враги с угла карты / зоны.
       {
         const st0 = useCombatGridStore.getState();
-        if (!st0.reinforceSpawned && st0.pendingReinforce.length > 0 && st0.turnCount >= 39) {
+        if (!st0.reinforceSpawned && st0.pendingReinforce.length > 0 && st0.turnCount >= (st0.reinforceTurn ?? 39)) {
           st0.spawnReinforcements();
           await new Promise((r) => setTimeout(r, 800));
           const fresh = useCombatGridStore.getState().enemies;
@@ -281,13 +281,13 @@ export const useEnemyAI = () => {
         // Спящие скрытного НЕ слышат вовсе: будят только бой рядом и урон ---
         if (enemy.sleeping) {
           const stealthOn = useCombatGridStore.getState().stealth;
-          const wakeR = stealthOn ? 0 : 16;
+          const wakeR = spotDist(8, 0, stealthOn);
           const matesFight = updatedEnemies.some((o: any) =>
             o.id !== enemy.id && !o.dead && o.currentHp > 0 && o.faction === enemy.faction
-            && o.aggro && getDist(o.pos, enemy.pos) <= 15);
-          // Глубокий сон (поставлен в конструкторе): proximity не будит, только бой рядом/урон/триггер.
+            && o.aggro && getDist(o.pos, enemy.pos) <= spotDist(15, 15, stealthOn));
+          // Глубокий сон (поставлен в конструкторе): только урон и явный триггер.
           const proxWake = !(enemy as any).deepSleep && !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= wakeR;
-          if (proxWake || matesFight) {
+          if (proxWake || (matesFight && !(enemy as any).deepSleep)) {
             enemy.sleeping = false;
             enemy.aggro = true;
             enemy.knowsPlayer = true;
@@ -315,7 +315,7 @@ export const useEnemyAI = () => {
         if (!useCombatGridStore.getState().alarmRaised && enemy.faction !== 'Союзник') {
           // Труп нейтрала (кабана) паники не вызывает.
           const corpseNear = updatedEnemies.some((o: any) => o.dead && !(o as any).isNeutral
-            && Math.max(Math.abs(o.pos.x - enemy.pos.x), Math.abs(o.pos.y - enemy.pos.y)) <= 3);
+            && Math.max(Math.abs(o.pos.x - enemy.pos.x), Math.abs(o.pos.y - enemy.pos.y)) <= spotDist(3, 3, false));
           if (corpseNear) {
             useCombatGridStore.getState().raiseCorpseAlarm(enemy.id);
             updatedEnemies = useCombatGridStore.getState().enemies.map((x: any) => ({ ...x }));
@@ -330,16 +330,16 @@ export const useEnemyAI = () => {
           // Босс видит дальше всех: 20 без скрытности (любых врагов, не только игрока), 12 в скрытности.
           const eIsBoss = isBossEnemy(enemy.name, (enemy as any).factionKey);
           const detectR = eIsBoss
-            ? (stealthOn ? 12 : 20)
+            ? spotDist(20, 12, stealthOn)
             : stealthOn
-              ? (enemy.aiRole === 'sentry' ? 10 : 3)
-              : (enemy.aiRole === 'sentry' ? 15 : 24);
+              ? (enemy.aiRole === 'sentry' ? spotDist(15, 10, true) : spotDist(8, 3, true))
+              : (enemy.aiRole === 'sentry' ? spotDist(15, 10, false) : spotDist(8, 3, false));
           let spotted = !isPlayerInvisible && getDist(enemy.pos, curStore.playerPos) <= detectR;
           // Босс замечает любых врагов своей фракции в радиусе 20 (союзники игрока, другие монстры)
           if (!spotted && eIsBoss) {
             const anyHostile = updatedEnemies.some((o: any) =>
               o.id !== enemy.id && !o.dead && (o.currentHp || 0) > 0 && o.faction !== enemy.faction &&
-              getDist(enemy.pos, o.pos) <= 20 && checkVisibility(enemy.pos, 0, o.pos, curStore.obstacles, { range: 20, fov: 360 }));
+              getDist(enemy.pos, o.pos) <= spotDist(20, 12, stealthOn) && checkVisibility(enemy.pos, 0, o.pos, curStore.obstacles, { range: 20, fov: 360 }));
             if (anyHostile) spotted = true;
           }
           if (eIsBoss) {

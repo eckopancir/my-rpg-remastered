@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs } from '../../stores/combatGridStore';
+import { useCombatGridStore, checkVisibility, getDist, isBossEnemy, popupLifeMs, spotDist } from '../../stores/combatGridStore';
 import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, campCellFree, paintDecal, finishZoneRect, LIGHT_LEVELS, FONAR_LIGHT } from '../../stores/mapEditorStore';
 import { DecalLayer } from './DecalLayer';
 import { usePlayerStore } from '../../stores/playerStore';
@@ -1056,7 +1056,7 @@ export const BattleGrid = () => {
                 )}
                 {/* Зоны: в редакторе цветной контур + подпись, в игре только выход. */}
                 {zoneHere && (edActive ? zoneHere : zoneHere.filter((z) => z.kind === 'exit')).map((z) => {
-                  const col = z.id === edSelZoneId ? '#ffd54a' : z.kind === 'spawn' ? '#59d663' : z.kind === 'exit' ? '#ff9f43' : '#c77dff';
+                  const col = z.id === edSelZoneId ? '#ffd54a' : z.kind === 'spawn' ? '#59d663' : z.kind === 'exit' ? '#ff9f43' : z.kind === 'reinforce' ? '#4dabf7' : '#c77dff';
                   const isAnchor = z.ax === x && z.ay === y;
                   return (
                     <div key={`zone_${z.id}_${z.kind}`} style={{
@@ -1066,7 +1066,7 @@ export const BattleGrid = () => {
                     }}>
                       {edActive && isAnchor && (
                         <span style={{ position: 'absolute', left: 0, top: 0, fontSize: 10, background: col, color: '#111', padding: '0 3px', borderRadius: 3 }}>
-                          {z.kind === 'spawn' ? '🟢 спавн' : z.kind === 'exit' ? '🚪 выход' : '💜 триггер'}
+                          {z.kind === 'spawn' ? '🟢 спавн' : z.kind === 'exit' ? '🚪 выход' : z.kind === 'reinforce' ? '🟦 подкр.' : '💜 триггер'}
                         </span>
                       )}
                     </div>
@@ -1075,7 +1075,7 @@ export const BattleGrid = () => {
                 {zoneDraftHere && (
                   <div style={{
                     position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4,
-                    background: edZoneKind === 'spawn' ? 'rgba(89,214,99,0.35)' : edZoneKind === 'exit' ? 'rgba(255,159,67,0.35)' : 'rgba(199,125,255,0.35)',
+                    background: edZoneKind === 'spawn' ? 'rgba(89,214,99,0.35)' : edZoneKind === 'exit' ? 'rgba(255,159,67,0.35)' : edZoneKind === 'reinforce' ? 'rgba(77,171,247,0.35)' : 'rgba(199,125,255,0.35)',
                     border: '1px dashed #fff',
                   }} />
                 )}
@@ -1404,9 +1404,7 @@ export const BattleGrid = () => {
           const d = Math.hypot(e.pos.x - playerPos.x, e.pos.y - playerPos.y);
           // Подозрение: обычные 5 (в стелсе), часовые — 8, в стелсе 11-12.
           const susR = e.aiRole === 'sentry' ? (stealth ? 12 : 8) : 5;
-          const detR = stealth
-            ? (e.aiRole === 'sentry' ? 10 : 3)
-            : (e.aiRole === 'sentry' ? 15 : 24);
+          const detR = e.aiRole === 'sentry' ? spotDist(15, 10, stealth) : spotDist(8, 3, stealth);
           const showQ = !e.aggro && !e.sleeping && e.faction !== 'Союзник' && d <= susR && d > detR;
           // Часовой: белый «!» — только метка поста ВНЕ боя.
           // Воюющие без облачков: ни «!», ни «!!!» (вспышка тревоги — отдельно, 1 ход).

@@ -626,6 +626,9 @@ export const Dashboard = () => {
               ed0.setMusic2('__none');
               ed0.setMusicCombatOnly(false);
               ed0.setIntroBarks('');
+              ed0.setGarrison([]);
+              ed0.setReinforceTurn(39);
+              ed0.setToReinforce(false);
               ed0.setActive(true);
               navigate('/battle');
             }} style={{ fontSize: 11 }}>🛠 Конструктор карт</Button>
@@ -681,7 +684,7 @@ const SavedMapsBlock = () => {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {maps.map((m) => (
           <span key={m.name} style={{ display: 'inline-flex', gap: 4, alignItems: 'center', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '3px 4px 3px 8px', fontSize: 11 }}>
-            🗺 {m.name} ({m.obstacles.length} об, {m.units.length} юн{(m as any).campfire ? ', 🔥' : ''})
+            🗺 {m.name} ({m.obstacles.length} об, {m.units.length} юн{((m as any).garrison || []).length ? `, 📦${(m as any).garrison.length}` : ''}{(m as any).campfire ? ', 🔥' : ''})
             <Button size="sm" variant="primary" onClick={() => {
               try {
                 const cs = useCombatGridStore.getState();
@@ -707,6 +710,8 @@ const SavedMapsBlock = () => {
                 ed.setMusic2((m as any).music2 || '__none');
                 ed.setMusicCombatOnly(!!(m as any).musicCombatOnly);
                 ed.setIntroBarks((((m as any).introBarks || []) as string[]).join('\n'));
+                ed.setGarrison(Array.isArray((m as any).garrison) ? (m as any).garrison : []);
+                ed.setReinforceTurn((m as any).reinforceTurn || 39);
                 ed.setActive(true);
                 navigate('/battle');
               } catch (err) {

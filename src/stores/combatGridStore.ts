@@ -174,10 +174,10 @@ export interface GridObstacle {
   shootThrough?: boolean;
 }
 
-/** Зона конструктора карт: спавн игрока / выход / триггер-засада. */
+/** Зона конструктора карт: спавн игрока / выход / триггер-засада / точка подкрепления. */
 export interface MapZone {
   id: number | string;
-  kind: 'spawn' | 'exit' | 'trigger';
+  kind: 'spawn' | 'exit' | 'trigger' | 'reinforce';
   x: number;
   y: number;
   w: number;
@@ -397,6 +397,8 @@ export interface CombatGridStore {
   say: (enemyId: number | string, text: string, ms?: number) => void;
   triggerRevengeDialogues: (deadPos: { x: number; y: number }, callsign?: string) => void;
   spawnReinforcements: () => void;
+  // Ход прихода подкрепления (обычно 39, с карты конструктора — свой).
+  reinforceTurn: number;
   // Волна агро: все враги (кроме союзников) в радиусе R от точки вступают в бой.
   aggroWave: (center: { x: number; y: number }, radius?: number) => void;
   // Скрытное убийство спящего рядом (2 AP, тихо, стелс остаётся).
@@ -431,7 +433,7 @@ export interface CombatGridStore {
   selectPetAbility: (index: number) => void;
   usePetAbility: (index: number, enemyId?: number | string) => void;
   /** Спавн юнита редактора карт (упрощённый initCombat: без лагеря и волн). */
-  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string, withLoot?: boolean, route?: { x: number; y: number }[], statMult?: number) => void;
+  spawnEditorUnit: (factionKey: string, side: 'enemy' | 'neutral' | 'ally', x: number, y: number, behavior: string, withLoot?: boolean, route?: { x: number; y: number }[], statMult?: number, toReserve?: boolean) => void;
   /** Смена поведения юнита в конструкторе (включая труп/воскрешение + лут трупа). */
   editorSetUnitBehavior: (unitId: number | string, behavior: string, withLoot: boolean) => void;
   /** Вход на сохранённую карту конструктора. */
@@ -565,6 +567,18 @@ export const getAngle = (from: { x: number; y: number }, to: { x: number; y: num
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   return Math.atan2(dy, dx) * (180 / Math.PI);
+};
+
+/**
+ * Радиус обнаружения с ночным штрафом: ночью все радиусы −4 (минимум 1).
+ * Таблица (день/стелс | ночь/стелс): обычные 8/3|4/1, часовой 15/10|11/6,
+ * босс 20/12|16/8, побудка 8/0|4/0, бой рядом 15|11, труп 3|1.
+ */
+export const spotDist = (day: number, stealth: number, isStealth: boolean): number => {
+  const night = useCombatGridStore.getState().isNightTime && !useUiStore.getState().forceDay;
+  const base = isStealth ? stealth : day;
+  if (base <= 0) return 0;
+  return night ? Math.max(1, base - 4) : base;
 };
 
 const isValidCell = (x: number, y: number) => x >= 0 && x < GRID && y >= 0 && y < GRID;
@@ -1411,6 +1425,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   campfire: null,
   pendingReinforce: [],
   reinforceSpawned: false,
+  reinforceTurn: 39,
   battleId: 0,
   corpseSearch: null,
   alarmRaised: false,
@@ -1528,7 +1543,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   spawnReinforcements: () => {
     const s = get();
     if (s.reinforceSpawned || s.pendingReinforce.length === 0) return;
-    const corners = [{ x: 1, y: 30 }, { x: 30, y: 30 }, { x: 30, y: 1 }];
+    // Точки с карты конструктора — иначе случайный угол.
+    const rzones = (s.zones || []).filter((z: any) => z.kind === 'reinforce');
+    const spots: { x: number; y: number }[] = [];
+    for (const z of rzones) {
+      for (let dx = 0; dx < (z.w || 1); dx++) {
+        for (let dy = 0; dy < (z.h || 1); dy++) spots.push({ x: z.x + dx, y: z.y + dy });
+      }
+    }
+    const corners = spots.length > 0
+      ? spots
+      : [{ x: 1, y: 30 }, { x: 30, y: 30 }, { x: 30, y: 1 }];
     const corner = corners[Math.floor(Math.random() * corners.length)];
     const taken = new Set<string>();
     taken.add(`${s.playerPos.x},${s.playerPos.y}`);
@@ -1538,6 +1563,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         for (let dy = 0; dy < (o.h || 1); dy++) taken.add(`${o.x + dx},${o.y + dy}`);
       }
     }
+    // Из зоны подкрепления — веером от неё, иначе от угла.
+    const fromZone = spots.length > 0;
     const pDirs = [
       { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
       { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
@@ -1545,8 +1572,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Подкрепление всегда прибывает патрулём с общим направлением:
     // не спит, позиции игрока не знает (в стелсе — тем более), ищет по детекту.
     const sharedDir = pDirs[Math.floor(Math.random() * pDirs.length)];
-    const placed = s.pendingReinforce.map((e) => {
-      const spot = findFreeCellNear(corner.x, corner.y, taken);
+    const placed = s.pendingReinforce.map((e, k) => {
+      // Из зоны: каждый следующий — со следующей свободной клетки зоны.
+      const anchor = fromZone ? corners[(corners.indexOf(corner) + k) % corners.length] : corner;
+      const spot = findFreeCellNear(anchor.x, anchor.y, taken);
       taken.add(`${spot.x},${spot.y}`);
       return {
         ...e, pos: spot, aiRole: 'reinforce' as const, aggro: false, sleeping: false,
@@ -1560,7 +1589,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       pendingReinforce: [],
       reinforceSpawned: true,
       message: `⚠️ Подкрепление врага (${placed.length})! Патрулирует карту`,
-      battleLogs: [...st.battleLogs.slice(-499), `⚠️ Подкрепление (${placed.length}) прибыло с угла карты — патрулирует!`],
+      battleLogs: [...st.battleLogs.slice(-499), `⚠️ Подкрепление (${placed.length}) прибыло${fromZone ? ' из зоны' : ' с угла карты'} — патрулирует!`],
     }));
     if (placed[0]) get().say(placed[0].id, pickPhrase(REINFORCE_BARK));
   },
@@ -2485,7 +2514,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       flyingGrenade: null, globalEffects: [], lootingEnemy: null,
       plannedPath: [], reserve: [], battleLogs: ['⚔️ Бой начался!'],
       exploredCells: {},
-      campfire, pendingReinforce, reinforceSpawned: false,
+      campfire, pendingReinforce, reinforceSpawned: false, reinforceTurn: 39,
       corpseSearch: null, alarmRaised: false, noSleep: false,
       battleId: get().battleId + 1,
       stealth: false,
@@ -4415,17 +4444,19 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   },
 
   /** Ход ИИ питомца: бежит к ближайшему видимому врагу и бьёт, добив — переключается. Пошагово со звуками. */
-  spawnEditorUnit: (factionKey, side, x, y, behavior, withLoot = true, route, statMult = 1) => {
+  spawnEditorUnit: (factionKey, side, x, y, behavior, withLoot = true, route, statMult = 1, toReserve = false) => {
     const st = get();
     if (!st.isActive) return;
     const ps = usePlayerStore.getState();
     const levelMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
     const uid = `ed_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
     const isCorpse = behavior === 'corpse';
+    // В резерв (подкрепление карты): на поле не встаёт, придёт в свой ход.
+    const destKey = toReserve ? 'pendingReinforce' : 'enemies';
     if (side === 'neutral') {
       const meatQty = 2 + Math.floor(Math.random() * 4);
       set((s: any) => ({
-        enemies: [...s.enemies, {
+        [destKey]: [...s[destKey], {
           id: uid, name: 'Кабан', faction: 'Нейтралы', dps: 1, damage: 1,
           maxHp: 50, currentHp: isCorpse ? 0 : 50, armor: 0, evasion: 0.05, block: 0,
           crit: 0, accuracy: 0.5, punching: 0, vampir: 0, regen: 0, speed: 0,
@@ -4465,7 +4496,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       enemyLoot = generateLoot(GAME_ITEMS, ps.level, { rank: rankOfEnemy(factionKey, factionKey) });
     } catch { /* ignore */ }
     set((s: any) => ({
-      enemies: [...s.enemies, {
+      [destKey]: [...s[destKey], {
         id: uid,
         name: isAlly ? 'Мусорщик' : factionKey,
         faction: isAlly ? 'Союзник' : base.faction || 'Неизвестно',
@@ -4638,6 +4669,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       enemies: s.enemies.filter((e: any) => !(e as any).isNeutral),
       editorPeace: false,
       cardRarityName: opts?.rarity ?? null,
+      reinforceTurn: (map as any).reinforceTurn || 39,
       campfire: (map as any).campfire || null,
       battleBg: (map as any).bg || 'mapbattle',
       decals: migrateDecals((map as any).decals),
@@ -4658,6 +4690,10 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     for (const u of map.units || []) {
       try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute, opts?.tierMult ?? 1); } catch { /* ignore */ }
+    }
+    // Гарнизон карты — в резерв, придёт в свой ход.
+    for (const u of (map as any).garrison || []) {
+      try { get().spawnEditorUnit(u.factionKey, u.side, u.x ?? 1, u.y ?? 1, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute, opts?.tierMult ?? 1, true); } catch { /* ignore */ }
     }
     // Боевой клич: мусорщики орут на входе и весь 1-й ход, пока игрок его не закончит.
     {
@@ -4735,7 +4771,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       campfire: null,
     }));
     // Режим стройки: враги не ходят (ход не передаётся), AP бесконечные.
-    set({ editorPeace: true, ap: 999999, maxAp: 999999, turn: 'player', battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, isNightTime: false });
+    set({ editorPeace: true, ap: 999999, maxAp: 999999, turn: 'player', battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, isNightTime: false, reinforceTurn: 39 });
     return true;
   },
 
@@ -4789,6 +4825,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       fogLevel: (map as any).weather?.fog ?? 0,
       isRaining: !!(map as any).weather?.rain,
       isNightTime: !!(map as any).weather?.night,
+      reinforceTurn: (map as any).reinforceTurn || 39,
     });
     for (const u of map.units || []) {
       try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
@@ -6038,7 +6075,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
-      exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, stealth: false,
+      exploredCells: {}, campfire: null, pendingReinforce: [], reinforceSpawned: false, reinforceTurn: 39, stealth: false,
       corpseSearch: null, alarmRaised: false, noSleep: false,
       plannedPath: [], isShaking: false, isPlayerHit: false, playerRotation: 90,
       playerAbilities: [], abilityCooldowns: [], skillBarAbilities: [], skillBarCooldowns: [], petAbilities: [], petCooldowns: [], petCommandMode: false, petTargetId: null, hitFx: null, selectedAbility: null, selectedAbilitySource: null, bonusSpeed: 0, multiTargetIds: [], isPlacingAoE: false, pendingAoE: null,

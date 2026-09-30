@@ -24,6 +24,14 @@ export type SavedMapUnit = {
   patrolRoute?: { x: number; y: number }[];
 };
 
+/** Юнит гарнизона (подкрепление): на карте не стоит, приходит в свой ход. */
+export type SavedMapGarrison = {
+  factionKey: string;
+  side: 'enemy' | 'neutral' | 'ally';
+  behavior: string;
+  corpseLoot?: boolean;
+};
+
 export type SavedMapObstacle = {
   icon: string;
   imgKey: string;
@@ -46,7 +54,9 @@ export interface SavedMap {
   obstacles: SavedMapObstacle[];
   units: SavedMapUnit[];
   decals: { x: number; y: number; imgKey: string; size?: number }[];
-  zones: { id: string; kind: 'spawn' | 'exit' | 'trigger'; x: number; y: number; w: number; h: number; text?: string }[];
+  zones: { id: string; kind: 'spawn' | 'exit' | 'trigger' | 'reinforce'; x: number; y: number; w: number; h: number; text?: string }[];
+  garrison: SavedMapGarrison[];
+  reinforceTurn: number;
   campfire: { x: number; y: number } | null;
   createdAt: number;
 }
@@ -109,7 +119,8 @@ interface MapEditorStore {
   selUnitId: number | string | null;
   selCamp: boolean;
   selZoneId: number | string | null;
-  zoneKind: 'spawn' | 'exit' | 'trigger';
+  zoneKind: 'spawn' | 'exit' | 'trigger' | 'reinforce';
+  toReinforce: boolean;
   dragStart: { x: number; y: number } | null;
   strokeActive: boolean;
   brushSize: number;
@@ -127,7 +138,12 @@ interface MapEditorStore {
   setSel: (obId: number | string | null, unitId: number | string | null) => void;
   setSelCamp: (v: boolean) => void;
   setSelZone: (id: number | string | null) => void;
-  setZoneKind: (k: 'spawn' | 'exit' | 'trigger') => void;
+  setZoneKind: (k: 'spawn' | 'exit' | 'trigger' | 'reinforce') => void;
+  setToReinforce: (v: boolean) => void;
+  setReinforceTurn: (n: number) => void;
+  addGarrison: (g: SavedMapGarrison) => void;
+  removeGarrison: (idx: number) => void;
+  setGarrison: (g: SavedMapGarrison[]) => void;
   setDragStart: (p: { x: number; y: number } | null) => void;
   setStrokeActive: (v: boolean) => void;
   setBrushSize: (n: number) => void;
@@ -182,6 +198,9 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   selCamp: false,
   selZoneId: null,
   zoneKind: 'spawn',
+  toReinforce: false,
+  garrison: [],
+  reinforceTurn: 39,
   dragStart: null,
   strokeActive: false,
   brushSize: 2,
@@ -205,6 +224,17 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   setSelCamp: (selCamp) => set({ selCamp, selObId: null, selUnitId: null, selZoneId: null }),
   setSelZone: (selZoneId) => set({ selZoneId, selObId: null, selUnitId: null, selCamp: false }),
   setZoneKind: (zoneKind) => set({ zoneKind }),
+  setToReinforce: (toReinforce) => set({ toReinforce }),
+  setReinforceTurn: (n) => set({ reinforceTurn: Math.max(1, Math.min(200, Math.round(n) || 39)) }),
+  addGarrison: (g) => {
+    get().pushHistory();
+    set((s: any) => ({ garrison: [...(s.garrison || []), g] }));
+  },
+  removeGarrison: (idx) => {
+    get().pushHistory();
+    set((s: any) => ({ garrison: (s.garrison || []).filter((_: any, i: number) => i !== idx) }));
+  },
+  setGarrison: (garrison) => set({ garrison: [...garrison] }),
   setDragStart: (dragStart) => set({ dragStart }),
   setStrokeActive: (strokeActive) => set({ strokeActive }),
   setBrushSize: (n) => set({ brushSize: Math.max(1, Math.min(5, Math.round(n) || 1)) }),
@@ -257,6 +287,8 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
       units: src.units,
       decals: Array.isArray(src.decals) ? src.decals : [],
       zones: Array.isArray(src.zones) ? src.zones : [],
+      garrison: Array.isArray(src.garrison) ? src.garrison : [],
+      reinforceTurn: Math.max(1, Math.min(200, Number(src.reinforceTurn) || 39)),
       campfire: src.campfire && typeof src.campfire.x === 'number' ? { x: src.campfire.x, y: src.campfire.y } : null,
       createdAt: Date.now(),
     });
@@ -310,7 +342,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
     const cs = useCombatGridStore.getState() as any;
     const snap = JSON.parse(JSON.stringify({
       obstacles: cs.obstacles, enemies: cs.enemies, campfire: cs.campfire,
-      decals: cs.decals, zones: cs.zones,
+      decals: cs.decals, zones: cs.zones, garrison: (get() as any).garrison || [],
     }));
     set((s: any) => ({
       past: [...((s as any).past || []), snap].slice(-50),
@@ -323,14 +355,14 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
     const cs = useCombatGridStore.getState() as any;
     const cur = JSON.parse(JSON.stringify({
       obstacles: cs.obstacles, enemies: cs.enemies, campfire: cs.campfire,
-      decals: cs.decals, zones: cs.zones,
+      decals: cs.decals, zones: cs.zones, garrison: st.garrison || [],
     }));
     const prev = st.past[st.past.length - 1];
     useCombatGridStore.setState({
       obstacles: prev.obstacles, enemies: prev.enemies, campfire: prev.campfire,
       decals: prev.decals, zones: prev.zones,
     } as any);
-    set({ past: st.past.slice(0, -1), future: [...(st.future || []), cur].slice(-50) });
+    set({ past: st.past.slice(0, -1), future: [...(st.future || []), cur].slice(-50), garrison: prev.garrison || [] });
     get().setSel(null, null);
   },
   redo: () => {
@@ -339,14 +371,14 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
     const cs = useCombatGridStore.getState() as any;
     const cur = JSON.parse(JSON.stringify({
       obstacles: cs.obstacles, enemies: cs.enemies, campfire: cs.campfire,
-      decals: cs.decals, zones: cs.zones,
+      decals: cs.decals, zones: cs.zones, garrison: st.garrison || [],
     }));
     const next = st.future[st.future.length - 1];
     useCombatGridStore.setState({
       obstacles: next.obstacles, enemies: next.enemies, campfire: next.campfire,
       decals: next.decals, zones: next.zones,
     } as any);
-    set({ past: [...(st.past || []), cur].slice(-50), future: st.future.slice(0, -1) });
+    set({ past: [...(st.past || []), cur].slice(-50), future: st.future.slice(0, -1), garrison: next.garrison || [] });
     get().setSel(null, null);
   },
   clearHistory: () => set({ past: [], future: [] } as any),
@@ -393,6 +425,8 @@ export const buildMapObject = (name: string, music: string, obstacles: any[], un
     zones: (cs.zones || []).map((z: any) => ({
       id: String(z.id), kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, text: z.text || '',
     })),
+    garrison: [...((useMapEditorStore.getState() as any).garrison || [])],
+    reinforceTurn: (useMapEditorStore.getState() as any).reinforceTurn || 39,
     campfire: camp ? { x: camp.x, y: camp.y } : null,
     createdAt: Date.now(),
   };
@@ -783,6 +817,19 @@ export const editorCellClick = (x: number, y: number): void => {
       return;
     }
     appendRoutePoint(ed.selUnitId, x, y);
+    return;
+  }
+  // В гарнизон (подкрепление): на карту не встаёт, уйдёт в списке.
+  if (tool.kind === 'unit' && ed.toReinforce) {
+    ed.addGarrison({
+      factionKey: tool.factionKey, side: tool.side,
+      behavior: ed.behavior === 'corpse' ? 'patrol' : ed.behavior,
+      corpseLoot: ed.behavior === 'corpse' ? ed.corpseLoot : undefined,
+    });
+    usePlayerStore.getState().addLog(
+      `📦 В гарнизон: ${tool.side === 'neutral' ? 'Кабан' : tool.side === 'ally' ? 'Мусорщик' : tool.factionKey} (${ed.behavior})`,
+      'info',
+    );
     return;
   }
   if (tool.kind === 'zone') {
