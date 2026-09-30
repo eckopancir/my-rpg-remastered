@@ -72,7 +72,7 @@ export const AmbienceOverlay = () => {
       x: Math.random(), y: Math.random(),
       ph: Math.random() * Math.PI * 2, sp: 0.5 + Math.random(),
     }));
-    interface Puff { x: number; y: number; r: number; t: number }
+    interface Puff { x: number; y: number; r: number; t: number; red?: boolean }
     const smoke: Puff[] = [];
 
     let last = performance.now();
@@ -149,21 +149,28 @@ export const AmbienceOverlay = () => {
         ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
       }
       // Дым: костёр (если виден) + сгоревший вертолёт o33 (дыма в 2 раза больше).
+      // Зона выхода: густой красный дым как в Таркове (в 3 раза гуще костра).
       {
-        const emitters: { x: number; y: number; rate: number }[] = [];
+        const emitters: { x: number; y: number; rate: number; red?: boolean }[] = [];
         if (cf && cfSeen) emitters.push({ x: ((cf.x + 0.5) / 32) * w, y: ((cf.y + 0.5) / 32) * h, rate: 1 });
         for (const o of (st as any).obstacles || []) {
           if (o.icon === 'car' && CAR_IMAGES[o.imgIndex] === 'o33') {
             emitters.push({ x: ((o.x + (o.w ?? 1) / 2) / 32) * w, y: ((o.y + (o.h ?? 1) / 2) / 32) * h, rate: 2 });
           }
         }
+        for (const z of (st as any).zones || []) {
+          if ((z as any).kind !== 'exit') continue;
+          const zx = ((z.x + Math.random() * (z.w || 1)) / 32) * w;
+          const zy = ((z.y + Math.random() * (z.h || 1)) / 32) * h;
+          emitters.push({ x: zx, y: zy, rate: 3, red: true });
+        }
         smokeAcc += dt;
-        while (smokeAcc > 0.12 && smoke.length < 30 && emitters.length > 0) {
+        while (smokeAcc > 0.12 && smoke.length < 70 && emitters.length > 0) {
           smokeAcc -= 0.12;
           const e = emitters[Math.floor(Math.random() * emitters.length)];
           for (let k = 0; k < e.rate; k++) {
-            if (smoke.length >= 30) break;
-            smoke.push({ x: e.x + (Math.random() - 0.5) * 8, y: e.y - 6, r: 2, t: 0 });
+            if (smoke.length >= 70) break;
+            smoke.push({ x: e.x + (Math.random() - 0.5) * 8, y: e.y - 6, r: 2, t: 0, red: e.red });
           }
         }
       }
@@ -174,7 +181,9 @@ export const AmbienceOverlay = () => {
         if (k >= 1) { smoke.splice(i, 1); continue; }
         p.y -= dt * 22;
         p.x += Math.sin(t * 2 + p.t * 3) * dt * 6;
-        ctx.fillStyle = `rgba(150,150,155,${(0.22 * (1 - k)).toFixed(2)})`;
+        ctx.fillStyle = p.red
+          ? `rgba(215,70,55,${(0.34 * (1 - k)).toFixed(2)})`
+          : `rgba(150,150,155,${(0.22 * (1 - k)).toFixed(2)})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r + k * 7, 0, Math.PI * 2);
         ctx.fill();
