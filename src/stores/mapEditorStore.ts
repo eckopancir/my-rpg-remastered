@@ -82,6 +82,7 @@ export const UNIT_BEHAVIORS = [
 export const MAP_MUSIC = [
   { id: 'track', label: 'Обычная' },
   { id: 'basic music', label: 'Основная (basic music)' },
+  { id: 'redfaction2', label: 'Red Faction 2' },
   { id: 'zemlya-mutantov', label: 'Земля мутантов' },
   { id: 'zvuki-prirody-1_-kapli-dozhdya', label: 'Дождь' },
   { id: 'zvuki-sverchkov1', label: 'Ночь (сверчки)' },
