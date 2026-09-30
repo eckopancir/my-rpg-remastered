@@ -4,7 +4,7 @@ import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
 import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
-import { playCombatSound, stopCombatSound } from './useSound';
+import { playCombatSound, stopCombatSound, playShotSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { rollGearOnDeath } from '../engine/enemyGear';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
@@ -791,7 +791,7 @@ export const useEnemyAI = () => {
             const sk = shotKindForEnemy(enemy);
             // Винтовка: личный звук на весь бой; длинный глушим в конце хода.
             const atkSound = (enemy as any).shotSound || enemy.soundAttack || 'shotenemy';
-            playCombatSound(atkSound, 0.4);
+            playShotSound(atkSound, 0.4);
             useCombatGridStore.setState({
               shotLine: { from: enemy.pos, to: targetPos, kind: sk.kind, count: sk.count, power: sk.power, fast: sk.fast },
               lastShotTurn: useCombatGridStore.getState().turnCount,
@@ -969,7 +969,7 @@ export const useEnemyAI = () => {
 
               const eAngle = getAngle(enemy.pos, targetPos);
               const eAtkSound = (enemy as any).shotSound || enemy.soundAttack || 'shotenemy';
-              playCombatSound(eAtkSound, 0.4);
+              playShotSound(eAtkSound, 0.4);
               const sk2 = shotKindForEnemy(enemy);
               useCombatGridStore.setState({
                 shotLine: { from: enemy.pos, to: targetPos, kind: sk2.kind, count: sk2.count, power: sk2.power, fast: sk2.fast },

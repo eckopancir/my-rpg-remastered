@@ -2247,6 +2247,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const aGearRange = aGearWeapon ? weaponRangeProfile(aGearWeapon).range : 0;
         const aGearGroup = aGearWeapon ? ammoTypeForWeapon(aGearWeapon) : 'rifle';
         const aSound = aGearGroup === 'pistol' ? 'pistol' : aGearGroup === 'shell' ? 'drob' : aGearGroup === 'sniper' ? 'sniper' : aGearGroup === 'mg' ? 'пулемет' : 'shotenemy';
+        const aShot = aSound === 'shotenemy' ? rollEnemyShotSound(aSound) : {};
         activeEnemies.push({
           id: `ally_${a}_${Date.now()}`,
           name: 'Мусорщик',
@@ -2288,6 +2289,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           looted: false,
           gear: aGear,
           soundAttack: aSound,
+          // Союзник-автоматчик: свой звук из пула на весь бой (как у врагов).
+          shotSound: aShot.sound,
+          shotLong: aShot.long,
           nowModel: model,
           deadModel: 'dead',
           avatar: model,
@@ -2706,7 +2710,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (ability.id === 'barrage') {
       const alive = state.enemies.filter((e) => !e.dead && e.currentHp > 0);
       if (alive.length === 0) { set({ selectedAbility: null, selectedAbilitySource: null }); return; }
-      playCombatSound('пулемет', 0.3);
+      playShotSound('пулемет', 0.3);
       get().addBattleLog(`🌊 ${ability.name}: 20 выстрелов по случайным целям!`);
       const baseDmg = usePlayerStore.getState().stats.damage || 5;
       for (let i = 0; i < 20; i++) {
@@ -2747,7 +2751,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         set({ selectedAbility: null, selectedAbilitySource: null });
         return;
       }
-      playCombatSound('пулемет', 0.3);
+      playShotSound('пулемет', 0.3);
       get().addBattleLog(`🌊 ${ability.name}: ${shots} выстрелов по случайным целям (патроны не тратятся)!`);
       const baseDmg = (usePlayerStore.getState().stats.damage || 5) + shooterGunDamage();
       for (let i = 0; i < shots; i++) {
@@ -3336,6 +3340,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         const player = usePlayerStore.getState();
         const spawnPos = { x: state.playerPos.x + 1, y: state.playerPos.y };
         get().addPopup(spawnPos.x, spawnPos.y, '👥 ПРИЗЫВ!', 'SPECIAL');
+        const cloneShot = rollEnemyShotSound('shotenemy');
         const clone: GridEnemy = {
           id: `clone_${Date.now()}`,
           name: 'Клон',
@@ -3362,6 +3367,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           loot: [], looted: false,
           isMinion: true,
           lifetime: 3,
+          shotSound: cloneShot.sound,
+          shotLong: cloneShot.long,
         };
         set((s) => ({ enemies: [...s.enemies, clone] }));
         get().addBattleLog(`👥 ${ability.name}: призван клон (${Math.max(500, Math.round((player.stats.maxHp || 200) * 0.5))} HP, ${Math.round((player.stats.damage || 10) * 0.5)} DMG, 3 хода)`);
@@ -4384,11 +4391,16 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const newSpeed = base.speed * levelMult + (gb.speed || 0);
     const gearWeapon = gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
     const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
+    // Союзник: группа ствола из гира (автомат — пул, как в обычных боях).
+    const edGearGroup = isAlly && gearWeapon ? ammoTypeForWeapon(gearWeapon) : null;
+    const edRifle = isAlly
+      ? !!edGearGroup && !['pistol', 'shell', 'sniper', 'mg'].includes(edGearGroup)
+      : (base.soundAttack || 'shotenemy') === 'shotenemy';
+    const edShot = edRifle ? rollEnemyShotSound('shotenemy') : {};
     let enemyLoot: any[] = [];
     try {
       enemyLoot = generateLoot(GAME_ITEMS, ps.level, { rank: rankOfEnemy(factionKey, factionKey) });
     } catch { /* ignore */ }
-    const edShot = rollEnemyShotSound(base.soundAttack);
     set((s: any) => ({
       enemies: [...s.enemies, {
         id: uid,
@@ -5884,6 +5896,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     // Длинные выстрелы не должны тянуться после боя.
     try { stopCombatSound('shot4'); } catch { /* ignore */ }
     try { stopCombatSound('shot5'); } catch { /* ignore */ }
+    try { stopCombatSound('пулемет'); } catch { /* ignore */ }
     try { stopCombatSound('automatic-shots-burst-with-a-silencer'); } catch { /* ignore */ }
     try { stopLoopSound('zemlya-mutantov'); } catch { /* ignore */ }
     try { stopLoopSound('zvuki-prirody-1_-kapli-dozhdya'); } catch { /* ignore */ }
@@ -6097,7 +6110,7 @@ export async function executeSkill(
 
     case 'madness': {
       const angle = getAngle(enemy.pos, pPos);
-      playCombatSound('пулемет', 0.3);
+      playShotSound('пулемет', 0.3);
       set((s: any) => ({
         enemies: s.enemies.map((e: GridEnemy) => e.id === enemy.id ? { ...e, rotation: angle } : e),
       }));
@@ -6266,7 +6279,7 @@ export async function executeSkill(
     case 'leadenrain': {
       // Свинцовый дождь: 4 прицельных выстрела подряд.
       if (dist > (enemy.rangeDistance || 8) + 2 || enemy.cooldowns?.['leadenrain'] > 0) return null;
-      playCombatSound('пулемет', 0.4);
+      playShotSound('пулемет', 0.4);
       get().say(enemy.id, 'Свинца не жалеть!');
       set({ shotLine: { from: enemy.pos, to: { ...pPos }, kind: 'single', count: 1, power: 1.2 } });
       const rainDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 1.2;

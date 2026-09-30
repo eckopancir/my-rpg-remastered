@@ -117,6 +117,21 @@ export const stopLoopSound = (name: string) => {
   }
 };
 
+/** Длинные выстрелы: играют максимум 1.2с, дальше стоп (пулемёт, очередь с глушителем). */
+const CAPPED_SHOT_MS = 1200;
+const cappedTimers = new Map<string, any>();
+const LONG_SHOT_SOUNDS = new Set(['пулемет', 'automatic-shots-burst-with-a-silencer']);
+export const playCappedSound = (name: string, volume = 0.4) => {
+  playCombatSound(name, volume);
+  const t = cappedTimers.get(name);
+  if (t) clearTimeout(t);
+  cappedTimers.set(name, setTimeout(() => { stopCombatSound(name); cappedTimers.delete(name); }, CAPPED_SHOT_MS));
+};
+/** Выстрел с учётом длины: длинные режутся на 1.2с, короткие как были. */
+export const playShotSound = (name: string, volume = 0.4) => {
+  if (LONG_SHOT_SOUNDS.has(name)) playCappedSound(name, volume);
+  else playCombatSound(name, volume);
+};
 /** Плейлист карты: два трека одновременно слоем (эмбиент + музыка). */
 let playlistNames: string[] = [];
 export const stopPlaylist = () => {

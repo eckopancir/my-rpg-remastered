@@ -4,7 +4,7 @@ import { useMapEditorStore, editorCellClick, clampFootprint, footprintValid, cam
 import { DecalLayer } from './DecalLayer';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
-import { playCombatSound } from '../../hooks/useSound';
+import { playCombatSound, playShotSound } from '../../hooks/useSound';
 import { RainOverlay } from './RainOverlay';
 import { CrowFlight } from './CrowFlight';
 import { AmbienceOverlay } from './AmbienceOverlay';
@@ -394,8 +394,8 @@ export const BattleGrid = () => {
       // Звук выстрела — от класса оружия (из данных игры); иначе старый shot1/2.
       // Играет на КАЖДЫЙ новый shotLine (включая бонус-выстрелы за скорость),
       // а не только по фронту null→set — таймеры залпов иначе глушат друг друга.
-      // Канал арены, как у врагов (иначе тише через громкость UI).
-      playCombatSound((shotLine.sound || (Math.random() > 0.5 ? 'shot1' : 'shot2')) as any, 0.4);
+      // Длинные (пулемёт, глушитель) режутся на 1.2с.
+      playShotSound((shotLine.sound || (Math.random() > 0.5 ? 'shot1' : 'shot2')) as any, 0.4);
     }
     prevShotLine.current = shotLine;
   }, [shotLine]);
