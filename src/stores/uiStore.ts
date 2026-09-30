@@ -16,6 +16,7 @@ export interface ExpeditionEntry {
     xpReward: number;
     cardRarityName: string;
     allyCount?: number;
+    customMapName?: string;
   };
 }
 

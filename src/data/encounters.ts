@@ -4,6 +4,8 @@ import warehouseBg from '../assets/images/characters/Военные склады
 import labBg from '../assets/images/characters/Химическая лаборатория.png';
 import patrolBg from '../assets/images/characters/Военный патруль.png';
 import stalkerBg from '../assets/images/characters/stalker1.png';
+import baseBg from '../assets/images/characters/Военная база.png';
+import { MAP_555555 } from './customMaps/map_555555';
 
 export type EnemyShortName = 'tank' | 'melee' | 'sniper' | 'drob' | 'original' | 'medic' | 'boss';
 
@@ -19,6 +21,8 @@ export interface CardTemplate {
   id: string;
   name: string;
   image: string;
+  /** Подпись на карточке (для сюжетных карт конструктора). */
+  description?: string;
   enemyPool: { type: EnemyShortName; weight: number }[];
   slMin: number;
   slMax: number;
@@ -26,6 +30,12 @@ export interface CardTemplate {
   enemyMax: number;
   // Карточка с подмогой: в бой встанут мусорщики (3-5, вдвое меньше врагов).
   givesAllies?: boolean;
+  // Битва на готовой карте конструктора: состав фиксирован, генерации нет.
+  customMap?: any;
+  customMapName?: string;
+  fixedSl?: number;
+  fixedChip?: number;
+  fixedXp?: number;
 }
 
 export interface GeneratedCard {
@@ -33,6 +43,8 @@ export interface GeneratedCard {
   templateId: string;
   name: string;
   image: string;
+  description?: string;
+  customMapName?: string;
   sl: number;
   rarity: { name: string; tier: number; slBonus: number; color: string };
   totalSl: number;
@@ -153,7 +165,42 @@ const CARD_TEMPLATES: CardTemplate[] = [
     enemyMin: 6, enemyMax: 10,
     givesAllies: true,
   },
+  {
+    id: 'military_base',
+    name: 'Военная база',
+    image: baseBg,
+    description: 'Военные снова отбили свою базу. Мусорщикам вновь нужна помощь!',
+    enemyPool: [
+      { type: 'sniper', weight: 20 },
+      { type: 'drob', weight: 20 },
+      { type: 'original', weight: 35 },
+      { type: 'medic', weight: 20 },
+      { type: 'boss', weight: 5 },
+    ],
+    slMin: 45, slMax: 45,
+    enemyMin: 17, enemyMax: 17,
+    givesAllies: true,
+    customMap: MAP_555555,
+    customMapName: '555555',
+    fixedSl: 45,
+    fixedChip: 350,
+    fixedXp: 1400,
+  },
 ];
+
+/** Вшитые карты конструктора по имени (для карточек MAP). */
+export const CUSTOM_MAPS: Record<string, any> = {
+  '555555': MAP_555555,
+};
+
+/** Короткое имя типа из factionKey карты («Военные (sniper)» → sniper). */
+const shortFromFactionKey = (fk: string): EnemyShortName | null => {
+  const m = /\(([^)]+)\)/.exec(fk || '');
+  const s = (m ? m[1] : '').trim() as EnemyShortName;
+  return (['tank', 'melee', 'sniper', 'drob', 'original', 'medic', 'boss'] as string[]).includes(s)
+    ? s
+    : null;
+};
 
 function weightedRandom<T extends { weight: number }>(items: T[]): T {
   const total = items.reduce((s, i) => s + i.weight, 0);
@@ -195,6 +242,34 @@ export function generateCards(): GeneratedCard[] {
   const cards: GeneratedCard[] = [];
   for (let i = 0; i < 9; i++) {
     const template = CARD_TEMPLATES[Math.floor(Math.random() * CARD_TEMPLATES.length)];
+    // Карта конструктора: всё фиксировано (состав, награды, SL).
+    if (template.customMap) {
+      const units = (template.customMap.units || []) as any[];
+      const foes = units.filter((u) => u.side === 'enemy');
+      const allies = units.filter((u) => u.side === 'ally');
+      const enemyTypes = foes
+        .map((u) => shortFromFactionKey(u.factionKey || ''))
+        .filter((t): t is EnemyShortName => !!t);
+      const sl = template.fixedSl ?? template.slMin;
+      cards.push({
+        id: `card_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
+        templateId: template.id,
+        name: template.name,
+        image: template.image,
+        description: template.description,
+        customMapName: template.customMapName,
+        sl,
+        rarity: { name: 'Обычный', tier: 0, slBonus: 0, color: 'white' },
+        totalSl: sl,
+        enemyTypes,
+        enemyCount: foes.length,
+        allyCount: allies.length,
+        chipReward: template.fixedChip ?? 300,
+        xpReward: template.fixedXp ?? 1200,
+        type: 'combat',
+      });
+      continue;
+    }
     const sl = randInt(template.slMin, template.slMax);
     const rarity = weightedRandom(CARD_RARITY_TIERS);
     const totalSl = sl + rarity.slBonus;
@@ -202,6 +277,8 @@ export function generateCards(): GeneratedCard[] {
     const enemyTypes = generateEnemyTypes(template.enemyPool, enemyCount);
     // Подмога: мусорщиков ровно вдвое меньше врагов, от 3 до 5.
     const allyCount = template.givesAllies ? Math.max(3, Math.min(5, Math.floor(enemyCount / 2))) : 0;
+    // С подмогой мусорщиков награды скромные (×0.5): воюют не одни.
+    const allyMod = allyCount > 0 ? 0.5 : 1;
 
     cards.push({
       id: `card_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
@@ -214,8 +291,8 @@ export function generateCards(): GeneratedCard[] {
       enemyTypes,
       enemyCount,
       allyCount,
-      chipReward: calcChipReward(totalSl, enemyTypes),
-      xpReward: calcXpReward(totalSl, enemyTypes),
+      chipReward: Math.round(calcChipReward(totalSl, enemyTypes) * allyMod),
+      xpReward: Math.round(calcXpReward(totalSl, enemyTypes) * allyMod),
       type: 'combat',
     });
   }

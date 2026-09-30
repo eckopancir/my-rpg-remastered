@@ -3,6 +3,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
 import { useExplorationStore, catchUpExploration } from '../stores/explorationStore';
+import { CUSTOM_MAPS } from '../data/encounters';
 
 export const useGameLoop = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -36,16 +37,32 @@ export const useGameLoop = () => {
         // «Отравленная» экспедиция не должна вешать очередь: старт в try, снятие — всегда.
         try {
           freshPlayer.startCombat(completedExp.difficulty || 5);
-          const ok = useCombatGridStore.getState().initCombat(
-            completedExp.difficulty || 5,
-            undefined,
-            completedExp.cardData?.enemyKeys,
-            completedExp.cardData
-              ? { chipReward: completedExp.cardData.chipReward, xpReward: completedExp.cardData.xpReward, cardRarityName: completedExp.cardData.cardRarityName }
-              : undefined,
-            completedExp.cardData?.allyCount || 0
-          );
-          if (!ok) throw new Error('initCombat failed');
+          const cmapName = completedExp.cardData?.customMapName;
+          const cmap = cmapName ? CUSTOM_MAPS[cmapName] : null;
+          if (cmap) {
+            // Битва на готовой карте конструктора: награды карточки, без сундука редкости.
+            usePlayerStore.setState((st: any) => ({
+              combat: {
+                ...st.combat,
+                enemyChipReward: completedExp.cardData.chipReward,
+                enemyExpReward: completedExp.cardData.xpReward,
+              },
+            }));
+            useCombatGridStore.setState({ cardRarityName: null } as any);
+            const ok = useCombatGridStore.getState().enterCustomMap(cmap);
+            if (!ok) throw new Error('enterCustomMap failed');
+          } else {
+            const ok = useCombatGridStore.getState().initCombat(
+              completedExp.difficulty || 5,
+              undefined,
+              completedExp.cardData?.enemyKeys,
+              completedExp.cardData
+                ? { chipReward: completedExp.cardData.chipReward, xpReward: completedExp.cardData.xpReward, cardRarityName: completedExp.cardData.cardRarityName }
+                : undefined,
+              completedExp.cardData?.allyCount || 0
+            );
+            if (!ok) throw new Error('initCombat failed');
+          }
         } catch (e) {
           console.error('[gameLoop] combat start failed', e);
           usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));

@@ -4632,6 +4632,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       obstacles: obs,
       enemies: s.enemies.filter((e: any) => !(e as any).isNeutral),
       editorPeace: false,
+      cardRarityName: null,
       campfire: (map as any).campfire || null,
       battleBg: (map as any).bg || 'mapbattle',
       decals: migrateDecals((map as any).decals),

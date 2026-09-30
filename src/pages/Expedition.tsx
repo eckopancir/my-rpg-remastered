@@ -109,6 +109,7 @@ export const Expedition = () => {
         xpReward: card.xpReward,
         cardRarityName: card.rarity.name,
         allyCount: card.allyCount || 0,
+        customMapName: (card as any).customMapName,
       },
     };
 
@@ -209,6 +210,16 @@ export const Expedition = () => {
                 }}>
                   {card.name}
                 </div>
+
+                {(card as any).description && (
+                  <div style={{
+                    fontSize: 11, fontStyle: 'italic',
+                    color: 'rgba(255,255,255,0.8)',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+                  }}>
+                    {(card as any).description}
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', fontSize: 11 }}>
                   {(Object.entries(enemyCounts) as [EnemyShortName, number][]).map(([type, count]) => (
