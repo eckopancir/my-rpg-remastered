@@ -625,7 +625,7 @@ export const MapEditorPanel = () => {
             <option key={m.id} value={m.id}>{m.label}</option>
           ))}
         </select>
-        <div style={{ fontSize: 10, opacity: 0.7, margin: '4px 0 2px' }}>Вторая — следом по очереди:</div>
+        <div style={{ fontSize: 10, opacity: 0.7, margin: '4px 0 2px' }}>Вторая — одновременно слоем:</div>
         <select value={ed.music2} onChange={(e) => ed.setMusic2(e.target.value)} style={{ fontSize: 11, width: '100%' }}>
           {MAP_MUSIC.map((m) => (
             <option key={m.id} value={m.id}>{m.label}</option>

@@ -117,34 +117,24 @@ export const stopLoopSound = (name: string) => {
   }
 };
 
-/** Плейлист карты: два трека по очереди (второй — music2). */
-let playlistStop: (() => void) | null = null;
+/** Плейлист карты: два трека одновременно слоем (эмбиент + музыка). */
+let playlistNames: string[] = [];
 export const stopPlaylist = () => {
-  try { playlistStop?.(); } catch { /* noop */ }
-  playlistStop = null;
+  try {
+    for (const n of playlistNames) stopLoopSound(n);
+  } catch { /* noop */ }
+  playlistNames = [];
 };
 export const playPlaylist = (a: string, b: string, volume = 0.35) => {
   stopPlaylist();
   const ui = useUiStore.getState();
   if (!ui.soundEnabled) return;
-  const sa = audioMap.get(a);
-  const sb = audioMap.get(b);
-  if (!sa || !sb) return;
-  const vol = Math.max(0, Math.min(1, volume * (ui.arenaVolume ?? 1)));
-  const ea = new Audio(sa);
-  const eb = new Audio(sb);
-  ea.volume = vol;
-  eb.volume = vol;
-  let stopped = false;
-  ea.onended = () => { if (!stopped) { try { eb.currentTime = 0; eb.play().catch(() => {}); } catch { /* noop */ } } };
-  eb.onended = () => { if (!stopped) { try { ea.currentTime = 0; ea.play().catch(() => {}); } catch { /* noop */ } } };
-  playlistStop = () => {
-    stopped = true;
-    try { ea.onended = null; eb.onended = null; ea.pause(); eb.pause(); } catch { /* noop */ }
-  };
-  ea.play().catch(() => {});
+  playlistNames = a === b ? [a] : [a, b];
+  for (const n of playlistNames) {
+    try { playLoopSound(n, volume); } catch { /* noop */ }
+  }
 };
-/** Музыка карты: нет / один трек лупом / два по очереди. */
+/** Музыка карты: нет / один трек лупом / два одновременно слоем. */
 export const startMapMusic = (music?: string, music2?: string, volume = 0.35) => {
   stopPlaylist();
   const a = (music || '').trim();
@@ -153,6 +143,8 @@ export const startMapMusic = (music?: string, music2?: string, volume = 0.35) =>
     playPlaylist(a, b, volume);
   } else if (a && a !== '__none') {
     try { playLoopSound(a, volume); } catch { /* noop */ }
+  } else if (b && b !== '__none') {
+    try { playLoopSound(b, volume); } catch { /* noop */ }
   }
 };
 
