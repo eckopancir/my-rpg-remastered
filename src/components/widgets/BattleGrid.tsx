@@ -210,6 +210,7 @@ export const BattleGrid = () => {
   const edDragStart = useMapEditorStore((s) => s.dragStart);
   const edBrushSize = useMapEditorStore((s) => s.brushSize);
   const edHoverF = useMapEditorStore((s) => s.hoverF);
+  const edPeace = useCombatGridStore((s) => s.editorPeace);
   const battleBg = useCombatGridStore((s) => s.battleBg);
   const zones = useCombatGridStore((s) => s.zones);
   const fogLevel = useCombatGridStore((s) => s.fogLevel);
@@ -1047,7 +1048,7 @@ export const BattleGrid = () => {
                     <span style={{ fontSize: 11, fontWeight: 800, background: '#1c7ed6', color: '#fff', borderRadius: 8, padding: '0 5px' }}>{routeNum}</span>
                   </div>
                 )}
-                {obstacle?.isAnchor && (obstacle as any).icon === 'light' && edActive && (
+                {obstacle?.isAnchor && (obstacle as any).icon === 'light' && edActive && edPeace && (
                   <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
                     {(() => {
                       const lvl = (LIGHT_LEVELS as any)[(obstacle as any).imgKey];

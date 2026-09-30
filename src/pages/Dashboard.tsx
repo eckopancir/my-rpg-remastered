@@ -679,6 +679,7 @@ const SavedMapsBlock = () => {
             <Button size="sm" variant="primary" onClick={() => {
               const cs = useCombatGridStore.getState();
               if (cs.isActive) { usePlayerStore.getState().addLog('⚔️ Бой уже идёт', 'warning'); return; }
+              useMapEditorStore.getState().setActive(false);
               const ok = cs.enterCustomMap(m);
               if (!ok) { usePlayerStore.getState().addLog('⚠️ Карта не запустилась', 'warning'); return; }
               navigate('/battle');
