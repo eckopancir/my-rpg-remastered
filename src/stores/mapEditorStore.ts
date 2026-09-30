@@ -498,7 +498,7 @@ export const PROP_SIZES: Record<string, { w: number; h: number }> = {
   o5_6: { w: 1, h: 1 },
   o5_7: { w: 1, h: 2 },
   o5_8: { w: 1, h: 1 },
-  o47: { w: 1, h: 2 },
+  o47: { w: 1, h: 1 },
   o42: { w: 2, h: 3 },
   o43: { w: 2, h: 3 },
   o40: { w: 1, h: 2 },
