@@ -4519,7 +4519,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (const u of map.units || []) {
       try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
     }
-    try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
+    try { if (map.music && map.music !== '__none') playLoopSound(map.music, 0.35); } catch { /* ignore */ }
     get().addBattleLog(`▶ Вход на карту «${(map as any).name || ''}»: ${(map.obstacles || []).length} об, ${(map.units || []).length} юн`);
     return true;
     } catch (err) {
@@ -4605,7 +4605,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     for (const u of map.units || []) {
       try { get().spawnEditorUnit(u.factionKey, u.side, u.x, u.y, u.behavior || 'patrol', u.corpseLoot !== false, (u as any).patrolRoute); } catch { /* ignore */ }
     }
-    try { playLoopSound(map.music || 'track', 0.35); } catch { /* ignore */ }
+    try { if (map.music && map.music !== '__none') playLoopSound(map.music, 0.35); } catch { /* ignore */ }
     get().addBattleLog(`🗺 Карта «${(map as any).name || ''}» открыта: ${(map.obstacles || []).length} об, ${(map.units || []).length} юн`);
     return true;
     } catch (err) {
@@ -5774,6 +5774,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { stopBirdLoop(); } catch { /* ignore */ }
     try { stopCricketLoop(); } catch { /* ignore */ }
     try { stopLoopSound('track'); } catch { /* ignore */ }
+    try { stopLoopSound('basic music'); } catch { /* ignore */ }
     try { stopLoopSound('zemlya-mutantov'); } catch { /* ignore */ }
     try { stopLoopSound('zvuki-prirody-1_-kapli-dozhdya'); } catch { /* ignore */ }
     try { stopLoopSound('zvuki-sverchkov1'); } catch { /* ignore */ }
