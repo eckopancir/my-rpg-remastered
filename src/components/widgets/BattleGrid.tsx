@@ -585,8 +585,10 @@ export const BattleGrid = () => {
   }, [visibleSet, exploredCells, isActive, playerPos, edActive, edFullLight]);
 
   const isCellVisible = useCallback((x: number, y: number) => {
+    // Полный свет конструктора: видно всё, юниты не прячутся от дальности.
+    if (edActive && edFullLight) return true;
     return visibleSet.has(`${x},${y}`);
-  }, [visibleSet]);
+  }, [visibleSet, edActive, edFullLight]);
 
   // -- Hover state for crosshair --
   const hoveredEnemy = useMemo(() => {
