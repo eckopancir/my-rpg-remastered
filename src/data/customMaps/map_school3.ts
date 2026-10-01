@@ -1,6 +1,6 @@
-/* Карта конструктора school2 (Старая школа): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
-export const MAP_SCHOOL2: any = {
-    "name": "school2",
+/* Карта конструктора school3 (Старая школа): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
+export const MAP_SCHOOL3: any = {
+    "name": "school3",
     "music": "track",
     "music2": "__none",
     "musicCombatOnly": false,
@@ -2171,17 +2171,7 @@ export const MAP_SCHOOL2: any = {
             "icon": "prop",
             "imgKey": "o5_6",
             "x": 25,
-            "y": 9,
-            "w": 1,
-            "h": 1,
-            "rot": 0,
-            "random": false
-        },
-        {
-            "icon": "prop",
-            "imgKey": "o5_6",
-            "x": 26,
-            "y": 9,
+            "y": 10,
             "w": 1,
             "h": 1,
             "rot": 0,
@@ -2219,16 +2209,6 @@ export const MAP_SCHOOL2: any = {
         },
         {
             "icon": "prop",
-            "imgKey": "trash_can",
-            "x": 24,
-            "y": 9,
-            "w": 1,
-            "h": 1,
-            "rot": 0,
-            "random": false
-        },
-        {
-            "icon": "prop",
             "imgKey": "ice_kiosks",
             "x": 28,
             "y": 17,
@@ -2244,16 +2224,6 @@ export const MAP_SCHOOL2: any = {
             "y": 13,
             "w": 1,
             "h": 2,
-            "rot": 0,
-            "random": false
-        },
-        {
-            "icon": "small",
-            "imgKey": "o2",
-            "x": 20,
-            "y": 17,
-            "w": 1,
-            "h": 1,
             "rot": 0,
             "random": false
         },
@@ -2288,26 +2258,6 @@ export const MAP_SCHOOL2: any = {
             "random": false
         },
         {
-            "icon": "small",
-            "imgKey": "o1_2",
-            "x": 20,
-            "y": 16,
-            "w": 1,
-            "h": 1,
-            "rot": 0,
-            "random": false
-        },
-        {
-            "icon": "small",
-            "imgKey": "o1_2",
-            "x": 22,
-            "y": 16,
-            "w": 1,
-            "h": 1,
-            "rot": 0,
-            "random": false
-        },
-        {
             "icon": "prop",
             "imgKey": "trash_pile2",
             "x": 20,
@@ -2315,6 +2265,76 @@ export const MAP_SCHOOL2: any = {
             "w": 2,
             "h": 2,
             "rot": 90,
+            "random": false
+        },
+        {
+            "icon": "small",
+            "imgKey": "o19",
+            "x": 26,
+            "y": 10,
+            "w": 1,
+            "h": 1,
+            "rot": 0,
+            "random": false
+        },
+        {
+            "icon": "prop",
+            "imgKey": "o47",
+            "x": 25,
+            "y": 9,
+            "w": 1,
+            "h": 1,
+            "rot": 0,
+            "random": false
+        },
+        {
+            "icon": "small",
+            "imgKey": "o1_2",
+            "x": 27,
+            "y": 10,
+            "w": 1,
+            "h": 1,
+            "rot": 0,
+            "random": false
+        },
+        {
+            "icon": "small",
+            "imgKey": "o1",
+            "x": 11,
+            "y": 21,
+            "w": 1,
+            "h": 1,
+            "rot": 0,
+            "random": false
+        },
+        {
+            "icon": "small",
+            "imgKey": "o19",
+            "x": 22,
+            "y": 20,
+            "w": 1,
+            "h": 1,
+            "rot": 0,
+            "random": false
+        },
+        {
+            "icon": "small",
+            "imgKey": "o19",
+            "x": 22,
+            "y": 21,
+            "w": 1,
+            "h": 1,
+            "rot": 0,
+            "random": false
+        },
+        {
+            "icon": "prop",
+            "imgKey": "o5_5",
+            "x": 27,
+            "y": 8,
+            "w": 1,
+            "h": 1,
+            "rot": 0,
             "random": false
         }
     ],
@@ -2385,8 +2405,8 @@ export const MAP_SCHOOL2: any = {
         {
             "factionKey": "Кабан",
             "side": "neutral",
-            "x": 26,
-            "y": 28,
+            "x": 17,
+            "y": 24,
             "behavior": "patrol"
         },
         {
@@ -2399,8 +2419,8 @@ export const MAP_SCHOOL2: any = {
         {
             "factionKey": "Кабан",
             "side": "neutral",
-            "x": 19,
-            "y": 27,
+            "x": 16,
+            "y": 28,
             "behavior": "sleeping"
         }
     ],
@@ -2612,5 +2632,5 @@ export const MAP_SCHOOL2: any = {
         "x": 20,
         "y": 5
     },
-    "createdAt": 1790825976534
+    "createdAt": 1790839576921
 };
