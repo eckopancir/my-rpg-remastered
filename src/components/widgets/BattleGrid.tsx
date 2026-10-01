@@ -31,8 +31,10 @@ const GRID_SIZE = 32;
 const NightDarkness = () => {
   const isNightTime = useCombatGridStore((s) => s.isNightTime);
   const forceDay = useUiStore((s) => s.forceDay);
+  // Полный свет конструктора: ночь и конус не затемняют.
+  const edFull = useMapEditorStore((s) => s.active && s.fullLight);
   const ref = useRef<HTMLCanvasElement>(null);
-  const nightOn = isNightTime && !forceDay;
+  const nightOn = isNightTime && !forceDay && !edFull;
 
   useEffect(() => {
     if (!nightOn) return;
@@ -281,6 +283,7 @@ export const BattleGrid = () => {
   const obstacles = useCombatGridStore((s) => s.obstacles);
   const isActive = useCombatGridStore((s) => s.isActive);
   const edActive = useMapEditorStore((s) => s.active);
+  const edFullLight = useMapEditorStore((s) => s.fullLight);
   const edSelObId = useMapEditorStore((s) => s.selObId);
   const edSelUnitId = useMapEditorStore((s) => s.selUnitId);
   const edTool = useMapEditorStore((s) => s.tool);
@@ -553,11 +556,16 @@ export const BattleGrid = () => {
   // Оттенок холодный синеватый: тёплая земля под чисто чёрным давала грязную
   // желтизну. Видно = прозрачно рядом, дальше — плавная дымка; разведанное =
   // тень памяти; невиданное = почти черное.
+  // Полный свет конструктора: туман стираем полностью.
   useEffect(() => {
     const cv = fogCanvasRef.current;
     if (!cv) return;
     const ctx = cv.getContext('2d');
     if (!ctx) return;
+    if (edActive && edFullLight) {
+      ctx.clearRect(0, 0, GRID_SIZE, GRID_SIZE);
+      return;
+    }
     const img = ctx.createImageData(GRID_SIZE, GRID_SIZE);
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
@@ -574,7 +582,7 @@ export const BattleGrid = () => {
       }
     }
     ctx.putImageData(img, 0, 0);
-  }, [visibleSet, exploredCells, isActive, playerPos]);
+  }, [visibleSet, exploredCells, isActive, playerPos, edActive, edFullLight]);
 
   const isCellVisible = useCallback((x: number, y: number) => {
     return visibleSet.has(`${x},${y}`);

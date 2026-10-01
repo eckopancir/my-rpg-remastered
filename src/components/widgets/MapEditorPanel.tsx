@@ -322,6 +322,10 @@ export const MapEditorPanel = () => {
           />
           {fogLevel || 0}%
         </label>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, marginTop: 4 }}>
+          <input type="checkbox" checked={!!ed.fullLight} onChange={(e) => ed.setFullLight(e.target.checked)} />
+          ☀ Полный свет (без теней, только стройка)
+        </label>
       </div>
 
       <div style={sec}>

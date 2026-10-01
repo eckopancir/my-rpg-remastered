@@ -145,6 +145,9 @@ interface MapEditorStore {
   setToReinforce: (v: boolean) => void;
   holeMode: 'open' | 'cover';
   setHoleMode: (m: 'open' | 'cover') => void;
+  /** Полный свет в конструкторе: без ночи и тумана конуса. */
+  fullLight: boolean;
+  setFullLight: (v: boolean) => void;
   setReinforceTurn: (n: number) => void;
   addGarrison: (g: SavedMapGarrison) => void;
   removeGarrison: (idx: number) => void;
@@ -233,6 +236,8 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   /** Режим дырок: проход (зелёные) или укрытие (оранжевые, накрывают юнита). */
   holeMode: 'open' as 'open' | 'cover',
   setHoleMode: (holeMode: 'open' | 'cover') => set({ holeMode }),
+  fullLight: false,
+  setFullLight: (fullLight) => set({ fullLight }),
   setReinforceTurn: (n) => set({ reinforceTurn: Math.max(1, Math.min(200, Math.round(n) || 39)) }),
   addGarrison: (g) => {
     get().pushHistory();
