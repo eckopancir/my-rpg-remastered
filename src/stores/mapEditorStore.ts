@@ -773,6 +773,18 @@ export const editorCellClick = (x: number, y: number): void => {
   const st = cs.getState();
   const tool = ed.tool;
   const findOb = () => (st.obstacles as any[]).find((o: any) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
+  // Кандидаты на клетке: выбор — самый мелкий (мелочь бьёт здание), дырки — самый крупный (здание бьёт мелочь).
+  // Ничья — последний положенный (верхний).
+  const pickOb = (largest: boolean) => {
+    let best: any = null;
+    let bestArea = 0;
+    for (const o of (st.obstacles as any[])) {
+      if (!(x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h)) continue;
+      const area = (o.w || 1) * (o.h || 1);
+      if (!best || (largest ? area >= bestArea : area <= bestArea)) { best = o; bestArea = area; }
+    }
+    return best;
+  };
   // Трупы тоже выбираются и переносятся.
   const findUnit = () => (st.enemies as any[]).find((e: any) => e.pos.x === x && e.pos.y === y);
   if (tool.kind === 'select') {
@@ -824,9 +836,9 @@ export const editorCellClick = (x: number, y: number): void => {
       ed.setSelZone((zoneHit as any).id);
       return;
     }
-    // Приоритет выбора: сначала юнит (стоит на объекте/дырках), потом объект.
+    // Приоритет выбора: сначала юнит (стоит на объекте/дырках), потом самый мелкий объект.
     const u = findUnit();
-    const ob = !u ? findOb() : undefined;
+    const ob = !u ? pickOb(false) : undefined;
     ed.setSel(ob ? (ob as any).id : null, u ? (u as any).id : null);
     return;
   }
@@ -839,7 +851,8 @@ export const editorCellClick = (x: number, y: number): void => {
   // Режим немой: ничего не выбираем, иначе конфликт с «выбрать».
   // Тип из holeMode: проход (open) или укрытие (cover, накрывает юнита артом).
   if (tool.kind === 'holes') {
-    const ob = findOb();
+    // Дырки бьют по самому крупному (здание под мелочью). Мелочь дырявить — оттащи в сторону.
+    const ob = pickOb(true);
     if (!ob) {
       usePlayerStore.getState().addLog('🕳 Кликни по клетке объекта', 'warning');
       return;
