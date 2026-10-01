@@ -790,9 +790,8 @@ export const editorCellClick = (x: number, y: number): void => {
       if (ob) {
         const nx = Math.max(0, Math.min(32 - ob.w, x));
         const ny = Math.max(0, Math.min(32 - ob.h, y));
-        const clash = (st.obstacles as any[]).some((o: any) =>
-          o.id !== ob.id && o.icon !== 'light' && rectsOverlap(nx, ny, ob.w, ob.h, o.x, o.y, o.w, o.h));
-        if (!clash && !footprintHitsCamp(ob.w, ob.h, nx, ny) && !(nx <= 2 && ny <= 2 && 2 < nx + ob.w && 2 < ny + ob.h)) {
+        // Перенос — та же проверка, что установка (дырки чужих объектов — можно).
+        if (footprintValid(st.obstacles, ob.w, ob.h, nx, ny, ob.id) && !footprintHitsCamp(ob.w, ob.h, nx, ny)) {
           ed.pushHistory();
           cs.setState((s: any) => ({
             obstacles: s.obstacles.map((o: any) => (o.id === ob.id ? { ...o, x: nx, y: ny } : o)),
@@ -825,8 +824,9 @@ export const editorCellClick = (x: number, y: number): void => {
       ed.setSelZone((zoneHit as any).id);
       return;
     }
-    const ob = findOb();
-    const u = !ob ? findUnit() : undefined;
+    // Приоритет выбора: сначала юнит (стоит на объекте/дырках), потом объект.
+    const u = findUnit();
+    const ob = !u ? findOb() : undefined;
     ed.setSel(ob ? (ob as any).id : null, u ? (u as any).id : null);
     return;
   }
