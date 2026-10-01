@@ -11,7 +11,7 @@ import { ENEMY_BASE_STATS } from '../../engine/enemies';
 import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES } from '../../engine/terrain';
 
 const buildingSize = (k: string) => (k === 'o8' || k === 'o9' ? { w: 8, h: 6 } : { w: 6, h: 5 });
-const carSize = (k: string) => (k === 'o23' || k === 'o29' ? { w: 2, h: 3 } : k === 'o33' ? { w: 2, h: 1 } : { w: 1, h: 2 });
+const carSize = (k: string) => (k === 'o23' || k === 'o29' ? { w: 2, h: 3 } : k === 'o33' ? { w: 3, h: 2 } : { w: 1, h: 2 });
 
 const OB_CATALOG: { icon: string; imgKey: string; w: number; h: number; label: string }[] = [
   ...BIG_BUILDING_IMAGES.map((k) => ({ icon: 'building', imgKey: k, ...buildingSize(k), label: k })),
@@ -30,6 +30,8 @@ const OB_CATALOG: { icon: string; imgKey: string; w: number; h: number; label: s
   ...SMALL_OBSTACLE_IMAGES.map((k) => ({ icon: 'small', imgKey: k, w: 1, h: 1, label: k })),
   { icon: 'small', imgKey: 'o20z', w: 1, h: 1, label: 'o20z' },
   { icon: 'small', imgKey: 'playground', w: 2, h: 4, label: 'playground' },
+  { icon: 'small', imgKey: 'ground_road7', w: 4, h: 4, label: 'road7' },
+  { icon: 'small', imgKey: 'ground_road6', w: 2, h: 2, label: 'road6' },
   ...Object.entries(PROP_SIZES).map(([k, s]) => ({ icon: 'prop', imgKey: k, w: s.w, h: s.h, label: k })),
   { icon: 'building', imgKey: 'o48', w: 6, h: 3, label: 'o48 барак' },
   { icon: 'fence', imgKey: 'o5', w: 1, h: 1, label: 'o5 забор' },
@@ -436,9 +438,23 @@ export const MapEditorPanel = () => {
           </button>
         </div>
         {ed.tool.kind === 'holes' && (
-          <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>
-            Клик по клетке объекта вкл/выкл проходимость. Зелёные — открытые.
-          </div>
+          <>
+            <div style={{ ...grid, marginTop: 4 }}>
+              <button style={btn(ed.holeMode === 'open')} onClick={() => ed.setHoleMode('open')}>🟩 Проход</button>
+              <button
+                style={btn(ed.holeMode === 'cover')}
+                title="Юнит на такой клетке накрывается артом — его не видно"
+                onClick={() => ed.setHoleMode('cover')}
+              >
+                🟧 Укрытие
+              </button>
+            </div>
+            <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>
+              {ed.holeMode === 'open'
+                ? 'Клик по клетке объекта вкл/выкл проходимость. Зелёные — открытые.'
+                : 'Клик по клетке объекта вкл/выкл укрытие. Оранжевые — накрывают юнита артом.'}
+            </div>
+          </>
         )}
       </div>
 
@@ -676,7 +692,7 @@ export const MapEditorPanel = () => {
           })()}
           {selOb && <button style={act} onClick={rotateSel}>🔄 Развернуть 90°</button>}
           {selOb && <button style={act} onClick={() => toggleSelectedRandom()}>🎲 Случайное/фикс</button>}
-          {selOb && ((selOb as any).openCells || []).length > 0 && <button style={act} onClick={() => clearOpenCells()}>🕳 Убрать дырки ({((selOb as any).openCells || []).length})</button>}
+          {selOb && ((selOb as any).openCells || []).length > 0 && <button style={act} onClick={() => clearOpenCells()}>🕳 Убрать дырки ({((selOb as any).openCells || []).filter((c: any) => !c.cover).length}🟩+{((selOb as any).openCells || []).filter((c: any) => c.cover).length}🟧)</button>}
           <button style={act} onClick={deleteSel}>🗑 Удалить</button>
         </div>
       )}

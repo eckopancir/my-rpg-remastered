@@ -173,6 +173,50 @@ const obstacleImgStyle = (w: number, h: number, rot: number, wBoost = 1): React.
 /** Центр клетки -> % арены (юниты рисуются по центрам клеток). */
 const cellPct = (c: number): number => ((c + 0.5) / GRID_SIZE) * 100;
 
+/** Арт препятствия: src по тем же правилам, что якорный рендер ниже. */
+const obstacleArtSrc = (t: { icon: string; imgKey?: string; imgIndex?: number }): string | undefined => {
+  try {
+    return getBattleImage(
+      t.imgKey ||
+      (t.icon === 'building' ? BIG_BUILDING_IMAGES[t.imgIndex ?? 0] :
+      t.icon === 'car' ? CAR_IMAGES[t.imgIndex ?? 0] :
+      t.icon === 'woods' ? WOOD_IMAGES[t.imgIndex ?? 0] :
+      t.icon === 'small' ? SMALL_OBSTACLE_IMAGES[t.imgIndex ?? 0] :
+      t.icon === 'fence' ? FENCE_IMAGE :
+      t.icon === 'field' ? FIELD_IMAGE :
+      'o1')
+    ) || undefined;
+  } catch { return undefined; }
+};
+/** Класс арта препятствия по типу. */
+const obstacleArtClass = (t: { icon: string; stumpCenter?: boolean }): string =>
+  `${styles.obstacleImg} ${t.stumpCenter ? styles.obstacleWoodsImg : t.icon === 'building' ? styles.obstacleBigImg : t.icon === 'car' ? styles.obstacleCarImg : t.icon === 'woods' ? styles.obstacleWoodsImg : styles.obstacleSmallImg}`;
+/** Стиль арта препятствия (здания/поле/декор — футпринт; машины +25% в ширину; мелочь 85%/42%). */
+const obstacleArtStyle = (t: { icon: string; imgKey?: string; w: number; h: number; rot?: number; stumpCenter?: boolean }): React.CSSProperties | undefined => {
+  const rot = t.rot || 0;
+  const rotOnly = rot ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center' } : null;
+  const key = t.imgKey || (t.icon === 'small' ? SMALL_OBSTACLE_IMAGES[t.imgIndex ?? 0] : '');
+  if (t.icon === 'prop') {
+    if (key === 'trash_can') return { width: '42%', height: '42%', left: '29%', top: '29%', ...rotOnly };
+    if (key === 'lamp_post') return { width: '50%', height: '50%', left: '25%', top: '25%', ...rotOnly };
+    return obstacleImgStyle(t.w, t.h, rot);
+  }
+  if (t.icon === 'building' || t.icon === 'field' || (t.icon === 'small' && !(t as any).blocks)) {
+    return obstacleImgStyle(t.w, t.h, rot);
+  }
+  if (t.icon === 'car') return obstacleImgStyle(t.w, t.h, rot, 1.25);
+  if (t.icon === 'woods' || t.icon === 'fence') return obstacleImgStyle(t.w, t.h, rot);
+  if (t.icon === 'small' && ['o1', 'o1_2', 'o2'].includes(key)) {
+    return { width: '85%', height: '85%', left: '7.5%', top: '7.5%', ...rotOnly };
+  }
+  if (t.icon === 'small' && ['o32_2', 'penek'].includes(key)) {
+    if (t.stumpCenter) return { width: '85%', height: '85%', left: '57.5%', top: '57.5%', ...rotOnly };
+    return { width: '42%', height: '42%', left: '29%', top: '29%', ...rotOnly };
+  }
+  if (t.icon === 'small') return { width: '85%', height: '85%', left: '7.5%', top: '7.5%', ...rotOnly };
+  return undefined;
+};
+
 function offsetShotPoint(from: { x: number; y: number }, to: { x: number; y: number }, dist = 0.4) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -218,7 +262,7 @@ const PetHitSpark = () => {
   );
 };
 
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, EDITOR_POOLS, isOpenCell, terrainSummary, isCellWalkable } from '../../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, EDITOR_POOLS, isOpenCell, isCoverCell, terrainSummary, isCellWalkable } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
@@ -737,12 +781,12 @@ export const BattleGrid = () => {
   }, [enemies]);
 
   const obstacleTileMap = useMemo(() => {
-    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; imgKey?: string; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean; rot?: number; obId?: number | string; random?: boolean; open?: boolean }>();
+    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; imgKey?: string; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean; rot?: number; obId?: number | string; random?: boolean; open?: boolean; coverInfo?: { dx: number; dy: number; w: number; h: number; rot: number; icon: string; imgKey?: string; imgIndex?: number; stumpCenter?: boolean; blocks?: boolean } | null }>();
     for (const ob of obstacles) {
       for (let dx = 0; dx < ob.w; dx++) {
         for (let dy = 0; dy < ob.h; dy++) {
           const isAnchor = dx === 0 && dy === 0;
-          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, imgKey: (ob as any).imgKey, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter, rot: (ob as any).rot || 0, obId: (ob as any).id, random: !!(ob as any).editorRandom, open: isOpenCell(ob as any, ob.x + dx, ob.y + dy) });
+          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, imgKey: (ob as any).imgKey, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter, rot: (ob as any).rot || 0, obId: (ob as any).id, random: !!(ob as any).editorRandom, open: isOpenCell(ob as any, ob.x + dx, ob.y + dy), coverInfo: isCoverCell(ob as any, ob.x + dx, ob.y + dy) ? { dx, dy, w: ob.w ?? 1, h: ob.h ?? 1, rot: (ob as any).rot || 0, icon: ob.icon, imgKey: (ob as any).imgKey, imgIndex: ob.imgIndex, stumpCenter: !!(ob as any).stumpCenter, blocks: !!ob.blocks } : null });
         }
       }
     }
@@ -1106,66 +1150,13 @@ export const BattleGrid = () => {
                 )}
                 {obstacle?.isAnchor && (obstacle as any).icon !== 'light' && (
                   <img
-                    src={getBattleImage(
-                      (obstacle as any).imgKey ||
-                      (obstacle.icon === 'building' ? BIG_BUILDING_IMAGES[obstacle.imgIndex ?? 0] :
-                      obstacle.icon === 'car' ? CAR_IMAGES[obstacle.imgIndex ?? 0] :
-                      obstacle.icon === 'woods' ? WOOD_IMAGES[obstacle.imgIndex ?? 0] :
-                      obstacle.icon === 'small' ? SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] :
-                      obstacle.icon === 'fence' ? FENCE_IMAGE :
-                      obstacle.icon === 'field' ? FIELD_IMAGE :
-                      'o1')
-                    )}
+                    src={obstacleArtSrc(obstacle as any)}
                     alt=""
-                    className={`${styles.obstacleImg} ${(obstacle as any).stumpCenter ? styles.obstacleWoodsImg : obstacle.icon === 'building' ? styles.obstacleBigImg : obstacle.icon === 'car' ? styles.obstacleCarImg : obstacle.icon === 'woods' ? styles.obstacleWoodsImg : styles.obstacleSmallImg}`}
+                    className={obstacleArtClass(obstacle as any)}
                     // Здания, поле и проходимый декор — ровно футпринт; машины +25% в ширину.
                     // Разворот 90/270: бокс транспонируется (см. obstacleImgStyle).
                     // Обрезанные камни o1/o2 — чуть меньше клетки (85% по центру).
-                    style={(() => {
-                      const rot = obstacle.rot || 0;
-                      const rotOnly = rot ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center' } : null;
-                      const key = (obstacle as any).imgKey
-                        || (obstacle.icon === 'small' ? SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] : '');
-                      // Реквизит (ящики, вертолёт, фонарь): весь футпринт, ходить нельзя, пули сквозь.
-                      if (obstacle.icon === 'prop') {
-                        // Мусорное ведро — вдвое меньше клетки.
-                        if (key === 'trash_can') {
-                          return { width: '42%', height: '42%', left: '29%', top: '29%', ...rotOnly };
-                        }
-                        // Столб-фонарь — вдвое меньше футпринта, ходить сквозь можно.
-                        if (key === 'lamp_post') {
-                          return { width: '50%', height: '50%', left: '25%', top: '25%', ...rotOnly };
-                        }
-                        return obstacleImgStyle(obstacle.w, obstacle.h, rot);
-                      }
-                      if (obstacle.icon === 'building' || obstacle.icon === 'field' || (obstacle.icon === 'small' && !obstacle.blocks)) {
-                        return obstacleImgStyle(obstacle.w, obstacle.h, rot);
-                      }
-                      // Машины: в длину по футпринту, в ширину +25% по центру.
-                      if (obstacle.icon === 'car') {
-                        return obstacleImgStyle(obstacle.w, obstacle.h, rot, 1.25);
-                      }
-                      // Лес и забор тоже крутятся.
-                      if (obstacle.icon === 'woods' || obstacle.icon === 'fence') {
-                        return obstacleImgStyle(obstacle.w, obstacle.h, rot);
-                      }
-                      if (obstacle.icon === 'small' && ['o1', 'o1_2', 'o2'].includes(key ?? '')) {
-                        return { width: '85%', height: '85%', left: '7.5%', top: '7.5%', ...rotOnly };
-                      }
-                      if (obstacle.icon === 'small' && ['o32_2', 'penek'].includes(key ?? '')) {
-                        // Пенёк от срубленного дерева — вдвое меньше кроны, по центру футпринта.
-                        // Кластерные — 42% по центру своей клетки.
-                        if ((obstacle as any).stumpCenter) {
-                          return { width: '85%', height: '85%', left: '57.5%', top: '57.5%', ...rotOnly };
-                        }
-                        return { width: '42%', height: '42%', left: '29%', top: '29%', ...rotOnly };
-                      }
-                      // Остальная блокирующая мелочь (o19, колодец) — 85% по центру.
-                      if (obstacle.icon === 'small') {
-                        return { width: '85%', height: '85%', left: '7.5%', top: '7.5%', ...rotOnly };
-                      }
-                      return undefined;
-                    })()}
+                    style={obstacleArtStyle(obstacle as any)}
                     draggable={false}
                     {...((obstacle as any).imgKey === 'fonar'
                       ? { 'data-fonar': String((obstacle as any).obId ?? ''), 'data-fonar-base': String(obstacle.rot || 0) }
@@ -1176,10 +1167,22 @@ export const BattleGrid = () => {
                 {edActive && obstacle?.isAnchor && (obstacle as any).random && (
                   <span title="Случайное место при входе" style={{ position: 'absolute', right: 1, top: 1, zIndex: 6, fontSize: 13, pointerEvents: 'none' }}>🎲</span>
                 )}
-                {/* Дырка: проходимая клетка внутри объекта (только в конструкторе). */}
-                {edActive && obstacle && (obstacle as any).open && (
+                {/* Дырки: проход — зелёный, укрытие — оранжевый (только в конструкторе). */}
+                {edActive && obstacle && (obstacle as any).open && !(obstacle as any).coverInfo && (
                   <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3, background: 'rgba(89,214,99,0.30)', border: '1px dashed rgba(89,214,99,0.9)' }} />
                 )}
+                {edActive && obstacle && (obstacle as any).coverInfo && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3, background: 'rgba(255,159,67,0.32)', border: '1px dashed rgba(255,159,67,0.95)' }} />
+                )}
+                {/* Укрытие: юнит на cover-клетке накрывается куском арта (и в игре, и в стройке). */}
+                {(obstacle as any)?.coverInfo && (isPlayer || enemy) && (() => {
+                  const cv = (obstacle as any).coverInfo;
+                  return (
+                    <div style={{ position: 'absolute', left: `${-cv.dx * 100}%`, top: `${-cv.dy * 100}%`, width: `${cv.w * 100}%`, height: `${cv.h * 100}%`, zIndex: 12, pointerEvents: 'none' }}>
+                      <img src={obstacleArtSrc(cv)} alt="" className={obstacleArtClass(cv)} style={obstacleArtStyle(cv)} draggable={false} />
+                    </div>
+                  );
+                })()}
                 {waypointNum && !isPlayer && !enemy && (
                   <div className={styles.waypointDot}>{waypointNum}</div>
                 )}

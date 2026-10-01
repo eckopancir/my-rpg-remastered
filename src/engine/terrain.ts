@@ -57,8 +57,8 @@ export const SHOTSTOP_PROPS = new Set(['o5_2', 'o5_3']);
 export const isShootThrough = (icon?: string, imgKey?: string): boolean =>
   icon === 'prop' && !SHOTSTOP_PROPS.has(imgKey || '');
 
-/** Проходимая мелочь (декор): o20/o21, зимний o20z и детская площадка. */
-export const WALKABLE_SMALL = new Set(['o20', 'o21', 'o20z', 'playground']);
+/** Проходимая мелочь (декор): o20/o21, зимний o20z, площадка и дороги-плашки. */
+export const WALKABLE_SMALL = new Set(['o20', 'o21', 'o20z', 'playground', 'ground_road7', 'ground_road6']);
 
 /** Проходимо ли препятствие (можно встать/пройти). */
 export const isObstacleWalkable = (icon?: string, imgKey?: string): boolean =>
@@ -88,7 +88,7 @@ export const EDITOR_POOLS: Record<string, string[]> = {
   building: [...BIG_BUILDING_IMAGES, 'o15', 'o27', 'o48', 'etazh5', 'etazh9', 'etazh5_2', 'etazh5_3', 'etazh5_4', 'school_big'],
   car: CAR_IMAGES,
   woods: [...WOOD_IMAGES, 'o3zz'],
-  small: [...SMALL_OBSTACLE_IMAGES, 'o20z', 'playground'],
+  small: [...SMALL_OBSTACLE_IMAGES, 'o20z', 'playground', 'ground_road7', 'ground_road6'],
   fence: [FENCE_IMAGE],
   field: [FIELD_IMAGE],
   prop: ['o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41', 'fonar', 'trash_pile', 'trash_pile2', 'trash_tank', 'trash_can', 'ice_kiosks', 'lamp_post'],
@@ -210,8 +210,13 @@ export const isOpenCell = (o: { x: number; y: number; openCells?: { dx: number; 
   return cells.some((c: any) => o.x + (c.dx || 0) === x && o.y + (c.dy || 0) === y);
 };
 
-/** Повернуть дырки вместе с футпринтом на 90° по часовой (w/h уже swapped снаружи). */
-export const rotateOpenCells = (cells: { dx: number; dy: number }[] | undefined, w: number, h: number): { dx: number; dy: number }[] | undefined => {
+/** Укрытие: клетка-дырка с cover=true — юнит накрывается артом. */
+export const isCoverCell = (o: { x: number; y: number; openCells?: { dx: number; dy: number; cover?: boolean }[] }, x: number, y: number): boolean => {
+  const cells = (o as any)?.openCells;
+  if (!Array.isArray(cells) || cells.length === 0) return false;
+  return cells.some((c: any) => c.cover === true && o.x + (c.dx || 0) === x && o.y + (c.dy || 0) === y);
+};
+export const rotateOpenCells = (cells: { dx: number; dy: number; cover?: boolean }[] | undefined, w: number, h: number): { dx: number; dy: number; cover?: boolean }[] | undefined => {
   if (!Array.isArray(cells) || cells.length === 0) return cells;
-  return cells.map((c) => ({ dx: h - 1 - (c.dy || 0), dy: c.dx || 0 }));
+  return cells.map((c) => ({ dx: h - 1 - (c.dy || 0), dy: c.dx || 0, ...(c.cover ? { cover: true as const } : null) }));
 };

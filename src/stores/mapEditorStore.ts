@@ -42,7 +42,7 @@ export type SavedMapObstacle = {
   h: number;
   rot: number;
   random: boolean;
-  openCells?: { dx: number; dy: number }[];
+  openCells?: { dx: number; dy: number; cover?: boolean }[];
 };
 
 export interface SavedMap {
@@ -143,6 +143,8 @@ interface MapEditorStore {
   setSelZone: (id: number | string | null) => void;
   setZoneKind: (k: 'spawn' | 'exit' | 'trigger' | 'reinforce') => void;
   setToReinforce: (v: boolean) => void;
+  holeMode: 'open' | 'cover';
+  setHoleMode: (m: 'open' | 'cover') => void;
   setReinforceTurn: (n: number) => void;
   addGarrison: (g: SavedMapGarrison) => void;
   removeGarrison: (idx: number) => void;
@@ -228,6 +230,9 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   setSelZone: (selZoneId) => set({ selZoneId, selObId: null, selUnitId: null, selCamp: false }),
   setZoneKind: (zoneKind) => set({ zoneKind }),
   setToReinforce: (toReinforce) => set({ toReinforce }),
+  /** Режим дырок: проход (зелёные) или укрытие (оранжевые, накрывают юнита). */
+  holeMode: 'open' as 'open' | 'cover',
+  setHoleMode: (holeMode: 'open' | 'cover') => set({ holeMode }),
   setReinforceTurn: (n) => set({ reinforceTurn: Math.max(1, Math.min(200, Math.round(n) || 39)) }),
   addGarrison: (g) => {
     get().pushHistory();
@@ -411,7 +416,7 @@ export const buildMapObject = (name: string, music: string, obstacles: any[], un
       icon: o.icon, imgKey: o.imgKey || '', x: o.x, y: o.y, w: o.w, h: o.h,
       rot: o.rot || 0, random: !!o.editorRandom,
       openCells: Array.isArray(o.openCells) && o.openCells.length > 0
-        ? o.openCells.map((c: any) => ({ dx: c.dx || 0, dy: c.dy || 0 }))
+        ? o.openCells.map((c: any) => ({ dx: c.dx || 0, dy: c.dy || 0, ...(c.cover ? { cover: true } : null) }))
         : undefined,
     })),
     units: (units || []).map((u: any) => ({
@@ -811,22 +816,25 @@ export const editorCellClick = (x: number, y: number): void => {
   }
   // Дырки: клик по клетке объекта вкл/выкл проходимость+прострел.
   // Режим немой: ничего не выбираем, иначе конфликт с «выбрать».
+  // Тип из holeMode: проход (open) или укрытие (cover, накрывает юнита артом).
   if (tool.kind === 'holes') {
     const ob = findOb();
     if (!ob) {
       usePlayerStore.getState().addLog('🕳 Кликни по клетке объекта', 'warning');
       return;
     }
-    if (x < ob.x || x >= ob.x + ob.w || y < ob.y || y >= ob.y + ob.h) {
-      usePlayerStore.getState().addLog('🕳 Клетка вне объекта', 'warning');
-      return;
-    }
     ed.pushHistory();
     const dx = x - ob.x;
     const dy = y - ob.y;
     const cur = Array.isArray(ob.openCells) ? ob.openCells : [];
-    const has = cur.some((c: any) => c.dx === dx && c.dy === dy);
-    const next = has ? cur.filter((c: any) => !(c.dx === dx && c.dy === dy)) : [...cur, { dx, dy }];
+    const found = cur.find((c: any) => c.dx === dx && c.dy === dy);
+    const wantCover = ed.holeMode === 'cover';
+    // Та же клетка тем же типом — снять; другим типом — переключить; нет — добавить.
+    const next = !found
+      ? [...cur, wantCover ? { dx, dy, cover: true } : { dx, dy }]
+      : (found.cover === true) === wantCover
+        ? cur.filter((c: any) => !(c.dx === dx && c.dy === dy))
+        : cur.map((c: any) => (c.dx === dx && c.dy === dy ? (wantCover ? { dx, dy, cover: true } : { dx, dy }) : c));
     cs.setState((s: any) => ({
       obstacles: s.obstacles.map((o: any) => (o.id === ob.id ? { ...o, openCells: next } : o)),
     }));

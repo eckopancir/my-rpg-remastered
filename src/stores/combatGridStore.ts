@@ -173,7 +173,7 @@ export interface GridObstacle {
   /** Реквизит: ходить нельзя, стрелять сквозь — можно. */
   shootThrough?: boolean;
   /** Дырки: проходимые и простреливаемые клетки внутри футпринта [{dx,dy}]. */
-  openCells?: { dx: number; dy: number }[];
+  openCells?: { dx: number; dy: number; cover?: boolean }[];
 }
 
 /** Зона конструктора карт: спавн игрока / выход / триггер-засада / точка подкрепления. */
@@ -4668,7 +4668,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
             isHigh: o.icon === 'building' || o.icon === 'fence',
             imgIndex: imgIdx, rot: o.rot || 0, shootThrough: isShootThrough(o.icon, o.imgKey || ''), searchLoot: searchLootForProp(o.icon, o.imgKey || ''),
-            openCells: Array.isArray((o as any).openCells) ? (o as any).openCells : undefined,
+            openCells: Array.isArray((o as any).openCells) ? (o as any).openCells.map((c: any) => ({ dx: c.dx || 0, dy: c.dy || 0, ...(c.cover ? { cover: true } : null) })) : undefined,
           });
           mark(rx, ry, o.w, o.h);
           placed = true;
