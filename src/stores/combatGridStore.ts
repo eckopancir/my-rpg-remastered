@@ -254,9 +254,9 @@ export const shotKindForEnemy = (e: { name?: string; factionKey?: string }): { k
 };
 
 /** Пул выстрелов винтовки: только военные стрелки (и союзники с автоматом). */
-export const ENEMY_RIFLE_SHOTS = ['shot1', 'shot2', 'shot3', 'shot6', 'shot7', 'shot4', 'shot5', 'shot8', 'shot9', 'shot10', 'shot11', 'shot12'];
+export const ENEMY_RIFLE_SHOTS = ['shot1', 'shot2', 'shot3', 'shot6', 'shot7', 'shot4', 'shot5', 'shot8', 'shot9', 'shot10', 'shot11', 'shot12', 'automatic-shots-burst-with-a-silencer'];
 /** Длинные: глушить, когда стрелок закончил ход. */
-export const ENEMY_LONG_SHOTS = new Set(['shot4', 'shot5']);
+export const ENEMY_LONG_SHOTS = new Set(['shot4', 'shot5', 'automatic-shots-burst-with-a-silencer']);
 /** Раздать военному стрелку его звук на весь бой. Остальные — свой базовый. */
 export const rollEnemyShotSound = (factionKey?: string): { sound?: string; long?: boolean } => {
   if (factionKey !== 'Военные (original)') return {};

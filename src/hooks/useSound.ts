@@ -120,8 +120,8 @@ export const stopLoopSound = (name: string) => {
 /** Длинные выстрелы: играют максимум N мс, дальше стоп (пулемёт 1.2с, глушитель 0.3с). */
 const CAPPED_DEFAULT_MS = 1200;
 const cappedTimers = new Map<string, any>();
-const LONG_SHOT_SOUNDS = new Set(['пулемет', 'shot9']);
-const SHORT_CAPPED_SOUNDS = new Set(['automatic-shots-burst-with-a-silencer']);
+const LONG_SHOT_SOUNDS = new Set(['пулемет', 'shot9', 'automatic-shots-burst-with-a-silencer']);
+const SHORT_CAPPED_SOUNDS = new Set<string>([]);
 /** Фиксированная длительность отдельных сэмплов (мс). */
 const FIXED_SHOT_MS: Record<string, number> = {
   'пистолет с глушителем': 800,
