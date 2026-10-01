@@ -48,7 +48,7 @@ const ICON_LABELS: Record<string, string> = {
 };
 
 /** Реквизит, сквозь который можно ходить (декор без коллизии). */
-export const WALK_THROUGH_PROPS = new Set(['o45', 'o46']);
+export const WALK_THROUGH_PROPS = new Set(['o45', 'o46', 'lamp_post']);
 
 /** Большой забор: реквизит, но пули не пропускает (как o5). */
 export const SHOTSTOP_PROPS = new Set(['o5_2', 'o5_3']);

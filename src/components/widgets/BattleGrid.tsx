@@ -1128,6 +1128,14 @@ export const BattleGrid = () => {
                         || (obstacle.icon === 'small' ? SMALL_OBSTACLE_IMAGES[obstacle.imgIndex ?? 0] : '');
                       // Реквизит (ящики, вертолёт, фонарь): весь футпринт, ходить нельзя, пули сквозь.
                       if (obstacle.icon === 'prop') {
+                        // Мусорное ведро — вдвое меньше клетки.
+                        if (key === 'trash_can') {
+                          return { width: '42%', height: '42%', left: '29%', top: '29%', ...rotOnly };
+                        }
+                        // Столб-фонарь — вдвое меньше футпринта, ходить сквозь можно.
+                        if (key === 'lamp_post') {
+                          return { width: '50%', height: '50%', left: '25%', top: '25%', ...rotOnly };
+                        }
                         return obstacleImgStyle(obstacle.w, obstacle.h, rot);
                       }
                       if (obstacle.icon === 'building' || obstacle.icon === 'field' || (obstacle.icon === 'small' && !obstacle.blocks)) {

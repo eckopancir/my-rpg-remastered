@@ -11,7 +11,7 @@ import { ENEMY_BASE_STATS } from '../../engine/enemies';
 import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES } from '../../engine/terrain';
 
 const buildingSize = (k: string) => (k === 'o8' || k === 'o9' ? { w: 8, h: 6 } : { w: 6, h: 5 });
-const carSize = (k: string) => (k === 'o23' || k === 'o29' ? { w: 2, h: 3 } : { w: 1, h: 2 });
+const carSize = (k: string) => (k === 'o23' || k === 'o29' ? { w: 2, h: 3 } : k === 'o33' ? { w: 2, h: 1 } : { w: 1, h: 2 });
 
 const OB_CATALOG: { icon: string; imgKey: string; w: number; h: number; label: string }[] = [
   ...BIG_BUILDING_IMAGES.map((k) => ({ icon: 'building', imgKey: k, ...buildingSize(k), label: k })),
@@ -29,7 +29,7 @@ const OB_CATALOG: { icon: string; imgKey: string; w: number; h: number; label: s
   { icon: 'woods', imgKey: 'o3zz', w: 2, h: 2, label: 'o3zz' },
   ...SMALL_OBSTACLE_IMAGES.map((k) => ({ icon: 'small', imgKey: k, w: 1, h: 1, label: k })),
   { icon: 'small', imgKey: 'o20z', w: 1, h: 1, label: 'o20z' },
-  { icon: 'small', imgKey: 'playground', w: 1, h: 2, label: 'playground' },
+  { icon: 'small', imgKey: 'playground', w: 2, h: 4, label: 'playground' },
   ...Object.entries(PROP_SIZES).map(([k, s]) => ({ icon: 'prop', imgKey: k, w: s.w, h: s.h, label: k })),
   { icon: 'building', imgKey: 'o48', w: 6, h: 3, label: 'o48 барак' },
   { icon: 'fence', imgKey: 'o5', w: 1, h: 1, label: 'o5 забор' },
