@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { useCombatGridStore } from './combatGridStore';
 import { usePlayerStore } from './playerStore';
 import { useAuthStore } from './authStore';
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, EDITOR_POOLS, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp, rotateOpenCells } from '../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, EDITOR_POOLS, isObstacleWalkable, isObstacleBlocking, isShootThrough, isOpenCell, searchLootForProp, rotateOpenCells } from '../engine/terrain';
 
 export type EditorTool =
   | { kind: 'select' }
@@ -472,11 +472,25 @@ export const clampFootprint = (w: number, h: number, x: number, y: number) => ({
 export const hitsSpawn = (nx: number, ny: number, w: number, h: number) =>
   nx <= 2 && ny <= 2 && 2 < nx + w && 2 < ny + h;
 
-/** Валиден ли футпринт (без пересечений и спавна). Невидимый свет не мешает. */
+/** Валиден ли футпринт (без пересечений и спавна). Невидимый свет не мешает.
+ * Пересечение с дырками чужого объекта — можно (ставить на крышу/внутрь). */
 export const footprintValid = (obstacles: any[], w: number, h: number, nx: number, ny: number, ignoreId?: number | string): boolean => {
   if (hitsSpawn(nx, ny, w, h)) return false;
-  return !(obstacles as any[]).some((o: any) =>
-    o.id !== ignoreId && o.icon !== 'light' && rectsOverlap(nx, ny, w, h, o.x, o.y, o.w, o.h));
+  return !(obstacles as any[]).some((o: any) => {
+    if (o.id === ignoreId || o.icon === 'light') return false;
+    if (!rectsOverlap(nx, ny, w, h, o.x, o.y, o.w, o.h)) return false;
+    // Все общие клетки — дырки? Тогда встаём поверх, клаша нет.
+    const x0 = Math.max(nx, o.x);
+    const x1 = Math.min(nx + w, o.x + o.w);
+    const y0 = Math.max(ny, o.y);
+    const y1 = Math.min(ny + h, o.y + o.h);
+    for (let cx = x0; cx < x1; cx++) {
+      for (let cy = y0; cy < y1; cy++) {
+        if (!isOpenCell(o, cx, cy)) return true;
+      }
+    }
+    return false;
+  });
 };
 
 /** Повернуть выбранный объект на 90° (w/h swap + rot). */
@@ -557,11 +571,11 @@ export const footprintHitsCamp = (w: number, h: number, nx: number, ny: number):
   return !!camp && rectsOverlap(nx, ny, w, h, camp.x, camp.y, 1, 1);
 };
 
-/** Свободна ли клетка под костёр (в границах, без объектов и юнитов; свет не мешает). */
+/** Свободна ли клетка под костёр (в границах, без объектов и юнитов; дырки — можно; свет не мешает). */
 export const campCellFree = (x: number, y: number): boolean => {
   if (x < 0 || x >= 32 || y < 0 || y >= 32) return false;
   const st = useCombatGridStore.getState();
-  const hitOb = (st.obstacles as any[]).some((o: any) => o.icon !== 'light' && x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h);
+  const hitOb = (st.obstacles as any[]).some((o: any) => o.icon !== 'light' && x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h && !isOpenCell(o, x, y));
   if (hitOb) return false;
   const busy = (st.enemies as any[]).some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y);
   if (busy) return false;
