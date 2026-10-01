@@ -2800,7 +2800,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // Barrage: fire 20 random shots, no target needed
     if (ability.id === 'barrage') {
-      const alive = state.enemies.filter((e) => !e.dead && e.currentHp > 0);
+      // Только враги: своих, зверей и нейтралов не задевает.
+      const isFoe = (e: any) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник' && !(e as any).isNeutral && !(e as any).isPet;
+      const alive = state.enemies.filter(isFoe);
       if (alive.length === 0) { set({ selectedAbility: null, selectedAbilitySource: null }); return; }
       playShotSound('пулемет', 0.3);
       get().addBattleLog(`🌊 ${ability.name}: 20 выстрелов по случайным целям!`);
@@ -2808,7 +2810,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       for (let i = 0; i < 20; i++) {
         setTimeout(() => {
           const s = get();
-          const targets = s.enemies.filter((e) => !e.dead && e.currentHp > 0);
+          const targets = s.enemies.filter(isFoe);
           if (targets.length === 0) return;
           const pick = targets[Math.floor(Math.random() * targets.length)];
           const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
@@ -2836,7 +2838,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // Стрелок Т8 «Шквальный огонь»: выстрелов = патронов в магазине, патроны не тратятся.
     if (ability.id === 'shtb_barrage') {
-      const alive = state.enemies.filter((e) => !e.dead && e.currentHp > 0);
+      // Только враги: своих, зверей и нейтралов не задевает.
+      const isFoe = (e: any) => !e.dead && e.currentHp > 0 && e.faction !== 'Союзник' && !(e as any).isNeutral && !(e as any).isPet;
+      const alive = state.enemies.filter(isFoe);
       const shots = Math.max(0, get().ammo);
       if (alive.length === 0 || shots <= 0) {
         get().addMessage(shots <= 0 ? '❌ Магазин пуст — нечем стрелять' : '❌ Нет целей');
@@ -2849,7 +2853,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       for (let i = 0; i < shots; i++) {
         setTimeout(() => {
           const s = get();
-          const targets = s.enemies.filter((e) => !e.dead && e.currentHp > 0);
+          const targets = s.enemies.filter(isFoe);
           if (targets.length === 0) return;
           const pick = targets[Math.floor(Math.random() * targets.length)];
           const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
