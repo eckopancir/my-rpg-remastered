@@ -810,13 +810,11 @@ export const editorCellClick = (x: number, y: number): void => {
     return;
   }
   // Дырки: клик по клетке объекта вкл/выкл проходимость+прострел.
+  // Режим немой: ничего не выбираем, иначе конфликт с «выбрать».
   if (tool.kind === 'holes') {
-    const hit = findOb();
-    const ob = hit || (ed.selObId !== null
-      ? (st.obstacles as any[]).find((o: any) => o.id === ed.selObId)
-      : undefined);
+    const ob = findOb();
     if (!ob) {
-      usePlayerStore.getState().addLog('🕳 Сначала выбери объект', 'warning');
+      usePlayerStore.getState().addLog('🕳 Кликни по клетке объекта', 'warning');
       return;
     }
     if (x < ob.x || x >= ob.x + ob.w || y < ob.y || y >= ob.y + ob.h) {
@@ -832,7 +830,6 @@ export const editorCellClick = (x: number, y: number): void => {
     cs.setState((s: any) => ({
       obstacles: s.obstacles.map((o: any) => (o.id === ob.id ? { ...o, openCells: next } : o)),
     }));
-    ed.setSel(ob.id, null);
     return;
   }
   if (tool.kind === 'brush') {
