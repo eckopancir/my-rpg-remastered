@@ -218,7 +218,7 @@ const PetHitSpark = () => {
   );
 };
 
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, terrainSummary, isCellWalkable } from '../../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, EDITOR_POOLS, isOpenCell, terrainSummary, isCellWalkable } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
@@ -737,12 +737,12 @@ export const BattleGrid = () => {
   }, [enemies]);
 
   const obstacleTileMap = useMemo(() => {
-    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; imgKey?: string; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean; rot?: number; obId?: number | string; random?: boolean }>();
+    const map = new Map<string, { icon: string; isAnchor: boolean; imgIndex?: number; imgKey?: string; w: number; h: number; blocks: boolean; hasLoot: boolean; stumpCenter?: boolean; rot?: number; obId?: number | string; random?: boolean; open?: boolean }>();
     for (const ob of obstacles) {
       for (let dx = 0; dx < ob.w; dx++) {
         for (let dy = 0; dy < ob.h; dy++) {
           const isAnchor = dx === 0 && dy === 0;
-          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, imgKey: (ob as any).imgKey, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter, rot: (ob as any).rot || 0, obId: (ob as any).id, random: !!(ob as any).editorRandom });
+          map.set(`${ob.x + dx},${ob.y + dy}`, { icon: ob.icon, isAnchor, imgIndex: ob.imgIndex, imgKey: (ob as any).imgKey, w: ob.w ?? 1, h: ob.h ?? 1, blocks: !!ob.blocks, hasLoot: !!(ob as any).searchLoot, stumpCenter: !!(ob as any).stumpCenter, rot: (ob as any).rot || 0, obId: (ob as any).id, random: !!(ob as any).editorRandom, open: isOpenCell(ob as any, ob.x + dx, ob.y + dy) });
         }
       }
     }
@@ -752,14 +752,7 @@ export const BattleGrid = () => {
   // Призрак редактора: футпринт за курсором (палитра или перенос выбранного).
   const ghost = useMemo(() => {
     if (!edActive || !edHover) return null;
-    const pools: Record<string, string[]> = {
-      building: BIG_BUILDING_IMAGES,
-      car: CAR_IMAGES,
-      woods: WOOD_IMAGES,
-      small: SMALL_OBSTACLE_IMAGES,
-      fence: [FENCE_IMAGE],
-      field: [FIELD_IMAGE],
-    };
+    const pools: Record<string, string[]> = EDITOR_POOLS;
     if (edTool.kind === 'brush' || edTool.kind === 'eraser') {
       const r = Math.floor(Math.max(1, edBrushSize || 1) / 2);
       const cells = new Set<string>();
@@ -1174,6 +1167,10 @@ export const BattleGrid = () => {
                 {/* Метка конструктора: объект встанет случайно при входе. */}
                 {edActive && obstacle?.isAnchor && (obstacle as any).random && (
                   <span title="Случайное место при входе" style={{ position: 'absolute', right: 1, top: 1, zIndex: 6, fontSize: 13, pointerEvents: 'none' }}>🎲</span>
+                )}
+                {/* Дырка: проходимая клетка внутри объекта (только в конструкторе). */}
+                {edActive && obstacle && (obstacle as any).open && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3, background: 'rgba(89,214,99,0.30)', border: '1px dashed rgba(89,214,99,0.9)' }} />
                 )}
                 {waypointNum && !isPlayer && !enemy && (
                   <div className={styles.waypointDot}>{waypointNum}</div>

@@ -12,7 +12,7 @@ import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality, makeBulletPack } from '../data/ammo';
 import { getBulletImage } from '../assets/index';
-import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, obstacleImageKey, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, EDITOR_POOLS, obstacleImageKey, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp, isOpenCell } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, startMapMusic, stopPlaylist, stopMapMusic, playShotSound, preloadCombatSounds } from '../hooks/useSound';
@@ -172,6 +172,8 @@ export interface GridObstacle {
   editorRandom?: boolean;
   /** Реквизит: ходить нельзя, стрелять сквозь — можно. */
   shootThrough?: boolean;
+  /** Дырки: проходимые и простреливаемые клетки внутри футпринта [{dx,dy}]. */
+  openCells?: { dx: number; dy: number }[];
 }
 
 /** Зона конструктора карт: спавн игрока / выход / триггер-засада / точка подкрепления. */
@@ -605,11 +607,14 @@ export const checkVisibility = (
   // всем футпринтом, а не якорной клеткой. Углы/край — грация: касание < 0.75 клетки не блочит.
   const SHOT_BLOCK_KEYS = new Set([
     'o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o19', 'o27', 'o29', 'o5', 'o48', 'o5_2', 'o5_3',
+    'etazh5', 'etazh9', 'etazh5_2', 'etazh5_3', 'etazh5_4', 'school_big',
   ]);
   const rects: { x: number; y: number; w: number; h: number }[] = [];
   try {
     for (const o of obstacles) {
       if (!o.blocks || (o as any).isWalkable) continue;
+      // Дырявые — не целым футпринтом: их разбирает поклеточный чек ниже.
+      if (Array.isArray((o as any).openCells) && ((o as any).openCells || []).length > 0) continue;
       let key = '';
       try { key = obstacleImageKey(o as any); } catch { key = ''; }
       if (!SHOT_BLOCK_KEYS.has(key)) continue;
@@ -670,7 +675,18 @@ export const checkVisibility = (
       if ((obs as any).shootThrough) return false;
       if (!(obs.isHigh || (obs.blocks && !obs.isWalkable))) return false;
       // Большие уже проверены rect-тестом выше (с грацией углов) — тут их пропускаем.
-      try { if (SHOT_BLOCK_KEYS.has(obstacleImageKey(obs as any))) return false; } catch { /* ignore */ }
+      // Дырявые (openCells) rect-тест обходят: проверяем поклеточно ниже.
+      try { if (SHOT_BLOCK_KEYS.has(obstacleImageKey(obs as any)) && !((obs as any).openCells || []).length) return false; } catch { /* ignore */ }
+      // Дырки: открытые клетки пули не блочат, стены футпринта — блочат.
+      if (Array.isArray((obs as any).openCells) && ((obs as any).openCells || []).length > 0) {
+        const w = (obs as any).w ?? 1;
+        const h = (obs as any).h ?? 1;
+        if (checkX < obs.x || checkX >= obs.x + w || checkY < obs.y || checkY >= obs.y + h) return false;
+        if (isOpenCell(obs as any, checkX, checkY)) return false;
+        if (checkX === viewerPos.x && checkY === viewerPos.y) return false;
+        if (checkX === targetPos.x && checkY === targetPos.y) return false;
+        return true;
+      }
       return (
         obs.x === checkX &&
         obs.y === checkY &&
@@ -711,7 +727,10 @@ function findFreeSpotForCorpse(
 function isCellBlockedBy(x: number, y: number, obstacles: GridObstacle[]): boolean {
   for (const ob of obstacles) {
     if (!ob.blocks || ob.isWalkable) continue;
-    if (x >= ob.x && x < ob.x + ob.w && y >= ob.y && y < ob.y + ob.h) return true;
+    if (x >= ob.x && x < ob.x + ob.w && y >= ob.y && y < ob.y + ob.h) {
+      if (isOpenCell(ob as any, x, y)) continue;
+      return true;
+    }
   }
   return false;
 }
@@ -4615,16 +4634,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return false;
     }
     try {
-    const pools: Record<string, string[]> = {
-      building: BIG_BUILDING_IMAGES,
-      car: CAR_IMAGES,
-      woods: WOOD_IMAGES,
-      small: SMALL_OBSTACLE_IMAGES,
-      fence: ['o5'],
-      field: ['green1'],
-      prop: ['o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41', 'fonar'],
-      light: ['light1', 'light2', 'light3', 'light4', 'light5'],
-    };
+    const pools: Record<string, string[]> = EDITOR_POOLS;
     // Раскладка препятствий: фикс + случайные.
     const occupied = new Set<string>(['2,2']);
     const isFree = (sx: number, sy: number, w: number, h: number) => {
@@ -4658,6 +4668,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
             isHigh: o.icon === 'building' || o.icon === 'fence',
             imgIndex: imgIdx, rot: o.rot || 0, shootThrough: isShootThrough(o.icon, o.imgKey || ''), searchLoot: searchLootForProp(o.icon, o.imgKey || ''),
+            openCells: Array.isArray((o as any).openCells) ? (o as any).openCells : undefined,
           });
           mark(rx, ry, o.w, o.h);
           placed = true;
@@ -4803,16 +4814,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     try {
-    const pools: Record<string, string[]> = {
-      building: BIG_BUILDING_IMAGES,
-      car: CAR_IMAGES,
-      woods: WOOD_IMAGES,
-      small: SMALL_OBSTACLE_IMAGES,
-      fence: ['o5'],
-      field: ['green1'],
-      prop: ['o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41', 'fonar'],
-      light: ['light1', 'light2', 'light3', 'light4', 'light5'],
-    };
+    const pools: Record<string, string[]> = EDITOR_POOLS;
     // Всё встаёт как сохранено (случайные — на своих местах, с меткой 🎲).
     const obs = (map.obstacles || []).map((o: any, i: number) => ({
       id: `ed_${Date.now()}_${i}`,
@@ -4823,6 +4825,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       isHigh: o.icon === 'building' || o.icon === 'fence',
       imgIndex: Math.max(0, (pools[o.icon] || []).indexOf(o.imgKey)),
       rot: o.rot || 0, editorRandom: !!o.random, shootThrough: isShootThrough(o.icon, o.imgKey || ''), searchLoot: searchLootForProp(o.icon, o.imgKey || ''),
+      openCells: Array.isArray((o as any).openCells) ? (o as any).openCells : undefined,
     }));
     set({
       obstacles: obs,

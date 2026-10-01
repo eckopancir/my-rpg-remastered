@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { useCombatGridStore } from './combatGridStore';
 import { usePlayerStore } from './playerStore';
 import { useAuthStore } from './authStore';
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp } from '../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, EDITOR_POOLS, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp, rotateOpenCells } from '../engine/terrain';
 
 export type EditorTool =
   | { kind: 'select' }
@@ -12,7 +12,8 @@ export type EditorTool =
   | { kind: 'brush'; imgKey: string }
   | { kind: 'eraser' }
   | { kind: 'zone' }
-  | { kind: 'route' };
+  | { kind: 'route' }
+  | { kind: 'holes' };
 
 export type SavedMapUnit = {
   factionKey: string;
@@ -41,6 +42,7 @@ export type SavedMapObstacle = {
   h: number;
   rot: number;
   random: boolean;
+  openCells?: { dx: number; dy: number }[];
 };
 
 export interface SavedMap {
@@ -408,6 +410,9 @@ export const buildMapObject = (name: string, music: string, obstacles: any[], un
     obstacles: (obstacles || []).map((o: any) => ({
       icon: o.icon, imgKey: o.imgKey || '', x: o.x, y: o.y, w: o.w, h: o.h,
       rot: o.rot || 0, random: !!o.editorRandom,
+      openCells: Array.isArray(o.openCells) && o.openCells.length > 0
+        ? o.openCells.map((c: any) => ({ dx: c.dx || 0, dy: c.dy || 0 }))
+        : undefined,
     })),
     units: (units || []).map((u: any) => ({
       factionKey: (u as any).factionKey || (u as any).name || '',
@@ -486,11 +491,20 @@ export const rotateSelected = (): void => {
   }
   cs.setState((s: any) => ({
     obstacles: s.obstacles.map((o: any) => (o.id === ob.id
-      ? { ...o, w: nw, h: nh, x: nx, y: ny, rot: ((o.rot || 0) + 90) % 360 }
+      ? { ...o, w: nw, h: nh, x: nx, y: ny, rot: ((o.rot || 0) + 90) % 360, openCells: rotateOpenCells(o.openCells, o.w, o.h) }
       : o)),
   }));
 };
 
+/** Сбросить дырки выбранного объекта. */
+export const clearOpenCells = (): void => {
+  const ed = useMapEditorStore.getState();
+  if (ed.selObId === null) return;
+  ed.pushHistory();
+  useCombatGridStore.setState((s: any) => ({
+    obstacles: s.obstacles.map((o: any) => (o.id === ed.selObId ? { ...o, openCells: [] } : o)),
+  }));
+};
 /** Удалить выбранное (объект, юнит, костёр или зона). */
 export const deleteSelected = (): void => {
   const ed = useMapEditorStore.getState();
@@ -666,6 +680,12 @@ export const PROP_SIZES: Record<string, { w: number; h: number }> = {
   o46: { w: 3, h: 3 },
   o41: { w: 6, h: 6 },
   fonar: { w: 1, h: 1 },
+  trash_pile: { w: 2, h: 2 },
+  trash_pile2: { w: 2, h: 2 },
+  trash_tank: { w: 2, h: 1 },
+  trash_can: { w: 1, h: 1 },
+  ice_kiosks: { w: 2, h: 2 },
+  lamp_post: { w: 1, h: 1 },
 };
 /** Невидимые лампы: уровень света (радиус в клетках, альфа днём/ночью). */
 export const LIGHT_LEVELS: Record<string, { r: number; day: number; night: number }> = {
@@ -679,17 +699,7 @@ export const LIGHT_LEVELS: Record<string, { r: number; day: number; night: numbe
 export const FONAR_LIGHT = { dx: 1.2, dy: 0, r: 3.2, rNight: 4.6, day: 0.15, night: 0.5 };
 
 const buildObstacle = (icon: string, imgKey: string, w: number, h: number, x: number, y: number, random: boolean, rot = 0) => {
-  const pools: Record<string, string[]> = {
-    // o15/o27 — бывшие здания, o20z/o3zz — зимние варианты: только для конструктора.
-    building: [...BIG_BUILDING_IMAGES, 'o15', 'o27', 'o48'],
-    car: CAR_IMAGES,
-    woods: [...WOOD_IMAGES, 'o3zz'],
-    small: [...SMALL_OBSTACLE_IMAGES, 'o20z'],
-    fence: [FENCE_IMAGE],
-    field: [FIELD_IMAGE],
-    prop: PROP_IMAGES,
-    light: ['light1', 'light2', 'light3', 'light4', 'light5'],
-  };
+  const pools: Record<string, string[]> = EDITOR_POOLS;
   const walkThrough = isObstacleWalkable(icon, imgKey);
   return {
     id: `edob_${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
@@ -797,6 +807,32 @@ export const editorCellClick = (x: number, y: number): void => {
   if (tool.kind === 'campfire') {
     const err = placeCampfire(x, y);
     if (err) usePlayerStore.getState().addLog('🔥 Тут занято', 'warning');
+    return;
+  }
+  // Дырки: клик по клетке объекта вкл/выкл проходимость+прострел.
+  if (tool.kind === 'holes') {
+    const hit = findOb();
+    const ob = hit || (ed.selObId !== null
+      ? (st.obstacles as any[]).find((o: any) => o.id === ed.selObId)
+      : undefined);
+    if (!ob) {
+      usePlayerStore.getState().addLog('🕳 Сначала выбери объект', 'warning');
+      return;
+    }
+    if (x < ob.x || x >= ob.x + ob.w || y < ob.y || y >= ob.y + ob.h) {
+      usePlayerStore.getState().addLog('🕳 Клетка вне объекта', 'warning');
+      return;
+    }
+    ed.pushHistory();
+    const dx = x - ob.x;
+    const dy = y - ob.y;
+    const cur = Array.isArray(ob.openCells) ? ob.openCells : [];
+    const has = cur.some((c: any) => c.dx === dx && c.dy === dy);
+    const next = has ? cur.filter((c: any) => !(c.dx === dx && c.dy === dy)) : [...cur, { dx, dy }];
+    cs.setState((s: any) => ({
+      obstacles: s.obstacles.map((o: any) => (o.id === ob.id ? { ...o, openCells: next } : o)),
+    }));
+    ed.setSel(ob.id, null);
     return;
   }
   if (tool.kind === 'brush') {

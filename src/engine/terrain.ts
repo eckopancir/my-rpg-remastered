@@ -11,8 +11,10 @@ export const FIELD_IMAGE = 'green1';
 // Точные наборы из дизайна (не весь icon-тип, а конкретные картинки).
 const EVADE_INSIDE = new Set(['o3', 'o4', 'o25', 'o26', 'o3z', 'o3z2', 'o30', 'o31', 'o32', 'o3zz']);
 const ARMOR_NEAR = new Set(['o24', 'o23', 'o19', 'o7', 'o6', 'o5', 'o2', 'o1', 'o1_2', 'o28', 'o29',
-  'o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41']);
-const BLOCK_NEAR = new Set(['o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o27', 'o48']);
+  'o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41',
+  'trash_pile', 'trash_pile2', 'trash_tank', 'trash_can', 'ice_kiosks']);
+const BLOCK_NEAR = new Set(['o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o27', 'o48',
+  'etazh5', 'etazh9', 'etazh5_2', 'etazh5_3', 'etazh5_4', 'school_big']);
 
 export const EVASION_WOODS_BONUS = 0.05;
 export const ARMOR_NEAR_BONUS = 0.05;
@@ -55,8 +57,8 @@ export const SHOTSTOP_PROPS = new Set(['o5_2', 'o5_3']);
 export const isShootThrough = (icon?: string, imgKey?: string): boolean =>
   icon === 'prop' && !SHOTSTOP_PROPS.has(imgKey || '');
 
-/** Проходимая мелочь (декор): o20/o21 и зимний o20z. */
-export const WALKABLE_SMALL = new Set(['o20', 'o21', 'o20z']);
+/** Проходимая мелочь (декор): o20/o21, зимний o20z и детская площадка. */
+export const WALKABLE_SMALL = new Set(['o20', 'o21', 'o20z', 'playground']);
 
 /** Проходимо ли препятствие (можно встать/пройти). */
 export const isObstacleWalkable = (icon?: string, imgKey?: string): boolean =>
@@ -79,6 +81,18 @@ export const searchLootForProp = (icon?: string, imgKey?: string): { kind: strin
   if (icon === 'small' && imgKey === 'o28') return { kind: 'well', charges: 3 };
   if (icon === 'prop' && imgKey === 'o47') return { kind: 'ammo_crate' };
   return null;
+};
+
+/** Пулы картинок конструктора (включая арты вне генерации). */
+export const EDITOR_POOLS: Record<string, string[]> = {
+  building: [...BIG_BUILDING_IMAGES, 'o15', 'o27', 'o48', 'etazh5', 'etazh9', 'etazh5_2', 'etazh5_3', 'etazh5_4', 'school_big'],
+  car: CAR_IMAGES,
+  woods: [...WOOD_IMAGES, 'o3zz'],
+  small: [...SMALL_OBSTACLE_IMAGES, 'o20z', 'playground'],
+  fence: [FENCE_IMAGE],
+  field: [FIELD_IMAGE],
+  prop: ['o5_2', 'o5_3', 'o5_4', 'o5_5', 'o5_6', 'o5_7', 'o5_8', 'o47', 'o42', 'o43', 'o40', 'o44', 'o45', 'o46', 'o41', 'fonar', 'trash_pile', 'trash_pile2', 'trash_tank', 'trash_can', 'ice_kiosks', 'lamp_post'],
+  light: ['light1', 'light2', 'light3', 'light4', 'light5'],
 };
 
 /** Ключ картинки препятствия — та же логика, что в рендере BattleGrid. */
@@ -171,7 +185,7 @@ export const terrainSummary = (
   };
 };
 
-/** Можно ли встать на клетку (нет блокирующего препятствия). */
+/** Можно ли встать на клетку (нет блокирующего препятствия; дырки openCells проходимы). */
 export const isCellWalkable = (
   x: number,
   y: number,
@@ -181,7 +195,23 @@ export const isCellWalkable = (
     if (!o.blocks || o.isWalkable) continue;
     const w = o.w ?? 1;
     const h = o.h ?? 1;
-    if (x >= o.x && x < o.x + w && y >= o.y && y < o.y + h) return false;
+    if (x >= o.x && x < o.x + w && y >= o.y && y < o.y + h) {
+      if (isOpenCell(o as any, x, y)) continue;
+      return false;
+    }
   }
   return true;
+};
+
+/** Дырка (проходимая клетка) внутри футпринта: openCells [{dx,dy}]. */
+export const isOpenCell = (o: { x: number; y: number; openCells?: { dx: number; dy: number }[] }, x: number, y: number): boolean => {
+  const cells = (o as any)?.openCells;
+  if (!Array.isArray(cells) || cells.length === 0) return false;
+  return cells.some((c: any) => o.x + (c.dx || 0) === x && o.y + (c.dy || 0) === y);
+};
+
+/** Повернуть дырки вместе с футпринтом на 90° по часовой (w/h уже swapped снаружи). */
+export const rotateOpenCells = (cells: { dx: number; dy: number }[] | undefined, w: number, h: number): { dx: number; dy: number }[] | undefined => {
+  if (!Array.isArray(cells) || cells.length === 0) return cells;
+  return cells.map((c) => ({ dx: h - 1 - (c.dy || 0), dy: c.dx || 0 }));
 };

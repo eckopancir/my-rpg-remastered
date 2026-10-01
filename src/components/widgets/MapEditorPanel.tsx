@@ -3,7 +3,7 @@ import { useCombatGridStore } from '../../stores/combatGridStore';
 import {
   useMapEditorStore, UNIT_BEHAVIORS, MAP_MUSIC,
   rotateSelected, deleteSelected, toggleSelectedRandom, addRandomObstacle,
-  clearRoute, setUnitFacing, setZoneText,
+  clearRoute, setUnitFacing, setZoneText, clearOpenCells,
   PROP_SIZES, LIGHT_LEVELS,
 } from '../../stores/mapEditorStore';
 import { BATTLE_BGS, getMapImage, getGroundDecals, getBattleImage } from '../../assets/index';
@@ -18,11 +18,18 @@ const OB_CATALOG: { icon: string; imgKey: string; w: number; h: number; label: s
   // Арты вне пулов генерации — только для конструктора.
   { icon: 'building', imgKey: 'o15', w: 6, h: 5, label: 'o15' },
   { icon: 'building', imgKey: 'o27', w: 6, h: 5, label: 'o27' },
+  { icon: 'building', imgKey: 'etazh5', w: 1, h: 2, label: 'etazh5' },
+  { icon: 'building', imgKey: 'etazh9', w: 1, h: 2, label: 'etazh9' },
+  { icon: 'building', imgKey: 'etazh5_2', w: 1, h: 2, label: 'etazh5_2' },
+  { icon: 'building', imgKey: 'etazh5_3', w: 2, h: 1, label: 'etazh5_3' },
+  { icon: 'building', imgKey: 'etazh5_4', w: 3, h: 2, label: 'etazh5_4' },
+  { icon: 'building', imgKey: 'school_big', w: 8, h: 6, label: 'school большая' },
   ...CAR_IMAGES.map((k) => ({ icon: 'car', imgKey: k, ...carSize(k), label: k })),
   ...WOOD_IMAGES.map((k) => ({ icon: 'woods', imgKey: k, w: 2, h: 2, label: k })),
   { icon: 'woods', imgKey: 'o3zz', w: 2, h: 2, label: 'o3zz' },
   ...SMALL_OBSTACLE_IMAGES.map((k) => ({ icon: 'small', imgKey: k, w: 1, h: 1, label: k })),
   { icon: 'small', imgKey: 'o20z', w: 1, h: 1, label: 'o20z' },
+  { icon: 'small', imgKey: 'playground', w: 1, h: 2, label: 'playground' },
   ...Object.entries(PROP_SIZES).map(([k, s]) => ({ icon: 'prop', imgKey: k, w: s.w, h: s.h, label: k })),
   { icon: 'building', imgKey: 'o48', w: 6, h: 3, label: 'o48 барак' },
   { icon: 'fence', imgKey: 'o5', w: 1, h: 1, label: 'o5 забор' },
@@ -420,7 +427,19 @@ export const MapEditorPanel = () => {
         <div style={h}>Курсор</div>
         <div style={grid}>
           <button style={btn(ed.tool.kind === 'select')} onClick={() => ed.setTool({ kind: 'select' })}>☝ Выбрать</button>
+          <button
+            style={btn(ed.tool.kind === 'holes')}
+            title="Кликай клетки выбранного объекта: проходимо/стена"
+            onClick={() => ed.setTool({ kind: 'holes' })}
+          >
+            🕳 Дырки
+          </button>
         </div>
+        {ed.tool.kind === 'holes' && (
+          <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>
+            Клик по клетке объекта вкл/выкл проходимость. Зелёные — открытые.
+          </div>
+        )}
       </div>
 
       <div style={sec}>
@@ -657,6 +676,7 @@ export const MapEditorPanel = () => {
           })()}
           {selOb && <button style={act} onClick={rotateSel}>🔄 Развернуть 90°</button>}
           {selOb && <button style={act} onClick={() => toggleSelectedRandom()}>🎲 Случайное/фикс</button>}
+          {selOb && ((selOb as any).openCells || []).length > 0 && <button style={act} onClick={() => clearOpenCells()}>🕳 Убрать дырки ({((selOb as any).openCells || []).length})</button>}
           <button style={act} onClick={deleteSel}>🗑 Удалить</button>
         </div>
       )}
