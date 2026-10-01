@@ -563,6 +563,13 @@ export const useEnemyAI = () => {
           } else if (enemy.aiRole === 'reinforce') {
             // Подкрепление: патрулирует вместе (общее направление), молча, не спит.
             doPatrolStep(false);
+          } else {
+            // Обычный: стоит на посту, иногда осматривается по сторонам.
+            // Фиксированный взгляд из конструктора — не вертится.
+            if (!(enemy as any).fixedRotation && Math.random() < 0.3) {
+              updatedEnemies[i] = { ...enemy, rotation: Math.floor(Math.random() * 360) };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            }
           }
           await new Promise((r) => setTimeout(r, 150));
           // Агронуло по ходу роли (часовой увидел) — дальше обычный бой.
