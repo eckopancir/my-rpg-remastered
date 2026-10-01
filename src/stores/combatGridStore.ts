@@ -4681,6 +4681,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           isWalkable: isObstacleWalkable(o.icon, o.imgKey || ''),
           isHigh: o.icon === 'building' || o.icon === 'fence',
           imgIndex: imgIdx, rot: o.rot || 0, shootThrough: o.icon === 'prop',
+          openCells: Array.isArray((o as any).openCells) ? (o as any).openCells.map((c: any) => ({ dx: c.dx || 0, dy: c.dy || 0, ...(c.cover ? { cover: true } : null) })) : undefined,
         });
         mark(o.x, o.y, o.w, o.h);
       }
