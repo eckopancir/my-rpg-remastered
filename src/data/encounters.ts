@@ -6,6 +6,8 @@ import patrolBg from '../assets/images/characters/Военный патруль.
 import stalkerBg from '../assets/images/characters/stalker1.png';
 import baseBg from '../assets/images/characters/Военная база.png';
 import { MAP_BAZA5 } from './customMaps/map_baza5';
+import { MAP_SCHOOL2 } from './customMaps/map_school2';
+import schoolBg from '../assets/images/battle/school_big.png';
 
 export type EnemyShortName = 'tank' | 'melee' | 'sniper' | 'drob' | 'original' | 'medic' | 'boss';
 
@@ -188,11 +190,31 @@ const CARD_TEMPLATES: CardTemplate[] = [
     fixedChip: 350,
     fixedXp: 1400,
   },
+  {
+    id: 'old_school',
+    name: 'Старая школа',
+    image: schoolBg,
+    description: 'Отряд военных засел в старой школе. Подмоги не будет — идёшь один против десяти!',
+    enemyPool: [
+      { type: 'sniper', weight: 40 },
+      { type: 'drob', weight: 10 },
+      { type: 'original', weight: 50 },
+    ],
+    slMin: 55, slMax: 55,
+    enemyMin: 10, enemyMax: 10,
+    givesAllies: false,
+    customMap: MAP_SCHOOL2,
+    customMapName: 'school2',
+    fixedSl: 55,
+    fixedChip: 600,
+    fixedXp: 2400,
+  },
 ];
 
 /** Вшитые карты конструктора по имени (для карточек MAP). */
 export const CUSTOM_MAPS: Record<string, any> = {
   'baza5': MAP_BAZA5,
+  'school2': MAP_SCHOOL2,
 };
 
 /** Короткое имя типа из factionKey карты («Военные (sniper)» → sniper). */
