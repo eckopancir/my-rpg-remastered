@@ -2814,7 +2814,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
           pick.currentHp = Math.max(0, pick.currentHp - rawDmg);
           pick.isHit = true;
-          set({ shotLine: { from: s.playerPos, to: pick.pos, kind: 'burst', count: 1 } });
+          set({ shotLine: { from: s.playerPos, to: pick.pos, kind: 'burst', count: 1 }, playerRotation: getAngle(s.playerPos, pick.pos) });
           setTimeout(() => { const st = get(); if (st.shotLine?.to === pick.pos) set({ shotLine: null }); }, 300);
           get().addPopup(pick.pos.x, pick.pos.y, `-${rawDmg} 🌊`, 'DMG');
           if (pick.currentHp <= 0) {
@@ -2855,7 +2855,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
           pick.currentHp = Math.max(0, pick.currentHp - rawDmg);
           pick.isHit = true;
-          set({ shotLine: { from: s.playerPos, to: pick.pos, kind: 'burst', count: 1 } });
+          set({ shotLine: { from: s.playerPos, to: pick.pos, kind: 'burst', count: 1 }, playerRotation: getAngle(s.playerPos, pick.pos) });
           setTimeout(() => { const st = get(); if (st.shotLine?.to === pick.pos) set({ shotLine: null }); }, 300);
           get().addPopup(pick.pos.x, pick.pos.y, `-${rawDmg} 🌊`, 'DMG');
           if (pick.currentHp <= 0) {
@@ -2904,6 +2904,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           enemies: s.enemies.map((e) => (e.id === tid
             ? { ...e, currentHp: Math.max(0, e.currentHp - dmg), isHit: true, sleeping: false, aggro: true, knowsPlayer: true }
             : e)),
+          playerRotation: getAngle(s.playerPos, tgt.pos),
         }));
         get().addPopup(tgt.pos.x, tgt.pos.y, `-${dmg} 🎯`, 'CRIT');
         get().addBattleLog(`🎯 ${ability.name}: ${tgt.name} −${dmg}`);
