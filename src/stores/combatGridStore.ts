@@ -533,7 +533,8 @@ export interface CombatGridStore {
   selectMe: () => void;
   selectEnemy: (id: number | string | null) => void;
   attackEnemy: (enemyId: number | string) => void;
-  reload: () => void;
+  /** Проверка смерти врага (труп/лут/волна): после основного и бонусных выстрелов. */
+  checkEnemyDeath: (enemyId: number | string) => void;  reload: () => void;
   // Смена оружия в бою (Q): пишет магазин текущего, заряжает следующее.
   cycleWeapon: () => void;
   selectAbility: (index: number) => void;
@@ -4911,6 +4912,51 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
   setIsSelected: (v) => set({ isSelected: v }),
 
+  checkEnemyDeath: (enemyId) => {
+    const s = get();
+    const updatedEnemy = s.enemies.find((e) => e.id === enemyId);
+    if (!updatedEnemy || updatedEnemy.dead || updatedEnemy.currentHp > 0) return;
+    // Corpse separation
+    const hasCorpseOnCell = s.enemies.some(
+      (e) => e.id !== enemyId && e.dead && e.pos.x === updatedEnemy.pos.x && e.pos.y === updatedEnemy.pos.y,
+    );
+    let corpsePos = { ...updatedEnemy.pos };
+    if (hasCorpseOnCell) {
+      corpsePos = findFreeSpotForCorpse(updatedEnemy.pos, s.enemies, s.obstacles, enemyId);
+    }
+
+    let freshLoot: any[] = [];
+    try {
+      freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
+        rank: rankOfEnemy((updatedEnemy as any).factionKey, updatedEnemy.name),
+      });
+    } catch (e) { /* ignore */ }
+    // Нейтрал визжит по-своему (первые 3 сек), остальные — Вильгельм.
+    const keepNeutralLoot = (updatedEnemy as any).isNeutral;
+    if (keepNeutralLoot) {
+      playCombatSound('kaban-vizjit-rezko-v-shvatke', 0.5);
+      setTimeout(() => stopCombatSound('kaban-vizjit-rezko-v-shvatke'), 3000);
+    } else {
+      const screamIdx = Math.floor(Math.random() * 5) + 1;
+      playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
+    }
+    set((s2) => ({
+      enemies: s2.enemies.map((e) =>
+        e.id === enemyId ? { ...e, dead: true, loot: keepNeutralLoot ? (e.loot || []) : freshLoot, looted: false, pos: corpsePos, gear: rollGearOnDeath(e) } : e
+      ),
+      message: `💀 ${updatedEnemy.name} уничтожен! Кликни для лута`,
+    }));
+    get().addBattleLog(`💀 ${updatedEnemy.name} уничтожен!`);
+    if (!keepNeutralLoot) get().triggerRevengeDialogues(updatedEnemy.pos, (updatedEnemy as any).callsign);
+    const allDead = get().enemies.every((e) => e.dead);
+    if (allDead) {
+      const hasReserve = get().reserve.length > 0;
+      if (hasReserve) {
+        get().spawnWave(2);
+      }
+    }
+  },
+
   attackEnemy: (enemyId) => {
     const state = get();
     if (state.turn !== 'player' || state.isMoving) return;
@@ -5299,6 +5345,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           get().addPopup(st.playerPos.x, st.playerPos.y, `+${vamp} 🩸`, 'VAMP');
           get().addBattleLog(`🩸 вы: +${vamp} вампиризм`);
         }
+        // Бонус-выстрел тоже может добить: проверка смерти здесь, а не в общем таймере.
+        get().checkEnemyDeath(enemyId);
       }, delay);
     }
 
@@ -5308,49 +5356,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
 
     // Check death
     setTimeout(() => {
-      const s = get();
-      const updatedEnemy = s.enemies.find((e) => e.id === enemyId);
-      if (updatedEnemy && updatedEnemy.currentHp <= 0) {
-        // Corpse separation
-        const hasCorpseOnCell = s.enemies.some(
-          (e) => e.id !== enemyId && e.dead && e.pos.x === updatedEnemy.pos.x && e.pos.y === updatedEnemy.pos.y,
-        );
-        let corpsePos = { ...updatedEnemy.pos };
-        if (hasCorpseOnCell) {
-          corpsePos = findFreeSpotForCorpse(updatedEnemy.pos, s.enemies, s.obstacles, enemyId);
-        }
-
-        let freshLoot: any[] = [];
-        try {
-          freshLoot = generateLoot(GAME_ITEMS, usePlayerStore.getState().level, {
-            rank: rankOfEnemy((updatedEnemy as any).factionKey, updatedEnemy.name),
-          });
-        } catch (e) { /* ignore */ }
-        // Нейтрал визжит по-своему (первые 3 сек), остальные — Вильгельм.
-        const keepNeutralLoot = (updatedEnemy as any).isNeutral;
-        if (keepNeutralLoot) {
-          playCombatSound('kaban-vizjit-rezko-v-shvatke', 0.5);
-          setTimeout(() => stopCombatSound('kaban-vizjit-rezko-v-shvatke'), 3000);
-        } else {
-          const screamIdx = Math.floor(Math.random() * 5) + 1;
-          playCombatSound(`wilhelm_scream${screamIdx}`, 0.3);
-        }
-        set((s2) => ({
-          enemies: s2.enemies.map((e) =>
-            e.id === enemyId ? { ...e, dead: true, loot: keepNeutralLoot ? (e.loot || []) : freshLoot, looted: false, pos: corpsePos, gear: rollGearOnDeath(e) } : e
-          ),
-          message: `💀 ${updatedEnemy.name} уничтожен! Кликни для лута`,
-        }));
-        get().addBattleLog(`💀 ${updatedEnemy.name} уничтожен!`);
-        if (!keepNeutralLoot) get().triggerRevengeDialogues(updatedEnemy.pos, (updatedEnemy as any).callsign);
-        const allDead = get().enemies.every((e) => e.dead);
-        if (allDead) {
-          const hasReserve = get().reserve.length > 0;
-          if (hasReserve) {
-            get().spawnWave(2);
-          }
-        }
-      }
+      get().checkEnemyDeath(enemyId);
     }, 200);
 
     // Конус (дробь/огнемёт) и площадь (базуки): задевают соседей основной цели.
