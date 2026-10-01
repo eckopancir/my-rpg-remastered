@@ -535,6 +535,18 @@ export const useEnemyAI = () => {
           if (enemy.aiRole === 'camp') {
             // Стоят у костра, иногда болтают.
             if (Math.random() < 0.35 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(CAMP_CHATTER));
+            // Лагерь тоже смотрит по сторонам: увидел цель в дальности — в бой.
+            const cDist = getDist(enemy.pos, curStore.playerPos);
+            const cRange = enemy.rangeDistance || 7;
+            const cInRange = cDist <= (useCombatGridStore.getState().stealth ? Math.min(cRange, 10) : cRange);
+            const cCanSee = !isPlayerInvisible && checkVisibility(enemy.pos, 0, curStore.playerPos, curStore.obstacles, { range: 40, fov: 360 });
+            if (cCanSee && cInRange && !isPlayerInvisible) {
+              enemy.aggro = true;
+              enemy.knowsPlayer = true;
+              enemy.alertTurn = useCombatGridStore.getState().turnCount;
+              updatedEnemies[i] = { ...enemy };
+              useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+            }
           } else if (enemy.aiRole === 'sentry') {
             // Часовой: вертится (новый поворот), докладывает по рации.
             // Фиксированный взгляд из конструктора — не вертится.
