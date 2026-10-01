@@ -691,6 +691,8 @@ export const PROP_SIZES: Record<string, { w: number; h: number }> = {
   trash_can: { w: 1, h: 1 },
   ice_kiosks: { w: 4, h: 4 },
   lamp_post: { w: 1, h: 2 },
+  bus: { w: 2, h: 4 },
+  bus_stop: { w: 4, h: 2 },
 };
 /** Невидимые лампы: уровень света (радиус в клетках, альфа днём/ночью). */
 export const LIGHT_LEVELS: Record<string, { r: number; day: number; night: number }> = {
