@@ -275,7 +275,7 @@ const PetHitSpark = () => {
   );
 };
 
-import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, EDITOR_POOLS, isOpenCell, isCoverCell, terrainSummary, isCellWalkable } from '../../engine/terrain';
+import { BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, FENCE_IMAGE, FIELD_IMAGE, EDITOR_POOLS, isOpenCell, isCoverCell, getCoverPenalty, terrainSummary, isCellWalkable } from '../../engine/terrain';
 
 export const BattleGrid = () => {
   const playerPos = useCombatGridStore((s) => s.playerPos);
@@ -1264,19 +1264,23 @@ export const BattleGrid = () => {
                         {Math.max(0, Math.round(enemy.currentHp))}/{Math.round(enemy.maxHp)}
                       </div>
                     )}
-                    {/* Замер: зажатая ЛКМ — клеток до цели (зелёный = в дальности стрельбы) */}
+                    {/* Замер: зажатая ПКМ — клеток до цели (зелёный = в дальности стрельбы) + дебаф укрытий клетки */}
                     {measuring && measuring.x === x && measuring.y === y && (() => {
                       const d = getDist(playerPos, { x, y });
                       const inRange = d <= effRange;
+                      const cov = getCoverPenalty({ x, y }, st.obstacles);
                       return (
                         <div style={{
                           position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
                           fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700, whiteSpace: 'nowrap',
                           color: inRange ? '#4ade80' : '#f87171', background: 'rgba(0,0,0,0.75)', padding: '0 5px',
                           borderRadius: 4, border: `1px solid ${inRange ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'}`,
-                          zIndex: 7, pointerEvents: 'none',
+                          zIndex: 7, pointerEvents: 'none', textAlign: 'center', lineHeight: 1.5,
                         }}>
-                          {Number(d.toFixed(1))}
+                          <div>{Number(d.toFixed(1))}</div>
+                          <div style={{ color: cov.penalty > 0 ? '#ffd54a' : '#9ca3af' }}>
+                            {cov.penalty > 0 ? `🎯 −${Math.round(cov.penalty * 100)}% метк. (${cov.count})` : '🎯 укрытий нет'}
+                          </div>
                         </div>
                       );
                     })()}

@@ -12,7 +12,7 @@ import { createChest } from '../data/chests';
 import { CONSUMABLE_MAP, makeConsumable } from '../data/consumables';
 import { ammoTypeForWeapon, ammoGroupName, weaponRangeProfile, effectiveAmmoCapacity, bulletDamageMult, worseQuality, makeBulletPack } from '../data/ammo';
 import { getBulletImage } from '../assets/index';
-import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, EDITOR_POOLS, obstacleImageKey, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp, isOpenCell } from '../engine/terrain';
+import { applyTerrainToTarget, isCellWalkable, BIG_BUILDING_IMAGES, CAR_IMAGES, WOOD_IMAGES, SMALL_OBSTACLE_IMAGES, EDITOR_POOLS, obstacleImageKey, isObstacleWalkable, isObstacleBlocking, isShootThrough, searchLootForProp, isOpenCell, getCoverPenalty } from '../engine/terrain';
 import { applyArmorDamage } from '../engine/armor';
 import { REINFORCE_BARK, CORPSE_ALARM, CALLSIGNS, LEGENDARY_BOSS_SKILLS, pickPhrase } from '../data/enemyChatter';
 import { playCombatSound, stopCombatSound, stopRainLoop, stopBirdLoop, stopCricketLoop, playLoopSound, stopLoopSound, startMapMusic, stopPlaylist, stopMapMusic, playShotSound, preloadCombatSounds } from '../hooks/useSound';
@@ -1181,10 +1181,13 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   // Дальнобойный срез: выстрел на 14+ клеток режет точность −0.10 (и игрок, и враги).
   const shotDist = (attacker as any).dist;
   const effAccuracy = shotDist != null && shotDist >= 14 ? Math.max(0, finalAccuracy - 0.1) : finalAccuracy;
-  accuracy = effAccuracy;
+  // Укрытия цели режут меткость стрелка (кап −30% уже в getCoverPenalty).
+  const coverPen = Math.max(0, (target as any).coverPenalty || 0);
+  const accAfterCover = Math.max(0, effAccuracy - coverPen);
+  accuracy = accAfterCover;
   const forcedMult = (attacker as any).forceCritMult || 0;
 
-  if (Math.random() > effAccuracy && effAccuracy < 1 && !forcedMult) {
+  if (Math.random() > accAfterCover && accAfterCover < 1 && !forcedMult) {
     missed = true;
     const out: any = { damage: 0, type: 'MISS', text: 'ПРОМАХ', sound: null };
     out.detail = { missed: true, evaded: false, accuracy, evasionChance: 0, critChance: 0, critMult: 0, isCrit: false, blockChance: 0, blocked: false, armorIn: target.armor || 0, armorEff: target.armor || 0, armorCutPct: 0, barrierMult: 1, baseDmg: Math.round(baseDmg), pureDmg: 0, finalDmg: 0 };
@@ -1193,8 +1196,8 @@ export const calculateCombatResult = (attacker: any, target: any) => {
 
   // Уворот проверяется до расчёта урона.
   evasionChance = target.evasion || 0;
-  if (effAccuracy > 1) {
-    if (Math.random() < effAccuracy - 1) evasionChance = 0;
+  if (accAfterCover > 1) {
+    if (Math.random() < accAfterCover - 1) evasionChance = 0;
   }
   if (Math.random() < evasionChance && !forcedMult) {
     playCombatSound('evasion', 0.3);
@@ -4153,7 +4156,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       dps: eff.damage, pure: 0, crit: eff.crit, accuracy: eff.accuracy,
       punching: eff.punching, vampir: 0, isPlayer: false,
     };
-    const tgtStat = { armor: target.armor || 0, evasion: target.evasion || 0, block: target.block || 0 };
+    const tgtStat = applyTerrainToTarget({ armor: target.armor || 0, evasion: target.evasion || 0, block: target.block || 0 }, target.pos, s.obstacles);
     const res = calculateCombatResult(atkStat as any, tgtStat as any);
     const dmg = Math.round(Math.max(0, res.damage * mult));
     // Обычная атака питомца — звук Corruption (как у молота)
@@ -5630,7 +5633,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     if (lowR > 0 && hpFrac < 0.5) evasion += 0.10 * lowR;
     const highR = sk['snp_d3_high'] || 0;
     if (highR > 0 && hpFrac >= 0.9) evasion = Math.max(0, evasion - 0.10 * highR);
-    return { armor: st.armor, evasion, block: st.block, incomingDamageMult: st.incomingDamageMult };
+    const cs = get();
+    const coverPenalty = getCoverPenalty(cs.playerPos, cs.obstacles).penalty;
+    return { armor: st.armor, evasion, block: st.block, incomingDamageMult: st.incomingDamageMult, coverPenalty };
   },
 
   sniperCritBonus: () => {

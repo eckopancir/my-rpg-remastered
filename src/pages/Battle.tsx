@@ -13,7 +13,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
-import { getTerrainBonus, distToRect } from '../engine/terrain';
+import { getCoverPenalty, distToRect } from '../engine/terrain';
 import { useSound, playCombatSound, stopCombatSound, startMapMusic } from '../hooks/useSound';
 import { getEnemyImage, getCharacterImage, images, getSniperImage, petAvatarImage } from '../assets/index';
 import { SkillBar } from '../components/widgets/SkillBar';
@@ -255,12 +255,8 @@ export const Battle = () => {
       ? (useTarget.kind === 'camp' ? '🔥 Костёр' : useTarget.kind === 'meat' ? '🥩 Собрать мясо' : (useLabel || '🔍 Обыскать'))
       : '✋ Использовать';
   const obstacles = useCombatGridStore((s) => s.obstacles);
-  const myTerrain = getTerrainBonus(playerPos, obstacles);
-  const myTerrainText = [
-    myTerrain.evasion > 0 ? `🌀+${Math.round(myTerrain.evasion * 100)}%` : '',
-    myTerrain.armor > 0 ? `🛡️+${Math.round(myTerrain.armor * 100)}%` : '',
-    myTerrain.block > 0 ? `🧱+${Math.round(myTerrain.block)}%` : '',
-  ].filter(Boolean).join(' ');
+  const myCover = getCoverPenalty(playerPos, obstacles);
+  const myTerrainText = myCover.penalty > 0 ? `🎯−${Math.round(myCover.penalty * 100)}% меткости стрелкам` : '';
   const isVictory = useCombatGridStore((s) => s.isVictory);
   const isDefeat = useCombatGridStore((s) => s.isDefeat);
 
@@ -953,22 +949,17 @@ export const Battle = () => {
                 <span>🎯 Метк. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.accuracy || 0) * 100)}%</b></span>
                 <span>💥 Крит <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.crit || 0) * 100)}%</b></span>
                 <span>🌀 Увор. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.evasion || 0) * 100)}%</b></span>
-                <span>🧱 Блок <b title="С учётом укрытия врага" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.block || 0) + getTerrainBonus(hoverTarget.pos, obstacles).block)}%</b></span>
+                <span>🧱 Блок <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.block || 0)}%</b></span>
                 <span>👊 Проб. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.punching || 0) * 100)}%</b></span>
                 <span>🩸 Вамп. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.vampir || 0) * 100)}%</b></span>
                 <span>📏 Дальн. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.rangeDistance || 7}</b></span>
                 <span>💨 ОД <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.runAp || 5}</b></span>
               </div>
               {(() => {
-                const et = getTerrainBonus(hoverTarget.pos, obstacles);
-                const etext = [
-                  et.evasion > 0 ? `🌀+${Math.round(et.evasion * 100)}%` : '',
-                  et.armor > 0 ? `🛡️+${Math.round(et.armor * 100)}%` : '',
-                  et.block > 0 ? `🧱+${Math.round(et.block)}%` : '',
-                ].filter(Boolean).join(' ');
-                return etext ? (
+                const et = getCoverPenalty(hoverTarget.pos, obstacles);
+                return et.penalty > 0 ? (
                   <div title={et.sources.join('; ')} style={{ fontSize: 11, color: '#4ade80', padding: '0 12px 8px' }}>
-                    🛡️ Укрытие врага: <b style={{ fontFamily: 'var(--font-mono)' }}>{etext}</b>
+                    🎯 Укрытие врага: <b style={{ fontFamily: 'var(--font-mono)' }}>−{Math.round(et.penalty * 100)}% меткости тебе ({et.count})</b>
                   </div>
                 ) : null;
               })()}
@@ -1080,8 +1071,8 @@ export const Battle = () => {
                 <span>🩸 Вамп.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.vampir || 0) * 100)}%</b></span>
               </div>
               {myTerrainText && (
-                <div title={myTerrain.sources.join('; ')} style={{ marginTop: 6, fontSize: 11, color: '#4ade80', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, textAlign: 'center' }}>
-                  🛡️ Укрытие: <b style={{ fontFamily: 'var(--font-mono)' }}>{myTerrainText}</b>
+                <div title={myCover.sources.join('; ')} style={{ marginTop: 6, fontSize: 11, color: '#4ade80', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, textAlign: 'center' }}>
+                  🎯 Укрытие: <b style={{ fontFamily: 'var(--font-mono)' }}>{myTerrainText}</b>
                 </div>
               )}
               <div style={{ marginTop: 6, fontSize: 12, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, textAlign: 'center' }}>

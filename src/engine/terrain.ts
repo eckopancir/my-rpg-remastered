@@ -16,9 +16,51 @@ const ARMOR_NEAR = new Set(['o24', 'o23', 'o19', 'o7', 'o6', 'o5', 'o2', 'o1', '
 const BLOCK_NEAR = new Set(['o8', 'o9', 'o10', 'o11', 'o12', 'o13', 'o14', 'o15', 'o16', 'o17', 'o18', 'o27', 'o48',
   'etazh5', 'etazh9', 'etazh5_2', 'etazh5_3', 'etazh5_4', 'school_big']);
 
-export const EVASION_WOODS_BONUS = 0.05;
-export const ARMOR_NEAR_BONUS = 0.05;
-export const BLOCK_NEAR_BONUS = 2;
+// Дебаф меткости от укрытий: здания −5%, лес внутри −3%, остальное −4%. Кап суммы −30%.
+// Укрытие считается рядом (≤1 кл), лес — только стоя внутри. Действует на всех стрелков симметрично.
+export const COVER_PENALTY_BUILDING = 0.05;
+export const COVER_PENALTY_WOODS = 0.03;
+export const COVER_PENALTY_OTHER = 0.04;
+export const COVER_PENALTY_CAP = 0.30;
+/** Машины-укрытия вне старого сета (давали 0 — чиним заодно). */
+const EXTRA_COVER_CARS = new Set(['o6_2', 'o7_2', 'o22', 'o33']);
+
+export interface CoverInfo {
+  penalty: number;
+  count: number;
+  sources: string[];
+}
+
+/** Суммарный дебаф меткости стрелков по цели на клетке (стакается, с капом). */
+export const getCoverPenalty = (
+  pos: { x: number; y: number },
+  obstacles: TerrainObstacle[],
+): CoverInfo => {
+  const out: CoverInfo = { penalty: 0, count: 0, sources: [] };
+  for (const o of obstacles) {
+    const key = obstacleImageKey(o);
+    if (!key) continue;
+    const label = labelOf(o);
+    const d = distToRect(pos.x, pos.y, o);
+    if (d > 1) continue;
+    if (BLOCK_NEAR.has(key)) {
+      out.penalty += COVER_PENALTY_BUILDING;
+      out.count += 1;
+      out.sources.push(`${label}: −5% меткости стрелкам`);
+    } else if (EVADE_INSIDE.has(key)) {
+      if (d > 0) continue;
+      out.penalty += COVER_PENALTY_WOODS;
+      out.count += 1;
+      out.sources.push(`${label}: −3% меткости стрелкам (внутри)`);
+    } else if (ARMOR_NEAR.has(key) || EXTRA_COVER_CARS.has(key)) {
+      out.penalty += COVER_PENALTY_OTHER;
+      out.count += 1;
+      out.sources.push(`${label}: −4% меткости стрелкам`);
+    }
+  }
+  out.penalty = Math.min(COVER_PENALTY_CAP, Math.round(out.penalty * 1000) / 1000);
+  return out;
+};
 
 export interface TerrainBonus {
   evasion: number;
@@ -120,68 +162,26 @@ export const distToRect = (px: number, py: number, o: TerrainObstacle): number =
   return Math.max(dx, dy);
 };
 
-/** Суммарные бонусы точки с учётом всех укрытий рядом (стакаются). */
-export const getTerrainBonus = (
-  pos: { x: number; y: number },
-  obstacles: TerrainObstacle[],
-): TerrainBonus => {
-  const out: TerrainBonus = { evasion: 0, armor: 0, block: 0, sources: [] };
-  for (const o of obstacles) {
-    const key = obstacleImageKey(o);
-    if (!key) continue;
-    const label = labelOf(o);
-    if (EVADE_INSIDE.has(key) && distToRect(pos.x, pos.y, o) <= 0) {
-      out.evasion += EVASION_WOODS_BONUS;
-      out.sources.push(`${label}: +5% к уклонению (внутри)`);
-    }
-    if (distToRect(pos.x, pos.y, o) <= 1) {
-      if (ARMOR_NEAR.has(key)) {
-        out.armor += ARMOR_NEAR_BONUS;
-        out.sources.push(`${label}: +5% к броне (рядом)`);
-      }
-      if (BLOCK_NEAR.has(key)) {
-        out.block += BLOCK_NEAR_BONUS;
-        out.sources.push(`${label}: +2% к блоку (рядом)`);
-      }
-    }
-  }
-  // Округление против накопления float-мусора.
-  out.evasion = Math.round(out.evasion * 1000) / 1000;
-  out.armor = Math.round(out.armor * 1000) / 1000;
-  out.block = Math.round(out.block * 1000) / 1000;
-  return out;
-};
-
-/** Применить бонусы точки к защитным статам цели (для формулы урона). */
+/** Прицепить к статам цели дебаф укрытий (для формулы урона). */
 export const applyTerrainToTarget = <T extends { evasion?: number; armor?: number; block?: number }>(
   target: T,
   pos: { x: number; y: number },
   obstacles: TerrainObstacle[],
-): T => {
-  const b = getTerrainBonus(pos, obstacles);
-  if (b.evasion === 0 && b.armor === 0 && b.block === 0) return target;
-  return {
-    ...target,
-    evasion: (target.evasion || 0) + b.evasion,
-    armor: (target.armor || 0) + b.armor,
-    block: (target.block || 0) + b.block,
-  };
+): T & { coverPenalty: number } => {
+  const c = getCoverPenalty(pos, obstacles);
+  return { ...target, coverPenalty: c.penalty };
 };
 
-/** Короткая строка бонусов точки для попапа инспекции (ПКМ). */
+/** Короткая строка дебафа точки для попапа инспекции (ПКМ). */
 export const terrainSummary = (
   pos: { x: number; y: number },
   obstacles: TerrainObstacle[],
 ): { text: string; detail: string } => {
-  const b = getTerrainBonus(pos, obstacles);
-  const parts: string[] = [];
-  if (b.evasion > 0) parts.push(`🌀+${Math.round(b.evasion * 100)}%`);
-  if (b.armor > 0) parts.push(`🛡️+${Math.round(b.armor * 100)}%`);
-  if (b.block > 0) parts.push(`🧱+${Math.round(b.block)}%`);
-  if (parts.length === 0) return { text: '📍 —', detail: `(${pos.x},${pos.y}): укрытий рядом нет` };
+  const c = getCoverPenalty(pos, obstacles);
+  if (c.penalty <= 0) return { text: '📍 —', detail: `(${pos.x},${pos.y}): укрытий рядом нет` };
   return {
-    text: `📍 ${parts.join(' ')}`,
-    detail: `(${pos.x},${pos.y}): ${b.sources.join('; ')}`,
+    text: `📍 🎯−${Math.round(c.penalty * 100)}% (${c.count})`,
+    detail: `(${pos.x},${pos.y}): ${c.sources.join('; ')}`,
   };
 };
 

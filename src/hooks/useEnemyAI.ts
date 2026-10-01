@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useCombatGridStore, checkVisibility, findPathForEnemy, getDist, getAngle, calculateCombatResult, buildShotLog, executeSkill, absorbWithShield, isBossEnemy, shotKindForEnemy, petEffStats, isMeleeFighter, spotDist, type GlobalEffect } from '../stores/combatGridStore';
-import { applyTerrainToTarget, getTerrainBonus } from '../engine/terrain';
+import { applyTerrainToTarget, getCoverPenalty } from '../engine/terrain';
 import { isCellWalkable } from '../engine/terrain';
 import { usePlayerStore } from '../stores/playerStore';
 import { BASE_AP } from '../stores/combatGridStore';
@@ -16,10 +16,9 @@ const isMilitary = (e: any): boolean =>
 
 const isAllyUnit = (e: any): boolean => (e.faction || '') === 'Союзник';
 
-/** Очки укрытия клетки: сумма бонусов брони+блока+уворота. */
+/** Очки укрытия клетки: дебаф меткости стрелков (для ИИ-искателя). */
 const coverScore = (x: number, y: number, obstacles: any[]): number => {
-  const b = getTerrainBonus({ x, y }, obstacles);
-  return (b.armor || 0) + (b.block || 0) + (b.evasion || 0);
+  return getCoverPenalty({ x, y }, obstacles).penalty;
 };
 
 /**
