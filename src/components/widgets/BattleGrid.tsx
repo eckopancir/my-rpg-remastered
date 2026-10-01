@@ -188,6 +188,17 @@ const obstacleArtSrc = (t: { icon: string; imgKey?: string; imgIndex?: number })
     ) || undefined;
   } catch { return undefined; }
 };
+/** Масштаб стиля арта из «% клетки» в «% обёртки-футпринта» (для оверлея укрытий). */
+const scaleArt = (s: React.CSSProperties | undefined, ux: number, uy: number): React.CSSProperties | undefined => {
+  if (!s || (ux === 100 && uy === 100)) return s;
+  const pct = (v: unknown, u: number): unknown => {
+    if (typeof v !== 'string' || !v.endsWith('%')) return v;
+    const n = parseFloat(v);
+    if (Number.isNaN(n)) return v;
+    return `${(n * u) / 100}%`;
+  };
+  return { ...s, width: pct(s.width, ux) as any, height: pct(s.height, uy) as any, left: pct((s as any).left, ux) as any, top: pct((s as any).top, uy) as any };
+};
 /** Класс арта препятствия по типу. */
 const obstacleArtClass = (t: { icon: string; stumpCenter?: boolean }): string =>
   `${styles.obstacleImg} ${t.stumpCenter ? styles.obstacleWoodsImg : t.icon === 'building' ? styles.obstacleBigImg : t.icon === 'car' ? styles.obstacleCarImg : t.icon === 'woods' ? styles.obstacleWoodsImg : styles.obstacleSmallImg}`;
@@ -1179,7 +1190,7 @@ export const BattleGrid = () => {
                   const cv = (obstacle as any).coverInfo;
                   return (
                     <div style={{ position: 'absolute', left: `${-cv.dx * 100}%`, top: `${-cv.dy * 100}%`, width: `${cv.w * 100}%`, height: `${cv.h * 100}%`, zIndex: 12, pointerEvents: 'none' }}>
-                      <img src={obstacleArtSrc(cv)} alt="" className={obstacleArtClass(cv)} style={obstacleArtStyle(cv)} draggable={false} />
+                      <img src={obstacleArtSrc(cv)} alt="" className={obstacleArtClass(cv)} style={scaleArt(obstacleArtStyle(cv), 100 / cv.w, 100 / cv.h)} draggable={false} />
                     </div>
                   );
                 })()}
