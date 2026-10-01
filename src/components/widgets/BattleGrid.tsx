@@ -1268,7 +1268,7 @@ export const BattleGrid = () => {
                     {measuring && measuring.x === x && measuring.y === y && (() => {
                       const d = getDist(playerPos, { x, y });
                       const inRange = d <= effRange;
-                      const cov = getCoverPenalty({ x, y }, st.obstacles);
+                      const cov = getCoverPenalty({ x, y }, obstacles);
                       return (
                         <div style={{
                           position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
