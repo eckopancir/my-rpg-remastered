@@ -1328,9 +1328,8 @@ export const BattleGrid = () => {
                             : `rotate(${enemy.rotation - 90}deg)`) + (((enemy as any).isPet && (enemy as any).guardTurns > 0) ? ' scale(1.25)' : ''),
                         // Страж зверя: зелёное горение.
                         filter: ((enemy as any).isPet && (enemy as any).guardTurns > 0) ? 'drop-shadow(0 0 12px #22ff66) brightness(1.25)' : 'none',
-                        // Патруль вне боя — полупрозрачный (еле видно); в бою — 100%.
-                        // Босс всегда 100%: он не прячется.
-                        opacity: ((enemy.aiRole === 'patrol' || enemy.aiRole === 'reinforce') && !enemy.aggro && !isBossEnemy(enemy.name, (enemy as any).factionKey)) ? 0.5 : 1,
+                        // Патруль виден полностью — прозрачность убрана.
+                        opacity: 1,
                         outline: (enemy as any).isPet && petCommandMode ? '2px solid #fbbf24' : 'none',
                         outlineOffset: 1,
                         borderRadius: 6,

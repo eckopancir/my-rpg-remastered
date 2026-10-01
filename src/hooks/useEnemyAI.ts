@@ -212,9 +212,9 @@ export const useEnemyAI = () => {
           if (uu && uu.speech === text) uu.speech = null;
         }, ms + 100);
       };
-      // Болтовня слышна в пределах 15 клеток от игрока.
+      // Болтовня слышна в пределах 24 клеток от игрока.
       const canChatter = (pos: { x: number; y: number }) =>
-        getDist(pos, useCombatGridStore.getState().playerPos) <= 15;
+        getDist(pos, useCombatGridStore.getState().playerPos) <= 24;
 
       const playerStats = usePlayerStore.getState().stats;
       const isPlayerInvisible = useCombatGridStore.getState().playerInvisible;
@@ -534,7 +534,7 @@ export const useEnemyAI = () => {
           }
           if (enemy.aiRole === 'camp') {
             // Стоят у костра, иногда болтают.
-            if (Math.random() < 0.2 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(CAMP_CHATTER));
+            if (Math.random() < 0.35 && canChatter(enemy.pos)) saySync(enemy.id, pickPhrase(CAMP_CHATTER));
           } else if (enemy.aiRole === 'sentry') {
             // Часовой: вертится (новый поворот), докладывает по рации.
             // Фиксированный взгляд из конструктора — не вертится.
