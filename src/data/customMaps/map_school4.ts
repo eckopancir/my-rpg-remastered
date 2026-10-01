@@ -1,6 +1,6 @@
-/* Карта конструктора school3 (Старая школа): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
-export const MAP_SCHOOL3: any = {
-    "name": "school3",
+/* Карта конструктора school4 (Старая школа): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
+export const MAP_SCHOOL4: any = {
+    "name": "school4",
     "music": "track",
     "music2": "__none",
     "musicCombatOnly": false,
@@ -2280,8 +2280,8 @@ export const MAP_SCHOOL3: any = {
         {
             "icon": "prop",
             "imgKey": "o47",
-            "x": 25,
-            "y": 9,
+            "x": 28,
+            "y": 10,
             "w": 1,
             "h": 1,
             "rot": 0,
@@ -2335,6 +2335,16 @@ export const MAP_SCHOOL3: any = {
             "w": 1,
             "h": 1,
             "rot": 0,
+            "random": false
+        },
+        {
+            "icon": "prop",
+            "imgKey": "fonar",
+            "x": 24,
+            "y": 8,
+            "w": 1,
+            "h": 1,
+            "rot": 180,
             "random": false
         }
     ],
@@ -2405,8 +2415,8 @@ export const MAP_SCHOOL3: any = {
         {
             "factionKey": "Кабан",
             "side": "neutral",
-            "x": 17,
-            "y": 24,
+            "x": 11,
+            "y": 31,
             "behavior": "patrol"
         },
         {
@@ -2419,9 +2429,9 @@ export const MAP_SCHOOL3: any = {
         {
             "factionKey": "Кабан",
             "side": "neutral",
-            "x": 16,
-            "y": 28,
-            "behavior": "sleeping"
+            "x": 8,
+            "y": 27,
+            "behavior": "patrol"
         }
     ],
     "decals": [
@@ -2604,6 +2614,12 @@ export const MAP_SCHOOL3: any = {
             "y": 15.93,
             "imgKey": "ground_road8",
             "size": 2
+        },
+        {
+            "x": 29.96,
+            "y": 11.75,
+            "imgKey": "ground_road8",
+            "size": 2
         }
     ],
     "zones": [
@@ -2632,5 +2648,5 @@ export const MAP_SCHOOL3: any = {
         "x": 20,
         "y": 5
     },
-    "createdAt": 1790839576921
+    "createdAt": 1790840199198
 };

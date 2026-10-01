@@ -6,7 +6,7 @@ import patrolBg from '../assets/images/characters/Военный патруль.
 import stalkerBg from '../assets/images/characters/stalker1.png';
 import baseBg from '../assets/images/characters/Военная база.png';
 import { MAP_BAZA5 } from './customMaps/map_baza5';
-import { MAP_SCHOOL3 } from './customMaps/map_school3';
+import { MAP_SCHOOL4 } from './customMaps/map_school4';
 import schoolBg from '../assets/images/characters/school_card.jpg';
 
 export type EnemyShortName = 'tank' | 'melee' | 'sniper' | 'drob' | 'original' | 'medic' | 'boss';
@@ -203,8 +203,8 @@ const CARD_TEMPLATES: CardTemplate[] = [
     slMin: 55, slMax: 55,
     enemyMin: 10, enemyMax: 10,
     givesAllies: false,
-    customMap: MAP_SCHOOL3,
-    customMapName: 'school3',
+    customMap: MAP_SCHOOL4,
+    customMapName: 'school4',
     fixedSl: 55,
     fixedChip: 600,
     fixedXp: 2400,
@@ -214,7 +214,7 @@ const CARD_TEMPLATES: CardTemplate[] = [
 /** Вшитые карты конструктора по имени (для карточек MAP). */
 export const CUSTOM_MAPS: Record<string, any> = {
   'baza5': MAP_BAZA5,
-  'school3': MAP_SCHOOL3,
+  'school4': MAP_SCHOOL4,
 };
 
 /** Короткое имя типа из factionKey карты («Военные (sniper)» → sniper). */
