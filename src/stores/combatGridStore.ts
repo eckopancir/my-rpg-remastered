@@ -4042,7 +4042,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         // Дерево после обыска — пенёк penek.png 2×2 вместо дерева (та же геометрия).
         if (isTree) {
           const { searchLoot: _sl, ...rest } = o;
-          return { ...rest, icon: 'small', imgIndex: 8, w: 2, h: 2, blocks: true, isWalkable: true, stumpCenter: true };
+          return { ...rest, icon: 'small', imgKey: 'penek', imgIndex: 8, w: 2, h: 2, blocks: true, isWalkable: true, stumpCenter: true };
         }
         // Колодец: 3 забора воды, потом пустеет.
         if (isWell) {
