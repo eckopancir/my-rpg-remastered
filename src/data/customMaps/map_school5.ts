@@ -1,6 +1,6 @@
-/* Карта конструктора school4 (Старая школа): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
-export const MAP_SCHOOL4: any = {
-    "name": "school4",
+/* Карта конструктора school5 (Старая школа): вшита в клиент для карточки MAP. Обновляется выгрузкой из custom_maps. Не править руками. */
+export const MAP_SCHOOL5: any = {
+    "name": "school5",
     "music": "track",
     "music2": "__none",
     "musicCombatOnly": false,
@@ -2280,8 +2280,8 @@ export const MAP_SCHOOL4: any = {
         {
             "icon": "prop",
             "imgKey": "o47",
-            "x": 28,
-            "y": 10,
+            "x": 23,
+            "y": 14,
             "w": 1,
             "h": 1,
             "rot": 0,
@@ -2373,22 +2373,22 @@ export const MAP_SCHOOL4: any = {
         {
             "factionKey": "Военные (sniper)",
             "side": "enemy",
-            "x": 14,
+            "x": 16,
             "y": 4,
             "behavior": "sentry"
         },
         {
             "factionKey": "Военные (original)",
             "side": "enemy",
-            "x": 19,
-            "y": 5,
+            "x": 9,
+            "y": 17,
             "behavior": "camp"
         },
         {
             "factionKey": "Военные (original)",
             "side": "enemy",
-            "x": 20,
-            "y": 4,
+            "x": 8,
+            "y": 18,
             "behavior": "camp"
         },
         {
@@ -2415,8 +2415,8 @@ export const MAP_SCHOOL4: any = {
         {
             "factionKey": "Кабан",
             "side": "neutral",
-            "x": 11,
-            "y": 31,
+            "x": 13,
+            "y": 29,
             "behavior": "patrol"
         },
         {
@@ -2430,7 +2430,7 @@ export const MAP_SCHOOL4: any = {
             "factionKey": "Кабан",
             "side": "neutral",
             "x": 8,
-            "y": 27,
+            "y": 24,
             "behavior": "patrol"
         }
     ],
@@ -2645,8 +2645,8 @@ export const MAP_SCHOOL4: any = {
     "garrison": [],
     "reinforceTurn": 39,
     "campfire": {
-        "x": 20,
-        "y": 5
+        "x": 9,
+        "y": 18
     },
-    "createdAt": 1790840199198
+    "createdAt": 1790840726734
 };
