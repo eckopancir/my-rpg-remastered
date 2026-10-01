@@ -7,7 +7,7 @@ import stalkerBg from '../assets/images/characters/stalker1.png';
 import baseBg from '../assets/images/characters/Военная база.png';
 import { MAP_BAZA5 } from './customMaps/map_baza5';
 import { MAP_SCHOOL2 } from './customMaps/map_school2';
-import schoolBg from '../assets/images/battle/school_big.png';
+import schoolBg from '../assets/images/characters/school_card.jpg';
 
 export type EnemyShortName = 'tank' | 'melee' | 'sniper' | 'drob' | 'original' | 'medic' | 'boss';
 
