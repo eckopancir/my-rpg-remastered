@@ -1216,11 +1216,11 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     return out;
   }
 
-  // 1) КРИТ: частота — новый critChance + легаси-часть crit (кап 100%);
-  // множитель — всегда база ×2.0 + весь набранный critDamage + ярусы легаси-crit.
-  // Набрано 3.24 → ×5.24; пусто → ×2.0 (бывшие «0%»).
+  // 1) КРИТ: частота — ТОЛЬКО новый critChance (кап 100%), легаси не участвует;
+  // множитель — всегда база ×2.0 + весь critDamage + весь легаси-crit как есть.
+  // Набрано 3.24 урона → ×5.24; пусто → ×2.0 (бывшие «0%»).
   const critVal = attacker.crit || 0;
-  const chanceVal = Math.min(1, (attacker.critChance || 0) + Math.min(critVal, 1));
+  const chanceVal = Math.min(1, (attacker.critChance || 0));
   critChance = chanceVal;
   const critDmgBonus = Math.max(0, (attacker as any).critDamage || 0);
   let critMultiplier = 1;
@@ -1233,10 +1233,7 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     sound = 'crit';
   } else if (alwaysCrit || (chanceVal > 0 && Math.random() < chanceVal)) {
     isCrit = true;
-    const baseTier = Math.floor(critVal);
-    const rest = Math.min(critVal - baseTier, 1);
-    // База ×2 всегда + весь бонус + ярусы легаси (baseTier−1: у старых вещей цифры 1-в-1 как раньше).
-    critMultiplier = 2 + critDmgBonus + (baseTier > 0 ? baseTier - 1 + (Math.random() < rest ? 1 : 0) : 0);
+    critMultiplier = 2 + critDmgBonus + Math.max(0, critVal);
     dmg *= critMultiplier;
     type = 'CRIT';
     sound = 'crit';

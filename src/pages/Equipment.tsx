@@ -1069,9 +1069,9 @@ export const Equipment = () => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
               {SECOND_STATS.map((k) => renderStatRow(k))}
-              {/* Крит — только итоги: шанс (кап 100%) и урон (мин. 200% = база ×2) */}
-              {renderStatRow('critChance', `${(Math.min(1, ((stats as any).critChance || 0) + Math.min((stats as any).crit || 0, 1)) * 100).toFixed(1)}%`)}
-              {renderStatRow('critDamage', `${Math.round((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, Math.floor((stats as any).crit || 0) - 1)) * 100)}%`)}
+              {/* Крит — только итоги: шанс (кап 100%, легаси не входит) и урон (мин. 200% = база ×2) */}
+              {renderStatRow('critChance', `${(Math.min(1, (stats as any).critChance || 0) * 100).toFixed(1)}%`)}
+              {renderStatRow('critDamage', `${Math.round((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, (stats as any).crit || 0)) * 100)}%`)}
             </div>
             {/* Стихийный урон — отдельное окно, всегда 1 знак после запятой */}
             <div style={{
