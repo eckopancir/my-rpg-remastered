@@ -603,7 +603,7 @@ export const usePlayerStore = create<PlayerStore>()(
           autoDamage: Math.max(0, skillBonus.autoDamage),
           pistolDamage: Math.max(0, skillBonus.pistolDamage),
           heavyDamage: Math.max(0, skillBonus.heavyDamage),
-          critDamage: Math.max(0, skillBonus.critDamage),
+          critDamage: Math.max(0, equipBonus.critDamage + effectBonus.critDamage + skillBonus.critDamage + setBonus.critDamage),
           critChance: Math.max(0, BASE_STATS.critChance + equipBonus.critChance + effectBonus.critChance + skillBonus.critChance + setBonus.critChance),
           crit: Math.max(0, BASE_STATS.crit + equipBonus.crit + effectBonus.crit + skillBonus.crit + setBonus.crit),
           armor: Math.max(0, BASE_STATS.armor + equipBonus.armor + effectBonus.armor + skillBonus.armor + setBonus.armor),
