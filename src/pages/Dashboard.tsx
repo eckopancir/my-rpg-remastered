@@ -330,7 +330,6 @@ export const Dashboard = () => {
   const statCapsules: StatInfo[] = [
     { label: 'DMG', value: stats.damage.toFixed(1), desc: 'Базовый урон. Формула: DPS × кол-во атак × шанс попадания. Влияет на весь исходящий урон.', breakpoints: ['+1 DMG ≈ +3 силы', 'Крит ×2-5 умножает DMG'] },
     { label: 'ARM', value: stats.armor.toFixed(1), desc: 'Броня. Вычитается из входящего урона после пробития. 10 ARM = −10 урона.', breakpoints: ['ARM × пробитие 50-70%', 'Не снижает чистый урон'] },
-    { label: 'CRIT', value: `${(stats.crit * 100).toFixed(1)}%`, desc: 'Крит. урон: стакается вещами/модами. 100% = крит ×2, 200% = ×3, 400% = ×5. Отдельно есть шанс крита (кап 100%).', breakpoints: ['0-100% → ×2', '100-200% → ×3', '200-400% → ×4-5', '500% → ×6+'] },
     { label: 'CRITCH', value: `${(Math.min(1, (stats as any).critChance || 0) * 100).toFixed(1)}%`, desc: 'Шанс крита (новый): как часто вылетает. Кап 100%. Складывается со старым критом.', breakpoints: ['Кап 100%', 'База 5%', 'Снайперки дают больше всех'] },
     { label: 'CRTDMG', value: `×${(2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, Math.floor(stats.crit || 0) - 1)).toFixed(1)}`, desc: 'Крит. урон: каким будет крит, если вылетит. База ×2.0 + всё набранное, ярусы старых вещей сверху.', breakpoints: ['×2.0 база', '×5.0+ сборки', 'Старые ярусы сверху'] },
     { label: 'ACC', value: `${(stats.accuracy * 100).toFixed(0)}%`, desc: 'Меткость. 100% = всегда попал (кроме уворота). >100% режет уворот врага.', breakpoints: ['100% база', '150% → уворот ×0.5', '200% → игнор уворота'] },
