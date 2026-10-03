@@ -32,7 +32,7 @@ interface ItemTooltipProps {
 }
 
 const STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', crit: 'Крит. урон', critChance: 'Шанс крита', armor: 'Броня', regen: 'Регенерация',
+  damage: 'Урон', crit: 'Крит. урон', critChance: 'Шанс крита', critDamage: 'Крит. урон', armor: 'Броня', regen: 'Регенерация',
   evasion: 'Уклонение', block: 'Блок', punching: 'Дробящий', accuracy: 'Точность',
   vampir: 'Вампиризм', speed: 'Скорость', health: 'Здоровье', maxHp: 'Макс. HP',
   stamina: 'Выносливость', dpsEmi: 'ЭМИ урон', dpsToxis: 'Токсичный урон',
@@ -391,7 +391,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       {item.set && SET_BONUSES[item.set] && SET_BONUSES[item.set].length > 0 && (() => {
         const equippedSetCount = Object.values(equipment).filter((eq) => (eq as any)?.set === item.set).length;
         const maxCount = Math.max(...SET_BONUSES[item.set].map((t) => t.count));
-        const PCT_STATS = new Set(['crit', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'punching']);
+        const PCT_STATS = new Set(['crit', 'critChance', 'evasion', 'block', 'vampir', 'accuracy', 'speed', 'punching']);
         const fmtFlat = ([k, v]: [string, number]) => {
           const val = PCT_STATS.has(k) ? `${(v * 100).toFixed(2).replace(/\.?0+$/, '')}%` : `${v}`;
           return `${STAT_LABELS[k] || k}: ${v > 0 ? '+' : ''}${val}`;
@@ -463,7 +463,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         }
         const renderRow = (k: string, v: number, isNeg: boolean) => {
           const col = STAT_COLORS[k] || (isNeg ? '#f87171' : '#d1d5db');
-          const isPct = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
+          const isPct = ['crit', 'critChance', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
           const isBlock = k === 'block';
           const shown = isPct ? `${(Math.abs(v) * 100).toFixed(v < 0.01 ? 1 : 0)}%` : isBlock ? `${Math.abs(v).toFixed(1)}%` : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(2)}`;
           const sign = isNeg ? '-' : '+';

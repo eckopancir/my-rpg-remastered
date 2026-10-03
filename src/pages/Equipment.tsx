@@ -240,11 +240,11 @@ const ghostEl = (item: Item): HTMLElement | null => {
 
 // Ключевые характеристики для сводки (остальное — под «Показать все»).
 const MAIN_STATS = ['damage', 'armor', 'maxStamina'] as const;
-const SECOND_STATS = ['accuracy', 'crit', 'critChance', 'speed', 'punching', 'vampir', 'block', 'evasion', 'maxHp', 'regen'] as const;
+const SECOND_STATS = ['accuracy', 'crit', 'critChance', 'critDamage', 'speed', 'punching', 'vampir', 'block', 'evasion', 'maxHp', 'regen'] as const;
 const ELEM_STATS = ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] as const;
 
 const STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', crit: 'Крит. урон', critChance: 'Шанс крита', armor: 'Броня', regen: 'Регенерация',
+  damage: 'Урон', crit: 'Крит. урон', critChance: 'Шанс крита', critDamage: 'Крит. урон', armor: 'Броня', regen: 'Регенерация',
   evasion: 'Уклонение', block: 'Блок', punching: 'Дробящий', accuracy: 'Меткость',
   vampir: 'Вампиризм', speed: 'Скорость', maxHp: 'Макс. HP',
   maxStamina: 'Выносливость', dpsEmi: 'ЭМИ урон', dpsToxis: 'Токсичный урон',
@@ -260,7 +260,7 @@ const STAT_TT_COLORS: Record<string, string> = {
   crit: '#fbbf24', accuracy: '#fbbf24', speed: '#fbbf24',
 };
 
-const PCT_KEYS = ['crit', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'];
+const PCT_KEYS = ['crit', 'critChance', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'];
 
 // Формат штрафа экипировки для подписи рядом: "-3%".
 const fmtPenalty = (k: string, d: number): string => {

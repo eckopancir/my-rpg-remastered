@@ -241,7 +241,7 @@ const generateShop = (level: number): ShopItem[] => {
   return items;
 };
 
-type SortKey = 'price' | 'level' | 'name' | 'quality';
+type SortKey = 'price' | 'level' | 'name' | 'quality' | 'critChance' | 'critDamage';
 
 // Лавки площади: секции витрины. Цвета — акценты секций.
 const STALLS = [
@@ -422,6 +422,8 @@ export const Bazaar = () => {
       if (sortKey === 'price') cmp = a.price - b.price;
       else if (sortKey === 'level') cmp = a.level - b.level;
       else if (sortKey === 'name') cmp = a.displayName.localeCompare(b.displayName);
+      else if (sortKey === 'critChance') cmp = ((a.stats as any)?.critChance || 0) - ((b.stats as any)?.critChance || 0);
+      else if (sortKey === 'critDamage') cmp = ((a.stats as any)?.critDamage || 0) - ((b.stats as any)?.critDamage || 0);
       else if (sortKey === 'quality') {
         const order = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Легендарный'];
         cmp = order.indexOf(a.quality) - order.indexOf(b.quality);
@@ -733,7 +735,7 @@ export const Bazaar = () => {
               </div>
               <div style={{ display: 'flex', gap: 6, marginBottom: 14, alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Сортировать:</span>
-                {(['price', 'level', 'name', 'quality'] as SortKey[]).map((k) => (
+                {(['price', 'level', 'name', 'quality', 'critChance', 'critDamage'] as SortKey[]).map((k) => (
                   <div key={k}
                     onClick={() => { if (sortKey === k) setSortAsc(!sortAsc); else { setSortKey(k); setSortAsc(false); } }}
                     style={{
@@ -744,7 +746,7 @@ export const Bazaar = () => {
                       transition: 'all 80ms',
                     }}
                   >
-                    {k === 'price' ? 'Цена' : k === 'level' ? 'Уровень' : k === 'name' ? 'Название' : 'Качество'}
+                    {k === 'price' ? 'Цена' : k === 'level' ? 'Уровень' : k === 'name' ? 'Название' : k === 'critChance' ? 'Шанс крита' : k === 'critDamage' ? 'Крит. урон' : 'Качество'}
                     {sortKey === k && (sortAsc ? ' ▲' : ' ▼')}
                   </div>
                 ))}

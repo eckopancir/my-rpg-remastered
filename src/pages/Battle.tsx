@@ -947,7 +947,7 @@ export const Battle = () => {
                 <span>⚔️ Атака <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.damage)}</b></span>
                 <span>🛡️ Броня <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.armor)}</b></span>
                 <span>🎯 Метк. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.accuracy || 0) * 100)}%</b></span>
-                <span>💥 Крит <b title={`Множитель ×${(((hoverTarget as any).critDamage >= 2 ? (hoverTarget as any).critDamage : 2 + Math.max(0, (hoverTarget as any).critDamage || 0)) + Math.floor(hoverTarget.crit || 0)).toFixed(1)}`} style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(((hoverTarget as any).critChance || hoverTarget.crit || 0) * 100)}%</b></span>
+                <span>💥 Крит <b title={`Множитель ×${(2 + Math.max(0, (hoverTarget as any).critDamage || 0) + Math.max(0, Math.floor(hoverTarget.crit || 0) - 1)).toFixed(1)}`} style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(((hoverTarget as any).critChance || hoverTarget.crit || 0) * 100)}%</b></span>
                 <span>🌀 Увор. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.evasion || 0) * 100)}%</b></span>
                 <span>🧱 Блок <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.block || 0)}%</b></span>
                 <span>👊 Проб. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.punching || 0) * 100)}%</b></span>
