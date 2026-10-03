@@ -240,7 +240,7 @@ const ghostEl = (item: Item): HTMLElement | null => {
 
 // Ключевые характеристики для сводки (остальное — под «Показать все»).
 const MAIN_STATS = ['damage', 'armor', 'maxStamina'] as const;
-const SECOND_STATS = ['accuracy', 'crit', 'critChance', 'critDamage', 'speed', 'punching', 'vampir', 'block', 'evasion', 'maxHp', 'regen'] as const;
+const SECOND_STATS = ['accuracy', 'speed', 'punching', 'vampir', 'block', 'evasion', 'maxHp', 'regen'] as const;
 const ELEM_STATS = ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] as const;
 
 const STAT_LABELS: Record<string, string> = {
@@ -257,7 +257,7 @@ const STAT_TT_COLORS: Record<string, string> = {
   damage: '#f87171', punching: '#f87171', vampir: '#f87171', dpsExtro: '#f87171', dpsFire: '#f87171',
   armor: '#60a5fa', block: '#60a5fa', evasion: '#60a5fa', dpsEmi: '#60a5fa',
   regen: '#4ade80', maxHp: '#4ade80', maxStamina: '#4ade80', luck: '#4ade80', incomingDamageMult: '#4ade80', dpsToxis: '#4ade80',
-  crit: '#fbbf24', accuracy: '#fbbf24', speed: '#fbbf24',
+  crit: '#fbbf24', critChance: '#fbbf24', critDamage: '#fbbf24', accuracy: '#fbbf24', speed: '#fbbf24',
 };
 
 const PCT_KEYS = ['crit', 'critChance', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'];
@@ -1069,6 +1069,9 @@ export const Equipment = () => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
               {SECOND_STATS.map((k) => renderStatRow(k))}
+              {/* Крит — только итоги: шанс (кап 100%) и урон (мин. 200% = база ×2) */}
+              {renderStatRow('critChance', `${(Math.min(1, ((stats as any).critChance || 0) + Math.min((stats as any).crit || 0, 1)) * 100).toFixed(1)}%`)}
+              {renderStatRow('critDamage', `${Math.round((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, Math.floor((stats as any).crit || 0) - 1)) * 100)}%`)}
             </div>
             {/* Стихийный урон — отдельное окно, всегда 1 знак после запятой */}
             <div style={{
