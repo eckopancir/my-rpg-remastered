@@ -1075,7 +1075,7 @@ export const Equipment = () => {
                   {k === 'speed' && (
                     <span style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 5 }}>
                       {renderStatRow('critChance', `${(Math.min(1, (stats as any).critChance || 0) * 100).toFixed(1)}%`)}
-                      {renderStatRow('critDamage', `${Math.round((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, (stats as any).crit || 0)) * 100)}%`)}
+                      {renderStatRow('critDamage', `${Math.round(((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, (stats as any).crit || 0)) * 100))}%`)}
                     </span>
                   )}
                 </span>

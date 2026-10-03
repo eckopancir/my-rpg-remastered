@@ -339,7 +339,7 @@ export const Dashboard = () => {
     { label: 'PCH', value: `${(stats.punching * 100).toFixed(1)}%`, desc: 'Пробитие. 0-100% → 0-50% игнора брони, 100-300% → 50-70%, кап 70%.' },
     { label: 'SPD', value: `${(stats.speed * 100).toFixed(1)}%`, desc: 'Скорость. Доп. атаки: 0.5%×SPD за выстрел. 100% → 50% шанс, 200% → гарант +50%.' },
     { label: 'CRITCH', value: `${(Math.min(1, (stats as any).critChance || 0) * 100).toFixed(1)}%`, desc: 'Шанс крита: как часто вылетает. Кап 100%. Старый крит в шанс не идёт.', breakpoints: ['Кап 100%', 'База 5%', 'Снайперки дают больше всех'] },
-    { label: 'CRTDMG', value: `${Math.round((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, stats.crit || 0)) * 100)}%`, desc: 'Крит. урон: каким будет крит, если вылетит. Мин. 200% (= ×2.0), набранное — сверху.', breakpoints: ['200% база', '500% = ×5', 'Старый крит — тоже в урон'] },
+    { label: 'CRTDMG', value: `${Math.round(((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, stats.crit || 0)) * 100))}%`, desc: 'Крит. урон: каким будет крит, если вылетит. Мин. 200% (= ×2.0), набранное — сверху.', breakpoints: ['200% база', '500% = ×5', 'Старый крит — тоже в урон'] },
   ];
 
   const elemDps = [
