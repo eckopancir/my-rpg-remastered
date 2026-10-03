@@ -14,6 +14,7 @@ import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getCoverPenalty, distToRect } from '../engine/terrain';
+import { effectiveItemStats } from '../utils/itemStats';
 import { useSound, playCombatSound, stopCombatSound, startMapMusic } from '../hooks/useSound';
 import { getEnemyImage, getCharacterImage, images, getSniperImage, petAvatarImage } from '../assets/index';
 import { SkillBar } from '../components/widgets/SkillBar';
@@ -947,8 +948,8 @@ export const Battle = () => {
                 <span>🛡️ Броня <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.armor)}</b></span>
                 <span>🎯 Метк. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.accuracy || 0) * 100)}%</b></span>
                 <span>⚡ Скор. <b title="Доп. выстрелы: шанс повтора за скорость" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.speed || 0) * 100)}%</b></span>
-                <span>🎲 Крит.Ш <b title="Шанс крита (кап 100%)" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(((hoverTarget as any).critChance || 0) * 100)}%</b></span>
-                <span>💥 Крит.У <b title="Крит. урон: столько будет, если крит вылетит" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{(Math.round((2 + Math.max(0, (hoverTarget as any).critDamage || 0) + Math.max(0, hoverTarget.crit || 0))) * 100)}%</b></span>
+                <span>🎲 Крит.Ш <b title={(() => { try { const gw = ((hoverTarget as any).gear || []).find((g: any) => g && (g.slot === 'weapon1' || g.slot === 'weapon2')); const es = gw ? effectiveItemStats(gw) : ({} as any); return `Шанс крита (кап 100%). Ствол: +${Math.round(((es as any).critChance || 0) * 100)}%`; } catch { return 'Шанс крита (кап 100%)'; } })()} style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(((hoverTarget as any).critChance || 0) * 100)}%</b></span>
+                <span>💥 Крит.У <b title={(() => { try { const gw = ((hoverTarget as any).gear || []).find((g: any) => g && (g.slot === 'weapon1' || g.slot === 'weapon2')); const es = gw ? effectiveItemStats(gw) : ({} as any); return `Крит. урон: столько будет, если крит вылетит. Ствол: +${Math.round(((es as any).critDamage || 0) * 100)}%`; } catch { return 'Крит. урон'; } })()} style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{(Math.round((2 + Math.max(0, (hoverTarget as any).critDamage || 0) + Math.max(0, hoverTarget.crit || 0))) * 100)}%</b></span>
                 <span>🌀 Увор. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.evasion || 0) * 100)}%</b></span>
                 <span>🧱 Блок <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.block || 0)}%</b></span>
                 <span>👊 Проб. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.punching || 0) * 100)}%</b></span>
