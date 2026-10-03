@@ -936,13 +936,12 @@ export const Battle = () => {
                   <ProgressBar value={Math.max(0, Math.round(hoverTarget.currentHp))} max={hoverTarget.maxHp}
                     variant={hoverTarget.currentHp / hoverTarget.maxHp < 0.3 ? 'danger' : 'hp'} />
                   <div style={{ display: 'flex', gap: 8, marginTop: 6, fontSize: 10, color: 'var(--text-muted)' }}>
-                    <span title="Дальность стрельбы">📏 {hoverTarget.rangeDistance || 7}</span>
+                    <span title="Дальность стрельбы">📏 Дальн.: {hoverTarget.rangeDistance || 7}</span>
                     <span title="Очки действий за ход">💨 {hoverTarget.runAp || 5} ОД</span>
                   </div>
                 </div>
               </div>
               {/* Stats */}
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', padding: '0 12px 4px' }}>📊 ВРАГ</div>
               <div style={{ padding: '0 12px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: 12 }}>
                 <span>⚔️ Атака <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.damage)}</b></span>
                 <span>🛡️ Броня <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.armor)}</b></span>
@@ -1057,7 +1056,7 @@ export const Battle = () => {
                     variant={stats.currentHp / stats.maxHp < 0.3 ? 'danger' : 'hp'} />
                 </div>
               </div>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 4 }}>📊 ОПЕРАТОР</div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text-muted)', marginBottom: 4 }}>📊 Характеристики</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: 12 }}>
                 <span>⚔️ Атака: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.damage)}</b></span>
                 <span>🛡️ Броня: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.armor)}</b></span>
