@@ -28,9 +28,9 @@ export const QUALITY_TIERS: QualityTier[] = [
 ];
 
 export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
-  weapon1: { crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005, damage: 2 },
+  weapon1: { crit: 0.005, critChance: 0.003, vampir: 0.005, punching: 0.005, accuracy: 0.005, damage: 2 },
   weapon2: {
-    crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.005, speed: 0.02,
+    crit: 0.005, critChance: 0.003, vampir: 0.005, punching: 0.005, accuracy: 0.005, speed: 0.02,
     dpsExtro: 2, dpsFire: 2, dpsEmi: 2, dpsToxis: 2, damage: 3,
   },
   head: { regen: 2, block: 0.04, evasion: 0.0004, armor: 2, maxHp: 250, stamina: 1.5 },
@@ -42,7 +42,7 @@ export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
   ammo: { regen: 0.01, block: 0.024, evasion: 0.002, armor: 0.5, maxHp: 20, damage: 0.5 },
   mod: {
     regen: 0.005, block: 0.04, evasion: 0.0004, armor: 2, maxHp: 250, damage: 2,
-    crit: 0.005, vampir: 0.005, punching: 0.005, accuracy: 0.0025,
+    crit: 0.01, critChance: 0.003, vampir: 0.005, punching: 0.005, accuracy: 0.0025,
     dpsExtro: 1, dpsFire: 1, dpsEmi: 1, dpsToxis: 1,
     ammoCapacity: 5,
   },
@@ -194,7 +194,7 @@ const WEAPON_ROLLABLE_NEW_STATS = new Set(['vampir']);
 const ARMOR_NEW_STATS = new Set(['stamina']);
 const ARMOR_POOL_SLOTS = new Set(['head', 'armor', 'pants', 'gloves', 'boots', 'shield']);
 
-const WEAPON_SPHERE_PCT = ['damage', 'crit', 'speed', 'punching', 'accuracy', 'vampir'];
+const WEAPON_SPHERE_PCT = ['damage', 'crit', 'critChance', 'speed', 'punching', 'accuracy', 'vampir'];
 const WEAPON_SPHERE_FLAT = ['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro'];
 const ARMOR_SPHERE_PCT = ['armor', 'evasion', 'block', 'vampir', 'regen', 'maxHp', 'stamina'];
 

@@ -241,6 +241,8 @@ export const ShootingRange = ({ onClose }: Props) => {
       dps,
       pure: pureDps,
       crit: stats.crit,
+      critChance: (stats as any).critChance || 0,
+      critDamage: (stats as any).critDamage || 0,
       accuracy: stats.accuracy,
       punching: stats.punching,
       vampir: stats.vampir,

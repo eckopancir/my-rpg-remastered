@@ -8,13 +8,13 @@ export interface AppliedScheme {
 
 /** Статы, доступные сферам (% и плоская стихия). */
 export const SCHEME_STATS = [
-  'damage', 'armor', 'crit', 'speed', 'accuracy',
+  'damage', 'armor', 'crit', 'critChance', 'speed', 'accuracy',
   'evasion', 'block', 'vampir', 'punching', 'regen', 'maxHp', 'stamina',
   'dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro',
 ];
 
 export const SCHEME_STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', armor: 'Броня', crit: 'Крит. шанс', speed: 'Скорость',
+  damage: 'Урон', armor: 'Броня', crit: 'Крит (стар.)', critChance: 'Шанс крита', speed: 'Скорость',
   accuracy: 'Точность', evasion: 'Уклонение', block: 'Блок',
   vampir: 'Вампиризм', punching: 'Пробитие', regen: 'Регенерация', maxHp: 'Макс. HP', stamina: 'Выносливость',
   dpsEmi: 'ЭМИ урон', dpsFire: 'Огненный урон', dpsToxis: 'Токсичный урон', dpsExtro: 'Экстро урон',

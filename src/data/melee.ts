@@ -82,8 +82,8 @@ export const MELEE_ABILITIES: MeleeAbilityDef[] = [
   },
 
   // ---------- ТИР 5 (нужно 25 из Т1–4, только одна) ----------
-  { id: 'mln_t5_vamp', column: 'melee', tier: 5, name: 'МОЩНЫЙ вампиризм', kind: 'stat', maxRanks: 5, gate: 0, exclusiveWith: ['mln_t5_punch'], apCost: 0, cooldown: 0, icon: '🩸', statsPerRank: [R('vampir', 0.04, '+4% вампиризм'), R('crit', 0.02, '+2% крит')] },
-  { id: 'mln_t5_punch', column: 'melee', tier: 5, name: 'МОЩНОЕ пробитие', kind: 'stat', maxRanks: 5, gate: 0, exclusiveWith: ['mln_t5_vamp'], apCost: 0, cooldown: 0, icon: '🔩', statsPerRank: [R('punching', 0.08, '+8% пробитие'), R('crit', 0.02, '+2% крит')] },
+  { id: 'mln_t5_vamp', column: 'melee', tier: 5, name: 'МОЩНЫЙ вампиризм', kind: 'stat', maxRanks: 5, gate: 0, exclusiveWith: ['mln_t5_punch'], apCost: 0, cooldown: 0, icon: '🩸', statsPerRank: [R('vampir', 0.04, '+4% вампиризм'), R('critChance', 0.02, '+2% шанс крита')] },
+  { id: 'mln_t5_punch', column: 'melee', tier: 5, name: 'МОЩНОЕ пробитие', kind: 'stat', maxRanks: 5, gate: 0, exclusiveWith: ['mln_t5_vamp'], apCost: 0, cooldown: 0, icon: '🔩', statsPerRank: [R('punching', 0.08, '+8% пробитие'), R('critChance', 0.02, '+2% шанс крита')] },
 
   // ---------- ТИР 6 (нужно 30 из Т1–5) ----------
   { id: 'mln_t6_block', column: 'melee', tier: 6, name: '+2.5% шанс блока', kind: 'stat', maxRanks: 2, gate: 0, apCost: 0, cooldown: 0, icon: '🛡️', statsPerRank: [R('block', 2.5, '+2.5% шанс блока')] },

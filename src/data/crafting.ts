@@ -15,8 +15,8 @@ export const QUALITY_ORDER = [
 ];
 
 export const SLOT_STAT_POOL: Record<string, string[]> = {
-  weapon1: ['damage', 'crit', 'speed', 'block', 'punching', 'vampir'],
-  weapon2: ['damage', 'crit', 'speed', 'accuracy', 'punching', 'vampir'],
+  weapon1: ['damage', 'crit', 'critChance', 'speed', 'block', 'punching', 'vampir'],
+  weapon2: ['damage', 'crit', 'critChance', 'speed', 'accuracy', 'punching', 'vampir'],
   head: ['armor', 'evasion', 'regen', 'maxHp', 'accuracy'],
   armor: ['armor', 'evasion', 'regen', 'maxHp', 'block'],
   pants: ['armor', 'evasion', 'regen', 'maxHp', 'speed'],

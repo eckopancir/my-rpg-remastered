@@ -102,6 +102,7 @@ export interface PlayerStats {
   maxHp: number; currentHp: number; maxStamina: number; stamina: number;
   damage: number; meleeDamage: number; shotgunDamage: number;
   autoDamage: number; pistolDamage: number; heavyDamage: number; critDamage: number;
+  critChance: number;
   crit: number; armor: number; regen: number;
   evasion: number; block: number; punching: number; accuracy: number;
   vampir: number; speed: number;
@@ -268,6 +269,7 @@ const EMPTY_STATS: PlayerStats = {
   maxHp: 0, currentHp: 0, maxStamina: 0, stamina: 0,
   damage: 0, meleeDamage: 0, shotgunDamage: 0,
   autoDamage: 0, pistolDamage: 0, heavyDamage: 0, critDamage: 0,
+  critChance: 0,
   crit: 0, armor: 0, regen: 0, evasion: 0, block: 0,
   punching: 0, accuracy: 0, vampir: 0, speed: 0,
   dpsEmi: 0, dpsToxis: 0, dpsExtro: 0, dpsFire: 0,
@@ -428,7 +430,8 @@ export const computePowerFromStats = (stats: PlayerStats): { offensiveScore: num
   const offensiveScore =
     n(stats.damage) * 1.0 +
     (n(stats.dpsEmi) + n(stats.dpsToxis) + n(stats.dpsExtro) + n(stats.dpsFire)) * 2.0 +
-    n(stats.crit) * 100 * 1.5 +
+    n(stats.crit) * 100 * 0.5 +
+    n((stats as any).critChance) * 100 * 2.5 +
     n(stats.speed) * 100 * 0.8 +
     n(stats.accuracy) * 100 * 2.0 +
     n(stats.punching) * 100 * 0.6;
@@ -447,7 +450,8 @@ const BASE_STATS: PlayerStats = {
   maxHp: 480, currentHp: 500, maxStamina: 100, stamina: 100,
   damage: 5, meleeDamage: 0, shotgunDamage: 0,
   autoDamage: 0, pistolDamage: 0, heavyDamage: 0, critDamage: 0,
-  crit: 0.05, armor: 2, regen: 1, evasion: 0.05, block: 0,
+  critChance: 0.05,
+  crit: 0, armor: 2, regen: 1, evasion: 0.05, block: 0,
   punching: 0, accuracy: 1.0, vampir: 0.01, speed: 0.05,
   dpsEmi: 0, dpsToxis: 0, dpsExtro: 0, dpsFire: 0,
   power: 0,
@@ -600,6 +604,7 @@ export const usePlayerStore = create<PlayerStore>()(
           pistolDamage: Math.max(0, skillBonus.pistolDamage),
           heavyDamage: Math.max(0, skillBonus.heavyDamage),
           critDamage: Math.max(0, skillBonus.critDamage),
+          critChance: Math.max(0, BASE_STATS.critChance + equipBonus.critChance + effectBonus.critChance + skillBonus.critChance + setBonus.critChance),
           crit: Math.max(0, BASE_STATS.crit + equipBonus.crit + effectBonus.crit + skillBonus.crit + setBonus.crit),
           armor: Math.max(0, BASE_STATS.armor + equipBonus.armor + effectBonus.armor + skillBonus.armor + setBonus.armor),
           regen: Math.max(0, BASE_STATS.regen + equipBonus.regen + effectBonus.regen + skillBonus.regen + setBonus.regen),

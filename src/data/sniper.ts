@@ -51,8 +51,8 @@ export const SNIPER_META = {
 
 export const SNIPER_ABILITIES: SniperAbilityDef[] = [
   // ---------- АТАКА ----------
-  { id: 'snp_a1_crit', column: 'attack', tier: 1, img: '1.1', name: '+1% крит', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, statsPerRank: [R('crit', 0.01, '+1% крит')] },
-  { id: 'snp_a1_mix', column: 'attack', tier: 1, img: '1.2', name: 'Крит + урон', kind: 'stat', maxRanks: 5, gate: 0, apCost: 0, cooldown: 0, statsPerRank: [R('crit', 0.005, '+0.5% крит'), R('damage', 1, '+1 урон')] },
+  { id: 'snp_a1_crit', column: 'attack', tier: 1, img: '1.1', name: '+1% шанс крита', kind: 'stat', maxRanks: 10, gate: 0, apCost: 0, cooldown: 0, statsPerRank: [R('critChance', 0.01, '+1% шанс крита')] },
+  { id: 'snp_a1_mix', column: 'attack', tier: 1, img: '1.2', name: 'Шанс крита + урон', kind: 'stat', maxRanks: 5, gate: 0, apCost: 0, cooldown: 0, statsPerRank: [R('critChance', 0.005, '+0.5% шанс крита'), R('damage', 1, '+1 урон')] },
   { id: 'snp_a2_acc', column: 'attack', tier: 2, img: '2.1', name: '+1% меткость', kind: 'stat', maxRanks: 10, gate: 5, apCost: 0, cooldown: 0, statsPerRank: [R('accuracy', 0.01, '+1% меткость')] },
   { id: 'snp_a2_mix', column: 'attack', tier: 2, img: '2.2', name: 'Меткость + урон', kind: 'stat', maxRanks: 5, gate: 5, apCost: 0, cooldown: 0, statsPerRank: [R('accuracy', 0.005, '+0.5% меткость'), R('damage', 2, '+2 урона')] },
   { id: 'snp_a3_punch', column: 'attack', tier: 3, img: '3.1', name: '+2% пробитие', kind: 'stat', maxRanks: 10, gate: 5, apCost: 0, cooldown: 0, statsPerRank: [R('punching', 0.02, '+2% пробитие')] },
@@ -69,7 +69,7 @@ export const SNIPER_ABILITIES: SniperAbilityDef[] = [
     mechanic: 'Пробитие +100% на N ходов (N = 1 + ранг). КД 50.',
   },
 
-  { id: 'snp_a5_eagle', column: 'attack', tier: 5, img: '5.1', name: 'Глаз хищника', kind: 'stat', maxRanks: 2, gate: 5, requiresAbility: 'snp_a4_eagle', apCost: 0, cooldown: 0, statsPerRank: [R('crit', 0.10, '+10% крит'), R('accuracy', 0.05, '+5% меткости')] },
+  { id: 'snp_a5_eagle', column: 'attack', tier: 5, img: '5.1', name: 'Глаз хищника', kind: 'stat', maxRanks: 2, gate: 5, requiresAbility: 'snp_a4_eagle', apCost: 0, cooldown: 0, statsPerRank: [R('critChance', 0.10, '+10% шанс крита'), R('accuracy', 0.05, '+5% меткости')] },
   { id: 'snp_a5_ammo', column: 'attack', tier: 5, img: '5.2', name: 'Вольфрамовый сердечник', kind: 'stat', maxRanks: 2, gate: 5, requiresAbility: 'snp_a4_ammo', apCost: 0, cooldown: 0, statsPerRank: [R('punching', 0.15, '+15% пробитие')] },
 
   { id: 'snp_a6_range', column: 'attack', tier: 6, img: '6.1', name: 'Длинная рука', kind: 'passive', maxRanks: 2, gate: 4, apCost: 0, cooldown: 0, mechanic: 'Дальность выстрела +1 за ранг (всегда).' },
@@ -320,7 +320,7 @@ export function buildSniperBattleAbility(
     case 'snp_a7_deadeye':
       return { ...base, id: 'snpb_deadeye', apCost: ap(2), cooldown: 50, powerRating: 75, range: 14, requiresTarget: true, effects: [{ type: 'damage', multiplier: 3 }] };
     case 'snp_a7_crit':
-      return { ...base, id: 'snpb_crit', apCost: ap(2), cooldown: 50, powerRating: 75, effects: [{ type: 'stat_set', stat: 'crit', value: 5.0, duration: 1 }] };
+      return { ...base, id: 'snpb_crit', apCost: ap(2), cooldown: 50, powerRating: 75, effects: [{ type: 'stat_set', stat: 'critChance', value: 1.0, duration: 1 }] };
     case 'snp_x_aim':
       return { ...base, id: 'snpb_aimshot', apCost: ap(2), cooldown: 50, powerRating: 80, range: 20, requiresTarget: true, effects: [{ type: 'damage', multiplier: 5 }] };
     case 'snp_a7_rapid':

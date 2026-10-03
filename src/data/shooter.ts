@@ -101,9 +101,9 @@ export const SHOOTER_ABILITIES: ShooterAbilityDef[] = [
   },
 
   // ---------- ТИР 5 (нужно 25 из Т1–4) ----------
-  { id: 'sht_t5_speed', column: 'shooter', tier: 5, name: 'Шквал огня', kind: 'stat', maxRanks: 5, gate: 0, apCost: 0, cooldown: 0, icon: '🌊', statsPerRank: [R('speed', 0.05, '+5% скорость атаки'), R('crit', 0.02, '+2% крит')] },
+  { id: 'sht_t5_speed', column: 'shooter', tier: 5, name: 'Шквал огня', kind: 'stat', maxRanks: 5, gate: 0, apCost: 0, cooldown: 0, icon: '🌊', statsPerRank: [R('speed', 0.05, '+5% скорость атаки'), R('critChance', 0.02, '+2% шанс крита')] },
   { id: 'sht_t5_crit', column: 'shooter', tier: 5, name: 'Смертельный калибр', kind: 'stat', maxRanks: 5, gate: 0, apCost: 0, cooldown: 0, icon: '☠️', statsPerRank: [R('critDamage', 0.04, '+4% крит. урон'), R('speed', 0.03, '+3% скорость атаки')] },
-  { id: 'sht_t5_punch', column: 'shooter', tier: 5, name: 'Бронебойный калибр', kind: 'stat', maxRanks: 5, gate: 0, apCost: 0, cooldown: 0, icon: '🔩', statsPerRank: [R('punching', 0.05, '+5% пробитие'), R('crit', 0.02, '+2% крит')] },
+  { id: 'sht_t5_punch', column: 'shooter', tier: 5, name: 'Бронебойный калибр', kind: 'stat', maxRanks: 5, gate: 0, apCost: 0, cooldown: 0, icon: '🔩', statsPerRank: [R('punching', 0.05, '+5% пробитие'), R('critChance', 0.02, '+2% шанс крита')] },
 
   // ---------- ТИР 6 (нужно 30 из Т1–5, любые две ветки) ----------
   {

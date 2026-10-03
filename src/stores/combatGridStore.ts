@@ -1213,11 +1213,14 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     return out;
   }
 
-  // 1) КРИТ: множитель к базовому урону.
-  // Стрелок Т2/Т5 «крит. урон»: плоская добавка к множителю крита.
+  // 1) КРИТ: частота — новый critChance + легаси-часть crit (кап 100%);
+  // множитель — max(2, critDamage) + ярусы легаси-crit. critDamage<2 считается
+  // бонусом к базе (старые сейвы/скиллы: 0.1 → ×2.1), >=2 — полным множителем (3.5 → ×3.5).
   const critVal = attacker.crit || 0;
-  critChance = critVal;
+  const chanceVal = Math.min(1, (attacker.critChance || 0) + Math.min(critVal, 1));
+  critChance = chanceVal;
   const critDmgBonus = Math.max(0, (attacker as any).critDamage || 0);
+  const dmgBase = critDmgBonus >= 2 ? critDmgBonus : 2 + critDmgBonus;
   let critMultiplier = 1;
   let isCrit = false;
   if (forcedMult > 0) {
@@ -1226,14 +1229,13 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     dmg *= critMultiplier;
     type = 'CRIT';
     sound = 'crit';
-  } else if (critVal > 0 && Math.random() < Math.min(1, critVal)) {
+  } else if (chanceVal > 0 && Math.random() < chanceVal) {
     isCrit = true;
     const baseTier = Math.floor(critVal);
-    const chance = Math.min(critVal - baseTier, 1);
+    const rest = Math.min(critVal - baseTier, 1);
     critMultiplier = baseTier > 0
-      ? (Math.random() < chance ? baseTier + 2 : baseTier + 1)
-      : 2;
-    critMultiplier += critDmgBonus;
+      ? baseTier + 1 + (Math.random() < rest ? 1 : 0) + (dmgBase - 2)
+      : dmgBase;
     dmg *= critMultiplier;
     type = 'CRIT';
     sound = 'crit';
@@ -2897,7 +2899,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         if (!checkVisibility(get().playerPos, get().playerRotation, tgt.pos, get().obstacles, { fov: 360 })) continue;
         const atk = {
           dps: (pStats.damage || 0) + shooterGunDamage(), pure: calcPureDamage(pStats, tgt.faction),
-          crit: pStats.crit, critDamage: (pStats as any).critDamage || 0,
+          crit: pStats.crit, critChance: (pStats as any).critChance || 0, critDamage: (pStats as any).critDamage || 0,
           accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true,
           dist: getDist(get().playerPos, tgt.pos),
         };
@@ -4158,7 +4160,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }));
     const eff = petEffStats(pet);
     const atkStat = {
-      dps: eff.damage, pure: 0, crit: eff.crit, accuracy: eff.accuracy,
+      dps: eff.damage, pure: 0, crit: eff.crit, critChance: (eff as any).critChance || 0, accuracy: eff.accuracy,
       punching: eff.punching, vampir: 0, isPlayer: false,
     };
     const tgtStat = applyTerrainToTarget({ armor: target.armor || 0, evasion: target.evasion || 0, block: target.block || 0 }, target.pos, s.obstacles);
@@ -5040,6 +5042,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         dps: effectiveDps,
         pure: pureDmg,
         crit: player.stats.crit + get().sniperCritBonus() + (state.stealth && hasSnpStealth ? 1.0 : 0),
+        critChance: (player.stats as any).critChance || 0,
         critDamage: (player.stats as any).critDamage || 0,
         accuracy: player.stats.accuracy,
         punching: player.stats.punching,
@@ -5316,7 +5319,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           bPureMult = 1.5;
         }
 
-        const atkStat = { dps: effDps, pure: pureBonus * bPureMult, crit: pStats.crit, critDamage: (pStats as any).critDamage || 0, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true, dist: getDist(st.playerPos, en.pos) };
+        const atkStat = { dps: effDps, pure: pureBonus * bPureMult, crit: pStats.crit, critChance: (pStats as any).critChance || 0, critDamage: (pStats as any).critDamage || 0, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true, dist: getDist(st.playerPos, en.pos) };
         const tgtStat = applyTerrainToTarget(
           { armor: en.armor, evasion: en.evasion, block: en.block },
           en.pos,
@@ -6171,7 +6174,7 @@ export async function executeSkill(
       setTimeout(() => set({ shotLine: null }), 800);
       get().triggerShake();
       const aimDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2.0;
-      const attackerStats = { dps: aimDps, accuracy: (enemy.accuracy || 1) + 2.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist };
+      const attackerStats = { dps: aimDps, accuracy: (enemy.accuracy || 1) + 2.0, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist };
       const result = calculateCombatResult(attackerStats, get().playerDefenseTarget());
       if (result.damage > 0) {
         if (!absorbWithShield(pPos)) {
@@ -6227,7 +6230,7 @@ export async function executeSkill(
             await new Promise((r) => setTimeout(r, 40));
           }
           const ramDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2;
-          const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist }, get().playerDefenseTarget());
+          const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist }, get().playerDefenseTarget());
           get().triggerShake();
           if (result.damage > 0 && !absorbWithShield(pPos)) {
             const pBefore = usePlayerStore.getState().stats.currentHp;
@@ -6428,7 +6431,7 @@ export async function executeSkill(
       const rainDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 1.2;
       for (let k = 0; k < 4; k++) {
         const result = calculateCombatResult(
-          { dps: rainDps, accuracy: enemy.accuracy, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist },
+          { dps: rainDps, accuracy: enemy.accuracy, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist },
           get().playerDefenseTarget(),
         );
         if (result.damage > 0 && !absorbWithShield(pPos)) {
@@ -6490,7 +6493,7 @@ export async function executeSkill(
       get().triggerShake();
       const waveDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 3;
       const result = calculateCombatResult(
-        { dps: waveDps, accuracy: (enemy.accuracy || 1) + 1.0, crit: enemy.crit, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist },
+        { dps: waveDps, accuracy: (enemy.accuracy || 1) + 1.0, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist },
         get().playerDefenseTarget(),
       );
       if (result.damage > 0 && !absorbWithShield(pPos)) {

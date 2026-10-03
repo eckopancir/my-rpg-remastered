@@ -32,7 +32,7 @@ interface ItemTooltipProps {
 }
 
 const STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', crit: 'Крит. шанс', armor: 'Броня', regen: 'Регенерация',
+  damage: 'Урон', crit: 'Крит (стар.)', critChance: 'Шанс крита', armor: 'Броня', regen: 'Регенерация',
   evasion: 'Уклонение', block: 'Блок', punching: 'Дробящий', accuracy: 'Точность',
   vampir: 'Вампиризм', speed: 'Скорость', health: 'Здоровье', maxHp: 'Макс. HP',
   stamina: 'Выносливость', dpsEmi: 'ЭМИ урон', dpsToxis: 'Токсичный урон',

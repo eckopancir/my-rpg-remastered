@@ -240,11 +240,11 @@ const ghostEl = (item: Item): HTMLElement | null => {
 
 // Ключевые характеристики для сводки (остальное — под «Показать все»).
 const MAIN_STATS = ['damage', 'armor', 'maxStamina'] as const;
-const SECOND_STATS = ['accuracy', 'crit', 'speed', 'punching', 'vampir', 'block', 'evasion', 'maxHp', 'regen'] as const;
+const SECOND_STATS = ['accuracy', 'crit', 'critChance', 'speed', 'punching', 'vampir', 'block', 'evasion', 'maxHp', 'regen'] as const;
 const ELEM_STATS = ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] as const;
 
 const STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', crit: 'Крит. шанс', armor: 'Броня', regen: 'Регенерация',
+  damage: 'Урон', crit: 'Крит (стар.)', critChance: 'Шанс крита', armor: 'Броня', regen: 'Регенерация',
   evasion: 'Уклонение', block: 'Блок', punching: 'Дробящий', accuracy: 'Меткость',
   vampir: 'Вампиризм', speed: 'Скорость', maxHp: 'Макс. HP',
   maxStamina: 'Выносливость', dpsEmi: 'ЭМИ урон', dpsToxis: 'Токсичный урон',
