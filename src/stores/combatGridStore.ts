@@ -1187,6 +1187,8 @@ export const calculateCombatResult = (attacker: any, target: any) => {
   const accAfterCover = Math.max(0, effAccuracy - coverPen);
   accuracy = accAfterCover;
   const forcedMult = (attacker as any).forceCritMult || 0;
+  // Стелс-выстрел снайпера: всегда крит, урон — из крит. урона.
+  const alwaysCrit = !!(attacker as any).forceCrit;
 
   if (Math.random() > accAfterCover && accAfterCover < 1 && !forcedMult) {
     missed = true;
@@ -1229,7 +1231,7 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     dmg *= critMultiplier;
     type = 'CRIT';
     sound = 'crit';
-  } else if (chanceVal > 0 && Math.random() < chanceVal) {
+  } else if (alwaysCrit || (chanceVal > 0 && Math.random() < chanceVal)) {
     isCrit = true;
     const baseTier = Math.floor(critVal);
     const rest = Math.min(critVal - baseTier, 1);
@@ -5042,7 +5044,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         pure: pureDmg,
         crit: player.stats.crit,
         critChance: ((player.stats as any).critChance || 0) + get().sniperCritBonus(),
-        critDamage: (player.stats as any).critDamage + (state.stealth && hasSnpStealth ? 1.0 : 0) || 0,
+        critDamage: (player.stats as any).critDamage || 0,
+        forceCrit: state.stealth && hasSnpStealth,
         accuracy: player.stats.accuracy,
         punching: player.stats.punching,
         vampir: player.stats.vampir,
@@ -5207,7 +5210,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       pure: pureDmg * pureMult,
       crit: player.stats.crit,
       critChance: ((player.stats as any).critChance || 0) + get().sniperCritBonus(),
-      critDamage: (player.stats as any).critDamage + (state.stealth && hasSnpStealth ? 1.0 : 0) || 0,
+      critDamage: (player.stats as any).critDamage || 0,
+      forceCrit: state.stealth && hasSnpStealth,
       accuracy: player.stats.accuracy,
       punching: player.stats.punching,
       vampir: player.stats.vampir,
