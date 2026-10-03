@@ -80,8 +80,8 @@ export const effectiveItemStats = (item: Item): Record<string, number> => {
   for (const [k, v] of Object.entries(mods)) out[k] = (out[k] || 0) + v;
   for (const s of (((item as any).sockets || []) as { stat: string; pct: number }[])) {
     if (!s || !s.stat) continue;
-    if (s.stat.startsWith('dps')) {
-      // Стихийная сфера: плоская прибавка.
+    if (s.stat.startsWith('dps') || s.stat === 'critDamage') {
+      // Стихийная и крит-урон сферы: плоская прибавка.
       out[s.stat] = (out[s.stat] || 0) + (s.pct || 0);
     } else {
       if (!out[s.stat]) continue;

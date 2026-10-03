@@ -42,7 +42,7 @@ export const QUALITY_BONUSES: Record<string, Record<string, number>> = {
   ammo: { regen: 0.01, block: 0.024, evasion: 0.002, armor: 0.5, maxHp: 20, damage: 0.5 },
   mod: {
     regen: 0.005, block: 0.04, evasion: 0.0004, armor: 2, maxHp: 250, damage: 2,
-    crit: 0.01, critChance: 0.003, vampir: 0.005, punching: 0.005, accuracy: 0.0025,
+    crit: 0.01, critChance: 0.003, critDamage: 0.1, vampir: 0.005, punching: 0.005, accuracy: 0.0025,
     dpsExtro: 1, dpsFire: 1, dpsEmi: 1, dpsToxis: 1,
     ammoCapacity: 5,
   },
@@ -196,6 +196,8 @@ const ARMOR_POOL_SLOTS = new Set(['head', 'armor', 'pants', 'gloves', 'boots', '
 
 const WEAPON_SPHERE_PCT = ['damage', 'crit', 'critChance', 'speed', 'punching', 'accuracy', 'vampir'];
 const WEAPON_SPHERE_FLAT = ['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro'];
+/** Плоские сферы без привязки к статам ствола: стихийка + крит. урон. */
+const WEAPON_SPHERE_FLAT_FREE = [...WEAPON_SPHERE_FLAT, 'critDamage'];
 const ARMOR_SPHERE_PCT = ['armor', 'evasion', 'block', 'vampir', 'regen', 'maxHp', 'stamina'];
 
 /**
@@ -223,7 +225,7 @@ export const rollPreinstalledSpheres = (
   n = Math.min(n, socketSlots);
   if (n <= 0) return [];
   const pctPool = (isW ? WEAPON_SPHERE_PCT : ARMOR_SPHERE_PCT).filter((k) => (stats[k] || 0) > 0);
-  const flatPool = isW ? WEAPON_SPHERE_FLAT : [];
+  const flatPool = isW ? WEAPON_SPHERE_FLAT_FREE : [];
   if (pctPool.length === 0 && flatPool.length === 0) return [];
   const out: { stat: string; pct: number }[] = [];
   for (let i = 0; i < n; i++) {

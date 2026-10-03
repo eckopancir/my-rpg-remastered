@@ -8,20 +8,20 @@ export interface AppliedScheme {
 
 /** Статы, доступные сферам (% и плоская стихия). */
 export const SCHEME_STATS = [
-  'damage', 'armor', 'crit', 'critChance', 'speed', 'accuracy',
+  'damage', 'armor', 'crit', 'critChance', 'critDamage', 'speed', 'accuracy',
   'evasion', 'block', 'vampir', 'punching', 'regen', 'maxHp', 'stamina',
   'dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro',
 ];
 
 export const SCHEME_STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', armor: 'Броня', crit: 'Крит (стар.)', critChance: 'Шанс крита', speed: 'Скорость',
+  damage: 'Урон', armor: 'Броня', crit: 'Крит (стар.)', critChance: 'Шанс крита', critDamage: 'Крит. урон', speed: 'Скорость',
   accuracy: 'Точность', evasion: 'Уклонение', block: 'Блок',
   vampir: 'Вампиризм', punching: 'Пробитие', regen: 'Регенерация', maxHp: 'Макс. HP', stamina: 'Выносливость',
   dpsEmi: 'ЭМИ урон', dpsFire: 'Огненный урон', dpsToxis: 'Токсичный урон', dpsExtro: 'Экстро урон',
 };
 
-/** Плоские стихийные статы (сферы дают штуки, а не %). */
-export const SCHEME_FLAT_STATS = new Set(['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro']);
+/** Плоские статы сфер (штуки, а не %): стихийка + крит. урон. */
+export const SCHEME_FLAT_STATS = new Set(['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro', 'critDamage']);
 
 /** Урон/броня — +10% база, остальные — +20%; за ранг выше обычного +2.5% / +5%. */
 const SCHEME_BASE_PCT: Record<string, number> = { damage: 10, armor: 10 };
@@ -46,8 +46,12 @@ export const schemePctFor = (stat: string, rarity?: string): number => {
   return Math.round((raw / 3) * 10) / 10;
 };
 
-/** Плоский бонус стихийной сферы: +5, +2.5 за ранг (Обычная +5 … Божественная +20). */
+/** Плоский бонус сферы: стихийка +5/+2.5 за ранг; крит. урон +0.05/+0.025 (Обычная +0.05 … Божественная +0.2). */
 export const schemeFlatFor = (stat: string, rarity?: string): number => {
+  if (stat === 'critDamage') {
+    const idx = QUALITY_INDEX[rarity || 'Обычный'] ?? 0;
+    return Math.round((0.05 + 0.025 * idx) * 1000) / 1000;
+  }
   if (!SCHEME_FLAT_STATS.has(stat)) return schemePctFor(stat, rarity);
   const idx = QUALITY_INDEX[rarity || 'Обычный'] ?? 0;
   return 5 + 2.5 * idx;
