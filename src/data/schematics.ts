@@ -14,7 +14,7 @@ export const SCHEME_STATS = [
 ];
 
 export const SCHEME_STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', armor: 'Броня', crit: 'Крит (стар.)', critChance: 'Шанс крита', critDamage: 'Крит. урон', speed: 'Скорость',
+  damage: 'Урон', armor: 'Броня', crit: 'Крит. урон', critChance: 'Шанс крита', critDamage: 'Крит. урон', speed: 'Скорость',
   accuracy: 'Точность', evasion: 'Уклонение', block: 'Блок',
   vampir: 'Вампиризм', punching: 'Пробитие', regen: 'Регенерация', maxHp: 'Макс. HP', stamina: 'Выносливость',
   dpsEmi: 'ЭМИ урон', dpsFire: 'Огненный урон', dpsToxis: 'Токсичный урон', dpsExtro: 'Экстро урон',
@@ -23,9 +23,9 @@ export const SCHEME_STAT_LABELS: Record<string, string> = {
 /** Плоские статы сфер (штуки, а не %): стихийка + крит. урон. */
 export const SCHEME_FLAT_STATS = new Set(['dpsEmi', 'dpsFire', 'dpsToxis', 'dpsExtro', 'critDamage']);
 
-/** Урон/броня — +10% база, остальные — +20%; за ранг выше обычного +2.5% / +5%. */
-const SCHEME_BASE_PCT: Record<string, number> = { damage: 10, armor: 10 };
-const SCHEME_STEP_PCT: Record<string, number> = { damage: 2.5, armor: 2.5 };
+/** Урон/броня — +10% база, остальные — +20%; шанс крита — в 2 раза слабее (10%); за ранг выше обычного +2.5% / +5% (шанс +1.25%). */
+const SCHEME_BASE_PCT: Record<string, number> = { damage: 10, armor: 10, critChance: 10 };
+const SCHEME_STEP_PCT: Record<string, number> = { damage: 2.5, armor: 2.5, critChance: 1.25 };
 
 const QUALITY_INDEX: Record<string, number> = {
   'Обычный': 0, 'Редкий': 1, 'Раритетный': 2, 'Эпический': 3,

@@ -244,7 +244,7 @@ const SECOND_STATS = ['accuracy', 'crit', 'critChance', 'speed', 'punching', 'va
 const ELEM_STATS = ['dpsEmi', 'dpsToxis', 'dpsExtro', 'dpsFire'] as const;
 
 const STAT_LABELS: Record<string, string> = {
-  damage: 'Урон', crit: 'Крит (стар.)', critChance: 'Шанс крита', armor: 'Броня', regen: 'Регенерация',
+  damage: 'Урон', crit: 'Крит. урон', critChance: 'Шанс крита', armor: 'Броня', regen: 'Регенерация',
   evasion: 'Уклонение', block: 'Блок', punching: 'Дробящий', accuracy: 'Меткость',
   vampir: 'Вампиризм', speed: 'Скорость', maxHp: 'Макс. HP',
   maxStamina: 'Выносливость', dpsEmi: 'ЭМИ урон', dpsToxis: 'Токсичный урон',
