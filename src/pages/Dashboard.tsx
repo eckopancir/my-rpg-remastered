@@ -667,6 +667,9 @@ export const Dashboard = () => {
               <input type="checkbox" checked={forceDay} onChange={(e) => setForceDay(e.target.checked)} style={{ cursor: 'pointer' }} />
               ☀️ Всегда день
             </label>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }} title="Хеш сборки клиента — называй его при багах">
+              🖥️ {(() => { try { const s = document.querySelector('script[src*="assets/index-"]')?.getAttribute('src') || ''; const m = /index-([A-Za-z0-9_-]+)\.js/.exec(s); return m ? m[1] : '?'; } catch { return '?'; } })()}
+            </span>
           </div>
           <SavedMapsBlock />
         </WapPanel>
