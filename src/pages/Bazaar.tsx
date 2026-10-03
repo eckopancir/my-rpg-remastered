@@ -423,9 +423,9 @@ export const Bazaar = () => {
       if (sortKey === 'price') cmp = a.price - b.price;
       else if (sortKey === 'level') cmp = a.level - b.level;
       else if (sortKey === 'name') cmp = a.displayName.localeCompare(b.displayName);
-      // Крит-сортировки — по эффективным статам (база + моды + сферы), а не голой базе.
+      // Крит-сортировки — по эффективным статам (база + моды + сферы); урон — суммарный.
       else if (sortKey === 'critChance') cmp = ((effectiveItemStats(a as any) as any)?.critChance || 0) - ((effectiveItemStats(b as any) as any)?.critChance || 0);
-      else if (sortKey === 'critDamage') cmp = ((effectiveItemStats(a as any) as any)?.critDamage || 0) - ((effectiveItemStats(b as any) as any)?.critDamage || 0);
+      else if (sortKey === 'critDamage') cmp = ((((effectiveItemStats(a as any) as any)?.crit || 0) + ((effectiveItemStats(a as any) as any)?.critDamage || 0)) - (((effectiveItemStats(b as any) as any)?.crit || 0) + ((effectiveItemStats(b as any) as any)?.critDamage || 0)));
       else if (sortKey === 'quality') {
         const order = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Легендарный'];
         cmp = order.indexOf(a.quality) - order.indexOf(b.quality);

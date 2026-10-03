@@ -114,6 +114,8 @@ const getStatValue = (item: Item, stat: string): number => {  if (stat === 'leve
   // Как в тултипе: эффективные статы (моды + сферы), standalone-моды — со скейлом уровня.
   const eff = effectiveItemStats(item);
   const modMult = item.type === 'mod' ? modLevelMult(item) : 1;
+  // Крит. урон — суммарный (легаси-% + бонус-пункты), иначе порядок врёт.
+  if (stat === 'critDamage') return ((eff.crit || 0) + (eff.critDamage || 0)) * modMult;
   const keys = STAT_ALIASES[stat] || [stat];
   for (const key of keys) {
     const v = eff[key];

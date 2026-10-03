@@ -463,6 +463,22 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
         }
         const renderRow = (k: string, v: number, isNeg: boolean) => {
           const col = STAT_COLORS[k] || (isNeg ? '#f87171' : '#d1d5db');
+          // Крит. урон — одна строка: легаси-% и бонус-пункты складываются в урон.
+          if ((k === 'crit' || k === 'critDamage') && !isNeg && ((eff.crit || 0) > 0 || (eff.critDamage || 0) > 0)) {
+            if (k === 'critDamage') return null;
+            const total = (eff.crit || 0) + (eff.critDamage || 0);
+            const fromM = (fromMods.crit || 0) + (fromMods.critDamage || 0);
+            return (
+              <div key="critTotal" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, lineHeight: 1.4 }}>
+                <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>◇</span>
+                <span style={{ flex: 1, color: 'rgba(255,255,255,0.82)' }}>
+                  <span style={{ color: col, fontWeight: 600 }}>+{(total * 100).toFixed(total < 0.01 ? 1 : 0)}%</span>{' '}
+                  <span style={{ color: 'rgba(255,255,255,0.72)' }}>{STAT_LABELS.crit}</span>
+                  {fromM ? <span style={{ color: '#4ade80', fontSize: 10, marginLeft: 6 }}> ( +{(fromM * 100).toFixed(fromM < 0.01 ? 1 : 2)} мод )</span> : null}
+                </span>
+              </div>
+            );
+          }
           const isPct = ['crit', 'critChance', 'evasion', 'vampir', 'accuracy', 'speed', 'punching', 'incomingDamageMult'].includes(k);
           const isBlock = k === 'block';
           const shown = isPct ? `${(Math.abs(v) * 100).toFixed(v < 0.01 ? 1 : 0)}%` : isBlock ? `${Math.abs(v).toFixed(1)}%` : `${Math.abs(v) >= 1 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(2)}`;
