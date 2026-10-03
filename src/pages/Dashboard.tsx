@@ -223,9 +223,10 @@ const debugAddResources = (count: number) => {
     const isFlat = SCHEME_FLAT_STATS.has(stat);
     const pct = isFlat ? schemeFlatFor(stat, q.name) : schemePctFor(stat, q.name);
     const label = SCHEME_STAT_LABELS[stat] || stat;
+    const shown = stat === 'critDamage' ? `+${Math.round(pct * 100)}%` : `+${pct}${isFlat ? '' : '%'}`;
     addItem({
       id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${q.name}): ${label} +${pct}${isFlat ? '' : '%'}`,
+      name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${q.name}): ${label} ${shown}`,
       type: 'blueprint', blueprintRarity: q.name, blueprintStat: stat, slot: 'any', rarity: q.name,
       level: 1, stats: {}, quality: q.name, qualityColor: q.color, stackable: false,
       image: getSchemeImage(stat),

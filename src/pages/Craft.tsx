@@ -328,9 +328,11 @@ export const Craft = () => {
       const isFlat = SCHEME_FLAT_STATS.has(stat);
       const pct = isFlat ? schemeFlatFor(stat, bp) : schemePctFor(stat, bp);
       const label = SCHEME_STAT_LABELS[stat] || stat;
+      // Крит. урон хранится пунктами, показывается процентами (+0.5 → +50%).
+      const shown = stat === 'critDamage' ? `+${Math.round(pct * 100)}%` : `+${pct}${isFlat ? '' : '%'}`;
       return {
         id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${bp}): ${label} +${pct}${isFlat ? '' : '%'}`,
+        name: `Аномальная сфера: ${label}`, displayName: `🔮 Сфера (${bp}): ${label} ${shown}`,
         type: 'blueprint', blueprintRarity: bp, blueprintStat: stat, slot: 'any', rarity: bp,
         level: 1, stats: {}, quality: bp,
         qualityColor: QUALITY_COLORS[bp] || '#a0a0a0', stackable: false,

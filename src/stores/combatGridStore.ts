@@ -1285,7 +1285,7 @@ export const calculateCombatResult = (attacker: any, target: any) => {
     text = `🛡️ БЛОКИРОВАН! -${displayDmg}`;
     type = 'BLOCK';
   } else if (isRealCrit) {
-    text = `🔥 КРИТ x${critMultiplier}! -${displayDmg}`;
+    text = `🔥 КРИТ x${Math.round(critMultiplier * 100) / 100}! -${displayDmg}`;
   } else {
     text = `-${displayDmg}`;
   }

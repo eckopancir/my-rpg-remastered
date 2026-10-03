@@ -4,6 +4,7 @@ import { WapPanel } from '../components/ui/WapPanel';
 import { Button } from '../components/ui/Button';
 import { ItemTooltip } from '../components/widgets/ItemTooltip';
 import { generateItem, getItemQuality } from '../engine/items';
+import { effectiveItemStats } from '../utils/itemStats';
 import { makeBackpack } from '../data/backpacks';
 import { GAME_ITEMS, GAME_RESOURCES } from '../data/GameItems';
 import { AMMO_GROUPS, maxStackFor, makeBulletPack } from '../data/ammo';
@@ -422,8 +423,9 @@ export const Bazaar = () => {
       if (sortKey === 'price') cmp = a.price - b.price;
       else if (sortKey === 'level') cmp = a.level - b.level;
       else if (sortKey === 'name') cmp = a.displayName.localeCompare(b.displayName);
-      else if (sortKey === 'critChance') cmp = ((a.stats as any)?.critChance || 0) - ((b.stats as any)?.critChance || 0);
-      else if (sortKey === 'critDamage') cmp = ((a.stats as any)?.critDamage || 0) - ((b.stats as any)?.critDamage || 0);
+      // Крит-сортировки — по эффективным статам (база + моды + сферы), а не голой базе.
+      else if (sortKey === 'critChance') cmp = ((effectiveItemStats(a as any) as any)?.critChance || 0) - ((effectiveItemStats(b as any) as any)?.critChance || 0);
+      else if (sortKey === 'critDamage') cmp = ((effectiveItemStats(a as any) as any)?.critDamage || 0) - ((effectiveItemStats(b as any) as any)?.critDamage || 0);
       else if (sortKey === 'quality') {
         const order = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Легендарный'];
         cmp = order.indexOf(a.quality) - order.indexOf(b.quality);

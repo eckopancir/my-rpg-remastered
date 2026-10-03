@@ -46,11 +46,11 @@ export const schemePctFor = (stat: string, rarity?: string): number => {
   return Math.round((raw / 3) * 10) / 10;
 };
 
-/** Плоский бонус сферы: стихийка +5/+2.5 за ранг; крит. урон +0.05/+0.025 (Обычная +0.05 … Божественная +0.2). */
+/** Плоский бонус сферы: стихийка +5/+2.5 за ранг; крит. урон — как %-лестница, но пунктами (Обычная +0.2 … Божественная +0.5). */
 export const schemeFlatFor = (stat: string, rarity?: string): number => {
   if (stat === 'critDamage') {
     const idx = QUALITY_INDEX[rarity || 'Обычный'] ?? 0;
-    return Math.round((0.05 + 0.025 * idx) * 1000) / 1000;
+    return Math.round((0.2 + 0.05 * idx) * 1000) / 1000;
   }
   if (!SCHEME_FLAT_STATS.has(stat)) return schemePctFor(stat, rarity);
   const idx = QUALITY_INDEX[rarity || 'Обычный'] ?? 0;
