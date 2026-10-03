@@ -1071,9 +1071,13 @@ export const Equipment = () => {
               {SECOND_STATS.map((k) => (
                 <span key={k}>
                   {renderStatRow(k)}
-                  {/* Крит — сразу после скорости: шанс, потом урон */}
-                  {k === 'speed' && renderStatRow('critChance', `${(Math.min(1, (stats as any).critChance || 0) * 100).toFixed(1)}%`)}
-                  {k === 'speed' && renderStatRow('critDamage', `${Math.round((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, (stats as any).crit || 0)) * 100)}%`)}
+                  {/* Крит-блок сразу после скорости, с отступом сверху */}
+                  {k === 'speed' && (
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 5 }}>
+                      {renderStatRow('critChance', `${(Math.min(1, (stats as any).critChance || 0) * 100).toFixed(1)}%`)}
+                      {renderStatRow('critDamage', `${Math.round((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, (stats as any).crit || 0)) * 100)}%`)}
+                    </span>
+                  )}
                 </span>
               ))}
             </div>
