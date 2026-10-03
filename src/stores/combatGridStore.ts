@@ -852,6 +852,7 @@ export const petEffStats = (pet: any): any => {
     evasion: Math.min(0.9, Math.max(0, (pet.evasion || 0) + sum('evasion'))),
     block: Math.max(0, (pet.block || 0) + sum('block')),
     crit: Math.max(0, (pet.crit || 0) + sum('crit')),
+    critChance: Math.max(0, (pet.critChance || 0) + sum('critChance')),
     accuracy: Math.min(2, (pet.accuracy || 1) + sum('accuracy')),
     punching: Math.max(0, (pet.punching || 0) + sum('punching')),
     vampir: Math.max(0, (pet.vampir || 0) + sum('vampir')),
@@ -2466,7 +2467,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           dps: nums.damage, damage: nums.damage,
           maxHp: nums.maxHp, currentHp: nums.maxHp,
           armor: nums.armor, evasion: nums.evasion, block: nums.block,
-          crit: nums.crit, accuracy: nums.accuracy, punching: nums.punching || 0,
+          crit: nums.crit, critChance: (nums as any).critChance || 0, accuracy: nums.accuracy, punching: nums.punching || 0,
           vampir: nums.vampir, regen: nums.regen, speed: nums.speed,
           pos: spot, rotation: 270,
           rangeDistance: 1.5, shotPrice: 1, runAp: 2,
@@ -5039,9 +5040,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const attackerStats = {
         dps: effectiveDps,
         pure: pureDmg,
-        crit: player.stats.crit + get().sniperCritBonus() + (state.stealth && hasSnpStealth ? 1.0 : 0),
-        critChance: (player.stats as any).critChance || 0,
-        critDamage: (player.stats as any).critDamage || 0,
+        crit: player.stats.crit,
+        critChance: ((player.stats as any).critChance || 0) + get().sniperCritBonus(),
+        critDamage: (player.stats as any).critDamage + (state.stealth && hasSnpStealth ? 1.0 : 0) || 0,
         accuracy: player.stats.accuracy,
         punching: player.stats.punching,
         vampir: player.stats.vampir,
@@ -5204,9 +5205,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const attackerStats = {
       dps: effectiveDps,
       pure: pureDmg * pureMult,
-      crit: player.stats.crit + get().sniperCritBonus() + (state.stealth && hasSnpStealth ? 1.0 : 0),
-      critChance: (player.stats as any).critChance || 0,
-      critDamage: (player.stats as any).critDamage || 0,
+      crit: player.stats.crit,
+      critChance: ((player.stats as any).critChance || 0) + get().sniperCritBonus(),
+      critDamage: (player.stats as any).critDamage + (state.stealth && hasSnpStealth ? 1.0 : 0) || 0,
       accuracy: player.stats.accuracy,
       punching: player.stats.punching,
       vampir: player.stats.vampir,
@@ -5859,7 +5860,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         // Ярость Урсока: +0.2 брони каждый ход, стакается — напрямую к броне.
         // Вой волка: +0.2% крита за ранг каждый ход, стакается — напрямую к криту.
         const ursokPerTurn = bonus.armorPerTurn || 0;
-        const howlPerTurn = bonus.critPerTurn || 0;
+        const howlPerTurn = (bonus as any).critChancePerTurn || 0;
         const hotFrac = (pet.petBuffs || []).filter((b: any) => b.stat === 'hotHeal').reduce((s: number, b: any) => s + (b.value || 0), 0);
         let buffs = (pet.petBuffs || []).map((b: any) => ({ ...b, remaining: b.remaining - 1 })).filter((b: any) => b.remaining > 0);
         const heal = Math.round((pet.maxHp || 0) * regenFrac) + Math.round((pet.maxHp || 0) * hotFrac) + regenFlat;
@@ -5879,17 +5880,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         // Вой стакается только вне скрытности: в стелсе волк сидит тихо.
         const critGain = cs.stealth ? 0 : howlPerTurn;
         const newArmor = (pet.armor || 0) + armorGain;
-        const newCrit = (pet.crit || 0) + critGain;
+        const newCritChance = (pet.critChance || 0) + critGain;
         set((s2: any) => ({
           enemies: s2.enemies.map((e: any) => e.id === pet.id
-            ? { ...e, pos: npos, rotation: nrot, petBuffs: buffs, petAp: 5, armor: newArmor, crit: newCrit, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) }
+            ? { ...e, pos: npos, rotation: nrot, petBuffs: buffs, petAp: 5, armor: newArmor, critChance: newCritChance, currentHp: Math.min(e.maxHp, (e.currentHp || 0) + heal) }
             : e),
         }));
         if (armorGain > 0) {
           get().addBattleLog(`🐻 Ярость Урсока: +${armorGain.toFixed(1)} брони (всего ${newArmor.toFixed(1)})`);
         }
         if (critGain > 0) {
-          get().addBattleLog(`🐺 Вой: +${(critGain * 100).toFixed(1)}% крита (всего ${Math.round(newCrit * 100)}%)`);
+          get().addBattleLog(`🐺 Вой: +${(critGain * 100).toFixed(1)}% шанса крита (всего ${Math.round(newCritChance * 100)}%)`);
         }
         if (heal > 0) {
           get().addBattleLog(`🐾 ${pet.name}: +${heal} HP (реген${hotFrac > 0 ? ' + восстановление' : ''})`);
