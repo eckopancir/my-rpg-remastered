@@ -2115,7 +2115,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
         vampir: base.vampir + (gb.vampir || 0),
         crit: 0,
-        critChance: (base.critChance || 0) * totalMult + (gb.critChance || 0),
+        critChance: (base.critChance || 0) + (gb.critChance || 0),
         critDamage: (base.critDamage || 0) + (gb.critDamage || 0) + (base.crit || 0) + (gb.crit || 0),
         regen: (base.regen || 0) * totalMult * cardMult + (gb.regen || 0),
         pos: { x: spawnX, y: spawnY },
@@ -2355,7 +2355,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           // Вампиризм — доля от урона: не скейлится (урон скейлится сам).
           vampir: aBase.vampir + (agb.vampir || 0),
           crit: 0,
-          critChance: (aBase.critChance || 0) * aTotalMult + (agb.critChance || 0),
+          critChance: (aBase.critChance || 0) + (agb.critChance || 0),
           critDamage: (aBase.critDamage || 0) + (agb.critDamage || 0) + (aBase.crit || 0) + (agb.crit || 0),
           regen: (aBase.regen || 0) * aTotalMult * cardMult + (agb.regen || 0),
           pos: spot,
@@ -4554,7 +4554,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         punching: base.punching * levelMult + (gb.punching || 0),
         vampir: base.vampir + (gb.vampir || 0),
         crit: 0,
-        critChance: (base.critChance || 0) * levelMult + (gb.critChance || 0),
+        critChance: (base.critChance || 0) + (gb.critChance || 0),
         critDamage: (base.critDamage || 0) + (gb.critDamage || 0) + (base.crit || 0) + (gb.crit || 0),
         regen: (base.regen || 0) * levelMult * statMult + (gb.regen || 0),
         pos: { x, y },

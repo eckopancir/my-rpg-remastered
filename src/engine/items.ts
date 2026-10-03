@@ -383,7 +383,8 @@ export const generateItem = (
       ? (generatedItem.stats[randomStatKey] || 0)
       : (bonusSource[randomStatKey] || 0);
     // Дробные бонусы скейлятся как раньше (откат). Новые ключи — только стихийка.
-    const levelMultiplier = 1 + (playerLevel - 1) * 0.05;
+    // Шанс крита — плоский всегда (без скейла уровня): предсказуемые цифры.
+    const levelMultiplier = randomStatKey === 'critChance' ? 1 : 1 + (playerLevel - 1) * 0.05;
     const totalBonus = baseBonusValue * procMultiplier * levelMultiplier;
     finalStats[randomStatKey] = (finalStats[randomStatKey] || 0) + totalBonus;
   }
@@ -406,7 +407,8 @@ export const generateItem = (
       const originalBaseStat = baseItem.stats[statKey] || 0;
       // Моды хранят базу: скейлит рантайм по уровню мода. Тут не масштабируем.
       if (generatedItem.slot.startsWith('mod_')) break;
-      if (originalBaseStat !== 0) {
+      // Шанс крита — плоский всегда.
+      if (originalBaseStat !== 0 && statKey !== 'critChance') {
         finalStats[statKey] += scaledBaseStat(originalBaseStat, playerLevel) - originalBaseStat;
       }
       // Штрафы (отрицательные) сохраняются — не зануляем.
@@ -421,7 +423,8 @@ export const generateItem = (
     // Моды хранят базу: скейлит рантайм по уровню мода. Тут не масштабируем.
     if (generatedItem.slot.startsWith('mod_')) break;
     // Плюсы и штрафы скейлятся от базы 100 ур. (штрафы — не зануляем).
-    if (originalBaseStat !== 0) {
+    // Шанс крита — плоский всегда.
+    if (originalBaseStat !== 0 && statKey !== 'critChance') {
       finalStats[statKey] += scaledBaseStat(originalBaseStat, playerLevel) - originalBaseStat;
     }
     finalStats[statKey] = parseFloat(finalStats[statKey].toFixed(3));
