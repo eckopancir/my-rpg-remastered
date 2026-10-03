@@ -5207,6 +5207,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       dps: effectiveDps,
       pure: pureDmg * pureMult,
       crit: player.stats.crit + get().sniperCritBonus() + (state.stealth && hasSnpStealth ? 1.0 : 0),
+      critChance: (player.stats as any).critChance || 0,
       critDamage: (player.stats as any).critDamage || 0,
       accuracy: player.stats.accuracy,
       punching: player.stats.punching,
