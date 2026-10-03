@@ -947,13 +947,15 @@ export const Battle = () => {
                 <span>⚔️ Атака <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.damage)}</b></span>
                 <span>🛡️ Броня <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.armor)}</b></span>
                 <span>🎯 Метк. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.accuracy || 0) * 100)}%</b></span>
-                <span>💥 Крит <b title={`Крит. урон ${(Math.round((2 + Math.max(0, (hoverTarget as any).critDamage || 0) + Math.max(0, hoverTarget.crit || 0))) * 100)}%`} style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(((hoverTarget as any).critChance || 0) * 100)}%</b></span>
+                <span>🎲 Шанс <b title="Шанс крита (кап 100%)" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(((hoverTarget as any).critChance || 0) * 100)}%</b></span>
+                <span>💥 Урон <b title="Крит. урон: столько будет, если крит вылетит" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{(Math.round((2 + Math.max(0, (hoverTarget as any).critDamage || 0) + Math.max(0, hoverTarget.crit || 0))) * 100)}%</b></span>
                 <span>🌀 Увор. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.evasion || 0) * 100)}%</b></span>
                 <span>🧱 Блок <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(hoverTarget.block || 0)}%</b></span>
                 <span>👊 Проб. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.punching || 0) * 100)}%</b></span>
                 <span>🩸 Вамп. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.vampir || 0) * 100)}%</b></span>
                 <span>📏 Дальн. <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.rangeDistance || 7}</b></span>
                 <span>💨 ОД <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{hoverTarget.runAp || 5}</b></span>
+                <span>⚡ Скор. <b title="Доп. выстрелы: шанс повтора за скорость" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((hoverTarget.speed || 0) * 100)}%</b></span>
               </div>
               {(() => {
                 const et = getCoverPenalty(hoverTarget.pos, obstacles);
@@ -1064,7 +1066,9 @@ export const Battle = () => {
                 <span>⚔️ Атака: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.damage)}</b></span>
                 <span>🛡️ Броня: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.armor)}</b></span>
                 <span>🎯 Метк.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.accuracy || 0) * 100)}%</b></span>
-                <span>💥 Крит: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(Math.min(1, (stats as any).critChance || 0) * 100)}%</b></span>
+                <span>⚡ Скор.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.speed || 0) * 100)}%</b></span>
+                <span>🎲 Шанс: <b title="Шанс крита (кап 100%)" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(Math.min(1, (stats as any).critChance || 0) * 100)}%</b></span>
+                <span>💥 Урон: <b title="Крит. урон: столько будет, если крит вылетит" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((2 + Math.max(0, (stats as any).critDamage || 0) + Math.max(0, stats.crit || 0)) * 100)}%</b></span>
                 <span>🌀 Увор.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.evasion || 0) * 100)}%</b></span>
                 <span>🧱 Блок: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(stats.block || 0)}%</b></span>
                 <span>👊 Проб.: <b style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round((stats.punching || 0) * 100)}%</b></span>
