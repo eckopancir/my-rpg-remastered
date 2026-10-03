@@ -561,7 +561,7 @@ export const Craft = () => {
     setReforgeBlueprint(null);
     setReforgeWeapon(updated);
     playSound('craft4', 0.5);
-    addLog(`💎 Сфера: ${SCHEME_STAT_LABELS[stat] || stat} +${pct}${isFlat ? '' : '%'} → ${w.displayName || w.name}`, 'loot');
+    addLog(`💎 Сфера: ${SCHEME_STAT_LABELS[stat] || stat} ${stat === 'critDamage' ? `+${Math.round(pct * 100)}%` : `+${pct}${isFlat ? '' : '%'}`} → ${w.displayName || w.name}`, 'loot');
   }
 
   /** Удалить вставленную сферу (бесплатно). */

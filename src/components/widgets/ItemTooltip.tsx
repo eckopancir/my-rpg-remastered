@@ -538,7 +538,7 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
                           {socks.map((s: any, i: number) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                               <span style={{ color: 'rgba(74,222,128,0.5)', fontSize: 10 }}>◇</span>
-                              <span style={{ color: '#4ade80' }}>+{s.pct}{SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'} {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}</span>
+                              <span style={{ color: '#4ade80' }}>{s.stat === 'critDamage' ? `+${Math.round(s.pct * 100)}%` : `+${s.pct}${SCHEME_FLAT_STATS.has(s.stat) ? '' : '%'}`} {(SCHEME_STAT_LABELS[s.stat] || STAT_LABELS[s.stat] || s.stat)}</span>
                             </div>
                           ))}
                         </div>
