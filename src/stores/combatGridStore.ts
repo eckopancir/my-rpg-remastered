@@ -1161,9 +1161,24 @@ export const calcPureDamage = (pStats: any, faction?: string): number => {
   return Math.round(extro);
 };
 
+/** Срез урона в упор/вдаль по группе оружия (и игрок, и враги, и союзники).
+ * Снайперки бесполезны в упор (≤5 кл, пол 0.3), пулемётам тяжело вблизи (≤4, пол 0.6),
+ * дробь сыплется вдаль (≥5 кл, пол 0.4). Остальное без среза. */
+export const closeRangeMult = (dist: number | null | undefined, group?: string): number => {
+  if (dist == null) return 1;
+  if (group === 'sniper' && dist <= 5) return Math.max(0.3, 1 - 0.2 * (6 - dist));
+  if (group === 'mg' && dist <= 4) return Math.max(0.6, 1 - 0.1 * (5 - dist));
+  if (group === 'shell' && dist >= 5) return Math.max(0.4, 1 - 0.15 * (dist - 4));
+  return 1;
+};
+
 export const calculateCombatResult = (attacker: any, target: any) => {
   let dmg = attacker.dps || attacker.damage || 0;
   const baseDmg = dmg;
+  // Срез в упор/вдаль до крита: критует то, что долетело.
+  const shotDist0 = (attacker as any).dist;
+  const falloff = closeRangeMult(shotDist0, (attacker as any).ammoGroup);
+  if (falloff < 1) dmg = Math.max(0, dmg * falloff);
   let text = '';
   let type = 'NORMAL';
   let sound: string | null = null;
@@ -2141,6 +2156,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         soundAttack: base.soundAttack || 'shotenemy',
         shotSound: shotRoll.sound,
         shotLong: shotRoll.long,
+        ammoGroup: gearWeapon ? ammoTypeForWeapon(gearWeapon) : 'rifle',
         nowModel: base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',
         avatar: base.avatar || 'enemy',
@@ -2382,6 +2398,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           // Союзник-автоматчик: свой звук из пула на весь бой (как у врагов).
           shotSound: aShot.sound,
           shotLong: aShot.long,
+          ammoGroup: aGearWeapon ? ammoTypeForWeapon(aGearWeapon) : 'rifle',
           nowModel: model,
           deadModel: 'dead',
           avatar: model,
@@ -2811,13 +2828,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       playShotSound('пулемет', 0.3);
       get().addBattleLog(`🌊 ${ability.name}: 20 выстрелов по случайным целям!`);
       const baseDmg = usePlayerStore.getState().stats.damage || 5;
+      const barrageGroup = ammoTypeForWeapon(usePlayerStore.getState().getActiveWeapon() || {});
       for (let i = 0; i < 20; i++) {
         setTimeout(() => {
           const s = get();
           const targets = s.enemies.filter(isFoe);
           if (targets.length === 0) return;
           const pick = targets[Math.floor(Math.random() * targets.length)];
-          const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
+          const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01) * closeRangeMult(getDist(s.playerPos, pick.pos), barrageGroup)));
           pick.currentHp = Math.max(0, pick.currentHp - rawDmg);
           pick.isHit = true;
           set({ shotLine: { from: s.playerPos, to: pick.pos, kind: 'burst', count: 1 }, playerRotation: getAngle(s.playerPos, pick.pos) });
@@ -2854,13 +2872,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       playShotSound('пулемет', 0.3);
       get().addBattleLog(`🌊 ${ability.name}: ${shots} выстрелов по случайным целям (патроны не тратятся)!`);
       const baseDmg = (usePlayerStore.getState().stats.damage || 5) + shooterGunDamage();
+      const barrageGroup = ammoTypeForWeapon(usePlayerStore.getState().getActiveWeapon() || {});
       for (let i = 0; i < shots; i++) {
         setTimeout(() => {
           const s = get();
           const targets = s.enemies.filter(isFoe);
           if (targets.length === 0) return;
           const pick = targets[Math.floor(Math.random() * targets.length)];
-          const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01)));
+          const rawDmg = Math.round(Math.max(1, baseDmg * 0.5 * (1 - pick.armor * 0.01) * closeRangeMult(getDist(s.playerPos, pick.pos), barrageGroup)));
           pick.currentHp = Math.max(0, pick.currentHp - rawDmg);
           pick.isHit = true;
           set({ shotLine: { from: s.playerPos, to: pick.pos, kind: 'burst', count: 1 }, playerRotation: getAngle(s.playerPos, pick.pos) });
@@ -2904,6 +2923,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           crit: pStats.crit, critChance: (pStats as any).critChance || 0, critDamage: (pStats as any).critDamage || 0,
           accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true,
           dist: getDist(get().playerPos, tgt.pos),
+          ammoGroup: ammoTypeForWeapon(usePlayerStore.getState().getActiveWeapon() || {}),
         };
         const tgtSt = applyTerrainToTarget({ armor: tgt.armor, evasion: tgt.evasion, block: tgt.block }, tgt.pos, get().obstacles);
         const res = calculateCombatResult(atk, tgtSt);
@@ -4580,6 +4600,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         soundAttack: base.soundAttack || 'shotenemy',
         shotSound: edShot.sound,
         shotLong: edShot.long,
+        ammoGroup: gearWeapon ? ammoTypeForWeapon(gearWeapon) : 'rifle',
         // Мусорщик: одна из 3 моделек сталкеров наугад (как в обычных боях).
         nowModel: allyModel || base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',
@@ -5049,6 +5070,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         critChance: ((player.stats as any).critChance || 0) + get().sniperCritBonus(),
         critDamage: (player.stats as any).critDamage || 0,
         forceCrit: state.stealth && hasSnpStealth,
+        ammoGroup: 'melee',
         accuracy: player.stats.accuracy,
         punching: player.stats.punching,
         vampir: player.stats.vampir,
@@ -5215,6 +5237,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       critChance: ((player.stats as any).critChance || 0) + get().sniperCritBonus(),
       critDamage: (player.stats as any).critDamage || 0,
       forceCrit: state.stealth && hasSnpStealth,
+      ammoGroup: ammoTypeForWeapon(usePlayerStore.getState().getActiveWeapon() || {}),
       accuracy: player.stats.accuracy,
       punching: player.stats.punching,
       vampir: player.stats.vampir,
@@ -5326,7 +5349,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           bPureMult = 1.5;
         }
 
-        const atkStat = { dps: effDps, pure: pureBonus * bPureMult, crit: pStats.crit, critChance: (pStats as any).critChance || 0, critDamage: (pStats as any).critDamage || 0, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true, dist: getDist(st.playerPos, en.pos) };
+        const atkStat = { dps: effDps, pure: pureBonus * bPureMult, crit: pStats.crit, critChance: (pStats as any).critChance || 0, critDamage: (pStats as any).critDamage || 0, accuracy: pStats.accuracy, punching: pStats.punching, vampir: pStats.vampir, isPlayer: true, dist: getDist(st.playerPos, en.pos), ammoGroup: ammoTypeForWeapon(usePlayerStore.getState().getActiveWeapon() || {}) };
         const tgtStat = applyTerrainToTarget(
           { armor: en.armor, evasion: en.evasion, block: en.block },
           en.pos,
@@ -5611,6 +5634,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         soundAttack: base.soundAttack || 'shotenemy',
         shotSound: (typeof waveShot !== 'undefined' ? waveShot.sound : rollEnemyShotSound(base.soundAttack).sound),
         shotLong: (typeof waveShot !== 'undefined' ? waveShot.long : rollEnemyShotSound(base.soundAttack).long),
+        ammoGroup: waveWeapon ? ammoTypeForWeapon(waveWeapon) : 'rifle',
         nowModel: base.nowModel || 'enemy',
         deadModel: base.dead || 'dead',
         avatar: base.avatar || 'enemy',
@@ -6183,7 +6207,7 @@ export async function executeSkill(
       setTimeout(() => set({ shotLine: null }), 800);
       get().triggerShake();
       const aimDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2.0;
-      const attackerStats = { dps: aimDps, accuracy: (enemy.accuracy || 1) + 2.0, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist };
+      const attackerStats = { dps: aimDps, accuracy: (enemy.accuracy || 1) + 2.0, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist, ammoGroup: (enemy as any).ammoGroup || 'rifle' };
       const result = calculateCombatResult(attackerStats, get().playerDefenseTarget());
       if (result.damage > 0) {
         if (!absorbWithShield(pPos)) {
@@ -6239,7 +6263,7 @@ export async function executeSkill(
             await new Promise((r) => setTimeout(r, 40));
           }
           const ramDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 2;
-          const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist }, get().playerDefenseTarget());
+          const result = calculateCombatResult({ dps: ramDps, accuracy: enemy.accuracy, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist, ammoGroup: 'melee' }, get().playerDefenseTarget());
           get().triggerShake();
           if (result.damage > 0 && !absorbWithShield(pPos)) {
             const pBefore = usePlayerStore.getState().stats.currentHp;
@@ -6331,6 +6355,7 @@ export async function executeSkill(
           crit: 0,
           critChance: (minionBase as any).critChance || 0,
           critDamage: ((minionBase as any).critDamage || 0) + ((minionBase as any).crit || 0),
+          ammoGroup: 'melee',
           regen: minionBase.scaledRegen || 0,
           pos: { x: enemy.pos.x + 1, y: enemy.pos.y },
           isHit: false,
@@ -6442,7 +6467,7 @@ export async function executeSkill(
       const rainDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 1.2;
       for (let k = 0; k < 4; k++) {
         const result = calculateCombatResult(
-          { dps: rainDps, accuracy: enemy.accuracy, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist },
+          { dps: rainDps, accuracy: enemy.accuracy, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist, ammoGroup: (enemy as any).ammoGroup || 'rifle' },
           get().playerDefenseTarget(),
         );
         if (result.damage > 0 && !absorbWithShield(pPos)) {
@@ -6504,7 +6529,7 @@ export async function executeSkill(
       get().triggerShake();
       const waveDps = (enemy.dps || enemy.damage * (1 + (enemy.speed || 0))) * 3;
       const result = calculateCombatResult(
-        { dps: waveDps, accuracy: (enemy.accuracy || 1) + 1.0, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist },
+        { dps: waveDps, accuracy: (enemy.accuracy || 1) + 1.0, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist, ammoGroup: (enemy as any).ammoGroup || 'rifle' },
         get().playerDefenseTarget(),
       );
       if (result.damage > 0 && !absorbWithShield(pPos)) {

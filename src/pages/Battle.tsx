@@ -11,7 +11,7 @@ import { CookingMenu } from '../components/widgets/CookingMenu';
 import { MapEditorPanel } from '../components/widgets/MapEditorPanel';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
-import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist } from '../stores/combatGridStore';
+import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist, closeRangeMult } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getCoverPenalty, distToRect } from '../engine/terrain';
 import { effectiveItemStats } from '../utils/itemStats';
@@ -962,6 +962,17 @@ export const Battle = () => {
                     🎯 Укрытие врага: <b style={{ fontFamily: 'var(--font-mono)' }}>−{Math.round(et.penalty * 100)}% меткости тебе ({et.count})</b>
                   </div>
                 ) : null;
+              })()}
+              {(() => {
+                try {
+                  const gun = usePlayerStore.getState().getActiveWeapon();
+                  const fmult = closeRangeMult(getDist(useCombatGridStore.getState().playerPos, hoverTarget.pos), ammoTypeForWeapon(gun || {}));
+                  return fmult < 1 ? (
+                    <div title="Слишком близко/далеко для этого ствола" style={{ fontSize: 11, color: '#f87171', padding: '0 12px 8px' }}>
+                      📉 В упор: <b style={{ fontFamily: 'var(--font-mono)' }}>−{Math.round((1 - fmult) * 100)}% урона</b>
+                    </div>
+                  ) : null;
+                } catch { return null; }
               })()}
               {/* Power */}
               <div style={{ padding: '0 12px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: '#fbbf24', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, margin: '0 12px', paddingLeft: 0, paddingRight: 0 }}>

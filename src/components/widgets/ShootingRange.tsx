@@ -6,7 +6,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { playCombatSound, playShotSound } from '../../hooks/useSound';
 import { calculateCombatResult, calcPureDamage, shotKindForPlayerWeapon } from '../../stores/combatGridStore';
 import { calcExtraShots } from '../../utils/itemPower';
-import { effectiveAmmoCapacity } from '../../data/ammo';
+import { effectiveAmmoCapacity, ammoTypeForWeapon } from '../../data/ammo';
 import mannequinImg from '../../assets/images/ui/mannequin.png';
 import bulletholeImg from '../../assets/images/ui/bullethole.png';
 import crosshairImg from '../../assets/images/ui/pricel.png';
@@ -243,6 +243,7 @@ export const ShootingRange = ({ onClose }: Props) => {
       crit: stats.crit,
       critChance: (stats as any).critChance || 0,
       critDamage: (stats as any).critDamage || 0,
+      ammoGroup: ammoTypeForWeapon(weapon2 || {}),
       accuracy: stats.accuracy,
       punching: stats.punching,
       vampir: stats.vampir,
