@@ -337,6 +337,13 @@
   100% { transform: translateY(-14px); opacity: 0; }
 }
 .invfx-spark { position: absolute; bottom: 2px; border-radius: 50%; pointer-events: none; animation: invfxSpark linear infinite; }
+/* INV-14: тиры анимаций редкости (цвет — inline --rare-c).
+ * Эпик — пульс 1.6с; смертоносный — ярче и быстрее 1.1с; низкие — статика без движения. */
+@keyframes invfxEpic { 0%, 100% { box-shadow: 0 0 4px var(--rare-c); } 50% { box-shadow: 0 0 12px var(--rare-c); } }
+.invfx-epic { animation: invfxEpic 1.6s ease-in-out infinite; }
+@keyframes invfxDeadly { 0%, 100% { box-shadow: 0 0 5px var(--rare-c); } 50% { box-shadow: 0 0 16px var(--rare-c); } }
+.invfx-deadly { animation: invfxDeadly 1.1s ease-in-out infinite; }
+.invfx-lowrare { box-shadow: inset 0 0 8px -3px var(--rare-c, transparent); }
 /* INV-13: shimmer при улучшении предмета. */
 .invfx-shimmer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
 .invfx-shimmer::before {
@@ -358,3 +365,11 @@
   25% { transform: rotate(-14deg); } 55% { transform: rotate(10deg); } 80% { transform: rotate(-6deg); }
 }
 .eqfx-wiggle { animation: eqfxWiggle 0.4s ease-out; }
+/* FX-17: пульс рамки эпика/смертоносного в экипировке (outline — не спорит с inline box-shadow). */
+@keyframes eqfxEpicPulse { 0%, 100% { outline: 1px solid transparent; outline-offset: 0; } 50% { outline: 1px solid var(--eq-c); outline-offset: 1px; } }
+.eqfx-epic { animation: eqfxEpicPulse 1.6s ease-in-out infinite; }
+@keyframes eqfxDeadlyPulse { 0%, 100% { outline: 1px solid transparent; outline-offset: 0; } 50% { outline: 2px solid var(--eq-c); outline-offset: 1px; } }
+.eqfx-deadly { animation: eqfxDeadlyPulse 1.1s ease-in-out infinite; }
+/* FX-18: искры/уголёки вверх из-под слота (эпик — 2, смертоносный — 3). */
+@keyframes eqfxSlotRise { 0% { transform: translateY(8px); opacity: 0; } 25% { opacity: 0.9; } 100% { transform: translateY(-48px); opacity: 0; } }
+.eqfx-slot-rise { position: absolute; border-radius: 50%; pointer-events: none; animation: eqfxSlotRise linear infinite; }

@@ -587,12 +587,18 @@ export const InventoryOverlay = () => {
                 // INV: флаги анимаций ячейки.
                 const isNew = !seenIds[item.id];
                 const isRare = item.quality === 'Легендарный' || item.quality === 'Божественный';
+                // INV-14: тиры редкости — эпик пульс + 2 искры, смертоносный + 3, низкие — статика.
+                const isEpic = item.quality === 'Эпический';
+                const isDeadly = item.quality === 'Смертоносный';
+                const isLow = item.quality === 'Редкий' || item.quality === 'Раритетный';
+                const tierSparks = isDeadly ? 3 : isEpic ? 2 : 0;
                 const stackKey = stackKeyOf(item);
                 const shaking = !!shakeCell && shakeCell.idx === idx;
                 const leaving = !!dying && dying.idx === idx && dying.key === item.id;
                 const cellCls = ['inv-cell', isNew ? 'invfx-newpop' : 'invfx-appear',
                   filterSlot ? 'invfx-match' : '', shaking ? 'invfx-shake' : '',
-                  leaving ? 'invfx-leave' : '', isRare ? 'invfx-rare' : ''].filter(Boolean).join(' ');
+                  leaving ? 'invfx-leave' : '', isRare ? 'invfx-rare' : '',
+                  isEpic ? 'invfx-epic' : '', isDeadly ? 'invfx-deadly' : '', isLow ? 'invfx-lowrare' : ''].filter(Boolean).join(' ');
 
                 return (
                   <div
@@ -627,7 +633,7 @@ export const InventoryOverlay = () => {
                       cursor: 'pointer', position: 'relative',
                       transition: 'all 80ms',
                       animationDelay: `${Math.min(idx * 12, 300)}ms`, // INV-1
-                      ...(isRare ? { ['--rare-c' as any]: item.qualityColor } : null), // INV-12
+                      ...((isRare || isEpic || isDeadly || isLow) ? { ['--rare-c' as any]: item.qualityColor } : null), // INV-12/14
                     }}
                     onAnimationEnd={(e) => {
                       // Сбрасываем задержку появления, чтобы поздние FX (shake/leave) играли сразу.
@@ -635,7 +641,7 @@ export const InventoryOverlay = () => {
                     }}
                   >
                     <div className="invfx-sweep" /> {/* INV-5 */}
-                    {isRare && [0, 1, 2].map((i) => ( // INV-12: искры топ-редкости
+                    {(isRare ? [0, 1, 2] : tierSparks > 0 ? [0, 1, 2].slice(0, tierSparks) : []).map((i) => ( // INV-12/14: искры тира
                       <span key={i} className="invfx-spark" style={{ left: `${20 + i * 27}%`, width: 2, height: 2, background: item.qualityColor, animationDuration: `${1.8 + i * 0.5}s`, animationDelay: `${(i * 0.6).toFixed(1)}s` }} />
                     ))}
                     {shimmerId && shimmerId.id === item.id && <div key={shimmerId.t} className="invfx-shimmer" />} {/* INV-13 */}
