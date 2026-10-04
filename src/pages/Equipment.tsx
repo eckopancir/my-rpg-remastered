@@ -754,9 +754,6 @@ export const Equipment = () => {
     const glowBase = isDragTarget ? '#22c55e' : qc;
     const caption = item ? (item.displayName || item.name) : SLOT_LABELS[slot];
     const isTopRarity = !!item && ((item as any).quality === 'Легендарный' || (item as any).quality === 'Божественный');
-    // FX-16/18: тиры редкости — эпик пульс + 2 искры, смертоносный пульс + 3 уголька.
-    const qTier = !item ? '' : (item as any).quality === 'Смертоносный' ? 'deadly' : (item as any).quality === 'Эпический' ? 'epic' : '';
-    const qSparks = qTier === 'deadly' ? 3 : qTier === 'epic' ? 2 : 0;
     return (
       <div key={slot} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         {/* FX-6: пыль цвета редкости падает вниз из-под слота (легендарные/божественные) */}
@@ -767,20 +764,10 @@ export const Equipment = () => {
             ))}
           </div>
         )}
-        {/* FX-18: искры вверх из-под слота (эпик — 2, смертоносный — 3) */}
-        {qSparks > 0 && (
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, height: 44, overflow: 'visible', pointerEvents: 'none', zIndex: 5 }}>
-            {Array.from({ length: qSparks }).map((_, i) => (
-              <span key={i} className="eqfx-slot-rise" style={{ left: `${20 + i * 27}%`, top: 0, width: 2, height: 2, background: qc, animationDuration: `${1.8 + i * 0.5}s`, animationDelay: `${(i * 0.6).toFixed(1)}s` }} />
-            ))}
-          </div>
-        )}
         <div
           className={[
             'equip-slot',
             isActiveGun ? 'equip-gun-active' : '',
-            qTier === 'epic' ? 'eqfx-epic' : '', // FX-16
-            qTier === 'deadly' ? 'eqfx-deadly' : '', // FX-16
             isDragTarget ? 'eqfx-drop' : '', // FX-12
             popFx && popFx.slot === slot ? 'eqfx-pop' : '', // FX-2
             shakeFx && shakeFx.slot === slot ? 'eqfx-shake' : '', // FX-5
@@ -802,7 +789,6 @@ export const Equipment = () => {
             position: 'relative',
             overflow: 'hidden',
             ...(isActiveGun ? { ['--gun-ring' as any]: qc } : null),
-            ...(qTier ? { ['--eq-c' as any]: qc } : null), // FX-16: цвет пульса тира
             background: item
               ? 'linear-gradient(180deg, #0e0e11 0%, #16161a 100%)'
               : isDragTarget
