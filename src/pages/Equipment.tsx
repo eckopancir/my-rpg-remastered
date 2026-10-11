@@ -84,16 +84,17 @@ const MercSection = () => {
 
   return (
     <div style={{
-      marginTop: 16, padding: 14,
+      padding: 12, width: 208, flexShrink: 0,
       background: 'rgba(255,255,255,0.02)',
       border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
+      alignSelf: 'flex-start',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         <span style={{ width: 14, height: 1, background: 'rgba(251,191,36,0.4)' }} />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#fbbf24' }}>◆ НАЁМНИКИ (СТЫЧКИ 4×4)</span>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#fbbf24' }}>◆ НАЁМНИКИ</span>
         <span style={{ flex: 1, height: 1, background: 'rgba(251,191,36,0.14)' }} />
       </div>
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {MERC_SLOTS.map((slot) => {
           const role = MERC_SLOT_ROLE[slot];
           const merc = mercById(mercSlots[slot]);
@@ -1091,6 +1092,9 @@ export const Equipment = () => {
         padding: 20,
         display: 'flex', gap: 20, minWidth: 700, maxWidth: '100%',
       }}>
+      {/* Наёмники — слева */}
+      <MercSection />
+
         {/* LEFT: hero paper-doll */}
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
@@ -1292,9 +1296,6 @@ export const Equipment = () => {
           </div>
         </div>
       </div>
-
-      {/* Наёмники — внизу окна, на всю ширину */}
-      <MercSection />
 
       {showPowerBreakdown && (
         <div style={{
