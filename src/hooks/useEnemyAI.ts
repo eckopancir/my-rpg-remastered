@@ -7,6 +7,10 @@ import { BASE_AP } from '../stores/combatGridStore';
 import { playCombatSound, stopCombatSound, playShotSound } from './useSound';
 import { calcExtraShots } from '../utils/itemPower';
 import { rollGearOnDeath } from '../engine/enemyGear';
+import {
+  mercAbilityTurn, splitTankRedirect, hitRedirectTank, tickMercBuffs,
+  mechanicLastGift,
+} from '../engine/mercAbilities';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { CAMP_CHATTER, SENTRY_RADIO, PATROL_CHATTER, MILITARY_COMBAT_BARK, BOSS_COMBAT_BARK, SPOT_BARK, SENTRY_NOTICED, WAKE_BARK, STALKER_COMBAT_BARK, STALKER_SPOT_BARK, STALKER_LOOT, pickPhrase } from '../data/enemyChatter';
@@ -130,6 +134,37 @@ export const useEnemyAI = () => {
         }
       }
       useCombatGridStore.setState({ globalEffects: activeEffects });
+
+      // HEALZONE наёмников: лечит своих каждый ход, пока timer > 0.
+      {
+        const cur = useCombatGridStore.getState();
+        const zones = (cur.globalEffects as any[]).filter((g: any) => g.type === 'HEALZONE' && g.timer > 0);
+        if (zones.length > 0) {
+          for (const z of zones) {
+            const inZone = (p: { x: number; y: number }) => z.shape === 'circle'
+              ? getDist(p, z.pos) <= (z.radius || 5)
+              : Math.max(Math.abs(p.x - z.pos.x), Math.abs(p.y - z.pos.y)) <= (z.radius || 2);
+            for (const u of cur.enemies as any[]) {
+              if ((u as any).isNeutral || u.dead || (u.currentHp || 0) <= 0 || u.sleeping) continue;
+              if (u.faction !== z.ownerFaction) continue;
+              if (!inZone(u.pos)) continue;
+              const amt = Math.max(1, Math.round(u.maxHp * (z.healPct || 0.1)));
+              u.currentHp = Math.min(u.maxHp, u.currentHp + amt);
+              useCombatGridStore.getState().addPopup(u.pos.x, u.pos.y, `+${amt} 💚`, 'HEAL');
+            }
+            if (z.ownerFaction === 'Союзник' && inZone(cur.playerPos)) {
+              const ps = usePlayerStore.getState();
+              const amt = Math.max(1, Math.round((ps.stats.maxHp || 1) * (z.healPct || 0.1)));
+              usePlayerStore.setState((st: any) => ({
+                stats: { ...st.stats, currentHp: Math.min(st.stats.maxHp, st.stats.currentHp + amt) },
+              }));
+              useCombatGridStore.getState().addPopup(cur.playerPos.x, cur.playerPos.y, `+${amt} 💚`, 'HEAL');
+            }
+            playCombatSound('healer', 0.3);
+          }
+          useCombatGridStore.setState({ enemies: [...cur.enemies] });
+        }
+      }
       await new Promise((r) => setTimeout(r, 300));
 
       // Decrease cooldowns and effects on all enemies + player invis
@@ -167,6 +202,7 @@ export const useEnemyAI = () => {
           nextSleepTurns = e.sleepTurns - 1;
           if (nextSleepTurns <= 0) { nextSleeping = false; nextSleepTurns = undefined; }
         }
+        try { tickMercBuffs(e); } catch { /* ignore */ }
         return {
           ...e,
           sleeping: nextSleeping,
@@ -661,7 +697,7 @@ export const useEnemyAI = () => {
           continue;
         }
 
-        const isMedic = enemy.name.toLowerCase().includes('medic') || enemy.factionKey?.toLowerCase().includes('medic');
+        const isMedic = enemy.name.toLowerCase().includes('medic') || enemy.factionKey?.toLowerCase().includes('medic') || ((enemy as any).isMerc && (enemy as any).mercRole === 'medic');
 
         // Skills
         if (enemy.skillUse && enemy.skillUse.length > 0) {
@@ -688,6 +724,18 @@ export const useEnemyAI = () => {
             const se = storeEnemies.find((s: any) => s.id === e.id);
             return se ? { ...e, rotation: se.rotation } : e;
           });
+        }
+
+        // Наёмники: способности по КД до обычной атаки/лечения.
+        if ((enemy as any).isMerc && !enemy.dead && (enemy.currentHp || 0) > 0 && !enemy.sleeping) {
+          try {
+            await mercAbilityTurn(enemy, updatedEnemies);
+            updatedEnemies = useCombatGridStore.getState().enemies.map((e: any) => ({ ...e }));
+            const refreshed = updatedEnemies.find((e: any) => e.id === enemy.id);
+            if (refreshed) {
+              for (const k of Object.keys(refreshed)) (enemy as any)[k] = (refreshed as any)[k];
+            }
+          } catch (err) { console.error('[mercAbility]', err); }
         }
 
         // Basic attack/move
@@ -759,7 +807,7 @@ export const useEnemyAI = () => {
             const distToWounded = getDist(enemy.pos, nearestWounded.pos);
 
             if (distToWounded <= healRange) {
-              const healVal = (enemy.damage || 10) * 3;
+              const healVal = (enemy.damage || 10) * ((enemy as any).isMerc ? 6 : 3);
               const healAngle = getAngle(enemy.pos, nearestWounded.pos);
               updatedEnemies = updatedEnemies.map((e: any) =>
                 e.id === nearestWounded.id ? { ...e, currentHp: Math.min(e.maxHp, e.currentHp + healVal) } : e,
@@ -859,7 +907,7 @@ export const useEnemyAI = () => {
             const tgtArmor0 = defender0 ? (petEff0 ? petEff0.armor : defender0.armor) : playerStats.armor;
             const tgtEvasion0 = defender0 ? (petEff0 ? petEff0.evasion : defender0.evasion) : playerStats.evasion;
             const tgtBlock0 = defender0 ? (petEff0 ? petEff0.block : defender0.block) : playerStats.block;
-            const tgtIncoming0 = defender0 ? 1 : playerStats.incomingDamageMult;
+            const tgtIncoming0 = defender0 ? ((defender0 as any).incomingDamageMult ?? 1) : playerStats.incomingDamageMult;
             const result = calculateCombatResult(
               { dps: enemyDps, accuracy: enemy.accuracy, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist: getDist(enemy.pos, targetPos), ammoGroup: (enemy as any).ammoGroup || 'rifle' },
               applyTerrainToTarget(
@@ -889,7 +937,14 @@ export const useEnemyAI = () => {
                 e.faction === 'Союзник' && !e.dead && e.pos.x === targetPos.x && e.pos.y === targetPos.y,
               );
               if (targetAlly) {
-                targetAlly.currentHp = Math.max(0, targetAlly.currentHp - finalDmg);
+                // Танк-наёмник перехватывает 30% урона по команде.
+                let allyDmg = finalDmg;
+                try {
+                  const split = splitTankRedirect(targetAlly, finalDmg, updatedEnemies);
+                  allyDmg = split.dmg;
+                  for (const h of split.hits) hitRedirectTank(h.tank, h.dmg, enemy.name);
+                } catch { /* ignore */ }
+                targetAlly.currentHp = Math.max(0, targetAlly.currentHp - allyDmg);
                 targetAlly.isHit = true;
                 useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, result.text, result.type);
                 useCombatGridStore.getState().addBattleLog(buildShotLog(enemy.name, targetAlly.name, result, { cur: Math.round(targetAlly.currentHp), max: Math.round(targetAlly.maxHp) }));
@@ -901,6 +956,13 @@ export const useEnemyAI = () => {
                     targetAlly.isHit = false;
                     useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, '😴 Спит до конца боя!', 'SPECIAL');
                     try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
+                  } else if ((targetAlly as any).isMerc) {
+                    // Наёмники не умирают: засыпают, шмот цел.
+                    targetAlly.sleeping = true;
+                    targetAlly.isHit = false;
+                    useCombatGridStore.getState().addPopup(targetAlly.pos.x, targetAlly.pos.y, '😴 Без сознания!', 'SPECIAL');
+                    useCombatGridStore.getState().addBattleLog(`😴 ${targetAlly.name} без сознания (шмот цел, доспит до конца боя)`);
+                    try { mechanicLastGift(targetAlly, updatedEnemies); } catch { /* ignore */ }
                   } else {
                     targetAlly.dead = true;
                     targetAlly.gear = rollGearOnDeath(targetAlly);
@@ -944,8 +1006,15 @@ export const useEnemyAI = () => {
                 useCombatGridStore.setState({ isPlayerHit: true });
                 setTimeout(() => useCombatGridStore.setState({ isPlayerHit: false }), 300);
               } else {
+                // Танк-наёмник перехватывает 30% урона и по игроку.
+                let playerDmg = finalDmg;
+                try {
+                  const split = splitTankRedirect({ id: '__player__' }, finalDmg, updatedEnemies);
+                  playerDmg = split.dmg;
+                  for (const h of split.hits) hitRedirectTank(h.tank, h.dmg, enemy.name);
+                } catch { /* ignore */ }
                 usePlayerStore.setState((st: any) => ({
-                  stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg) },
+                  stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - playerDmg) },
                 }));
                 useCombatGridStore.getState().addPopup(currentStore.playerPos.x, currentStore.playerPos.y, result.text, result.type);
                 {
@@ -1046,6 +1115,12 @@ export const useEnemyAI = () => {
                       extraTargetAlly.isHit = false;
                       useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, '😴 Спит до конца боя!', 'SPECIAL');
                       try { usePlayerStore.getState().syncPetAura(); } catch { /* noop */ }
+                    } else if ((extraTargetAlly as any).isMerc) {
+                      extraTargetAlly.sleeping = true;
+                      extraTargetAlly.isHit = false;
+                      useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, '😴 Без сознания!', 'SPECIAL');
+                      useCombatGridStore.getState().addBattleLog(`😴 ${extraTargetAlly.name} без сознания (шмот цел, доспит до конца боя)`);
+                      try { mechanicLastGift(extraTargetAlly, updatedEnemies); } catch { /* ignore */ }
                     } else {
                       extraTargetAlly.dead = true;
                       extraTargetAlly.gear = rollGearOnDeath(extraTargetAlly);

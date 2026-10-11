@@ -1597,6 +1597,23 @@ export const BattleGrid = () => {
 
         {/* Global effects */}
         {globalEffects.map((eff, i) => {
+          if ((eff as any).type === 'HEALZONE') {
+            return (
+              <div
+                key={i}
+                className={styles.dangerZone}
+                style={{
+                  left: `${cellPct(eff.pos.x)}%`,
+                  top: `${cellPct(eff.pos.y)}%`,
+                  border: '2px dashed rgba(74,222,128,0.8)',
+                  background: 'rgba(74,222,128,0.10)',
+                  boxShadow: '0 0 12px rgba(74,222,128,0.35)',
+                }}
+              >
+                <div className={styles.dangerLabel} style={{ color: '#4ade80' }}>💚</div>
+              </div>
+            );
+          }
           if (eff.type === 'TELEPORT_LAND') {
             return (
               <div

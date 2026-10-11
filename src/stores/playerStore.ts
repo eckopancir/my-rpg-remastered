@@ -22,6 +22,8 @@ import { syncNow } from '../utils/serverSync';
 import { modLevelMult, demoteModStats, effectiveItemStats, healWronglyDemoted } from '../utils/itemStats';
 import { useUiStore, type SkillBuild } from './uiStore';
 import { playCombatSound } from '../hooks/useSound';
+import type { OwnedMerc, MercSlot } from '../data/mercenaries';
+import { MERC_SLOT_ROLE } from '../data/mercenaries';
 
 const EQUIPMENT_SLOTS = [
   'head', 'armor', 'pants', 'weapon1', 'weapon2',
@@ -198,6 +200,13 @@ interface PlayerStore {
   // Питомцы: активный зверь + его боевые способности для панели.
   activePetId: PetKind | null;
   petAbilities: PetBattleAbility[];
+  // Наёмники для стычек: купленные, слоты 1/2/4, экипировка каждого.
+  ownedMercs: OwnedMerc[];
+  mercSlots: Record<MercSlot, string | null>;
+  setMercSlot: (slot: MercSlot, mercId: string | null) => void;
+  hireMerc: (m: OwnedMerc) => void;
+  equipMercItem: (mercId: string, slot: string, item: any) => boolean;
+  unequipMercItem: (mercId: string, slot: string) => any | null;
   // Сытость питомца (сервер — источник правды; null = данных нет, считаем сытым).
   petSatiety: { value: number; updatedAt: number } | null;
   loadPetState: () => Promise<void>;
@@ -494,6 +503,8 @@ export const usePlayerStore = create<PlayerStore>()(
       accessoryAbilities: [],
       skillAbilities: [],
       activePetId: null,
+      ownedMercs: [],
+      mercSlots: { merc1: null, merc2: null, merc3: null },
       petAbilities: [],
       petSatiety: null,
       chosenClasses: [],
@@ -1562,6 +1573,67 @@ export const usePlayerStore = create<PlayerStore>()(
         get().syncPetAura();
       },
 
+      setMercSlot: (slot, mercId) => {
+        // Слоты жёстко по ролям; в бою менять нельзя.
+        if (useCombatGridStore.getState().isActive) {
+          get().addLog('🔒 Слоты наёмников не меняются в бою', 'warning');
+          return;
+        }
+        if (mercId) {
+          const m = get().ownedMercs.find((x) => x.id === mercId);
+          if (!m || m.role !== MERC_SLOT_ROLE[slot]) {
+            get().addLog('❌ Этот наёмник не подходит в слот', 'warning');
+            return;
+          }
+          // Один наёмник — один слот.
+          const busy = (Object.keys(get().mercSlots) as MercSlot[]).find((k) => get().mercSlots[k] === mercId);
+          if (busy && busy !== slot) {
+            get().addLog('❌ Наёмник уже стоит в другом слоте', 'warning');
+            return;
+          }
+        }
+        set((s) => ({ mercSlots: { ...s.mercSlots, [slot]: mercId } }));
+        try { syncNow(); } catch { /* ignore */ }
+      },
+
+      hireMerc: (m) => {
+        if (get().ownedMercs.some((x) => x.id === m.id)) return;
+        set((s) => ({ ownedMercs: [...s.ownedMercs, m] }));
+        get().addLog(`🤝 Нанят: ${m.name} (${m.role}, ${m.stars}★)`, 'info');
+        try { syncNow(); } catch { /* ignore */ }
+      },
+
+      equipMercItem: (mercId, slot, item) => {
+        const m = get().ownedMercs.find((x) => x.id === mercId);
+        if (!m) return false;
+        const prev = m.equipment[slot] || null;
+        set((s) => ({
+          ownedMercs: s.ownedMercs.map((x) => (x.id === mercId
+            ? { ...x, equipment: { ...x.equipment, [slot]: item } }
+            : x)),
+        }));
+        // Снятое — в рюкзак, как у игрока.
+        if (prev) {
+          try { useInventoryStore.getState().addItem(prev); } catch { /* ignore */ }
+        }
+        try { syncNow(); } catch { /* ignore */ }
+        return true;
+      },
+
+      unequipMercItem: (mercId, slot) => {
+        const m = get().ownedMercs.find((x) => x.id === mercId);
+        const prev = m?.equipment[slot] || null;
+        if (!m || !prev) return null;
+        set((s) => ({
+          ownedMercs: s.ownedMercs.map((x) => (x.id === mercId
+            ? { ...x, equipment: { ...x.equipment, [slot]: null } }
+            : x)),
+        }));
+        try { useInventoryStore.getState().addItem(prev); } catch { /* ignore */ }
+        try { syncNow(); } catch { /* ignore */ }
+        return prev;
+      },
+
       loadPetState: async () => {
         const token = useAuthStore.getState().token;
         if (!token) return;
@@ -2353,7 +2425,7 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'remastered_player',
-      version: 16,
+      version: 17,
       migrate: (persisted: any, version: number) => {
         if (version < 11 && persisted) {
           // Моды переехали на рантайм-скейл: гасим старый запечённый скейл один раз.
@@ -2430,6 +2502,11 @@ export const usePlayerStore = create<PlayerStore>()(
         if (version < 16 && persisted) {
           if (persisted.chosenClasses === undefined) persisted.chosenClasses = [];
         }
+        // v17: наёмники для стычек.
+        if (version < 17 && persisted) {
+          if (!Array.isArray(persisted.ownedMercs)) persisted.ownedMercs = [];
+          if (!persisted.mercSlots) persisted.mercSlots = { merc1: null, merc2: null, merc3: null };
+        }
         return persisted;
       },
       partialize: (state) => ({
@@ -2437,6 +2514,7 @@ export const usePlayerStore = create<PlayerStore>()(
         dataChips: state.dataChips, baseHealth: state.baseHealth,
         stats: state.stats, equipment: state.equipment,
         backpackGrid: state.backpackGrid,
+        ownedMercs: state.ownedMercs, mercSlots: state.mercSlots,
         activeEffects: state.activeEffects,
         skillPoints: state.skillPoints,
         activePetId: state.activePetId,

@@ -22,6 +22,7 @@ import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
 import { ALL_ABILITIES } from '../data/accessoryAbilities';
 import { petBaseStats, petBranchBonuses, petCellsPerAp, petSatietyAt, petMood, petHpMult, PET_META, type PetKind, type PetBattleAbility } from '../data/pets';
 import { generateSkirmishObstacles, autoDeploySkirmishEnemies, SKIRMISH_ZONE, SKIRMISH_LEFT } from '../engine/skirmishMap';
+import { MERC_BUILDS as MERC_BUILD_DEFS } from '../data/mercenaries';
 
 const GRID = 32;
 const BASE_AP = 5;
@@ -343,11 +344,16 @@ export interface GrenadeAnim {
 }
 
 export interface GlobalEffect {
-  type: 'GRENADE' | 'REDZONE' | 'TELEPORT' | 'TELEPORT_LAND' | 'MINE';
+  type: 'GRENADE' | 'REDZONE' | 'TELEPORT' | 'TELEPORT_LAND' | 'MINE' | 'HEALZONE';
   pos: { x: number; y: number };
   damage: number;
   timer: number;
   ownerId?: number;
+  /** HEALZONE: доля HP за тик, радиус, форма, чья команда. */
+  healPct?: number;
+  radius?: number;
+  shape?: 'square' | 'circle';
+  ownerFaction?: string;
 }
 
 export interface CombatGridStore {
@@ -2637,24 +2643,96 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       // Кабанов в стычке нет, костра нет: чистая арена.
       const noBoars = get().enemies.filter((e: any) => !(e as any).isNeutral);
       autoDeploySkirmishEnemies(noBoars.filter((e: any) => e.faction !== 'Союзник'), obstacles);
-      // Игрок — в левую половину; союзники (наёмники позже) встанут рядом через deployQueue.
+      // Игрок — в левую половину.
       const px = SKIRMISH_LEFT.x1 + 4;
       const startPos = { x: px, y: 16 };
+      // Наёмники из слотов: союзники со своим шмотом и звёздами.
+      const ps = usePlayerStore.getState();
+      const cardMult = cardTierMult(card.rarity.name);
+      const levelMult = 1 + 0.2 * (Math.max(1, ps.level) - 1);
+      const extraMult = 1 + difficulty / 100;
+      const totalMult = levelMult * extraMult;
+      const accAdd = (ps.level - 1) * 0.001;
+      const mercUnits: any[] = [];
+      try {
+        const slots = (ps as any).mercSlots || {};
+        const owned = (ps as any).ownedMercs || [];
+        const taken = new Set<string>([`${startPos.x},${startPos.y}`]);
+        ['merc1', 'merc2', 'merc3'].forEach((sk, si) => {
+          const m = owned.find((o: any) => o.id === slots[sk]);
+          if (!m) return;
+          const def = (MERC_BUILD_DEFS as any)[m.build];
+          const gear = Object.values(m.equipment || {}).filter(Boolean);
+          const gb = sumGearStats(gear);
+          let mHp = Math.round(480 * totalMult * 1.3 * cardMult + (gb.maxHp || 0) * 0.5);
+          if (m.build === 'juggernaut' && m.stars >= 3) mHp = Math.round(mHp * 1.25);
+          const mDmg = Math.round(5 * totalMult * cardMult + (gb.damage || 0));
+          const mSpeed = 0.05 * totalMult + (gb.speed || 0);
+          const gearWeapon = (m.equipment || {}).weapon2 || gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
+          const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
+          const shot = gearShotSound(gearWeapon, 'Военные (original)');
+          const spot = { x: px + 1 + (si % 2), y: 14 + si };
+          taken.add(`${spot.x},${spot.y}`);
+          const aLoot: any[] = [];
+          mercUnits.push({
+            id: `merc_${m.id}`,
+            name: `${m.name} (${def?.name || m.role})`,
+            faction: 'Союзник',
+            factionKey: 'Наёмники',
+            dps: mDmg * (1 + (mSpeed || 0)),
+            speed: mSpeed,
+            currentHp: mHp, maxHp: mHp,
+            health: 480, damage: mDmg,
+            armor: Math.round(2 * totalMult * cardMult) + Math.round((gb.armor || 0) * 0.35),
+            accuracy: Math.min(2, Math.max(0.65, 1.0 + accAdd + (gb.accuracy || 0))),
+            evasion: Math.min(1, 0.05 * totalMult + (gb.evasion || 0)),
+            block: Math.min(50, (m.build === 'fortress' && m.stars >= 3 ? 5 : 0) + (gb.block || 0) + (gear.some((g: any) => g && g.slot === 'shield') ? 20 : 0)),
+            punching: (gb.punching || 0),
+            vampir: 0.01 + (gb.vampir || 0),
+            crit: 0,
+            critChance: 0.05 + (gb.critChance || 0),
+            critDamage: (gb.critDamage || 0) + (gb.crit || 0),
+            regen: 1 * totalMult * cardMult + (gb.regen || 0),
+            pos: spot,
+            isHit: false, dead: false,
+            runAp: 4, rotation: 0,
+            rangeDistance: gearRange || (m.role === 'tank' ? 6 : m.role === 'medic' ? 9 : 8),
+            shotPrice: 1,
+            skillUse: [], cooldowns: {},
+            isInvisible: false, invisTurns: 0, baseEvasion: 0.05,
+            isEnraged: false, rageTurns: 0, hasSummoned: false,
+            bigModel: '100%', isSpinning: false,
+            loot: aLoot, looted: true, gear,
+            soundAttack: m.role === 'medic' ? 'healer' : 'shotenemy',
+            shotSound: shot.sound, shotLong: shot.long,
+            ammoGroup: gearWeapon ? ammoTypeForWeapon(gearWeapon) : 'rifle',
+            nowModel: def?.model || 'stalker1', deadModel: 'dead', avatar: def?.model || 'stalker1',
+            level: ps.level,
+            aiRole: 'patrol', aggro: false, knowsPlayer: true,
+            alertTurn: 0, speech: null, patrolDir: { dx: 1, dy: 0 },
+            callsign: m.name,
+            isMerc: true, mercId: m.id, mercRole: m.role, mercBuild: m.build, mercStars: m.stars,
+            mercBuffs: [],
+          });
+        });
+      } catch (e) { console.error('[mercSpawn]', e); }
       // Питомец из initCombat встал у старой точки (2,2) — подтянуть к новой.
       const placed = noBoars.map((e: any, k: number) =>
         e.faction === 'Союзник' ? { ...e, pos: { x: px + 1 + (k % 2), y: 15 + Math.floor(k / 2) } } : e,
       );
       set({
         obstacles,
-        enemies: placed,
+        enemies: [...placed, ...mercUnits],
         playerPos: startPos,
         campfire: null,
         pendingReinforce: [],
         isSkirmish: true,
         isDeployment: true,
-        deployQueue: [],
+        deployQueue: mercUnits.map((u) => u.id),
         ap: 0,
-        message: '🛡️ Расстановка: кликни по клетке слева от центра — куда встать, потом «В бой!»',
+        message: mercUnits.length > 0
+          ? '🛡️ Расстановка: кликни — куда встать тебе и наёмникам, потом «В бой!»'
+          : '🛡️ Расстановка: кликни по клетке слева от центра — куда встать, потом «В бой!»',
       });
       get().addBattleLog(`⚔️ Стычка 4×4 (${card.rarity.name}): расставь отряд и жми «В бой!»`);
     } catch (e) {
@@ -2700,9 +2778,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       return;
     }
     set({ isDeployment: false, ap: BASE_AP, maxAp: BASE_AP, turn: 'player', turnCount: 0, message: '⚔️ Твой ход' });
-    // Враг сразу в бой.
+    // Все сразу в бой — и враги, и наёмники.
     set((s: any) => ({
-      enemies: s.enemies.map((e: any) => (e.faction === 'Союзник' ? e : { ...e, aggro: true, knowsPlayer: true })),
+      enemies: s.enemies.map((e: any) => ({ ...e, aggro: true, knowsPlayer: true })),
     }));
     get().addBattleLog('⚔️ Стычка началась!');
   },

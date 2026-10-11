@@ -22,6 +22,10 @@ import { getItemImage } from '../assets/index';
 import { getSellPrice } from '../utils/sellPrice';
 import { sniperSellRate } from '../data/sniper';
 import type { Item } from '../types/items';
+import {
+  generateMercOffers, MERC_BUILDS, MERC_ROLE_LABEL, STAR_COLORS, starsLabel,
+  emptyMercEquipment, type MercOffer,
+} from '../data/mercenaries';
 
 const SELL_SLOT_COUNT = 12;
 const SHOP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -252,6 +256,7 @@ const STALLS = [
   { id: 'resources', label: 'Ресурсы', icon: '📦', flavor: 'Сырьё и материалы', color: '#fbbf24', slots: [] as string[] },
   { id: 'food', label: 'Еда', icon: '🍖', flavor: 'Продукты и припасы', color: '#fb923c', slots: [] as string[] },
   { id: 'battle_supplies', label: 'Патроны', icon: '🎒', flavor: 'Патроны', color: '#fb923c', slots: ['bullet'] },
+  { id: 'mercenaries', label: 'Наемники', icon: '🧑‍✈️', flavor: 'Бойцы для стычек 4×4', color: '#4ade80', slots: [] as string[] },
 ] as const;
 
 type StallId = typeof STALLS[number]['id'] | 'all';
@@ -307,6 +312,77 @@ const ProductCard = ({ item, buyPrice, canAfford, onBuy, onHover, onMove, onLeav
   );
 };
 
+// Тултип наёмника: роль, билд, звёзды, способности с порогом звёзд.
+const MercTooltip = ({ offer, x, y }: { offer: MercOffer; x: number; y: number }) => {
+  const build = MERC_BUILDS[offer.build];
+  const W = 280;
+  const left = Math.min(Math.max(8, x + 14), window.innerWidth - W - 8);
+  const top = Math.min(Math.max(8, y + 14), window.innerHeight - 320);
+  return (
+    <div style={{
+      position: 'fixed', left, top, width: W, zIndex: 9999, pointerEvents: 'none',
+      background: 'rgba(8,10,14,0.97)', border: `2px solid ${STAR_COLORS[offer.stars]}`,
+      borderRadius: 8, padding: 10, fontSize: 11, color: '#e5e7eb',
+    }}>
+      <div style={{ fontWeight: 800, fontSize: 13 }}>{offer.name} · {build.name}</div>
+      <div style={{ color: '#9ca3af', marginBottom: 2 }}>{MERC_ROLE_LABEL[offer.role]} · {build.title}</div>
+      <div style={{ color: STAR_COLORS[offer.stars], fontWeight: 700, marginBottom: 6 }}>{starsLabel(offer.stars)}</div>
+      <div style={{ color: '#9ca3af', marginBottom: 6 }}>Оружие: {build.weapon.group === 'pistol' ? 'пистолет' : 'автомат'}{build.weapon.shield ? ' + щит' : ''}</div>
+      {build.abilities.map((a) => (
+        <div key={a.id} style={{ marginBottom: 4, opacity: offer.stars >= a.star ? 1 : 0.45 }}>
+          <div style={{ fontWeight: 700 }}>
+            {a.kind === 'passive' ? '🛡️' : '⚡'} {a.name}
+            <span style={{ color: '#9ca3af', fontWeight: 400 }}> · {a.star}★{a.cd ? ` · КД ${a.cd}` : ''}</span>
+          </div>
+          <div style={{ color: '#9ca3af' }}>{a.desc}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Карточка наёмника на витрине.
+const MercCard = ({ offer, buyPrice, canAfford, onBuy, onHover, onMove, onLeave }: {
+  offer: MercOffer; buyPrice: number; canAfford: boolean;
+  onBuy: () => void;
+  onHover: (e: React.MouseEvent) => void; onMove: (e: React.MouseEvent) => void; onLeave: () => void;
+}) => {
+  const build = MERC_BUILDS[offer.build];
+  const color = STAR_COLORS[offer.stars];
+  return (
+    <div
+      onMouseEnter={onHover}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      style={{
+        padding: 6, background: 'var(--bg-glass)',
+        border: `2px solid ${color}`,
+        borderRadius: 8, cursor: 'pointer',
+        boxShadow: offer.stars >= 4 ? `0 0 10px ${color}44` : 'none',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+        transition: 'transform 100ms, box-shadow 120ms',
+      }}
+    >
+      <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+        {offer.role === 'tank' ? '🛡️' : offer.role === 'medic' ? '💉' : '🔧'}
+      </div>
+      <div style={{ fontSize: 10, fontWeight: 600, color, lineHeight: 1.2, textAlign: 'center', width: '100%' }}>
+        {offer.name} · {build.name}
+      </div>
+      <div style={{ fontSize: 10, color: STAR_COLORS[offer.stars], fontWeight: 700 }}>
+        {starsLabel(offer.stars)}
+      </div>
+      <Button variant="primary" size="sm"
+        onClick={onBuy}
+        disabled={!canAfford}
+        style={{ width: '100%', fontSize: 10, padding: '2px 4px', marginTop: 0 }}
+      >
+        {buyPrice} 💾
+      </Button>
+    </div>
+  );
+};
+
 export const Bazaar = () => {
   const playerLevel = usePlayerStore((s) => s.level);
   const dataChips = usePlayerStore((s) => s.dataChips);
@@ -333,6 +409,22 @@ export const Bazaar = () => {
   const [shopLoading, setShopLoading] = useState(true);
   const [timerSec, setTimerSec] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Наёмники: офферы живут в localStorage, рероллятся вместе с завозом.
+  const MERC_LS = 'mercOffers';
+  const [mercOffers, setMercOffers] = useState<MercOffer[]>(() => {
+    try {
+      const raw = localStorage.getItem(MERC_LS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch { /* ignore */ }
+    return [];
+  });
+  const saveMercOffers = (offers: MercOffer[]) => {
+    setMercOffers(offers);
+    try { localStorage.setItem(MERC_LS, JSON.stringify(offers)); } catch { /* ignore */ }
+  };
 
   // Sell slots — reference items but don't remove from inventory
   const [sellSlots, setSellSlots] = useState<(Item | null)[]>(() => Array(SELL_SLOT_COUNT + getUtil().extraShopSlots).fill(null));
@@ -352,6 +444,7 @@ export const Bazaar = () => {
         // Generate new shop client-side, sync to server
         const fresh = generateShop(playerLevel);
         const newRefreshAt = Date.now() + SHOP_INTERVAL_MS;
+        saveMercOffers(generateMercOffers(playerLevel));
         const syncRes = await fetch(`${API_BASE}/bazaar/sync.php`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -375,6 +468,14 @@ export const Bazaar = () => {
   useEffect(() => {
     loadShop();
   }, [loadShop]);
+
+  // Первый визит без завоза: наёмники всё равно нужны.
+  useEffect(() => {
+    if (!shopLoading && mercOffers.length === 0) {
+      saveMercOffers(generateMercOffers(playerLevel));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopLoading]);
 
   // Countdown timer from refreshAt
   useEffect(() => {
@@ -502,6 +603,38 @@ export const Bazaar = () => {
   };
 
   // Sell: drag-drop — just reference, don't remove from inventory
+  // Наёмники: найм через сервер (чипы списывает сервер, цена — серверная).
+  const handleHire = async (offer: MercOffer) => {
+    if (!token) return;
+    const buyPrice = Math.floor(offer.price * (1 - getUtil().buyDiscount));
+    if (dataChips < buyPrice) {
+      addLog(`❌ Недостаточно чипов (${dataChips} < ${buyPrice})`, 'warning');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/mercenaries/hire.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ role: offer.role, stars: offer.stars, level: playerLevel }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        addLog(`❌ ${json.error || 'Ошибка найма'}`, 'warning');
+        return;
+      }
+      usePlayerStore.getState().hireMerc({
+        id: `hired_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        role: offer.role, build: offer.build, stars: offer.stars, name: offer.name,
+        equipment: emptyMercEquipment(),
+      });
+      saveMercOffers(mercOffers.filter((o) => o.id !== offer.id));
+      usePlayerStore.setState({ dataChips: json.dataChips });
+      addLog(`🤝 Нанят ${offer.name} (${offer.stars}★) за ${json.charged ?? buyPrice} 💾`, 'loot');
+    } catch {
+      addLog('❌ Ошибка сети при найме', 'warning');
+    }
+  };
+
   const handleSellDrop = useCallback((slotIdx: number, e: React.DragEvent) => {
     e.preventDefault();
     const draggableId = e.dataTransfer.getData('text/plain');
@@ -658,6 +791,7 @@ export const Bazaar = () => {
       const json = await res.json();
       setShopItems(fresh);
       setRefreshAt(newRefreshAt);
+      saveMercOffers(generateMercOffers(playerLevel));
       usePlayerStore.setState({ dataChips: json.dataChips });
       addLog(`🔄 Базар обновлён за ${cost} 💾`, 'info');
     } catch {
@@ -666,6 +800,7 @@ export const Bazaar = () => {
   };
 
   const [hoveredShopItem, setHoveredShopItem] = useState<ShopItem | null>(null);
+  const [hoveredMerc, setHoveredMerc] = useState<MercOffer | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [hoveredSellItem, setHoveredSellItem] = useState<Item | null>(null);
   const [tooltipSellPos, setTooltipSellPos] = useState({ x: 0, y: 0 });
@@ -755,6 +890,39 @@ export const Bazaar = () => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {(shopTab === 'all' ? STALLS : STALLS.filter((s) => s.id === shopTab)).map((stall) => {
+                  // Наёмники — отдельная секция (офферы не из shopItems).
+                  if (stall.id === 'mercenaries') {
+                    if (shopTab !== 'all' && shopTab !== 'mercenaries') return null;
+                    if (mercOffers.length === 0) return null;
+                    return (
+                      <div key={stall.id}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 15, fontWeight: 700, color: stall.color }}>{stall.icon} {stall.label}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{stall.flavor}</span>
+                          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginLeft: 'auto' }}>{mercOffers.length} шт.</span>
+                        </div>
+                        <div style={{ borderTop: `2px solid ${stall.color}44`, paddingTop: 10 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 8 }}>
+                            {mercOffers.map((offer) => {
+                              const buyPrice = Math.floor(offer.price * (1 - getUtil().buyDiscount));
+                              return (
+                                <MercCard
+                                  key={offer.id}
+                                  offer={offer}
+                                  buyPrice={buyPrice}
+                                  canAfford={dataChips >= buyPrice}
+                                  onBuy={() => handleHire(offer)}
+                                  onHover={(e) => { setHoveredMerc(offer); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                                  onMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                                  onLeave={() => setHoveredMerc(null)}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
                   const goods = stallItems(stall.id);
                   if (goods.length === 0) return null;
                   return (
@@ -887,6 +1055,7 @@ export const Bazaar = () => {
         )}
       </WapPanel>
       {hoveredShopItem && <ItemTooltip item={hoveredShopItem as unknown as Item} x={tooltipPos.x} y={tooltipPos.y} />}
+      {hoveredMerc && <MercTooltip offer={hoveredMerc} x={tooltipPos.x} y={tooltipPos.y} />}
       {hoveredSellItem && <ItemTooltip item={hoveredSellItem} x={tooltipSellPos.x} y={tooltipSellPos.y} />}
     </motion.div>
   );

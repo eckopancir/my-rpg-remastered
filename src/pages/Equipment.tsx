@@ -19,6 +19,188 @@ import { getItemImage, images } from '../assets/index';
 import { useSound } from '../hooks/useSound';
 import { calcItemPower } from '../utils/itemPower';
 import type { Item } from '../types/items';
+import {
+  MERC_SLOTS, MERC_SLOT_ROLE, MERC_SLOT_LABEL, MERC_GEAR_SLOTS, MERC_BUILDS,
+  STAR_COLORS, starsLabel, type MercSlot,
+} from '../data/mercenaries';
+
+// Наёмники: 3 слота (танк/медик/техник), выбор из купленных, экипировка по даблклику.
+const MercSection = () => {
+  const ownedMercs = usePlayerStore((s) => s.ownedMercs);
+  const mercSlots = usePlayerStore((s) => s.mercSlots);
+  const setMercSlot = usePlayerStore((s) => s.setMercSlot);
+  const equipMercItem = usePlayerStore((s) => s.equipMercItem);
+  const unequipMercItem = usePlayerStore((s) => s.unequipMercItem);
+  const addLog = usePlayerStore((s) => s.addLog);
+  const isFighting = usePlayerStore((s) => s.combat.isFighting);
+  const { playClick } = useSound();
+  const [pickFor, setPickFor] = useState<MercSlot | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [mercTip, setMercTip] = useState<{ item: Item; x: number; y: number } | null>(null);
+
+  const mercById = (id: string | null) => ownedMercs.find((m) => m.id === id) || null;
+
+  const handleMercDrop = (mercId: string, gslot: string, e: React.DragEvent) => {
+    e.preventDefault();
+    const dtId = e.dataTransfer.getData('text/plain');
+    const itemId = dtId || useUiStore.getState().draggedItemId;
+    if (!itemId || itemId.startsWith('equip:')) return;
+    const merc = ownedMercs.find((m) => m.id === mercId);
+    if (!merc) return;
+    const inv = useInventoryStore.getState().items;
+    const item = inv.find((i: any) => i.id === itemId);
+    if (!item) return;
+    // Валидация: оружие — только своей группы, одежда — свой слот, щит — только танку.
+    if (gslot === 'weapon2') {
+      if ((item as any).slot !== 'weapon2') {
+        addLog('❌ Наёмнику нужен ствол (оружейный слот)', 'warning');
+        return;
+      }
+      const grp = ammoTypeForWeapon(item as any);
+      const want = merc.role === 'mechanic' ? 'rifle' : 'pistol';
+      if (grp !== want) {
+        addLog(`❌ ${merc.name}: нужен ${want === 'pistol' ? 'пистолет' : 'автомат'}`, 'warning');
+        return;
+      }
+    } else if (gslot === 'shield') {
+      if (merc.role !== 'tank' || (item as any).slot !== 'shield') {
+        addLog('❌ Щит — только танку', 'warning');
+        return;
+      }
+    } else if ((item as any).slot !== gslot) {
+      addLog('❌ Сюда не подходит', 'warning');
+      return;
+    }
+    if (equipMercItem(mercId, gslot, item)) {
+      useInventoryStore.getState().removeItem(item.id);
+      playClick();
+    }
+  };
+
+  const GEAR_LABEL: Record<string, string> = {
+    weapon2: 'Ствол', shield: 'Щит', head: 'Шлем', armor: 'Броня',
+    pants: 'Штаны', gloves: 'Перчатки', boots: 'Ботинки',
+  };
+
+  return (
+    <div style={{
+      marginTop: 16, padding: 14,
+      background: 'rgba(255,255,255,0.02)',
+      border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <span style={{ width: 14, height: 1, background: 'rgba(251,191,36,0.4)' }} />
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#fbbf24' }}>◆ НАЁМНИКИ (СТЫЧКИ 4×4)</span>
+        <span style={{ flex: 1, height: 1, background: 'rgba(251,191,36,0.14)' }} />
+      </div>
+      <div style={{ display: 'flex', gap: 12 }}>
+        {MERC_SLOTS.map((slot) => {
+          const role = MERC_SLOT_ROLE[slot];
+          const merc = mercById(mercSlots[slot]);
+          const emoji = role === 'tank' ? '🛡️' : role === 'medic' ? '💉' : '🔧';
+          return (
+            <div key={slot} style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>{MERC_SLOT_LABEL[slot]}</div>
+              <div
+                onClick={() => {
+                  playClick();
+                  if (isFighting) { addLog('❌ Наёмников нельзя менять в бою', 'warning'); return; }
+                  if (merc) {
+                    // Даблклик открывает экипировку — эмулируем вторым кликом по раскрытию.
+                    setExpandedId((v) => (v === merc.id ? null : merc.id));
+                  } else {
+                    setPickFor((v) => (v === slot ? null : slot));
+                  }
+                }}
+                title={merc ? `${merc.name} — клик: экипировка` : 'Пустой слот — клик: выбрать наёмника'}
+                style={{
+                  minHeight: 64, borderRadius: 8, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+                  background: merc ? 'rgba(74,222,128,0.06)' : 'rgba(0,0,0,0.35)',
+                  border: merc ? '2px solid rgba(74,222,128,0.5)' : '1px dashed rgba(255,255,255,0.14)',
+                }}
+              >
+                <span style={{ fontSize: 26 }}>{emoji}</span>
+                {merc ? (
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700 }}>{merc.name} · {MERC_BUILDS[merc.build].name}</div>
+                    <div style={{ fontSize: 11, color: STAR_COLORS[merc.stars], fontWeight: 700 }}>{starsLabel(merc.stars)}</div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>+ выбрать</div>
+                )}
+                {merc && !isFighting && (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); setMercSlot(slot, null); setExpandedId(null); playClick(); }}
+                    title="Убрать из слота"
+                    style={{ marginLeft: 'auto', cursor: 'pointer', opacity: 0.6, fontSize: 14 }}
+                  >✕</span>
+                )}
+              </div>
+              {pickFor === slot && !merc && (
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto' }}>
+                  {ownedMercs.filter((m) => m.role === role && !Object.values(mercSlots).includes(m.id)).map((m) => (
+                    <div
+                      key={m.id}
+                      onClick={() => { setMercSlot(slot, m.id); setPickFor(null); playClick(); }}
+                      style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6, cursor: 'pointer', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      {m.name} · {MERC_BUILDS[m.build].name} <span style={{ color: STAR_COLORS[m.stars] }}>{starsLabel(m.stars)}</span>
+                    </div>
+                  ))}
+                  {ownedMercs.filter((m) => m.role === role && !Object.values(mercSlots).includes(m.id)).length === 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Нет свободных — найми на базаре 🧑‍✈️</div>
+                  )}
+                </div>
+              )}
+              {merc && expandedId === merc.id && (
+                <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {MERC_GEAR_SLOTS[merc.role].map((gslot) => {
+                    const it = merc.equipment[gslot] as Item | null;
+                    return (
+                      <div
+                        key={gslot}
+                        onDrop={(e) => handleMercDrop(merc.id, gslot, e)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDoubleClick={() => { if (it) unequipMercItem(merc.id, gslot); }}
+                        onMouseEnter={(e) => { if (it) setMercTip({ item: it, x: e.clientX, y: e.clientY }); }}
+                        onMouseMove={(e) => { if (it) setMercTip({ item: it, x: e.clientX, y: e.clientY }); }}
+                        onMouseLeave={() => setMercTip(null)}
+                        title={it ? `${it.displayName || it.name} — даблклик снять` : `${GEAR_LABEL[gslot]} — перетащи сюда`}
+                        style={{
+                          width: 60, minHeight: 52, borderRadius: 8,
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+                          background: it ? 'linear-gradient(180deg, #0e0e11 0%, #16161a 100%)' : 'rgba(0,0,0,0.35)',
+                          border: `1px ${it ? 'solid rgba(255,255,255,0.08)' : 'dashed rgba(255,255,255,0.14)'}`,
+                        }}
+                      >
+                        {it ? (
+                          (() => {
+                            const url = getItemImage(it.name, it.displayName, it.slot, (it as any).type);
+                            return url
+                              ? <img src={url} alt="" draggable={false} style={{ width: 34, height: 34, objectFit: 'contain', imageRendering: 'pixelated' }} />
+                              : <span style={{ fontSize: 20 }}>📦</span>;
+                          })()
+                        ) : (
+                          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.22)' }}>+</span>
+                        )}
+                        <span style={{ fontSize: 8, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{GEAR_LABEL[gslot]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', marginTop: 8 }}>
+        Клик по занятому слоту — экипировка наёмника · даблклик по вещи — снять · в стычку без всех трёх не пустит.
+      </div>
+      {mercTip && <ItemTooltip item={mercTip.item} x={mercTip.x} y={mercTip.y} />}
+    </div>
+  );
+};
 
 // Слот питомца: выбор активного зверя (в бою смена запрещена).
 // Заблокирован, пока не выбран класс Лесничий.
@@ -1110,6 +1292,9 @@ export const Equipment = () => {
           </div>
         </div>
       </div>
+
+      {/* Наёмники — внизу окна, на всю ширину */}
+      <MercSection />
 
       {showPowerBreakdown && (
         <div style={{

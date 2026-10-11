@@ -34,6 +34,14 @@ export const Skirmishes = () => {
       addLog('⚔️ Бой уже идёт', 'warning');
       return;
     }
+    // Без полного отряда (3 наёмника) в стычку нельзя.
+    const pst0 = usePlayerStore.getState();
+    const empty = (['merc1', 'merc2', 'merc3'] as const).filter((k) => !(pst0.mercSlots as any)?.[k]);
+    if (empty.length > 0) {
+      addToast('❌ Заполни все 3 слота наёмников в экипировке', 'error');
+      addLog('❌ Стычка: пустые слоты наёмников — в бой нельзя', 'warning');
+      return;
+    }
     const pst = usePlayerStore.getState();
     const cost = slCost(card);
     if ((pst.stats.stamina || 0) < cost) {
