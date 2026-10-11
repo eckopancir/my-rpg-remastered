@@ -356,6 +356,7 @@ export const BattleGrid = () => {
     return hostiles.length > 0 && hostiles.every((e) => e.dead) && reserve.length === 0;
   }, [enemies, reserve]);
   const celebration = useCombatGridStore((s) => s.celebration);
+  const isDeployment = useCombatGridStore((s) => s.isDeployment);
   // Победа + живые мусорщики → празднование вместо мгновенного финиша.
   useEffect(() => {
     if (!canFinish || celebration) return;
@@ -640,6 +641,11 @@ export const BattleGrid = () => {
     if (useMapEditorStore.getState().active) {
       const t = useMapEditorStore.getState().tool;
       if (t.kind !== 'brush' && t.kind !== 'eraser' && t.kind !== 'zone') editorCellClick(x, y);
+      return;
+    }
+    // Стычка: фаза расстановки — клик ставит юнита в левую половину.
+    if (useCombatGridStore.getState().isDeployment) {
+      useCombatGridStore.getState().placeDeployUnit(x, y);
       return;
     }
     if (turn !== 'player' || isMoving) return;
@@ -1053,12 +1059,15 @@ export const BattleGrid = () => {
             const zoneHere = zoneTileMap.get(`${x},${y}`);
             const routeNum = selRouteMap.get(`${x},${y}`);
             const zoneDraftHere = edActive && zoneDraft?.cells.has(`${x},${y}`);
+            // Стычка: подсветка левой половины центра (наша зона расстановки).
+            const isDeployOurs = isDeployment && x >= 6 && x <= 15 && y >= 6 && y <= 25;
+            const isDeployFoe = isDeployment && x >= 16 && x <= 25 && y >= 6 && y <= 25;
 
             return (
               <div
                 key={i}
                 className={`${styles.cell}${isSel ? ` ${styles.cellActive}` : ''}${pathPoint ? ` ${styles.pathActive}` : ''}${obstacle ? ` ${styles.obstacleCell}` : ''}${isPlayer ? ` ${styles.playerCell}` : ''}${isInRange && turn === 'player' ? ` ${styles.inRange}` : ''}${hovered && !isAllyCell ? ` ${styles.cellCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCellCrosshair}` : ''}`}
-                style={edSel ? { outline: '2px solid #ffd54a', outlineOffset: -2, zIndex: 5 } : undefined}
+                style={edSel ? { outline: '2px solid #ffd54a', outlineOffset: -2, zIndex: 5 } : isDeployOurs ? { outline: '1px solid rgba(74,222,128,0.55)', outlineOffset: -1, background: 'rgba(74,222,128,0.07)', zIndex: 1 } : isDeployFoe ? { outline: '1px solid rgba(248,113,113,0.4)', outlineOffset: -1, background: 'rgba(248,113,113,0.05)', zIndex: 1 } : undefined}
                 onClick={() => handleCellClick(x, y)}
                 onContextMenu={(e) => e.preventDefault()}
                 onMouseDown={(e) => {

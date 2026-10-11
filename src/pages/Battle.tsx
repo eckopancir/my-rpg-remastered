@@ -270,6 +270,9 @@ export const Battle = () => {
   const stealth = useCombatGridStore((s) => s.stealth);
   const stealthKill = useCombatGridStore((s) => s.stealthKill);
   const endTurn = useCombatGridStore((s) => s.endTurn);
+  const isDeployment = useCombatGridStore((s) => s.isDeployment);
+  const deployQueue = useCombatGridStore((s) => s.deployQueue);
+  const confirmDeployment = useCombatGridStore((s) => s.confirmDeployment);
   const attackEnemy = useCombatGridStore((s) => s.attackEnemy);
   const gridEnemies = useCombatGridStore((s) => s.enemies);
   const gridReserve = useCombatGridStore((s) => s.reserve);
@@ -740,6 +743,26 @@ export const Battle = () => {
                 <span style={{ fontSize: 9, opacity: 0.5, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>КЛИК</span>
               </div>
 
+              {/* Стычка: расстановка — вместо конца хода кнопка «В бой!» */}
+              {isDeployment ? (
+                <div
+                  onClick={() => { playClick(); confirmDeployment(); }}
+                  style={{
+                    padding: '8px', borderRadius: 5,
+                    border: deployQueue.length > 0 ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(74,222,128,0.6)',
+                    background: deployQueue.length > 0 ? 'rgba(255,255,255,0.05)' : 'linear-gradient(180deg, rgb(20,120,60), rgb(10,80,40))',
+                    color: '#fff', fontWeight: 800,
+                    cursor: deployQueue.length > 0 ? 'not-allowed' : 'pointer',
+                    fontSize: 13,
+                    opacity: deployQueue.length > 0 ? 0.5 : 1,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6,
+                    animation: deployQueue.length === 0 ? 'pulseBorder 2s infinite' : 'none',
+                  }}
+                  title={deployQueue.length > 0 ? `Осталось расставить: ${deployQueue.length}` : 'Начать стычку!'}
+                >
+                  <span>⚔️ В бой!{deployQueue.length > 0 ? ` (${deployQueue.length})` : ''}</span>
+                </div>
+              ) : (
               <div
                 onClick={() => { playClick(); endTurn(); }}
                 style={{
@@ -756,6 +779,7 @@ export const Battle = () => {
                 <span>⏭ Конец хода</span>
                 <span style={{ fontSize: 9, opacity: 0.7, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>SPACE</span>
               </div>
+              )}
 
               {/* Тест-арена: выход без боя */}
               {isTestArena && (

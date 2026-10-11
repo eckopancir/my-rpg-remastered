@@ -17,6 +17,7 @@ import { Battle } from './pages/Battle';
 import { Settings } from './pages/Settings';
 import { Skills } from './pages/Skills';
 import { Expedition } from './pages/Expedition';
+import { Skirmishes } from './pages/Skirmishes';
 import { AutoExploration } from './pages/AutoExploration';
 import { Adventures } from './pages/Adventures';
 import { Admin } from './pages/Admin';
@@ -337,6 +338,7 @@ const AppContent = () => {
           <Route path="/map" element={<Map />} />
             <Route path="/adventure" element={<Adventures />} />
             <Route path="/expedition" element={<Expedition />} />
+            <Route path="/skirmishes" element={<Skirmishes />} />
             <Route path="/explore" element={<AutoExploration />} />
             <Route path="/base" element={<Base />} />
             <Route path="/bazaar" element={<Bazaar />} />

@@ -21,6 +21,7 @@ import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
 import { ALL_ABILITIES } from '../data/accessoryAbilities';
 import { petBaseStats, petBranchBonuses, petCellsPerAp, petSatietyAt, petMood, petHpMult, PET_META, type PetKind, type PetBattleAbility } from '../data/pets';
+import { generateSkirmishObstacles, autoDeploySkirmishEnemies, SKIRMISH_ZONE, SKIRMISH_LEFT } from '../engine/skirmishMap';
 
 const GRID = 32;
 const BASE_AP = 5;
@@ -525,6 +526,15 @@ export interface CombatGridStore {
 
   cardRarityName: string | null;
   initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }, allyCount?: number, testMode?: boolean) => boolean;
+  /** Стычка 4×4: тонкая обёртка над initCombat (состав и награды — с карточки). */
+  startSkirmish: (card: { enemyKeys: string[]; chipReward: number; xpReward?: number; rarity: { name: string; tier: number } }) => boolean;
+  /** Стычка: идёт ли расстановка отряда (бой заморожен до «В бой!»). */
+  isSkirmish: boolean;
+  isDeployment: boolean;
+  /** Очередь расстановки: кого ещё поставить (сейчас только игрок, позже + наёмники). */
+  deployQueue: string[];
+  placeDeployUnit: (x: number, y: number) => void;
+  confirmDeployment: () => void;
   teleportTo: (x: number, y: number) => void;
   placeMine: (x: number, y: number) => void;
   placeAoE: (x: number, y: number) => void;
@@ -1416,6 +1426,9 @@ let searchSound: string | null = null;
 export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
   isTestArena: false,
+  isSkirmish: false,
+  isDeployment: false,
+  deployQueue: [],
   editorPeace: false,
   exitConfirm: false,
   mapMusic: 'track',
@@ -2545,7 +2558,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { useUiStore.getState().setSkillBarPos(null); } catch { /* noop */ }
 
     set({
-      isActive: true, isTestArena: !!testMode, isRaining: testMode ? true : (!get().isNightTime && Math.random() < 0.5), playerPos, enemies: activeEnemies, obstacles,
+      isActive: true, isTestArena: !!testMode, isSkirmish: false, isDeployment: false, deployQueue: [], isRaining: testMode ? true : (!get().isNightTime && Math.random() < 0.5), playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, celebration: false, searchCast: null, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
@@ -2605,6 +2618,93 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       try { get().cleanup(); } catch { /* ignore */ }
       return false;
     }
+  },
+
+  startSkirmish: (card) => {
+    // Сложность = цена входа (15 + 5×тир): скейл как у экспедиций (totalSl).
+    const difficulty = 15 + (card.rarity?.tier || 0) * 5;
+    const xpReward = Math.round(card.xpReward ?? card.chipReward * 3);
+    const ok = get().initCombat(
+      difficulty,
+      undefined,
+      card.enemyKeys,
+      { chipReward: card.chipReward, xpReward, cardRarityName: card.rarity.name },
+      0,
+    );
+    if (!ok) return false;
+    try {
+      const obstacles = generateSkirmishObstacles();
+      // Кабанов в стычке нет, костра нет: чистая арена.
+      const noBoars = get().enemies.filter((e: any) => !(e as any).isNeutral);
+      autoDeploySkirmishEnemies(noBoars.filter((e: any) => e.faction !== 'Союзник'), obstacles);
+      // Игрок — в левую половину; союзники (наёмники позже) встанут рядом через deployQueue.
+      const px = SKIRMISH_LEFT.x1 + 4;
+      const startPos = { x: px, y: 16 };
+      // Питомец из initCombat встал у старой точки (2,2) — подтянуть к новой.
+      const placed = noBoars.map((e: any, k: number) =>
+        e.faction === 'Союзник' ? { ...e, pos: { x: px + 1 + (k % 2), y: 15 + Math.floor(k / 2) } } : e,
+      );
+      set({
+        obstacles,
+        enemies: placed,
+        playerPos: startPos,
+        campfire: null,
+        pendingReinforce: [],
+        isSkirmish: true,
+        isDeployment: true,
+        deployQueue: [],
+        ap: 0,
+        message: '🛡️ Расстановка: кликни по клетке слева от центра — куда встать, потом «В бой!»',
+      });
+      get().addBattleLog(`⚔️ Стычка 4×4 (${card.rarity.name}): расставь отряд и жми «В бой!»`);
+    } catch (e) {
+      console.error('[startSkirmish]', e);
+    }
+    return true;
+  },
+
+  placeDeployUnit: (x, y) => {
+    const st = get();
+    if (!st.isActive || !st.isDeployment) return;
+    if (x < SKIRMISH_LEFT.x1 || x > SKIRMISH_LEFT.x2 || y < SKIRMISH_ZONE.y1 || y > SKIRMISH_ZONE.y2) {
+      get().addMessage('❌ Ставиться можно только в левую половину центра');
+      return;
+    }
+    if (!isCellWalkable(x, y, st.obstacles)) {
+      get().addMessage('❌ Клетка занята объектом');
+      return;
+    }
+    if (st.enemies.some((e: any) => !e.dead && e.pos.x === x && e.pos.y === y)) {
+      get().addMessage('❌ Клетка занята');
+      return;
+    }
+    const next = st.deployQueue[0];
+    if (!next) {
+      // Пока наёмников нет: двигаем игрока.
+      set({ playerPos: { x, y }, isSelected: false, plannedPath: [] });
+      get().addMessage('🛡️ Позиция выбрана. Жми «В бой!»');
+      return;
+    }
+    // Наёмники (этап 2): подвинуть союзника из очереди.
+    set((s: any) => ({
+      enemies: s.enemies.map((e: any) => (String(e.id) === String(next) ? { ...e, pos: { x, y } } : e)),
+      deployQueue: s.deployQueue.slice(1),
+    }));
+  },
+
+  confirmDeployment: () => {
+    const st = get();
+    if (!st.isActive || !st.isDeployment) return;
+    if (st.deployQueue.length > 0) {
+      get().addMessage(`❌ Осталось расставить: ${st.deployQueue.length}`);
+      return;
+    }
+    set({ isDeployment: false, ap: BASE_AP, maxAp: BASE_AP, turn: 'player', turnCount: 0, message: '⚔️ Твой ход' });
+    // Враг сразу в бой.
+    set((s: any) => ({
+      enemies: s.enemies.map((e: any) => (e.faction === 'Союзник' ? e : { ...e, aggro: true, knowsPlayer: true })),
+    }));
+    get().addBattleLog('⚔️ Стычка началась!');
   },
 
   /** Зоны карты: выход спрашивает подтверждение, триггер — реплика + пробуждение спящих (засада). */
@@ -5812,6 +5912,8 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   endTurn: () => {
     stopCombatSound('run');
     const state = get();
+    // Расстановка стычки: ходы заморожены до «В бой!».
+    if (state.isDeployment) return;
     // Конструктор: ход никому не передаём, AP всегда полные.
     if (state.editorPeace) {
       set({ ap: 999999, maxAp: 999999, turn: 'player' });
@@ -6137,7 +6239,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player', musicCombatOnly: false, mapMusicStarted: false, mapMusic: 'track', mapMusic2: '__none',
+      isActive: false, isTestArena: false, isSkirmish: false, isDeployment: false, deployQueue: [], editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player', musicCombatOnly: false, mapMusicStarted: false, mapMusic: 'track', mapMusic2: '__none',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

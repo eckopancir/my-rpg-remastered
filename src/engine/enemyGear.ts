@@ -27,6 +27,7 @@ export const weaponSpecFor = (factionKey?: string): { slot: 'weapon1' | 'weapon2
   if (k.includes('melee') || k === 'Мутанты') return { slot: 'weapon1' };
   if (k.includes('tank')) return { slot: 'weapon2', group: 'pistol' };
   if (k.includes('medic')) return { slot: 'weapon2', group: 'pistol' };
+  if (k.includes('mechanic')) return { slot: 'weapon2', group: 'rifle' };
   if (k.includes('boss')) return { slot: 'weapon2', group: 'rifle' };
   return { slot: 'weapon2', group: 'rifle' };
 };

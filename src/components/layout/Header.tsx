@@ -39,6 +39,7 @@ const imageNavItems = [
   { to: '/adventure', label: 'Travel', off: travelOff, on: travelOn },
   { to: '/base', label: 'Base', off: baseOff, on: baseOn },
   { to: '/bazaar', label: 'Bazaar', off: bazaarOff, on: bazaarOn },
+  { to: '/skirmishes', label: 'Skirmishes', off: polygonOff, on: polygonOn },
   { to: '/craft', label: 'Craft', off: craftOff, on: craftOn },
 ];
 
