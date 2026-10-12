@@ -1598,19 +1598,32 @@ export const BattleGrid = () => {
         {/* Global effects */}
         {globalEffects.map((eff, i) => {
           if ((eff as any).type === 'HEALZONE') {
+            // Зона на всю площадь: квадрат 5×5 или круг R5, не одна клетка.
+            const r = (eff as any).radius || 2;
+            const cells: { x: number; y: number }[] = [];
+            for (let dx = -r; dx <= r; dx++) {
+              for (let dy = -r; dy <= r; dy++) {
+                if ((eff as any).shape === 'circle' && Math.hypot(dx, dy) > r) continue;
+                cells.push({ x: eff.pos.x + dx, y: eff.pos.y + dy });
+              }
+            }
             return (
-              <div
-                key={i}
-                className={styles.dangerZone}
-                style={{
-                  left: `${cellPct(eff.pos.x)}%`,
-                  top: `${cellPct(eff.pos.y)}%`,
-                  border: '2px dashed rgba(74,222,128,0.8)',
-                  background: 'rgba(74,222,128,0.10)',
-                  boxShadow: '0 0 12px rgba(74,222,128,0.35)',
-                }}
-              >
-                <div className={styles.dangerLabel} style={{ color: '#4ade80' }}>💚</div>
+              <div key={i} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
+                {cells.map((c, k) => (
+                  <div
+                    key={k}
+                    className={styles.dangerZone}
+                    style={{
+                      left: `${cellPct(c.x)}%`,
+                      top: `${cellPct(c.y)}%`,
+                      border: '2px dashed rgba(74,222,128,0.8)',
+                      background: 'rgba(74,222,128,0.10)',
+                      boxShadow: '0 0 12px rgba(74,222,128,0.35)',
+                    }}
+                  >
+                    {k === 0 && <div className={styles.dangerLabel} style={{ color: '#4ade80' }}>💚</div>}
+                  </div>
+                ))}
               </div>
             );
           }

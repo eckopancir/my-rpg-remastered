@@ -68,16 +68,39 @@ export const tickMercBuffs = (e: any): void => {
   const buffs = (e as any)?.mercBuffs;
   if (!Array.isArray(buffs) || buffs.length === 0) return;
   const left: any[] = [];
+  let dmgTouched = false;
   for (const b of buffs) {
     b.remaining -= 1;
-    if (b.remaining <= 0) (e as any)[b.stat] = b.base;
-    else left.push(b);
+    if (b.remaining <= 0) {
+      (e as any)[b.stat] = b.base;
+      if (b.stat === 'damage' || b.stat === 'speed') dmgTouched = true;
+    } else left.push(b);
   }
   (e as any).mercBuffs = left;
+  // dps кешируется — пересчитать после отката урона/скорости.
+  if (dmgTouched && typeof (e as any).dps === 'number') {
+    (e as any).dps = (e.damage || 0) * (1 + ((e as any).speed || 0));
+  }
 };
 
 const commit = (list: any[]) =>
   useCombatGridStore.setState({ enemies: [...list] });
+
+/** Аура на игрока через его систему эффектов (обновление без дублей и логов). */
+const refreshPlayerAura = (id: string, name: string, mult: Record<string, number>): void => {
+  const ps = usePlayerStore.getState();
+  const ex = (ps.activeEffects || []).find((e: any) => e.id === id);
+  if (ex) {
+    usePlayerStore.setState((st: any) => ({
+      activeEffects: (st.activeEffects || []).map((e: any) =>
+        e.id === id ? { ...e, remaining: 2, duration: 2 } : e),
+    }));
+  } else {
+    ps.addEffect({ id, name, duration: 2, remaining: 2, statBoosts: {}, statBoostsMult: mult });
+  }
+  const cs = useCombatGridStore.getState();
+  cs.addPopup(cs.playerPos.x, cs.playerPos.y, `✨ ${name}!`, 'BUFF');
+};
 
 const setCd = (merc: any, id: string, cd: number) => {
   if (!merc.cooldowns) merc.cooldowns = {};
@@ -140,8 +163,9 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
     // Сейв при HP<30%.
     if (hpFrac < 0.3) {
       if (build === 'juggernaut' && hasMercStar(merc, 5) && ready(merc, 'jug_last')) {
+        const baseLast = (merc as any).incomingDamageMult ?? 1;
         (merc as any).incomingDamageMult = 0.2;
-        merc.mercBuffs = [...(merc.mercBuffs || []), { stat: 'incomingDamageMult', base: 1, remaining: 1 }];
+        merc.mercBuffs = [...(merc.mercBuffs || []), { stat: 'incomingDamageMult', base: baseLast, remaining: 1 }];
         setCd(merc, 'jug_last', 10);
         cs.addPopup(merc.pos.x, merc.pos.y, '💢 −80%!', 'BUFF');
         playCombatSound('block', 0.4);
@@ -166,8 +190,9 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
     // Рабочие баффы.
     if (hostiles.length > 0) {
       if (build === 'juggernaut' && hasMercStar(merc, 2) && ready(merc, 'jug_wall')) {
+        const baseWall = (merc as any).incomingDamageMult ?? 1;
         (merc as any).incomingDamageMult = 0.5;
-        merc.mercBuffs = [...(merc.mercBuffs || []), { stat: 'incomingDamageMult', base: 1, remaining: 2 }];
+        merc.mercBuffs = [...(merc.mercBuffs || []), { stat: 'incomingDamageMult', base: baseWall, remaining: 2 }];
         setCd(merc, 'jug_wall', 8);
         playCombatSound('invis', 0.4);
         cs.addPopup(merc.pos.x, merc.pos.y, '🛡️ СТЕНА!', 'BUFF');
@@ -292,7 +317,9 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       }
       if (build === 'boris' && hasMercStar(merc, 4) && ready(merc, 'brs_stim') && d <= 14) {
         const base = tgt.regen || 0;
-        tgt.regen = base * 3;
+        // +200%: от нуля считать нечего — дать плоские 5% maxHp.
+        const add = base > 0 ? base * 2 : tgt.maxHp * 0.05;
+        tgt.regen = base + add;
         tgt.mercBuffs = [...(tgt.mercBuffs || []), { stat: 'regen', base, remaining: 1 }];
         setCd(merc, 'brs_stim', 10);
         playCombatSound('1bbfc9b5f4347f2', 0.4);
@@ -325,16 +352,22 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
         return;
       }
     }
-    // Аура урона.
+    // Аура урона (и на игрока, если он в радиусе).
     if (hasMercStar(merc, 2) && ready(merc, 'mch_dmg')) {
       let n = 0;
       for (const a of allies) {
         if (a.id !== merc.id && getDist(merc.pos, a.pos) <= 10) {
           const base = a.damage || 0;
           a.damage = base * 1.2;
+          a.dps = a.damage * (1 + (a.speed || 0));
           a.mercBuffs = [...(a.mercBuffs || []), { stat: 'damage', base, remaining: 2 }];
           n++;
         }
+      }
+      const cs0 = useCombatGridStore.getState();
+      if (getDist(merc.pos, cs0.playerPos) <= 10) {
+        refreshPlayerAura('merc_mch_dmg', 'Аура урона', { damage: 0.2 });
+        n++;
       }
       if (n > 0) {
         setCd(merc, 'mch_dmg', 8);
@@ -346,12 +379,12 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
         return;
       }
     }
-    // Ослепление (не танк/медик).
+    // Ослепление (не танк/медик; mechanic — не medic, точное совпадение).
     if (hasMercStar(merc, 3) && ready(merc, 'mch_blind')) {
       const tgt = hostiles
         .filter((h) => {
           const k = `${h.name} ${(h as any).factionKey || ''}`.toLowerCase();
-          return !k.includes('tank') && !k.includes('medic') && !k.includes('медик') &&
+          return !k.includes('tank') && !k.includes('(medic)') && !k.includes('медик') &&
             getDist(merc.pos, h.pos) <= 14;
         })
         .sort((a, b) => getDist(merc.pos, a.pos) - getDist(merc.pos, b.pos))[0];
@@ -368,7 +401,7 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
         return;
       }
     }
-    // Аура меткости.
+    // Аура меткости (и на игрока, если он в радиусе).
     if (hasMercStar(merc, 4) && ready(merc, 'mch_acc')) {
       let n = 0;
       for (const a of allies) {
@@ -378,6 +411,11 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
           a.mercBuffs = [...(a.mercBuffs || []), { stat: 'accuracy', base, remaining: 2 }];
           n++;
         }
+      }
+      const cs0 = useCombatGridStore.getState();
+      if (getDist(merc.pos, cs0.playerPos) <= 10) {
+        refreshPlayerAura('merc_mch_acc', 'Аура меткости', { accuracy: 0.2 });
+        n++;
       }
       if (n > 0) {
         setCd(merc, 'mch_acc', 8);

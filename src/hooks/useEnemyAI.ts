@@ -697,7 +697,8 @@ export const useEnemyAI = () => {
           continue;
         }
 
-        const isMedic = enemy.name.toLowerCase().includes('medic') || enemy.factionKey?.toLowerCase().includes('medic') || ((enemy as any).isMerc && (enemy as any).mercRole === 'medic');
+        const eNameKey = `${enemy.name} ${enemy.factionKey || ''}`.toLowerCase();
+        const isMedic = eNameKey.includes('(medic)') || eNameKey.includes('медик') || ((enemy as any).isMerc && (enemy as any).mercRole === 'medic');
 
         // Skills
         if (enemy.skillUse && enemy.skillUse.length > 0) {
