@@ -633,7 +633,7 @@ export const useEnemyAI = () => {
         const hpFrac = enemy.currentHp / Math.max(1, enemy.maxHp);
 
         // --- Раненый (HP<25%, не босс, не сдающийся): к медику, иначе к костру ---
-        if (!isBoss && !enemy.surrendering) {
+        if (!isBoss && !enemy.surrendering && !curStore.isSkirmish) {
           if (!enemy.retreating && enemy.currentHp > 0 && hpFrac < 0.25) {
             enemy.retreating = true;
             updatedEnemies[i] = { ...enemy };
@@ -792,11 +792,15 @@ export const useEnemyAI = () => {
           }
 
           if (isMedic) {
+            // Стычка: хил берёт и себя, приоритет — наименьшая доля HP (не ближайший).
+            const skirm = !!curStore.isSkirmish;
             const allWoundedAllies = updatedEnemies
-              .filter((e: any) => e.id !== enemy.id && !e.dead && e.currentHp > 0
+              .filter((e: any) => (skirm || e.id !== enemy.id) && !e.dead && e.currentHp > 0
                 && e.currentHp < e.maxHp * 0.95
                 && e.faction === enemy.faction)
-              .sort((a: any, b: any) => getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos));
+              .sort((a: any, b: any) => skirm
+                ? (a.currentHp / a.maxHp - b.currentHp / b.maxHp || getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos))
+                : (getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos)));
 
             if (allWoundedAllies.length === 0) {
               enemyAp = 0; break; // некого лечить — бездействие

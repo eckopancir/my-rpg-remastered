@@ -112,10 +112,10 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
   const allies = alliesOf(list, merc);
   const hostiles = hostilesOf(list, merc);
   const wounded80 = allies
-    .filter((a) => a.id !== merc.id && a.currentHp < a.maxHp * 0.8)
+    .filter((a) => a.currentHp < a.maxHp * 0.8)
     .sort((a, b) => a.currentHp / a.maxHp - b.currentHp / b.maxHp);
   const wounded90 = allies
-    .filter((a) => a.id !== merc.id && a.currentHp < a.maxHp * 0.9)
+    .filter((a) => a.currentHp < a.maxHp * 0.9)
     .sort((a, b) => a.currentHp / a.maxHp - b.currentHp / b.maxHp);
   const downed = list
     .filter((e: any) => e.faction === merc.faction && !e.isNeutral &&
