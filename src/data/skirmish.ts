@@ -15,6 +15,8 @@ export interface SkirmishCard {
   enemyKeys: string[];
   chipReward: number;
   xpReward: number;
+  /** Кастомная карта конструктора (маленькая, с ареной). */
+  customMapName?: string;
 }
 
 const DAMAGERS: SkirmishDamager[] = ['melee', 'sniper', 'original', 'drob'];
@@ -54,6 +56,14 @@ const shortToKey = (s: EnemyShortName | 'mechanic'): string =>
 
 /** 3 карточки стычек: редкость роллится, тир жмёт награду и врагов (как MAP). */
 export function generateSkirmishCards(): SkirmishCard[] {
+  let customs: any[] = [];
+  try {
+    const raw = localStorage.getItem('rpg.customMaps');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) customs = arr.filter((m: any) => m && m.arena && typeof m.arena.x1 === 'number');
+    }
+  } catch { /* ignore */ }
   const cards: SkirmishCard[] = [];
   for (let i = 0; i < 3; i++) {
     const rarity = rollRarity();
@@ -62,15 +72,20 @@ export function generateSkirmishCards(): SkirmishCard[] {
     const comp = SKIRMISH_COMP.map((c) =>
       c.role === 'damager' ? shortToKey(damager) : shortToKey(c.short),
     );
+    // Иногда стычка — на кастомной маленькой карте конструктора.
+    const custom = customs.length > 0 && Math.random() < 0.35
+      ? customs[Math.floor(Math.random() * customs.length)]
+      : null;
     cards.push({
       id: `sk_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${i}`,
-      name: 'Стычка 4×4',
+      name: custom ? `Стычка 4×4: ${custom.name}` : 'Стычка 4×4',
       rarity,
       tierMult,
       damager,
       enemyKeys: comp,
       chipReward: Math.round(400 * tierMult),
       xpReward: Math.round(1200 * tierMult),
+      customMapName: custom ? custom.name : undefined,
     });
   }
   return cards;

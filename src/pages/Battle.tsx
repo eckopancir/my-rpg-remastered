@@ -431,6 +431,7 @@ export const Battle = () => {
         id: 'replay', name: 'Стычка 4×4', rarity,
         tierMult: 1 + 0.2 * rarity.tier, damager: 'original',
         enemyKeys: sc.enemyKeys, chipReward: sc.chipReward, xpReward: sc.xpReward,
+        customMapName: sc.customMapName,
       } as any);
       if (!ok) useCombatGridStore.getState().addMessage('❌ Не вышло начать бой');
       return;

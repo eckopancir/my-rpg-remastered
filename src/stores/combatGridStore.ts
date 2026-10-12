@@ -21,7 +21,7 @@ import { effectiveItemStats } from '../utils/itemStats';
 import type { AccessoryAbility, AbilityEffect } from '../types/abilities';
 import { ALL_ABILITIES } from '../data/accessoryAbilities';
 import { petBaseStats, petBranchBonuses, petCellsPerAp, petSatietyAt, petMood, petHpMult, PET_META, type PetKind, type PetBattleAbility } from '../data/pets';
-import { generateSkirmishObstacles, autoDeploySkirmishEnemies, SKIRMISH_ZONE, SKIRMISH_LEFT } from '../engine/skirmishMap';
+import { generateSkirmishObstacles, autoDeploySkirmishEnemies, SKIRMISH_ZONE, arenaHalves, loadSavedSkirmishMaps, translateSavedObstacles, skirmishRing } from '../engine/skirmishMap';
 import { MERC_BUILDS as MERC_BUILD_DEFS } from '../data/mercenaries';
 import { applyMercMult } from '../engine/mercAbilities';
 
@@ -41,7 +41,7 @@ export interface BattleEntry {
   cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string };
   allyCount?: number;
   /** Стычка: карточка для переигровки после рефреша (с наёмниками). */
-  skirmishCard?: { enemyKeys: string[]; chipReward: number; xpReward: number; rarityName: string; tier: number };
+  skirmishCard?: { enemyKeys: string[]; chipReward: number; xpReward: number; rarityName: string; tier: number; customMapName?: string };
   at: number;
 }
 export const saveBattleEntry = (e: Omit<BattleEntry, 'at'>): void => {
@@ -536,9 +536,11 @@ export interface CombatGridStore {
   cardRarityName: string | null;
   initCombat: (difficulty: number, encounteredFaction?: string, cardEnemyKeys?: string[], cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string }, allyCount?: number, testMode?: boolean) => boolean;
   /** Стычка 4×4: тонкая обёртка над initCombat (состав и награды — с карточки). */
-  startSkirmish: (card: { enemyKeys: string[]; chipReward: number; xpReward?: number; rarity: { name: string; tier: number } }) => boolean;
+  startSkirmish: (card: { enemyKeys: string[]; chipReward: number; xpReward?: number; customMapName?: string; rarity: { name: string; tier: number } }) => boolean;
   /** Стычка: идёт ли расстановка отряда (бой заморожен до «В бой!»). */
   isSkirmish: boolean;
+  /** Арена стычки (null — центр 20×20 по умолчанию). */
+  skirmishArena: { x1: number; y1: number; x2: number; y2: number } | null;
   isDeployment: boolean;
   /** Очередь расстановки: кого ещё поставить (сейчас только игрок, позже + наёмники). */
   deployQueue: string[];
@@ -1436,6 +1438,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
   isTestArena: false,
   isSkirmish: false,
+  skirmishArena: null,
   isDeployment: false,
   deployQueue: [],
   editorPeace: false,
@@ -2567,7 +2570,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { useUiStore.getState().setSkillBarPos(null); } catch { /* noop */ }
 
     set({
-      isActive: true, isTestArena: !!testMode, isSkirmish: false, isDeployment: false, deployQueue: [], isRaining: testMode ? true : (!get().isNightTime && Math.random() < 0.5), playerPos, enemies: activeEnemies, obstacles,
+      isActive: true, isTestArena: !!testMode, isSkirmish: false, skirmishArena: null, isDeployment: false, deployQueue: [], isRaining: testMode ? true : (!get().isNightTime && Math.random() < 0.5), playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, celebration: false, searchCast: null, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
@@ -2642,7 +2645,23 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     );
     if (!ok) return false;
     try {
-      const obstacles = generateSkirmishObstacles();
+      // Арена: кастомная карта конструктора или процедурный центр 20×20.
+      const customName = (card as any).customMapName as string | undefined;
+      const arena = { ...SKIRMISH_ZONE };
+      let obstacles: any[];
+      if (customName) {
+        const cmap = loadSavedSkirmishMaps().find((m: any) => m.name === customName);
+        if (cmap && cmap.arena) {
+          Object.assign(arena, cmap.arena);
+          obstacles = [...translateSavedObstacles(cmap, arena), ...skirmishRing(arena, 10000)];
+          set({ battleBg: cmap.bg || 'mapbattle' });
+          get().addBattleLog(`🗺️ Стычка на карте «${cmap.name}»!`);
+        } else {
+          obstacles = generateSkirmishObstacles(arena);
+        }
+      } else {
+        obstacles = generateSkirmishObstacles(arena);
+      }
       // Кабанов в стычке нет, костра нет: чистая арена.
       const noBoars = get().enemies.filter((e: any) => !(e as any).isNeutral);
       // Тир стычки жмёт ВРАГОВ «во много раз» (союзников и игрока — нет).
@@ -2656,10 +2675,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         e.armor = Math.round(e.armor * skirmMult);
         e.regen = (e.regen || 0) * skirmMult;
       }
-      autoDeploySkirmishEnemies(noBoars.filter((e: any) => e.faction !== 'Союзник'), obstacles);
+      autoDeploySkirmishEnemies(noBoars.filter((e: any) => e.faction !== 'Союзник'), obstacles, arena);
       // Игрок — в левую половину.
-      const px = SKIRMISH_LEFT.x1 + 4;
-      const startPos = { x: px, y: 16 };
+      const halves = arenaHalves(arena);
+      const midY = Math.round((arena.y1 + arena.y2) / 2);
+      const px = halves.left.x1 + 4;
+      const startPos = { x: px, y: midY };
       // Наёмники из слотов: союзники со своим шмотом и звёздами.
       const ps = usePlayerStore.getState();
       const cardMult = cardTierMult(card.rarity.name);
@@ -2675,7 +2696,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           for (let dx = -r; dx <= r; dx++) {
             for (let dy = -r; dy <= r; dy++) {
               const x = cx + dx, y = cy + dy;
-              if (x < SKIRMISH_LEFT.x1 || x > SKIRMISH_LEFT.x2 || y < SKIRMISH_ZONE.y1 || y > SKIRMISH_ZONE.y2) continue;
+              if (x < halves.left.x1 || x > halves.left.x2 || y < arena.y1 || y > arena.y2) continue;
               if (takenSpots.has(`${x},${y}`)) continue;
               if (!isCellWalkable(x, y, obstacles)) continue;
               takenSpots.add(`${x},${y}`);
@@ -2702,7 +2723,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const gearWeapon = (m.equipment || {}).weapon2 || gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
           const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
           const shot = gearShotSound(gearWeapon, 'Военные (original)');
-          const spot = findSpot(px + 1 + (si % 2), 14 + si);
+          const spot = findSpot(px + 1 + (si % 2), midY - 2 + si);
           const aLoot: any[] = [];
           // Доказательство в логу: наёмник идёт в бой именно в выданном шмоте.
           try {
@@ -2752,7 +2773,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       } catch (e) { console.error('[mercSpawn]', e); }
       // Питомец из initCombat встал у старой точки (2,2) — подтянуть к новой (на свободную).
       const placed = noBoars.map((e: any, k: number) =>
-        e.faction === 'Союзник' ? { ...e, pos: findSpot(px + 1 + (k % 2), 15 + Math.floor(k / 2)) } : e,
+        e.faction === 'Союзник' ? { ...e, pos: findSpot(px + 1 + (k % 2), midY - 1 + Math.floor(k / 2)) } : e,
       );
       set({
         obstacles,
@@ -2761,6 +2782,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         campfire: null,
         pendingReinforce: [],
         isSkirmish: true,
+        skirmishArena: { ...arena },
         isDeployment: true,
         // Игрок ставится первым, потом наёмники.
         deployQueue: ['__player__', ...mercUnits.map((u) => u.id)],
@@ -2780,6 +2802,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           skirmishCard: {
             enemyKeys: card.enemyKeys, chipReward: card.chipReward, xpReward,
             rarityName: card.rarity.name, tier: card.rarity.tier,
+            customMapName: (card as any).customMapName,
           },
         });
       } catch { /* ignore */ }
@@ -2792,7 +2815,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   placeDeployUnit: (x, y) => {
     const st = get();
     if (!st.isActive || !st.isDeployment) return;
-    if (x < SKIRMISH_LEFT.x1 || x > SKIRMISH_LEFT.x2 || y < SKIRMISH_ZONE.y1 || y > SKIRMISH_ZONE.y2) {
+    const arena = st.skirmishArena || { ...SKIRMISH_ZONE };
+    const halves = arenaHalves(arena);
+    if (x < halves.left.x1 || x > halves.left.x2 || y < arena.y1 || y > arena.y2) {
       get().addMessage('❌ Ставиться можно только в левую половину центра');
       return;
     }
@@ -6393,7 +6418,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, isSkirmish: false, isDeployment: false, deployQueue: [], editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player', musicCombatOnly: false, mapMusicStarted: false, mapMusic: 'track', mapMusic2: '__none',
+      isActive: false, isTestArena: false, isSkirmish: false, skirmishArena: null, isDeployment: false, deployQueue: [], editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player', musicCombatOnly: false, mapMusicStarted: false, mapMusic: 'track', mapMusic2: '__none',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,

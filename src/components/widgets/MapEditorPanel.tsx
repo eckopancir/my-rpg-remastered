@@ -119,6 +119,7 @@ export const MapEditorPanel = () => {
         return;
       }
       st.setMapName(m.name);
+      st.setArena((m as any).arena && typeof (m as any).arena.x1 === 'number' ? (m as any).arena : null);
       st.setMusic(m.music || 'track');
       st.setMusic2((m as any).music2 || '__none');
       st.setMusicCombatOnly(!!(m as any).musicCombatOnly);
@@ -800,6 +801,16 @@ export const MapEditorPanel = () => {
 
       <div style={sec}>
         <div style={h}>Сохранить</div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+          <button style={btn(!ed.arena)} onClick={() => ed.setArena(null)} title="Всё поле 32×32">32×32</button>
+          <button
+            style={btn(!!ed.arena)}
+            onClick={() => ed.setArena({ x1: 6, y1: 6, x2: 25, y2: 25 })}
+            title="Центр 20×20 для стычек: стройка только внутри"
+          >
+            Стычка 20×20
+          </button>
+        </div>
         <input
           value={ed.mapName}
           onChange={(e) => ed.setMapName(e.target.value)}

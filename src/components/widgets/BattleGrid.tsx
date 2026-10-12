@@ -358,6 +358,8 @@ export const BattleGrid = () => {
   const celebration = useCombatGridStore((s) => s.celebration);
   const isDeployment = useCombatGridStore((s) => s.isDeployment);
   const isSkirmish = useCombatGridStore((s) => s.isSkirmish);
+  const edArena = useMapEditorStore((s) => s.arena);
+  const skirmishArena = useCombatGridStore((s) => s.skirmishArena);
   // Победа + живые мусорщики → празднование вместо мгновенного финиша.
   useEffect(() => {
     if (!canFinish || celebration) return;
@@ -1061,14 +1063,18 @@ export const BattleGrid = () => {
             const routeNum = selRouteMap.get(`${x},${y}`);
             const zoneDraftHere = edActive && zoneDraft?.cells.has(`${x},${y}`);
             // Стычка: подсветка левой половины центра (наша зона расстановки).
-            const isDeployOurs = isDeployment && x >= 6 && x <= 15 && y >= 6 && y <= 25;
-            const isDeployFoe = isDeployment && x >= 16 && x <= 25 && y >= 6 && y <= 25;
+            const skA = skirmishArena || { x1: 6, y1: 6, x2: 25, y2: 25 };
+            const skMid = skA.x1 + Math.floor((skA.x2 - skA.x1 + 1) / 2) - 1;
+            const isDeployOurs = isDeployment && x >= skA.x1 && x <= skMid && y >= skA.y1 && y <= skA.y2;
+            const isDeployFoe = isDeployment && x >= skMid + 1 && x <= skA.x2 && y >= skA.y1 && y <= skA.y2;
+            // Конструктор: рамка арены маленькой карты.
+            const isEdArena = edActive && edArena && x >= edArena.x1 && x <= edArena.x2 && y >= edArena.y1 && y <= edArena.y2;
 
             return (
               <div
                 key={i}
                 className={`${styles.cell}${isSel ? ` ${styles.cellActive}` : ''}${pathPoint ? ` ${styles.pathActive}` : ''}${obstacle ? ` ${styles.obstacleCell}` : ''}${isPlayer ? ` ${styles.playerCell}` : ''}${isInRange && turn === 'player' ? ` ${styles.inRange}` : ''}${hovered && !isAllyCell ? ` ${styles.cellCrosshair}` : ''}${hovered && isAllyCell ? ` ${styles.allyCellCrosshair}` : ''}`}
-                style={edSel ? { outline: '2px solid #ffd54a', outlineOffset: -2, zIndex: 5 } : isDeployOurs ? { outline: '1px solid rgba(74,222,128,0.55)', outlineOffset: -1, background: 'rgba(74,222,128,0.07)', zIndex: 1 } : isDeployFoe ? { outline: '1px solid rgba(248,113,113,0.4)', outlineOffset: -1, background: 'rgba(248,113,113,0.05)', zIndex: 1 } : undefined}
+                style={edSel ? { outline: '2px solid #ffd54a', outlineOffset: -2, zIndex: 5 } : isEdArena ? { outline: '1px solid rgba(255,213,74,0.5)', outlineOffset: -1, background: 'rgba(255,213,74,0.05)', zIndex: 1 } : isDeployOurs ? { outline: '1px solid rgba(74,222,128,0.55)', outlineOffset: -1, background: 'rgba(74,222,128,0.07)', zIndex: 1 } : isDeployFoe ? { outline: '1px solid rgba(248,113,113,0.4)', outlineOffset: -1, background: 'rgba(248,113,113,0.05)', zIndex: 1 } : undefined}
                 onClick={() => handleCellClick(x, y)}
                 onContextMenu={(e) => e.preventDefault()}
                 onMouseDown={(e) => {

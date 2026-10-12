@@ -53,6 +53,8 @@ export interface SavedMap {
   introBarks?: string[];
   bg: string;
   weather: { rain: boolean; night: boolean; fog: number };
+  /** Арена (null — всё поле). Маленькие карты стычек хранят центр 20×20. */
+  arena?: { x1: number; y1: number; x2: number; y2: number } | null;
   obstacles: SavedMapObstacle[];
   units: SavedMapUnit[];
   decals: { x: number; y: number; imgKey: string; size?: number }[];
@@ -118,6 +120,9 @@ interface MapEditorStore {
   introBarks: string;
   mapName: string;
   maps: SavedMap[];
+  /** Арена карты (прямоугольник playable). null — всё поле 32×32. */
+  arena: { x1: number; y1: number; x2: number; y2: number } | null;
+  setArena: (a: { x1: number; y1: number; x2: number; y2: number } | null) => void;
   selObId: number | string | null;
   selUnitId: number | string | null;
   selCamp: boolean;
@@ -199,6 +204,8 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
   introBarks: '',
   mapName: '',
   maps: loadSavedMaps(),
+  arena: null,
+  setArena: (arena) => set({ arena }),
   past: [],
   future: [],
   selObId: null,
@@ -298,6 +305,7 @@ export const useMapEditorStore = create<MapEditorStore>()((set, get) => ({
       },
       obstacles: src.obstacles,
       units: src.units,
+      arena: validArena(src.arena),
       decals: Array.isArray(src.decals) ? src.decals : [],
       zones: Array.isArray(src.zones) ? src.zones : [],
       garrison: Array.isArray(src.garrison) ? src.garrison : [],
@@ -408,6 +416,7 @@ export const buildMapObject = (name: string, music: string, obstacles: any[], un
   return {
     name,
     music,
+    arena: useMapEditorStore.getState().arena,
     music2: useMapEditorStore.getState().music2 || '__none',
     musicCombatOnly: !!useMapEditorStore.getState().musicCombatOnly,
     introBarks: useMapEditorStore.getState().introBarks.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 20),
@@ -468,10 +477,35 @@ const rectsOverlap = (
 ): boolean => ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 
 /** Кламп футпринта в сетку 32×32 (как при установке кликом). */
-export const clampFootprint = (w: number, h: number, x: number, y: number) => ({
-  nx: Math.max(0, Math.min(32 - w, x)),
-  ny: Math.max(0, Math.min(32 - h, y)),
-});
+export const clampFootprint = (w: number, h: number, x: number, y: number) => {
+  const a = useMapEditorStore.getState().arena;
+  if (!a) return { nx: Math.max(0, Math.min(32 - w, x)), ny: Math.max(0, Math.min(32 - h, y)) };
+  return {
+    nx: Math.max(a.x1, Math.min(a.x2 - w + 1, x)),
+    ny: Math.max(a.y1, Math.min(a.y2 - h + 1, y)),
+  };
+};
+
+/** Кламп клетки 1×1 в арену. */
+export const clampCellArena = (x: number, y: number) => {
+  const a = useMapEditorStore.getState().arena;
+  if (!a) return { nx: Math.max(0, Math.min(31, x)), ny: Math.max(0, Math.min(31, y)) };
+  return {
+    nx: Math.max(a.x1, Math.min(a.x2, x)),
+    ny: Math.max(a.y1, Math.min(a.y2, y)),
+  };
+};
+
+/** Валидация арены из файла/сейва. */
+export const validArena = (a: any): { x1: number; y1: number; x2: number; y2: number } | null => {
+  if (!a || typeof a.x1 !== 'number') return null;
+  const x1 = Math.max(0, Math.min(31, Math.floor(a.x1)));
+  const y1 = Math.max(0, Math.min(31, Math.floor(a.y1)));
+  const y2 = Math.max(0, Math.min(31, Math.floor(a.y2)));
+  const x2 = Math.max(0, Math.min(31, Math.floor(a.x2)));
+  if (x2 - x1 < 7 || y2 - y1 < 7) return null;
+  return { x1, y1, x2, y2 };
+};
 
 /** Точка спавна игрока (2,2) внутри футпринта? */
 export const hitsSpawn = (nx: number, ny: number, w: number, h: number) =>
@@ -800,8 +834,7 @@ export const editorCellClick = (x: number, y: number): void => {
     if (ed.selObId !== null && ed.selUnitId === null) {
       const ob = (st.obstacles as any[]).find((o: any) => o.id === ed.selObId);
       if (ob) {
-        const nx = Math.max(0, Math.min(32 - ob.w, x));
-        const ny = Math.max(0, Math.min(32 - ob.h, y));
+        const { nx, ny } = clampFootprint(ob.w, ob.h, x, y);
         // Перенос — та же проверка, что установка (дырки чужих объектов — можно).
         if (footprintValid(st.obstacles, ob.w, ob.h, nx, ny, ob.id) && !footprintHitsCamp(ob.w, ob.h, nx, ny)) {
           ed.pushHistory();
@@ -815,12 +848,13 @@ export const editorCellClick = (x: number, y: number): void => {
     if (ed.selUnitId !== null && ed.selObId === null) {
       const u = (st.enemies as any[]).find((e: any) => e.id === ed.selUnitId);
       if (u) {
-        const busy = (st.enemies as any[]).some((e: any) => e.id !== u.id && e.pos.x === x && e.pos.y === y);
+        const cp = clampCellArena(x, y);
+        const busy = (st.enemies as any[]).some((e: any) => e.id !== u.id && e.pos.x === cp.nx && e.pos.y === cp.ny);
         const camp = (st as any).campfire as { x: number; y: number } | null;
-        if (!busy && !(camp && camp.x === x && camp.y === y)) {
+        if (!busy && !(camp && camp.x === cp.nx && camp.y === cp.ny)) {
           ed.pushHistory();
           cs.setState((s: any) => ({
-            enemies: s.enemies.map((e: any) => (e.id === u.id ? { ...e, pos: { x, y } } : e)),
+            enemies: s.enemies.map((e: any) => (e.id === u.id ? { ...e, pos: { x: cp.nx, y: cp.ny } } : e)),
           }));
           return;
         }
@@ -911,7 +945,8 @@ export const editorCellClick = (x: number, y: number): void => {
   if (tool.kind === 'zone') {
     // Зоны рисуются протяжкой (mousedown→mouseup); одиночный клик — 1×1.
     ed.pushHistory();
-    const z = { id: `zone_${Date.now()}_${Math.floor(Math.random() * 1e6)}`, kind: ed.zoneKind, x, y, w: 1, h: 1, text: '' };
+    const cpz = clampCellArena(x, y);
+    const z = { id: `zone_${Date.now()}_${Math.floor(Math.random() * 1e6)}`, kind: ed.zoneKind, x: cpz.nx, y: cpz.ny, w: 1, h: 1, text: '' };
     if (ed.zoneKind === 'spawn') {
       cs.setState((s: any) => ({ zones: [...(s.zones || []).filter((zz: any) => zz.kind !== 'spawn'), z] }));
     } else {
@@ -933,14 +968,15 @@ export const editorCellClick = (x: number, y: number): void => {
     return;
   }
   // Труп тоже занимает клетку; на костёр не ставим.
-  const busy = (st.enemies as any[]).some((e: any) => e.pos.x === x && e.pos.y === y);
+  const cpb = clampCellArena(x, y);
+  const busy = (st.enemies as any[]).some((e: any) => e.pos.x === cpb.nx && e.pos.y === cpb.ny);
   const campNow = (st as any).campfire as { x: number; y: number } | null;
-  if (busy || (campNow && campNow.x === x && campNow.y === y)) {
+  if (busy || (campNow && campNow.x === cpb.nx && campNow.y === cpb.ny)) {
     usePlayerStore.getState().addLog('🧍 Клетка занята', 'warning');
     return;
   }
   try {
     ed.pushHistory();
-    cs.getState().spawnEditorUnit(tool.factionKey, tool.side, x, y, ed.behavior, ed.corpseLoot);
+    cs.getState().spawnEditorUnit(tool.factionKey, tool.side, cpb.nx, cpb.ny, ed.behavior, ed.corpseLoot);
   } catch { /* ignore */ }
 };

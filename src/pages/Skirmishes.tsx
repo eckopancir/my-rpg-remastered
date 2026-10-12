@@ -134,6 +134,11 @@ export const Skirmishes = () => {
                 <div style={{ fontSize: 12, color: '#f87171', fontWeight: 700 }}>
                   💀 Мощь врагов ×{skirmishPowerMult(card.rarity.tier)}
                 </div>
+                {card.customMapName && (
+                  <div style={{ fontSize: 11, color: '#a5f3fc' }}>
+                    🗺️ Карта: {card.customMapName}
+                  </div>
+                )}
                 <div style={{ fontSize: 12, color: '#fbbf24', fontWeight: 700 }}>
                   💾 {card.chipReward} чипов за победу
                 </div>
