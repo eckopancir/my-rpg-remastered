@@ -2656,35 +2656,36 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const totalMult = levelMult * extraMult;
       const accAdd = (ps.level - 1) * 0.001;
       const mercUnits: any[] = [];
+      // Свободные проходимые клетки левой половины под стартовые точки (и пету тоже).
+      const takenSpots = new Set<string>([`${startPos.x},${startPos.y}`]);
+      const findSpot = (cx: number, cy: number) => {
+        for (let r = 0; r < 8; r++) {
+          for (let dx = -r; dx <= r; dx++) {
+            for (let dy = -r; dy <= r; dy++) {
+              const x = cx + dx, y = cy + dy;
+              if (x < SKIRMISH_LEFT.x1 || x > SKIRMISH_LEFT.x2 || y < SKIRMISH_ZONE.y1 || y > SKIRMISH_ZONE.y2) continue;
+              if (takenSpots.has(`${x},${y}`)) continue;
+              if (!isCellWalkable(x, y, obstacles)) continue;
+              takenSpots.add(`${x},${y}`);
+              return { x, y };
+            }
+          }
+        }
+        return { x: cx, y: cy };
+      };
       try {
         const slots = (ps as any).mercSlots || {};
         const owned = (ps as any).ownedMercs || [];
-        // Свободные проходимые клетки левой половины под стартовые точки.
-        const takenSpots = new Set<string>([`${startPos.x},${startPos.y}`]);
-        const findSpot = (cx: number, cy: number) => {
-          for (let r = 0; r < 8; r++) {
-            for (let dx = -r; dx <= r; dx++) {
-              for (let dy = -r; dy <= r; dy++) {
-                const x = cx + dx, y = cy + dy;
-                if (x < SKIRMISH_LEFT.x1 || x > SKIRMISH_LEFT.x2 || y < SKIRMISH_ZONE.y1 || y > SKIRMISH_ZONE.y2) continue;
-                if (takenSpots.has(`${x},${y}`)) continue;
-                if (!isCellWalkable(x, y, obstacles)) continue;
-                takenSpots.add(`${x},${y}`);
-                return { x, y };
-              }
-            }
-          }
-          return { x: cx, y: cy };
-        };
         ['merc1', 'merc2', 'merc3'].forEach((sk, si) => {
           const m = owned.find((o: any) => o.id === slots[sk]);
           if (!m) return;
           const def = (MERC_BUILD_DEFS as any)[m.build];
           const gear = Object.values(m.equipment || {}).filter(Boolean);
           const gb = sumGearStats(gear);
-          let mHp = Math.round(480 * totalMult * 1.3 * cardMult + (gb.maxHp || 0) * 0.5);
+          // 1в1 как враги: те же доли базы (×0.35) и шмота (HP ×0.5, броня ×0.35, урон ×тир).
+          let mHp = Math.round(480 * totalMult * 0.35 * cardMult + (gb.maxHp || 0) * 0.5);
           if (m.build === 'juggernaut' && m.stars >= 3) mHp = Math.round(mHp * 1.25);
-          const mDmg = Math.round(5 * totalMult * cardMult + (gb.damage || 0));
+          const mDmg = Math.round(5 * totalMult * 0.35 * cardMult + (gb.damage || 0) * cardMult);
           const mSpeed = 0.05 * totalMult + (gb.speed || 0);
           const gearWeapon = (m.equipment || {}).weapon2 || gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
           const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
@@ -2704,7 +2705,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
             speed: mSpeed,
             currentHp: mHp, maxHp: mHp,
             health: 480, damage: mDmg,
-            armor: Math.round(2 * totalMult * cardMult) + Math.round((gb.armor || 0) * 0.35),
+            armor: Math.round(2 * totalMult * 0.35 * cardMult) + Math.round((gb.armor || 0) * 0.35),
             accuracy: Math.min(2, Math.max(0.65, 1.0 + accAdd + (gb.accuracy || 0))),
             evasion: Math.min(1, 0.05 * totalMult + (gb.evasion || 0)),
             block: Math.min(50, (m.build === 'fortress' && m.stars >= 3 ? 5 : 0) + (gb.block || 0) + (gear.some((g: any) => g && g.slot === 'shield') ? 20 : 0)),
