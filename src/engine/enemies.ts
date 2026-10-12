@@ -89,7 +89,7 @@ export const ENEMY_BASE_STATS: Record<string, EnemyBaseDefinition> = {
     health: 480, damage: 5, dps: 5, speed: 0.05, crit: 0, critChance: 0.05, armor: 2, evasion: 0.05,
     regen: 1, block: 0, punching: 0, accuracy: 1.0, vampir: 0.01,
     expRewardMultiplier: 1.4, rangeDistance: 10, runAp: 4, shotPrice: 2,
-    skillUse: [''], bigModel: '100%', faction: 'Военные',
+    skillUse: ['mch_aura_dmg', 'mch_aura_acc'], bigModel: '100%', faction: 'Военные',
     soundAttack: 'shotenemy', nowModel: 'military2', dead: 'dead', avatar: 'military2', level: 2,
   },
   'Военные (boss)': {

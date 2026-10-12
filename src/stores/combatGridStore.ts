@@ -23,6 +23,7 @@ import { ALL_ABILITIES } from '../data/accessoryAbilities';
 import { petBaseStats, petBranchBonuses, petCellsPerAp, petSatietyAt, petMood, petHpMult, PET_META, type PetKind, type PetBattleAbility } from '../data/pets';
 import { generateSkirmishObstacles, autoDeploySkirmishEnemies, SKIRMISH_ZONE, SKIRMISH_LEFT } from '../engine/skirmishMap';
 import { MERC_BUILDS as MERC_BUILD_DEFS } from '../data/mercenaries';
+import { applyMercMult } from '../engine/mercAbilities';
 
 const GRID = 32;
 const BASE_AP = 5;
@@ -6683,6 +6684,41 @@ export async function executeSkill(
           ),
         }));
       }
+      return { costAp: 0 };
+    }
+
+    // --- Ауры вражеского механика (своей команде в 10 кл, 2 хода, КД 8) ---
+    case 'mch_aura_dmg': {
+      if (enemy.cooldowns?.['mch_aura_dmg'] > 0) return null;
+      const mates = get().enemies.filter((o: any) =>
+        o.faction === enemy.faction && !o.dead && (o.currentHp || 0) > 0 &&
+        o.id !== enemy.id && getDist(enemy.pos, o.pos) <= 10);
+      if (mates.length === 0) return null;
+      for (const m of mates) applyMercMult(m, 'damage', 1.2, 2);
+      set((s: any) => ({ enemies: [...s.enemies] }));
+      playCombatSound('Aeon_Disk', 0.4);
+      get().addPopup(enemy.pos.x, enemy.pos.y, '🔥 АУРА УРОНА!', 'BUFF');
+      get().addBattleLog(`🔥 ${enemy.name}: аура урона +20% (${mates.length}, 2 хода)`);
+      setCd('mch_aura_dmg', 8);
+      if (!enemy.cooldowns) enemy.cooldowns = {};
+      enemy.cooldowns['mch_aura_dmg'] = 8;
+      return { costAp: 0 };
+    }
+
+    case 'mch_aura_acc': {
+      if (enemy.cooldowns?.['mch_aura_acc'] > 0) return null;
+      const mates = get().enemies.filter((o: any) =>
+        o.faction === enemy.faction && !o.dead && (o.currentHp || 0) > 0 &&
+        o.id !== enemy.id && getDist(enemy.pos, o.pos) <= 10);
+      if (mates.length === 0) return null;
+      for (const m of mates) applyMercMult(m, 'accuracy', 1.2, 2);
+      set((s: any) => ({ enemies: [...s.enemies] }));
+      playCombatSound('reload', 0.4);
+      get().addPopup(enemy.pos.x, enemy.pos.y, '🎯 АУРА МЕТКОСТИ!', 'BUFF');
+      get().addBattleLog(`🎯 ${enemy.name}: аура меткости +20% (${mates.length}, 2 хода)`);
+      setCd('mch_aura_acc', 8);
+      if (!enemy.cooldowns) enemy.cooldowns = {};
+      enemy.cooldowns['mch_aura_acc'] = 8;
       return { costAp: 0 };
     }
 

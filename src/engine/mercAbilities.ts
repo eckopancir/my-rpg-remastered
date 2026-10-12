@@ -47,20 +47,37 @@ export const hitRedirectTank = (tank: any, dmg: number, fromName: string): void 
   }
 };
 
-/** Временный бафф на юнита: прямая смена стата + запись для отката. */
-export const applyMercBuff = (
-  target: any, stat: string, mult: number, turns: number, label: string,
-): void => {
+/** Временный бафф на юнита с защитой от наложений: повтор гасит старый, база — первая. */
+const baseOf = (t: any, stat: string): number => {
+  const cur = (t as any)[stat];
+  if (typeof cur === 'number') return cur;
+  return stat === 'incomingDamageMult' ? 1 : 0;
+};
+
+const syncDps = (t: any): void => {
+  if (typeof (t as any)?.dps === 'number') {
+    (t as any).dps = (t.damage || 0) * (1 + ((t as any).speed || 0));
+  }
+};
+
+export const applyMercMult = (target: any, stat: string, mult: number, turns: number): void => {
   if (!target || turns <= 0) return;
-  const base = (target as any)[stat];
-  if (typeof base !== 'number') return;
+  const arr: any[] = (target as any).mercBuffs || [];
+  const prev = arr.find((b) => b.stat === stat);
+  const base = prev ? prev.base : baseOf(target, stat);
+  (target as any).mercBuffs = [...arr.filter((b) => b.stat !== stat), { stat, base, mult, remaining: turns }];
   (target as any)[stat] = base * mult;
-  (target as any).mercBuffs = [
-    ...((target as any).mercBuffs || []),
-    { stat, base, remaining: turns },
-  ];
-  const cs = useCombatGridStore.getState();
-  cs.addPopup(target.pos.x, target.pos.y, label, 'BUFF');
+  if (stat === 'damage' || stat === 'speed') syncDps(target);
+};
+
+export const applyMercAdd = (target: any, stat: string, add: number, turns: number): void => {
+  if (!target || turns <= 0) return;
+  const arr: any[] = (target as any).mercBuffs || [];
+  const prev = arr.find((b) => b.stat === stat);
+  const base = prev ? prev.base : baseOf(target, stat);
+  (target as any).mercBuffs = [...arr.filter((b) => b.stat !== stat), { stat, base, add, remaining: turns }];
+  (target as any)[stat] = base + add;
+  if (stat === 'damage' || stat === 'speed') syncDps(target);
 };
 
 /** Тик баффов (вызывать в глобальном тике ИИ): откат истёкших. */
@@ -78,9 +95,7 @@ export const tickMercBuffs = (e: any): void => {
   }
   (e as any).mercBuffs = left;
   // dps кешируется — пересчитать после отката урона/скорости.
-  if (dmgTouched && typeof (e as any).dps === 'number') {
-    (e as any).dps = (e.damage || 0) * (1 + ((e as any).speed || 0));
-  }
+  if (dmgTouched) syncDps(e);
 };
 
 const commit = (list: any[]) =>
@@ -163,9 +178,7 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
     // Сейв при HP<30%.
     if (hpFrac < 0.3) {
       if (build === 'juggernaut' && hasMercStar(merc, 5) && ready(merc, 'jug_last')) {
-        const baseLast = (merc as any).incomingDamageMult ?? 1;
-        (merc as any).incomingDamageMult = 0.2;
-        merc.mercBuffs = [...(merc.mercBuffs || []), { stat: 'incomingDamageMult', base: baseLast, remaining: 1 }];
+        applyMercMult(merc, 'incomingDamageMult', 0.2, 1);
         setCd(merc, 'jug_last', 10);
         cs.addPopup(merc.pos.x, merc.pos.y, '💢 −80%!', 'BUFF');
         playCombatSound('block', 0.4);
@@ -175,9 +188,12 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
         return;
       }
       if (build === 'fortress' && hasMercStar(merc, 5) && ready(merc, 'frt_ghost')) {
-        const base = merc.evasion;
+        // Абсолютные 100%: сносим старый уклон-бафф, базу помним для отката.
+        const arr: any[] = merc.mercBuffs || [];
+        const prev = arr.find((b) => b.stat === 'evasion');
+        const base = prev ? prev.base : (merc.evasion || 0);
+        merc.mercBuffs = [...arr.filter((b) => b.stat !== 'evasion'), { stat: 'evasion', base, remaining: 1 }];
         merc.evasion = 1.0;
-        merc.mercBuffs = [...(merc.mercBuffs || []), { stat: 'evasion', base, remaining: 1 }];
         setCd(merc, 'frt_ghost', 10);
         playCombatSound('invis', 0.4);
         cs.addPopup(merc.pos.x, merc.pos.y, '👤 НЕВИДИМ!', 'BUFF');
@@ -190,9 +206,7 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
     // Рабочие баффы.
     if (hostiles.length > 0) {
       if (build === 'juggernaut' && hasMercStar(merc, 2) && ready(merc, 'jug_wall')) {
-        const baseWall = (merc as any).incomingDamageMult ?? 1;
-        (merc as any).incomingDamageMult = 0.5;
-        merc.mercBuffs = [...(merc.mercBuffs || []), { stat: 'incomingDamageMult', base: baseWall, remaining: 2 }];
+        applyMercMult(merc, 'incomingDamageMult', 0.5, 2);
         setCd(merc, 'jug_wall', 8);
         playCombatSound('invis', 0.4);
         cs.addPopup(merc.pos.x, merc.pos.y, '🛡️ СТЕНА!', 'BUFF');
@@ -202,9 +216,8 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
         return;
       }
       if (build === 'fortress' && hasMercStar(merc, 2) && ready(merc, 'frt_dodge')) {
-        const base = merc.evasion;
-        merc.evasion = Math.min(1, base + 0.3);
-        merc.mercBuffs = [...(merc.mercBuffs || []), { stat: 'evasion', base, remaining: 3 }];
+        applyMercAdd(merc, 'evasion', 0.3, 3);
+        merc.evasion = Math.min(1, merc.evasion);
         setCd(merc, 'frt_dodge', 8);
         playCombatSound('evasion', 0.4);
         cs.addPopup(merc.pos.x, merc.pos.y, '🌀 +30% УКЛ!', 'BUFF');
@@ -277,6 +290,9 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       }
       // Граната/бинт.
       if (build === 'elena' && hasMercStar(merc, 3) && ready(merc, 'eln_grenade') && d <= 14) {
+        useCombatGridStore.setState({ flyingGrenade: { from: { ...merc.pos }, to: { ...tgt.pos } } });
+        await new Promise((r) => setTimeout(r, 600));
+        useCombatGridStore.setState({ flyingGrenade: null });
         healUnit(tgt, tgt.maxHp * 0.25, merc.name);
         setCd(merc, 'eln_grenade', 10);
         playCombatSound('grenadeBoom', 0.3);
@@ -286,10 +302,8 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
         return;
       }
       if (build === 'boris' && hasMercStar(merc, 3) && ready(merc, 'brs_bandage') && d <= 14) {
-        const base = tgt.regen || 0;
-        const add = tgt.maxHp * 0.05;
-        tgt.regen = base + add;
-        tgt.mercBuffs = [...(tgt.mercBuffs || []), { stat: 'regen', base, remaining: 10 }];
+        // +5% HP/ход 10 ходов.
+        applyMercAdd(tgt, 'regen', tgt.maxHp * 0.05, 10);
         setCd(merc, 'brs_bandage', 10);
         playCombatSound('healer', 0.4);
         cs.addPopup(tgt.pos.x, tgt.pos.y, '🩹 БИНТ!', 'HEAL');
@@ -304,9 +318,7 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       const tgt = wounded90[0];
       const d = getDist(merc.pos, tgt.pos);
       if (build === 'elena' && hasMercStar(merc, 4) && ready(merc, 'eln_stim') && d <= 14) {
-        const base = tgt.vampir || 0;
-        tgt.vampir = base + 1.0;
-        tgt.mercBuffs = [...(tgt.mercBuffs || []), { stat: 'vampir', base, remaining: 1 }];
+        applyMercAdd(tgt, 'vampir', 1.0, 1);
         setCd(merc, 'eln_stim', 10);
         playCombatSound('1bbfc9b5f4347f2', 0.4);
         cs.addPopup(tgt.pos.x, tgt.pos.y, '🩸 ВАМПИРИЗМ!', 'BUFF');
@@ -318,9 +330,7 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       if (build === 'boris' && hasMercStar(merc, 4) && ready(merc, 'brs_stim') && d <= 14) {
         const base = tgt.regen || 0;
         // +200%: от нуля считать нечего — дать плоские 5% maxHp.
-        const add = base > 0 ? base * 2 : tgt.maxHp * 0.05;
-        tgt.regen = base + add;
-        tgt.mercBuffs = [...(tgt.mercBuffs || []), { stat: 'regen', base, remaining: 1 }];
+        applyMercAdd(tgt, 'regen', base > 0 ? base * 2 : tgt.maxHp * 0.05, 1);
         setCd(merc, 'brs_stim', 10);
         playCombatSound('1bbfc9b5f4347f2', 0.4);
         cs.addPopup(tgt.pos.x, tgt.pos.y, '♻️ РЕГЕН x3!', 'BUFF');
@@ -335,10 +345,10 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
 
   // --- МЕХАНИК ---
   if (role === 'mechanic') {
-    // Стан.
+    // Стан (по спящим не тратим).
     if (hasMercStar(merc, 1) && ready(merc, 'mch_stun')) {
       const tgt = hostiles
-        .filter((h) => getDist(merc.pos, h.pos) <= 10)
+        .filter((h) => !h.sleeping && getDist(merc.pos, h.pos) <= 10)
         .sort((a, b) => getDist(merc.pos, a.pos) - getDist(merc.pos, b.pos))[0];
       if (tgt) {
         tgt.stunned = true;
@@ -357,16 +367,13 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       let n = 0;
       for (const a of allies) {
         if (a.id !== merc.id && getDist(merc.pos, a.pos) <= 10) {
-          const base = a.damage || 0;
-          a.damage = base * 1.2;
-          a.dps = a.damage * (1 + (a.speed || 0));
-          a.mercBuffs = [...(a.mercBuffs || []), { stat: 'damage', base, remaining: 2 }];
+          applyMercMult(a, 'damage', 1.2, 2);
           n++;
         }
       }
       const cs0 = useCombatGridStore.getState();
       if (getDist(merc.pos, cs0.playerPos) <= 10) {
-        refreshPlayerAura('merc_mch_dmg', 'Аура урона', { damage: 0.2 });
+        refreshPlayerAura('ability_merc_mch_dmg', 'Аура урона', { damage: 0.2 });
         n++;
       }
       if (n > 0) {
@@ -384,14 +391,12 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       const tgt = hostiles
         .filter((h) => {
           const k = `${h.name} ${(h as any).factionKey || ''}`.toLowerCase();
-          return !k.includes('tank') && !k.includes('(medic)') && !k.includes('медик') &&
+          return !h.sleeping && !k.includes('tank') && !k.includes('(medic)') && !k.includes('медик') &&
             getDist(merc.pos, h.pos) <= 14;
         })
         .sort((a, b) => getDist(merc.pos, a.pos) - getDist(merc.pos, b.pos))[0];
       if (tgt) {
-        const base = tgt.accuracy;
-        tgt.accuracy = base * 0.7;
-        tgt.mercBuffs = [...(tgt.mercBuffs || []), { stat: 'accuracy', base, remaining: 1 }];
+        applyMercMult(tgt, 'accuracy', 0.7, 1);
         setCd(merc, 'mch_blind', 8);
         playCombatSound('shotenemy', 0.3);
         cs.addPopup(tgt.pos.x, tgt.pos.y, '🎯‍🟥 −30% МЕТК!', 'SPECIAL');
@@ -406,15 +411,13 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       let n = 0;
       for (const a of allies) {
         if (a.id !== merc.id && getDist(merc.pos, a.pos) <= 10) {
-          const base = a.accuracy || 0;
-          a.accuracy = base * 1.2;
-          a.mercBuffs = [...(a.mercBuffs || []), { stat: 'accuracy', base, remaining: 2 }];
+          applyMercMult(a, 'accuracy', 1.2, 2);
           n++;
         }
       }
       const cs0 = useCombatGridStore.getState();
       if (getDist(merc.pos, cs0.playerPos) <= 10) {
-        refreshPlayerAura('merc_mch_acc', 'Аура меткости', { accuracy: 0.2 });
+        refreshPlayerAura('ability_merc_mch_acc', 'Аура меткости', { accuracy: 0.2 });
         n++;
       }
       if (n > 0) {
