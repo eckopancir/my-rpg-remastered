@@ -65,6 +65,27 @@ export function generateSkirmishObstacles(): any[] {
   // Вне зоны — плотно малыми объектами, внутри — редкие проходимые укрытия.
   tryPlace(OUTSIDE_POOLS, 400, 34);
   tryPlace(INSIDE_POOLS, 120, 10);
+
+  // Кольцо арены: забор по периметру зоны. Держит всех внутри механиками
+  // (блок хода и выстрелов), а не кодом — и выглядит как арена.
+  const fence = (x: number, y: number) => {
+    if (occupied.has(`${x},${y}`)) return;
+    list.push({
+      id: `sk_ring_${id++}`, x, y, w: 1, h: 1,
+      type: 'fence', blocks: true, icon: 'fence', imgKey: 'o5',
+      isWalkable: false, isHigh: true, imgIndex: 0, rot: 0,
+      shootThrough: false, searchLoot: null,
+    });
+    mark(x, y);
+  };
+  for (let x = SKIRMISH_ZONE.x1 - 1; x <= SKIRMISH_ZONE.x2 + 1; x++) {
+    fence(x, SKIRMISH_ZONE.y1 - 1);
+    fence(x, SKIRMISH_ZONE.y2 + 1);
+  }
+  for (let y = SKIRMISH_ZONE.y1; y <= SKIRMISH_ZONE.y2; y++) {
+    fence(SKIRMISH_ZONE.x1 - 1, y);
+    fence(SKIRMISH_ZONE.x2 + 1, y);
+  }
   return list;
 }
 

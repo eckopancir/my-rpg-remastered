@@ -357,6 +357,7 @@ export const BattleGrid = () => {
   }, [enemies, reserve]);
   const celebration = useCombatGridStore((s) => s.celebration);
   const isDeployment = useCombatGridStore((s) => s.isDeployment);
+  const isSkirmish = useCombatGridStore((s) => s.isSkirmish);
   // Победа + живые мусорщики → празднование вместо мгновенного финиша.
   useEffect(() => {
     if (!canFinish || celebration) return;
@@ -939,7 +940,7 @@ export const BattleGrid = () => {
 
   return (
     <div className={`${styles.container}${isShaking ? ` ${styles.arenaShake}` : ''}`}>
-      <div className={styles.battleScreen} ref={gridRef} style={{ backgroundImage: `url(${getMapImage(battleBg || 'mapbattle') || images.mapBattle})`, marginTop: 30 }}>
+      <div className={styles.battleScreen} ref={gridRef} style={{ backgroundImage: `url(${getMapImage(battleBg || 'mapbattle') || images.mapBattle})`, marginTop: 30, ...(isSkirmish ? { transform: 'scale(1.3)', transformOrigin: 'center center' } : null) }}>
         <NightDarkness />
 
         {/* Погодный туман карты (конструктор): молочно-серая пелена. */}

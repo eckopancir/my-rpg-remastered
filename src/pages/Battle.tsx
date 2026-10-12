@@ -80,6 +80,60 @@ const MercAllyCard = ({ m }: { m: any }) => {
   );
 };
 
+// Карточка врага в стычке: зеркало союзника слева — здоровье, оружие, способности с КД.
+const FoeSkirmishCard = ({ e, onPick }: { e: any; onPick: () => void }) => {
+  const cds = e.cooldowns || {};
+  const gear = Array.isArray(e.gear) ? e.gear : [];
+  const weapon = gear.find((g: any) => g && (g.slot === 'weapon1' || g.slot === 'weapon2'));
+  const skills = Array.isArray(e.skillUse) ? e.skillUse.filter((s: any) => s && s !== '') : [];
+  const hpFrac = Math.max(0, Math.min(1, (e.currentHp || 0) / Math.max(1, e.maxHp || 1)));
+  return (
+    <div
+      onClick={onPick}
+      style={{
+        marginTop: 6, padding: '6px 8px', borderRadius: 6, cursor: 'pointer',
+        background: e.dead ? 'rgba(255,255,255,0.02)' : 'rgba(248,113,113,0.05)',
+        border: '1px solid rgba(248,113,113,0.25)',
+        opacity: e.dead ? 0.5 : 1,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#fca5a5' }}>
+        {e.dead ? '💀' : '👾'} {e.callsign ? `${e.callsign} · ` : ''}{e.name}
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.1)', margin: '4px 0', overflow: 'hidden' }}>
+        <div style={{ width: `${Math.round(hpFrac * 100)}%`, height: '100%', background: hpFrac < 0.3 ? '#f87171' : '#fb923c' }} />
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        {Math.round(e.currentHp || 0)}/{Math.round(e.maxHp || 0)} · 🗡️{Math.round(e.damage || 0)} · 🛡️{Math.round(e.armor || 0)}
+      </div>
+      {skills.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
+          {skills.map((sk: string) => {
+            const cd = Math.max(0, Math.round(cds[sk] || 0));
+            return (
+              <span
+                key={sk}
+                title={`${sk}${cd > 0 ? ` — КД ${cd}` : ' — готов'}`}
+                style={{
+                  fontSize: 9, padding: '1px 5px', borderRadius: 3,
+                  background: cd > 0 ? 'rgba(248,113,113,0.12)' : 'rgba(74,222,128,0.12)',
+                  border: `1px solid ${cd > 0 ? 'rgba(248,113,113,0.35)' : 'rgba(74,222,128,0.35)'}`,
+                  color: cd > 0 ? '#fca5a5' : '#86efac',
+                }}
+              >
+                {SKILL_ICONS[sk] || '✨'} {cd > 0 ? `КД ${cd}` : '✓'}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 3 }}>
+        🔫 {weapon?.displayName || weapon?.name || '—'}
+      </div>
+    </div>
+  );
+};
+
 const LogPanel = () => {
   const battleLogs = useCombatGridStore((s) => s.battleLogs);
   const logSize = useUiStore((s) => s.battleLogSize ?? 50);
@@ -132,6 +186,7 @@ const SKILL_ICONS: Record<string, string> = {
   rage: '💢', aimShot: '🎯', invisibility: '👤', ram: '🏃',
   madness: '🌀', grenade: '💣', redZone: '🚨', suppression: '🔥',
   stimulant: '💉', summoner: '👥',
+  mch_aura_dmg: '🔥', mch_aura_acc: '🎯',
 };
 
 /** Вспышка хода по центру арены: показалась и пропала (1.4с). */
@@ -332,6 +387,7 @@ export const Battle = () => {
   const stealthKill = useCombatGridStore((s) => s.stealthKill);
   const endTurn = useCombatGridStore((s) => s.endTurn);
   const isDeployment = useCombatGridStore((s) => s.isDeployment);
+  const isSkirmish = useCombatGridStore((s) => s.isSkirmish);
   const deployQueue = useCombatGridStore((s) => s.deployQueue);
   const confirmDeployment = useCombatGridStore((s) => s.confirmDeployment);
   const attackEnemy = useCombatGridStore((s) => s.attackEnemy);
@@ -959,6 +1015,7 @@ export const Battle = () => {
       {isActive && (
         <div style={{
           width: 276, flexShrink: 0,
+          maxHeight: 'calc(100vh - 120px)', overflowY: 'auto',
           background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
           border: '2px solid rgba(217,119,6,0.2)',
           borderRadius: 8,
@@ -966,6 +1023,19 @@ export const Battle = () => {
           color: 'var(--text-secondary)',
           fontFamily: 'var(--font-sans)',
         }}>
+          {/* Стычка: худ врагов справа — зеркало союзников слева */}
+          {isSkirmish && (
+            <div style={{ padding: '8px 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <span style={{ width: 14, height: 1, background: 'rgba(248,113,113,0.4)' }} />
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#f87171' }}>◆ ПРОТИВНИК</span>
+                <span style={{ flex: 1, height: 1, background: 'rgba(248,113,113,0.14)' }} />
+              </div>
+              {enemies.filter((e: any) => e.faction !== 'Союзник' && !(e as any).isNeutral).map((e: any) => (
+                <FoeSkirmishCard key={e.id} e={e} onPick={() => { playClick(); useCombatGridStore.getState().selectEnemy(e.id); }} />
+              ))}
+            </div>
+          )}
           {hoverTarget ? (() => {
             const ePow = Math.round(hoverTarget.damage) * 3 +
               Math.round(hoverTarget.maxHp / 10) +
