@@ -388,6 +388,7 @@ export const Battle = () => {
   const endTurn = useCombatGridStore((s) => s.endTurn);
   const isDeployment = useCombatGridStore((s) => s.isDeployment);
   const isSkirmish = useCombatGridStore((s) => s.isSkirmish);
+  const playerDown = useCombatGridStore((s) => s.playerDown);
   const deployQueue = useCombatGridStore((s) => s.deployQueue);
   const confirmDeployment = useCombatGridStore((s) => s.confirmDeployment);
   const attackEnemy = useCombatGridStore((s) => s.attackEnemy);
@@ -415,6 +416,18 @@ export const Battle = () => {
     clearBattleEntry();
     usePlayerStore.setState((st: any) => ({ combat: { ...st.combat, isFighting: false } }));
   }, [playClick]);
+
+  // Стычка: игрок без сознания — ход автоматически уходит отряду.
+  useEffect(() => {
+    if (!isSkirmish || !playerDown || turn !== 'player' || !isActive || isVictory || isDefeat || isDeployment) return;
+    const t = setTimeout(() => {
+      const st = useCombatGridStore.getState();
+      if (st.isSkirmish && st.playerDown && st.turn === 'player' && st.isActive && !st.isVictory && !st.isDefeat) {
+        st.endTurn();
+      }
+    }, 900);
+    return () => clearTimeout(t);
+  }, [isSkirmish, playerDown, turn, isActive, isVictory, isDefeat, isDeployment]);
 
   // Переигровка волны после рефреша: точка входа сохранена в initCombat.
   const battleEntry = combat.isFighting && !isActive ? loadBattleEntry() : null;
@@ -680,6 +693,16 @@ export const Battle = () => {
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-mono)' }}>Раунд #{turnCount}</div>
           </div>
+          {/* Стычка: без сознания — держится отряд */}
+          {playerDown && (
+            <div style={{
+              margin: '8px 12px 0', padding: '6px 8px', borderRadius: 6, textAlign: 'center',
+              border: '1px solid rgba(248,113,113,0.5)', background: 'rgba(248,113,113,0.1)',
+              color: '#fca5a5', fontSize: 12, fontWeight: 700,
+            }}>
+              😵 Ты без сознания — держится отряд!
+            </div>
+          )}
 
           <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* AP + боезапас */}

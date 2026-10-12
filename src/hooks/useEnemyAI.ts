@@ -9,7 +9,7 @@ import { calcExtraShots } from '../utils/itemPower';
 import { rollGearOnDeath } from '../engine/enemyGear';
 import {
   mercAbilityTurn, splitTankRedirect, hitRedirectTank, tickMercBuffs,
-  mechanicLastGift,
+  tickMercAura, mechanicLastGift,
 } from '../engine/mercAbilities';
 import { generateLoot, rankOfEnemy } from '../engine/loot';
 import { GAME_ITEMS } from '../data/GameItems';
@@ -203,6 +203,7 @@ export const useEnemyAI = () => {
           if (nextSleepTurns <= 0) { nextSleeping = false; nextSleepTurns = undefined; }
         }
         try { tickMercBuffs(e); } catch { /* ignore */ }
+        try { tickMercAura(e); } catch { /* ignore */ }
         return {
           ...e,
           sleeping: nextSleeping,
@@ -253,6 +254,9 @@ export const useEnemyAI = () => {
 
       const playerStats = usePlayerStore.getState().stats;
       const isPlayerInvisible = useCombatGridStore.getState().playerInvisible;
+      // Игрок без сознания в стычке — не цель (бьют отряд).
+      const playerGone = isPlayerInvisible ||
+        (useCombatGridStore.getState().isSkirmish && !!useCombatGridStore.getState().playerDown);
 
       // Подкрепление в свой ход: отложенные враги с угла карты / зоны.
       {
@@ -784,7 +788,7 @@ export const useEnemyAI = () => {
             );
             if (nearbyAlly) {
               targetPos = { ...nearbyAlly.pos };
-            } else if (isPlayerInvisible) {
+            } else if (playerGone) {
               // Player invisible, no ally visible — idle
               enemyAp = 0; break;
             } else {
@@ -832,7 +836,11 @@ export const useEnemyAI = () => {
           }
 
           const dist = getDist(enemy.pos, targetPos);
-          const inRange = dist <= (enemy.rangeDistance || 7);
+          // Танк-наёмник держит фронт: работает в упор (до 4 кл), дальше — сближается.
+          const engageRange = (enemy as any).isMerc && (enemy as any).mercRole === 'tank'
+            ? Math.min(4, enemy.rangeDistance || 7)
+            : (enemy.rangeDistance || 7);
+          const inRange = dist <= engageRange;
           const canSee = checkVisibility(enemy.pos, 0, targetPos, currentStore.obstacles, { range: 15, fov: 360 });
 
           // --- Дальник-искатель: стоим открыто, а рядом есть укрытие с прострелом
@@ -1094,7 +1102,7 @@ export const useEnemyAI = () => {
               const tgtArmor = defender2 ? defender2.armor : curAfter.armor;
               const tgtEvasion = defender2 ? defender2.evasion : curAfter.evasion;
               const tgtBlock = defender2 ? defender2.block : curAfter.block;
-              const tgtIncoming = defender2 ? 1 : curAfter.incomingDamageMult;
+              const tgtIncoming = defender2 ? ((defender2 as any).incomingDamageMult ?? 1) : curAfter.incomingDamageMult;
               const result2 = calculateCombatResult(
                 { dps: enemyDps2, accuracy: enemy.accuracy, crit: enemy.crit, critChance: (enemy as any).critChance || 0, critDamage: (enemy as any).critDamage || 0, punching: enemy.punching, vampir: enemy.vampir, isPlayer: false, dist: getDist(enemy.pos, targetPos), ammoGroup: (enemy as any).ammoGroup || 'rifle' },
                 applyTerrainToTarget(
@@ -1109,7 +1117,13 @@ export const useEnemyAI = () => {
               if (result2.damage > 0) {
                 const finalDmg2 = Math.round(result2.damage);
                 if (extraTargetAlly) {
-                  extraTargetAlly.currentHp = Math.max(0, extraTargetAlly.currentHp - finalDmg2);
+                  let allyDmg2 = finalDmg2;
+                  try {
+                    const split2 = splitTankRedirect(extraTargetAlly, finalDmg2, updatedEnemies);
+                    allyDmg2 = split2.dmg;
+                    for (const h of split2.hits) hitRedirectTank(h.tank, h.dmg, enemy.name);
+                  } catch { /* ignore */ }
+                  extraTargetAlly.currentHp = Math.max(0, extraTargetAlly.currentHp - allyDmg2);
                   extraTargetAlly.isHit = true;
                   useCombatGridStore.getState().addPopup(extraTargetAlly.pos.x, extraTargetAlly.pos.y, result2.text, result2.type);
                   useCombatGridStore.getState().addBattleLog(buildShotLog(`${enemy.name} ↺`, extraTargetAlly.name, result2, { cur: Math.round(extraTargetAlly.currentHp), max: Math.round(extraTargetAlly.maxHp) }));
@@ -1168,8 +1182,14 @@ export const useEnemyAI = () => {
                   useCombatGridStore.setState({ isPlayerHit: true });
                   setTimeout(() => useCombatGridStore.setState({ isPlayerHit: false }), 300);
                 } else {
+                  let playerDmg2 = finalDmg2;
+                  try {
+                    const split2 = splitTankRedirect({ id: '__player2__' }, finalDmg2, updatedEnemies);
+                    playerDmg2 = split2.dmg;
+                    for (const h of split2.hits) hitRedirectTank(h.tank, h.dmg, enemy.name);
+                  } catch { /* ignore */ }
                   usePlayerStore.setState((st: any) => ({
-                    stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - finalDmg2) },
+                    stats: { ...st.stats, currentHp: Math.max(0, st.stats.currentHp - playerDmg2) },
                   }));
                   useCombatGridStore.getState().addPopup(currentStore.playerPos.x, currentStore.playerPos.y, result2.text, result2.type);
                   {
@@ -1206,6 +1226,44 @@ export const useEnemyAI = () => {
 
           if (enemyAp > 0) {
             const curStore2 = useCombatGridStore.getState();
+            // Тактика наёмников: медик/механик кайтят (держат дистанцию от врага).
+            if ((enemy as any).isMerc && enemyAp > 0) {
+              const role = (enemy as any).mercRole as string;
+              const minBand = role === 'medic' ? 5 : role === 'mechanic' ? 6 : 0;
+              if (minBand > 0) {
+                const foe = updatedEnemies
+                  .filter((o: any) => o.faction !== enemy.faction && !(o as any).isNeutral && !o.dead && (o.currentHp || 0) > 0)
+                  .sort((a: any, b: any) => getDist(enemy.pos, a.pos) - getDist(enemy.pos, b.pos))[0];
+                if (foe && getDist(enemy.pos, foe.pos) < minBand) {
+                  const dirs = [
+                    { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+                    { dx: 1, dy: 1 }, { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 },
+                  ];
+                  let best: any = null;
+                  let bestD = getDist(enemy.pos, foe.pos);
+                  for (const dd of dirs) {
+                    const nx = enemy.pos.x + dd.dx, ny = enemy.pos.y + dd.dy;
+                    if (nx < 0 || ny < 0 || nx >= 32 || ny >= 32) continue;
+                    if (!isCellWalkable(nx, ny, curStore2.obstacles)) continue;
+                    if (nx === curStore2.playerPos.x && ny === curStore2.playerPos.y) continue;
+                    if (updatedEnemies.some((o: any) => o.id !== enemy.id && !o.dead && (o.currentHp || 0) > 0 && o.pos.x === nx && o.pos.y === ny)) continue;
+                    const skA = (curStore2 as any).skirmishArena;
+                    if (skA && (nx < skA.x1 || nx > skA.x2 || ny < skA.y1 || ny > skA.y2)) continue;
+                    const nd = Math.hypot(nx - foe.pos.x, ny - foe.pos.y);
+                    if (nd > bestD) { bestD = nd; best = { x: nx, y: ny }; }
+                  }
+                  if (best) {
+                    enemy.pos = { ...best };
+                    enemy.rotation = getAngle(foe.pos, best);
+                    updatedEnemies[i] = { ...enemy };
+                    useCombatGridStore.setState({ enemies: [...updatedEnemies] });
+                    enemyAp -= 1;
+                    await new Promise((r) => setTimeout(r, 200));
+                    continue;
+                  }
+                }
+              }
+            }
             // Часовые держат пост только вне боя; в бою идут в атаку как все.
             // Дальник-искатель: шаг к лучшему укрытию с прострелом по цели.
             if (enemy.coverSeeker && !isAlly && !isMedic) {
@@ -1316,15 +1374,33 @@ export const useEnemyAI = () => {
       // Check player death
       const playerAfter = usePlayerStore.getState();
       if (playerAfter.stats.currentHp <= 0) {
-        useCombatGridStore.getState().addMessage('💀 Ты пал в бою...');
-        useCombatGridStore.getState().addBattleLog('💀 Поражение...');
-        useCombatGridStore.setState({ isDefeat: true, turn: 'player' });
-        isProcessing.current = false;
-        return;
+        const st0 = useCombatGridStore.getState();
+        // Стычка: смерть игрока — не конец, пока жив отряд.
+        const squadAlive = st0.isSkirmish && st0.enemies.some((e: any) =>
+          e.faction === 'Союзник' && !e.dead && !e.sleeping && (e.currentHp || 0) > 0 && !(e as any).isNeutral);
+        if (st0.isSkirmish && squadAlive) {
+          if (!st0.playerDown) {
+            useCombatGridStore.setState({ playerDown: true });
+            useCombatGridStore.getState().addMessage('😵 Ты без сознания! Отряд держится без тебя.');
+            useCombatGridStore.getState().addBattleLog('😵 Ты без сознания — бой продолжает отряд. Смерть всего отряда = поражение.');
+          }
+        } else {
+          useCombatGridStore.getState().addMessage('💀 Ты пал в бою...');
+          useCombatGridStore.getState().addBattleLog('💀 Поражение...');
+          useCombatGridStore.setState({ isDefeat: true, turn: 'player' });
+          isProcessing.current = false;
+          return;
+        }
       }
 
       // Start player turn — рефил AP питомца для ручных команд.
       const finalState = useCombatGridStore.getState();
+      // Очнулся (зона/реген подняли HP) — снова в бою.
+      if (finalState.isSkirmish && finalState.playerDown && usePlayerStore.getState().stats.currentHp > 0) {
+        useCombatGridStore.setState({ playerDown: false });
+        useCombatGridStore.getState().addMessage('✨ Ты очнулся! Снова в бою.');
+        useCombatGridStore.getState().addBattleLog('✨ Ты очнулся и вернулся в бой!');
+      }
       useCombatGridStore.setState({
         turn: 'player',
         ap: finalState.maxAp || BASE_AP,

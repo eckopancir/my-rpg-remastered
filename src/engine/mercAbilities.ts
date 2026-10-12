@@ -80,6 +80,14 @@ export const applyMercAdd = (target: any, stat: string, add: number, turns: numb
   if (stat === 'damage' || stat === 'speed') syncDps(target);
 };
 
+/** Тик аур механика (визуальные кольца). */
+export const tickMercAura = (e: any): void => {
+  const a = (e as any)?.mercAura;
+  if (!a) return;
+  a.remaining -= 1;
+  if (a.remaining <= 0) (e as any).mercAura = undefined;
+};
+
 /** Тик баффов (вызывать в глобальном тике ИИ): откат истёкших. */
 export const tickMercBuffs = (e: any): void => {
   const buffs = (e as any)?.mercBuffs;
@@ -378,6 +386,7 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       }
       if (n > 0) {
         setCd(merc, 'mch_dmg', 8);
+        (merc as any).mercAura = { kind: 'dmg', remaining: 2, radius: 10 };
         playCombatSound('Aeon_Disk', 0.4);
         cs.addPopup(merc.pos.x, merc.pos.y, '🔥 АУРА УРОНА!', 'BUFF');
         cs.addBattleLog(`🔥 ${merc.name}: аура урона +20% (${n} союзн., 2 хода)`);
@@ -422,6 +431,7 @@ export const mercAbilityTurn = async (merc: any, list: any[]): Promise<void> => 
       }
       if (n > 0) {
         setCd(merc, 'mch_acc', 8);
+        (merc as any).mercAura = { kind: 'acc', remaining: 2, radius: 10 };
         playCombatSound('reload', 0.4);
         cs.addPopup(merc.pos.x, merc.pos.y, '🎯 АУРА МЕТКОСТИ!', 'BUFF');
         cs.addBattleLog(`🎯 ${merc.name}: аура меткости +20% (${n} союзн., 2 хода)`);

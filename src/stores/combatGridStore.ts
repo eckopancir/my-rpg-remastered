@@ -539,6 +539,8 @@ export interface CombatGridStore {
   startSkirmish: (card: { enemyKeys: string[]; chipReward: number; xpReward?: number; customMapName?: string; rarity: { name: string; tier: number } }) => boolean;
   /** Стычка: идёт ли расстановка отряда (бой заморожен до «В бой!»). */
   isSkirmish: boolean;
+  /** Стычка: игрок без сознания (бой продолжает отряд). */
+  playerDown: boolean;
   /** Арена стычки (null — центр 20×20 по умолчанию). */
   skirmishArena: { x1: number; y1: number; x2: number; y2: number } | null;
   isDeployment: boolean;
@@ -1438,6 +1440,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   isActive: false,
   isTestArena: false,
   isSkirmish: false,
+  playerDown: false,
   skirmishArena: null,
   isDeployment: false,
   deployQueue: [],
@@ -2570,7 +2573,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     try { useUiStore.getState().setSkillBarPos(null); } catch { /* noop */ }
 
     set({
-      isActive: true, isTestArena: !!testMode, isSkirmish: false, skirmishArena: null, isDeployment: false, deployQueue: [], isRaining: testMode ? true : (!get().isNightTime && Math.random() < 0.5), playerPos, enemies: activeEnemies, obstacles,
+      isActive: true, isTestArena: !!testMode, isSkirmish: false, playerDown: false, skirmishArena: null, isDeployment: false, deployQueue: [], isRaining: testMode ? true : (!get().isNightTime && Math.random() < 0.5), playerPos, enemies: activeEnemies, obstacles,
       playerAbilities, abilityCooldowns, skillBarAbilities, skillBarCooldowns, petAbilities, petCooldowns, petCommandMode: false, petTargetId: null, petAiActive: false, celebration: false, searchCast: null, hitFx: null, selectedAbility: null, selectedAbilitySource: null,
       playerInvisible: false, playerInvisTurns: 0, immortalityTurns: 0, teleportStealthReady: false,
       freeReloadTurns: 0, playerRootedTurns: 0,
@@ -2782,6 +2785,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         campfire: null,
         pendingReinforce: [],
         isSkirmish: true,
+        playerDown: false,
         skirmishArena: { ...arena },
         isDeployment: true,
         // Игрок ставится первым, потом наёмники.
@@ -2931,6 +2935,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     const state = get();
     const free = state.celebration;
     if (state.turn !== 'player' || state.isMoving) return;
+    if (state.isSkirmish && state.playerDown) return;
     if (!free && state.ap <= 0) return;
     if (state.playerRootedTurns > 0) { get().addMessage('⛓️ Снайперская позиция: без движения!'); return; }
     if (!state.isSelected) return;
@@ -3056,6 +3061,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   useAbility: (enemyId) => {
     const state = get();
     if (state.turn !== 'player' || state.isMoving) return;
+    if (state.isSkirmish && state.playerDown) { get().addMessage('😵 Ты без сознания — отряд дерётся сам'); return; }
     const idx = state.selectedAbility;
     if (idx === null || idx === undefined) { get().addMessage('❌ Выбери способность'); return; }
     const source = state.selectedAbilitySource;
@@ -5279,6 +5285,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   attackEnemy: (enemyId) => {
     const state = get();
     if (state.turn !== 'player' || state.isMoving) return;
+    if (state.isSkirmish && state.playerDown) { get().addMessage('😵 Ты без сознания — отряд дерётся сам'); return; }
     const shotCost = 1;
     if (state.ap < shotCost) { get().addMessage('❌ Не хватает AP'); return; }
     if (state.ammo <= 0) {
@@ -5764,6 +5771,14 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
   finishBattle: () => {
     const state = get();
     const playerStore = usePlayerStore.getState();
+    // Стычка: отряд дотащил без сознания — очнуться с 10% HP.
+    if (state.isSkirmish && state.playerDown) {
+      const maxHp = playerStore.stats.maxHp || 1;
+      usePlayerStore.setState((st: any) => ({
+        stats: { ...st.stats, currentHp: Math.max(1, Math.round(maxHp * 0.1)) },
+      }));
+      playerStore.addLog('😵 Отряд дотащил тебя до победы! Очнулся с 10% HP.', 'heal');
+    }
     const lu = playerStore.skillUtility();
     const expReward = Math.floor(playerStore.combat.enemyExpReward * (1 + playerStore.level * 0.1) * lu.xpMultiplier);
     const chipReward = Math.floor(playerStore.combat.enemyChipReward * lu.chipMultiplier);
@@ -6418,7 +6433,7 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       }
     }
     set({
-      isActive: false, isTestArena: false, isSkirmish: false, skirmishArena: null, isDeployment: false, deployQueue: [], editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player', musicCombatOnly: false, mapMusicStarted: false, mapMusic: 'track', mapMusic2: '__none',
+      isActive: false, isTestArena: false, isSkirmish: false, playerDown: false, skirmishArena: null, isDeployment: false, deployQueue: [], editorPeace: false, exitConfirm: false, battleBg: 'mapbattle', decals: [], zones: [], fogLevel: 0, isRaining: false, celebration: false, searchCast: null, enemies: [], obstacles: [], turn: 'player', musicCombatOnly: false, mapMusicStarted: false, mapMusic: 'track', mapMusic2: '__none',
       ap: BASE_AP, turnCount: 0, lastShotTurn: 0, selectedEnemy: null, message: '',
       cursorPos: null, isVictory: false, isMoving: false, popups: [],
       shotLine: null, flyingGrenade: null, globalEffects: [], lootingEnemy: null,
@@ -6720,6 +6735,7 @@ export async function executeSkill(
         o.id !== enemy.id && getDist(enemy.pos, o.pos) <= 10);
       if (mates.length === 0) return null;
       for (const m of mates) applyMercMult(m, 'damage', 1.2, 2);
+      (enemy as any).mercAura = { kind: 'dmg', remaining: 2, radius: 10 };
       set((s: any) => ({ enemies: [...s.enemies] }));
       playCombatSound('Aeon_Disk', 0.4);
       get().addPopup(enemy.pos.x, enemy.pos.y, '🔥 АУРА УРОНА!', 'BUFF');
@@ -6737,6 +6753,7 @@ export async function executeSkill(
         o.id !== enemy.id && getDist(enemy.pos, o.pos) <= 10);
       if (mates.length === 0) return null;
       for (const m of mates) applyMercMult(m, 'accuracy', 1.2, 2);
+      (enemy as any).mercAura = { kind: 'acc', remaining: 2, radius: 10 };
       set((s: any) => ({ enemies: [...s.enemies] }));
       playCombatSound('reload', 0.4);
       get().addPopup(enemy.pos.x, enemy.pos.y, '🎯 АУРА МЕТКОСТИ!', 'BUFF');

@@ -1270,6 +1270,24 @@ export const BattleGrid = () => {
                       </div>
                     )}
                     {isSel && <div className={styles.crosshairCircle} />}
+                    {/* Кольцо ауры механика: следует за кастером, пока тикает */}
+                    {(enemy as any).mercAura && (enemy as any).mercAura.remaining > 0 && !enemy.sleeping && !enemy.dead && (() => {
+                      const r = (enemy as any).mercAura.radius || 10;
+                      const col = (enemy as any).mercAura.kind === 'acc' ? '96,165,250' : '248,113,113';
+                      // % от клетки юнита: диаметр в клетках × 100.
+                      const sizePct = (r * 2 + 1) * 100;
+                      return (
+                        <div style={{
+                          position: 'absolute', left: '50%', top: '50%',
+                          width: `${sizePct}%`, aspectRatio: '1',
+                          transform: 'translate(-50%,-50%)',
+                          border: `2px dashed rgba(${col},0.55)`,
+                          borderRadius: '50%',
+                          boxShadow: `0 0 14px rgba(${col},0.3), inset 0 0 20px rgba(${col},0.12)`,
+                          pointerEvents: 'none', zIndex: 4,
+                        }} />
+                      );
+                    })()}
                     {showEnemyHpNumbers && (
                       <div style={{
                         position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)',
