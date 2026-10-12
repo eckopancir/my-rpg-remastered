@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { usePlayerStore } from '../stores/playerStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
 import { useUiStore } from '../stores/uiStore';
-import { generateSkirmishCards, type SkirmishCard } from '../data/skirmish';
+import { generateSkirmishCards, skirmishPowerMult, type SkirmishCard } from '../data/skirmish';
 
 const slCost = (c: SkirmishCard) => 15 + c.rarity.tier * 5;
 
@@ -130,6 +130,9 @@ export const Skirmishes = () => {
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                   🛡️ Танк · 💉 Хил · {DAMAGER_LABEL[card.damager]} · 🔧 Техник
+                </div>
+                <div style={{ fontSize: 12, color: '#f87171', fontWeight: 700 }}>
+                  💀 Мощь врагов ×{skirmishPowerMult(card.rarity.tier)}
                 </div>
                 <div style={{ fontSize: 12, color: '#fbbf24', fontWeight: 700 }}>
                   💾 {card.chipReward} чипов за победу

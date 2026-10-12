@@ -2644,6 +2644,17 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       const obstacles = generateSkirmishObstacles();
       // Кабанов в стычке нет, костра нет: чистая арена.
       const noBoars = get().enemies.filter((e: any) => !(e as any).isNeutral);
+      // Тир стычки жмёт ВРАГОВ «во много раз» (союзников и игрока — нет).
+      const skirmMult = 1 + 0.5 * (card.rarity?.tier || 0);
+      for (const e of noBoars) {
+        if (e.faction === 'Союзник' || (e as any).isNeutral) continue;
+        e.maxHp = Math.round(e.maxHp * skirmMult);
+        e.currentHp = e.maxHp;
+        e.damage = Math.round(e.damage * skirmMult);
+        e.dps = e.damage * (1 + (e.speed || 0));
+        e.armor = Math.round(e.armor * skirmMult);
+        e.regen = (e.regen || 0) * skirmMult;
+      }
       autoDeploySkirmishEnemies(noBoars.filter((e: any) => e.faction !== 'Союзник'), obstacles);
       // Игрок — в левую половину.
       const px = SKIRMISH_LEFT.x1 + 4;
@@ -2756,6 +2767,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         message: '🛡️ Расстановка: ставим ТЕБЯ — кликни клетку слева от центра',
       });
       get().addBattleLog(`⚔️ Стычка 4×4 (${card.rarity.name}): расставь отряд и жми «В бой!»`);
+      if ((card.rarity?.tier || 0) > 0) {
+        get().addBattleLog(`💀 Тир ${card.rarity.name}: враги ×${1 + 0.5 * card.rarity.tier} к HP/урону/броне`);
+      }
       // Точку входа переписываем стычечной (иначе рефреш уронит бой в обычную карту без наёмников).
       try {
         saveBattleEntry({

@@ -42,6 +42,13 @@ export const SKIRMISH_COMP: Array<{ role: SkirmishRole; short: EnemyShortName | 
 
 export const MECHANIC_FACTION_KEY = 'Военные (mechanic)';
 
+/** Стычечный множитель тира поверх карточного: редкость решает «во много раз». */
+export const skirmishTierMult = (tier: number): number => 1 + 0.5 * Math.max(0, tier);
+
+/** Итоговая мощь карточки (показываем на карте): карточный × стычечный. */
+export const skirmishPowerMult = (tier: number): number =>
+  Math.round((1 + 0.2 * Math.max(0, tier)) * skirmishTierMult(tier) * 10) / 10;
+
 const shortToKey = (s: EnemyShortName | 'mechanic'): string =>
   s === 'mechanic' ? MECHANIC_FACTION_KEY : ENEMY_TYPE_TO_KEY[s];
 
