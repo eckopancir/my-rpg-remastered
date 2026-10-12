@@ -14,10 +14,71 @@ import { useUiStore } from '../stores/uiStore';
 import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist, closeRangeMult } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getCoverPenalty, distToRect } from '../engine/terrain';
+import { CARD_RARITY_TIERS } from '../data/encounters';
+import { MERC_BUILDS as MERC_BUILD_DEFS_BATTLE, starsLabel as mercStarsLabel } from '../data/mercenaries';
 import { effectiveItemStats } from '../utils/itemStats';
 import { useSound, playCombatSound, stopCombatSound, startMapMusic } from '../hooks/useSound';
 import { getEnemyImage, getCharacterImage, images, getSniperImage, petAvatarImage } from '../assets/index';
 import { SkillBar } from '../components/widgets/SkillBar';
+
+const MERC_ABIL_ICON: Record<string, string> = {
+  jug_redirect: '🛡️', frt_redirect: '🛡️', jug_wall: '🧱', jug_hp: '❤️', jug_regen: '💗',
+  jug_last: '💢', frt_dodge: '🌀', frt_block: '🧱', frt_armor: '🛡️', frt_ghost: '👤',
+  eln_power: '💉', brs_power: '💉', eln_zone: '💚', eln_grenade: '💣', eln_stim: '🩸',
+  eln_rez: '✦', brs_rez: '✦', brs_wave: '🌊', brs_bandage: '🩹', brs_stim: '♻️',
+  mch_stun: '⚡', mch_dmg: '🔥', mch_blind: '🎯', mch_acc: '🎯', mch_last: '💚',
+};
+
+// Карточка наёмника-союзника: HP, способности с КД, надетый шмот.
+const MercAllyCard = ({ m }: { m: any }) => {
+  const build = (MERC_BUILD_DEFS_BATTLE as any)?.[m.mercBuild];
+  const cds = m.cooldowns || {};
+  const gear = Array.isArray(m.gear) ? m.gear : [];
+  const weapon = gear.find((g: any) => g && (g.slot === 'weapon1' || g.slot === 'weapon2'));
+  const hpFrac = Math.max(0, Math.min(1, (m.currentHp || 0) / Math.max(1, m.maxHp || 1)));
+  return (
+    <div style={{
+      marginTop: 6, padding: '6px 8px', borderRadius: 6,
+      background: m.sleeping ? 'rgba(255,255,255,0.02)' : 'rgba(34,211,238,0.05)',
+      border: '1px solid rgba(34,211,238,0.2)',
+      opacity: m.sleeping ? 0.6 : 1,
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#a5f3fc' }}>
+        {m.sleeping ? '😴' : '🤝'} {m.name} <span style={{ color: '#fbbf24' }}>{mercStarsLabel(m.mercStars || 1)}</span>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.1)', margin: '4px 0', overflow: 'hidden' }}>
+        <div style={{ width: `${Math.round(hpFrac * 100)}%`, height: '100%', background: hpFrac < 0.3 ? '#f87171' : '#4ade80' }} />
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        {Math.round(m.currentHp || 0)}/{Math.round(m.maxHp || 0)} · 🗡️{Math.round(m.damage || 0)} · 🛡️{Math.round(m.armor || 0)}
+      </div>
+      {build && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
+          {build.abilities.filter((a: any) => (m.mercStars || 1) >= a.star).map((a: any) => {
+            const cd = Math.max(0, Math.round(cds[a.id] || 0));
+            return (
+              <span
+                key={a.id}
+                title={`${a.name} — ${a.desc}`}
+                style={{
+                  fontSize: 9, padding: '1px 5px', borderRadius: 3, cursor: 'help',
+                  background: cd > 0 ? 'rgba(248,113,113,0.12)' : 'rgba(74,222,128,0.12)',
+                  border: `1px solid ${cd > 0 ? 'rgba(248,113,113,0.35)' : 'rgba(74,222,128,0.35)'}`,
+                  color: cd > 0 ? '#fca5a5' : '#86efac',
+                }}
+              >
+                {MERC_ABIL_ICON[a.id] || '✨'} {cd > 0 ? `КД ${cd}` : '✓'}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 3 }} title={gear.map((g: any) => g?.displayName || g?.name).filter(Boolean).join(', ')}>
+        🔫 {weapon?.displayName || weapon?.name || 'без ствола'} · одето {gear.length}
+      </div>
+    </div>
+  );
+};
 
 const LogPanel = () => {
   const battleLogs = useCombatGridStore((s) => s.battleLogs);
@@ -305,6 +366,19 @@ export const Battle = () => {
     const e = loadBattleEntry();
     if (!e) return;
     playClick();
+    // Стычка: переигровка через startSkirmish (иначе бой без наёмников).
+    if ((e as any).skirmishCard) {
+      const sc = (e as any).skirmishCard;
+      const rarity = CARD_RARITY_TIERS.find((t) => t.name === sc.rarityName) || CARD_RARITY_TIERS[0];
+      usePlayerStore.getState().startCombat(1, true);
+      const ok = useCombatGridStore.getState().startSkirmish({
+        id: 'replay', name: 'Стычка 4×4', rarity,
+        tierMult: 1 + 0.2 * rarity.tier, damager: 'original',
+        enemyKeys: sc.enemyKeys, chipReward: sc.chipReward, xpReward: sc.xpReward,
+      } as any);
+      if (!ok) useCombatGridStore.getState().addMessage('❌ Не вышло начать бой');
+      return;
+    }
     const ok = useCombatGridStore.getState().initCombat(e.difficulty, e.encounteredFaction, e.cardEnemyKeys, e.cardRewards as any, e.allyCount);
     if (!ok) useCombatGridStore.getState().addMessage('❌ Не вышло начать бой');
   }, [playClick]);
@@ -850,6 +924,9 @@ export const Battle = () => {
               {aliveAllies.length > 0 && (
                 <div style={{ marginTop: 2 }}>
                   🤝 Союзников: <b style={{ color: '#22d3ee', fontFamily: 'var(--font-mono)' }}>{aliveAllies.length}</b>
+                  {aliveAllies.filter((a: any) => (a as any).isMerc).map((a: any) => (
+                    <MercAllyCard key={a.id} m={a} />
+                  ))}
                 </div>
               )}
             </div>

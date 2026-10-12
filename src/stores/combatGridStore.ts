@@ -39,6 +39,8 @@ export interface BattleEntry {
   cardEnemyKeys?: string[];
   cardRewards?: { chipReward: number; xpReward: number; cardRarityName: string };
   allyCount?: number;
+  /** Стычка: карточка для переигровки после рефреша (с наёмниками). */
+  skirmishCard?: { enemyKeys: string[]; chipReward: number; xpReward: number; rarityName: string; tier: number };
   at: number;
 }
 export const saveBattleEntry = (e: Omit<BattleEntry, 'at'>): void => {
@@ -2657,7 +2659,23 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       try {
         const slots = (ps as any).mercSlots || {};
         const owned = (ps as any).ownedMercs || [];
-        const taken = new Set<string>([`${startPos.x},${startPos.y}`]);
+        // Свободные проходимые клетки левой половины под стартовые точки.
+        const takenSpots = new Set<string>([`${startPos.x},${startPos.y}`]);
+        const findSpot = (cx: number, cy: number) => {
+          for (let r = 0; r < 8; r++) {
+            for (let dx = -r; dx <= r; dx++) {
+              for (let dy = -r; dy <= r; dy++) {
+                const x = cx + dx, y = cy + dy;
+                if (x < SKIRMISH_LEFT.x1 || x > SKIRMISH_LEFT.x2 || y < SKIRMISH_ZONE.y1 || y > SKIRMISH_ZONE.y2) continue;
+                if (takenSpots.has(`${x},${y}`)) continue;
+                if (!isCellWalkable(x, y, obstacles)) continue;
+                takenSpots.add(`${x},${y}`);
+                return { x, y };
+              }
+            }
+          }
+          return { x: cx, y: cy };
+        };
         ['merc1', 'merc2', 'merc3'].forEach((sk, si) => {
           const m = owned.find((o: any) => o.id === slots[sk]);
           if (!m) return;
@@ -2671,9 +2689,12 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           const gearWeapon = (m.equipment || {}).weapon2 || gear.find((g: any) => g.slot === 'weapon1' || g.slot === 'weapon2');
           const gearRange = gearWeapon ? weaponRangeProfile(gearWeapon).range : 0;
           const shot = gearShotSound(gearWeapon, 'Военные (original)');
-          const spot = { x: px + 1 + (si % 2), y: 14 + si };
-          taken.add(`${spot.x},${spot.y}`);
+          const spot = findSpot(px + 1 + (si % 2), 14 + si);
           const aLoot: any[] = [];
+          // Доказательство в логу: наёмник идёт в бой именно в выданном шмоте.
+          try {
+            get().addBattleLog(`🤝 ${m.name} (${def?.name || m.role}, ${m.stars}★): ${mHp} HP, урон ${mDmg}, ствол ${gearWeapon?.displayName || gearWeapon?.name || '—'}, одето ${gear.length}`);
+          } catch { /* ignore */ }
           mercUnits.push({
             id: `merc_${m.id}`,
             name: `${m.name} (${def?.name || m.role})`,
@@ -2716,9 +2737,9 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
           });
         });
       } catch (e) { console.error('[mercSpawn]', e); }
-      // Питомец из initCombat встал у старой точки (2,2) — подтянуть к новой.
+      // Питомец из initCombat встал у старой точки (2,2) — подтянуть к новой (на свободную).
       const placed = noBoars.map((e: any, k: number) =>
-        e.faction === 'Союзник' ? { ...e, pos: { x: px + 1 + (k % 2), y: 15 + Math.floor(k / 2) } } : e,
+        e.faction === 'Союзник' ? { ...e, pos: findSpot(px + 1 + (k % 2), 15 + Math.floor(k / 2)) } : e,
       );
       set({
         obstacles,
@@ -2728,13 +2749,24 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
         pendingReinforce: [],
         isSkirmish: true,
         isDeployment: true,
-        deployQueue: mercUnits.map((u) => u.id),
+        // Игрок ставится первым, потом наёмники.
+        deployQueue: ['__player__', ...mercUnits.map((u) => u.id)],
         ap: 0,
-        message: mercUnits.length > 0
-          ? '🛡️ Расстановка: кликни — куда встать тебе и наёмникам, потом «В бой!»'
-          : '🛡️ Расстановка: кликни по клетке слева от центра — куда встать, потом «В бой!»',
+        message: '🛡️ Расстановка: ставим ТЕБЯ — кликни клетку слева от центра',
       });
       get().addBattleLog(`⚔️ Стычка 4×4 (${card.rarity.name}): расставь отряд и жми «В бой!»`);
+      // Точку входа переписываем стычечной (иначе рефреш уронит бой в обычную карту без наёмников).
+      try {
+        saveBattleEntry({
+          difficulty,
+          cardEnemyKeys: card.enemyKeys,
+          cardRewards: { chipReward: card.chipReward, xpReward, cardRarityName: card.rarity.name },
+          skirmishCard: {
+            enemyKeys: card.enemyKeys, chipReward: card.chipReward, xpReward,
+            rarityName: card.rarity.name, tier: card.rarity.tier,
+          },
+        });
+      } catch { /* ignore */ }
     } catch (e) {
       console.error('[startSkirmish]', e);
     }
@@ -2748,6 +2780,18 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
       get().addMessage('❌ Ставиться можно только в левую половину центра');
       return;
     }
+    // Клик по своему юниту — взять его на перестановку (в начало очереди).
+    if (x === st.playerPos.x && y === st.playerPos.y) {
+      set((s: any) => ({ deployQueue: ['__player__', ...s.deployQueue.filter((q: string) => q !== '__player__')] }));
+      get().addMessage('🛡️ Ставим ТЕБЯ — кликни клетку');
+      return;
+    }
+    const ownMerc = st.enemies.find((e: any) => (e as any).isMerc && !e.dead && e.pos.x === x && e.pos.y === y);
+    if (ownMerc) {
+      set((s: any) => ({ deployQueue: [String(ownMerc.id), ...s.deployQueue.filter((q: string) => String(q) !== String(ownMerc.id))] }));
+      get().addMessage(`🛡️ Ставим: ${ownMerc.name} — кликни клетку`);
+      return;
+    }
     if (!isCellWalkable(x, y, st.obstacles)) {
       get().addMessage('❌ Клетка занята объектом');
       return;
@@ -2758,23 +2802,39 @@ export const useCombatGridStore = create<CombatGridStore>()((set, get) => ({
     }
     const next = st.deployQueue[0];
     if (!next) {
-      // Пока наёмников нет: двигаем игрока.
-      set({ playerPos: { x, y }, isSelected: false, plannedPath: [] });
-      get().addMessage('🛡️ Позиция выбрана. Жми «В бой!»');
+      get().addMessage('✅ Все расставлены. Жми «В бой!»');
       return;
     }
-    // Наёмники (этап 2): подвинуть союзника из очереди.
-    set((s: any) => ({
-      enemies: s.enemies.map((e: any) => (String(e.id) === String(next) ? { ...e, pos: { x, y } } : e)),
-      deployQueue: s.deployQueue.slice(1),
-    }));
+    const rest = st.deployQueue.slice(1);
+    if (next === '__player__') {
+      set({ playerPos: { x, y }, isSelected: false, plannedPath: [], deployQueue: rest });
+    } else {
+      set((s: any) => ({
+        enemies: s.enemies.map((e: any) => (String(e.id) === String(next) ? { ...e, pos: { x, y } } : e)),
+        deployQueue: rest,
+      }));
+    }
+    // Кто следующий.
+    const after = get().deployQueue;
+    if (after.length === 0) {
+      get().addMessage('✅ Все расставлены. Жми «В бой!»');
+    } else {
+      const n0 = after[0];
+      const label = n0 === '__player__'
+        ? 'ТЕБЯ'
+        : (get().enemies.find((e: any) => String(e.id) === String(n0))?.name || 'юнита');
+      get().addMessage(`🛡️ Ставим: ${label} — кликни клетку (осталось: ${after.length})`);
+    }
   },
 
   confirmDeployment: () => {
     const st = get();
     if (!st.isActive || !st.isDeployment) return;
     if (st.deployQueue.length > 0) {
-      get().addMessage(`❌ Осталось расставить: ${st.deployQueue.length}`);
+      const names = st.deployQueue.map((q) => q === '__player__'
+        ? 'ты'
+        : (st.enemies.find((e: any) => String(e.id) === String(q))?.name || 'юнит'));
+      get().addMessage(`❌ Не расставлены: ${names.join(', ')}`);
       return;
     }
     set({ isDeployment: false, ap: BASE_AP, maxAp: BASE_AP, turn: 'player', turnCount: 0, message: '⚔️ Твой ход' });
