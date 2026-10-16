@@ -48,10 +48,12 @@ export const Settings = () => {
     uiVolume, arenaVolume, rangeVolume,
     showDamageNumbers, battleLogSize, autoReload,
     confirmExitCombat, showEnemyHpNumbers, duckMusicInCombat,
+    theaterFullscreen,
     setSoundEnabled, setMusicEnabled, setMusicVolume,
     setUiVolume, setArenaVolume, setRangeVolume,
     setShowDamageNumbers, setBattleLogSize, setAutoReload,
     setConfirmExitCombat, setShowEnemyHpNumbers, setDuckMusicInCombat,
+    setTheaterFullscreen,
   } = useUiStore();
 
   return (
@@ -164,6 +166,12 @@ export const Settings = () => {
               hint="Спрашивать перед уходом с арены"
               checked={confirmExitCombat}
               onToggle={() => setConfirmExitCombat(!confirmExitCombat)}
+            />
+            <CheckRow
+              title="Полный экран в бою"
+              hint="При старте боя пробовать настоящий fullscreen (F11-эффект)"
+              checked={theaterFullscreen}
+              onToggle={() => setTheaterFullscreen(!theaterFullscreen)}
             />
             <div style={{ padding: '8px 0' }}>
               <div style={{ fontSize: 14, fontWeight: 500 }}>Размер лога боя</div>

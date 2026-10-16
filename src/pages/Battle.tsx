@@ -11,6 +11,7 @@ import { CookingMenu } from '../components/widgets/CookingMenu';
 import { MapEditorPanel } from '../components/widgets/MapEditorPanel';
 import { usePlayerStore } from '../stores/playerStore';
 import { useUiStore } from '../stores/uiStore';
+import { useMapEditorStore } from '../stores/mapEditorStore';
 import { useCombatGridStore, loadBattleEntry, clearBattleEntry, getDist, closeRangeMult } from '../stores/combatGridStore';
 import { ammoTypeForWeapon, ammoGroupName, countAmmo } from '../data/ammo';
 import { getCoverPenalty, distToRect } from '../engine/terrain';
@@ -394,6 +395,9 @@ export const Battle = () => {
   const attackEnemy = useCombatGridStore((s) => s.attackEnemy);
   const gridEnemies = useCombatGridStore((s) => s.enemies);
   const gridReserve = useCombatGridStore((s) => s.reserve);
+  // Театр боя: хром скрыт (см. PageContainer), арена на весь экран.
+  const edActive = useMapEditorStore((s) => s.active);
+  const theater = isActive && !edActive;
 
   // Пустой активный бой (0 врагов, 0 резерва) — автовыход через победу, а не вис.
   // Тест-арена: пусто штатно, не трогаем.
@@ -428,6 +432,31 @@ export const Battle = () => {
     }, 900);
     return () => clearTimeout(t);
   }, [isSkirmish, playerDown, turn, isActive, isVictory, isDefeat, isDeployment]);
+
+  // Театр: пробуем настоящий fullscreen при старте боя, выходим в конце.
+  // Без жеста браузер отклонит — останется CSS-театр, это штатно.
+  const theaterFullscreen = useUiStore((s) => s.theaterFullscreen);
+  const enteredFs = useRef(false);
+  useEffect(() => {
+    if (!theaterFullscreen) return;
+    if (isActive && !edActive) {
+      if (!document.fullscreenElement) {
+        try {
+          const p = (document.documentElement as any).requestFullscreen?.();
+          if (p && typeof p.then === 'function') {
+            p.then(() => { enteredFs.current = true; }).catch(() => { /* no gesture — CSS theater */ });
+          }
+        } catch { /* ignore */ }
+      }
+    } else {
+      if (enteredFs.current) {
+        enteredFs.current = false;
+        if (document.fullscreenElement) {
+          try { (document as any).exitFullscreen?.(); } catch { /* ignore */ }
+        }
+      }
+    }
+  }, [isActive, edActive, theaterFullscreen]);
 
   // Переигровка волны после рефреша: точка входа сохранена в initCombat.
   const battleEntry = combat.isFighting && !isActive ? loadBattleEntry() : null;
@@ -670,11 +699,14 @@ export const Battle = () => {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', gap: 0, alignItems: 'flex-start' }}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={theater
+      ? { display: 'flex', gap: 10, alignItems: 'stretch', height: '100vh', padding: 10, overflow: 'hidden', boxSizing: 'border-box' }
+      : { display: 'flex', gap: 0, alignItems: 'flex-start' }}>
       {/* Left PDA Control Panel */}
       {isActive && (
         <div style={{
           width: 264, flexShrink: 0,
+          ...(theater ? { height: '100%', overflowY: 'auto' } : null),
           background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
           border: '2px solid rgba(217,119,6,0.2)',
           borderRadius: 8,
@@ -1015,9 +1047,19 @@ export const Battle = () => {
       )}
 
       {/* Center - Battle Grid */}
-      <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+      <div style={theater
+        ? { flex: 1, minWidth: 0, position: 'relative', height: '100%', display: 'flex', alignItems: 'stretch', gap: 10 }
+        : { flex: 1, minWidth: 0, position: 'relative' }}>
+        {theater && isActive && !isVictory && !isDefeat && (
+          <div style={{ display: 'flex', alignItems: 'center', overflowY: 'auto', flexShrink: 0, padding: '2px 0' }}>
+            <SkillBar vertical />
+          </div>
+        )}
         <TurnFlash />
         <MapMusicTrigger />
+        <div style={theater
+          ? { flex: 1, minWidth: 0, position: 'relative', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+          : { display: 'contents' }}>
         <BattleGrid />
         <CookingMenu />
         <MapEditorPanel />
@@ -1033,13 +1075,14 @@ export const Battle = () => {
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000,
           background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%)',
         }} />
+        </div>
       </div>
 
       {/* Right Enemy Intel Panel */}
       {isActive && (
         <div style={{
           width: 276, flexShrink: 0,
-          maxHeight: 'calc(100vh - 120px)', overflowY: 'auto',
+          ...(theater ? { height: '100%', overflowY: 'auto' } : { maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }),
           background: 'linear-gradient(180deg, rgb(20,12,8), rgb(10,8,5))',
           border: '2px solid rgba(217,119,6,0.2)',
           borderRadius: 8,
@@ -1423,7 +1466,7 @@ export const Battle = () => {
         </div>
       )}
       {/* WOW-панель навыков */}
-      {isActive && !isVictory && !isDefeat && <SkillBar />}
+      {!theater && isActive && !isVictory && !isDefeat && <SkillBar />}
     </motion.div>
   );
 };

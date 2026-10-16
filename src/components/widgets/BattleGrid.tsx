@@ -941,7 +941,7 @@ export const BattleGrid = () => {
   if (!isActive) return null;
 
   return (
-    <div className={`${styles.container}${isShaking ? ` ${styles.arenaShake}` : ''}`}>
+    <div className={`${styles.container}${isShaking ? ` ${styles.arenaShake}` : ''}`} style={isActive && !edActive ? { maxWidth: 'calc(100vh - 60px)' } : undefined}>
       <div className={styles.battleScreen} ref={gridRef} style={{ backgroundImage: `url(${getMapImage(battleBg || 'mapbattle') || images.mapBattle})`, marginTop: 30, ...(isSkirmish ? { transform: 'scale(1.3)', transformOrigin: 'center center' } : null) }}>
         <NightDarkness />
 

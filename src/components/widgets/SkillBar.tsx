@@ -26,7 +26,7 @@ const DOUBLE_TAP_MS = 450;
 
 type BarEntry = { ab: AccessoryAbility | PetBattleAbility; source: 'skill' | 'pet'; idx: number } | null;
 
-export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => {
+export const SkillBar = ({ onSelect, vertical }: { onSelect?: (idx: number) => void; vertical?: boolean }) => {
   const { playClick } = useSound();
   const skillBarLayout = useUiStore((s) => s.skillBarLayout);
   const skillBarPos = useUiStore((s) => s.skillBarPos);
@@ -201,8 +201,8 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turn, slots, selectSkillBarAbility, selectPetAbility, onSelect]);
 
-  const cols = skillBarSingleRow ? TOTAL_SLOTS : COLS;
-  const rows = skillBarSingleRow ? 1 : ROWS;
+  const cols = vertical ? 2 : skillBarSingleRow ? TOTAL_SLOTS : COLS;
+  const rows = vertical ? 12 : skillBarSingleRow ? 1 : ROWS;
   const panelW = cols * (SLOT + GAP) - GAP + 12;
   const pos = skillBarPos ?? {
     x: Math.max(0, (window.innerWidth - panelW) / 2),
@@ -264,7 +264,14 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
   return (
     <>
       <style>{`@keyframes wowDash{to{stroke-dashoffset:-180}}`}</style>
-      <div ref={panelRef} style={{
+      <div ref={panelRef} style={vertical ? {
+        borderRadius: 10,
+        background: 'linear-gradient(180deg, rgba(28,24,18,0.95), rgba(12,11,9,0.95))',
+        border: '1px solid rgba(217,119,6,0.45)',
+        boxShadow: '0 6px 24px rgba(0,0,0,0.65), 0 0 12px rgba(217,119,6,0.12)',
+        userSelect: 'none',
+        overflow: 'hidden',
+      } : {
         position: 'fixed',
       left: pos.x,
       top: pos.y,
@@ -278,21 +285,23 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
     }}>
       {/* Шапка — ручка для перемещения */}
       <div
-        onMouseDown={(e) => {
+        onMouseDown={vertical ? undefined : (e) => {
           moveOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
           setMoving(true);
         }}
-        title="Тянуть чтобы переместить панель"
+        title={vertical ? 'Способности' : 'Тянуть чтобы переместить панель'}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '3px 8px',
           background: 'linear-gradient(180deg, rgba(217,119,6,0.28), rgba(217,119,6,0.08))',
           borderBottom: '1px solid rgba(217,119,6,0.35)',
-          cursor: moving ? 'grabbing' : 'grab',
+          cursor: vertical ? 'default' : moving ? 'grabbing' : 'grab',
           touchAction: 'none',
         }}
       >
+        {!vertical && (
         <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, letterSpacing: 2 }}>⋮⋮</span>
+        )}
         <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, color: '#fbbf24', flex: 1 }}>✨ СПОСОБНОСТИ</span>
         {hasPet && (
           <span
@@ -308,13 +317,15 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
             🐾
           </span>
         )}
+        {!vertical && (
         <span title={`Здоровье: ${Math.round(curHp || 0)}/${Math.round(maxHp || 0)}`} style={{ display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
           <span style={{ fontSize: 10 }}>❤</span>
           <span style={{ width: 84, height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(248,113,113,0.4)', overflow: 'hidden' }}>
             <span style={{ display: 'block', height: '100%', width: `${Math.max(0, Math.min(100, ((curHp || 0) / Math.max(1, maxHp || 0)) * 100))}%`, background: 'linear-gradient(90deg, #dc2626, #f87171)', transition: 'width 200ms' }} />
           </span>
         </span>
-        {hasPet && petUnit && (
+        )}
+        {!vertical && hasPet && petUnit && (
           <span title={`Питомец: ${Math.round(petUnit.currentHp || 0)}/${Math.round(petUnit.maxHp || 0)}`} style={{ display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
             <span style={{ fontSize: 10 }}>🐾</span>
             <span style={{ width: 84, height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(74,222,128,0.4)', overflow: 'hidden' }}>
@@ -322,6 +333,8 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
             </span>
           </span>
         )}
+        {!vertical && (
+        <>
         <span title="Выносливость" style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#4ade80', whiteSpace: 'nowrap' }}>
           ⚡{Math.round(curStam || 0)}/{Math.round(maxStam || 0)}
         </span>
@@ -344,6 +357,8 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
         >
           {skillBarLocked ? '🔒' : '🔓'}
         </span>
+        </>
+        )}
       </div>
       {/* Слоты: 12×2 или 24×1 — единственный источник способностей (питомец тоже через ensureSkillBarSlots) */}
       <div style={{
@@ -369,7 +384,7 @@ export const SkillBar = ({ onSelect }: { onSelect?: (idx: number) => void }) => 
           const isSelected = isToggleActive || (!!entry && !isPassive && selectedAbility === (entry as any).idx && selectedAbilitySource === wantSource);
           const isOver = dragOver === i;
           const isFreeAb = !!ab && (isPet || !!(ab as any)?.passive || (ab as any)?.free === true);
-          const petDefId = isPet ? (entry.ab as any)?.defId : undefined;
+          const petDefId = entry && isPet && (entry as any).ab ? (entry.ab as any)?.defId : undefined;
           const petDefImg = petDefId
             ? (petDefId === 'pet_ai' && activePetId === 'wolf' ? 'ии автобой, если выбран волк' : PET_BY_ID[petDefId]?.image)
             : undefined;

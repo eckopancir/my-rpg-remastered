@@ -128,6 +128,9 @@ interface UiStore {
   setDuckMusicInCombat: (v: boolean) => void;
   forceDay: boolean;
   setForceDay: (v: boolean) => void;
+  /** Театр боя: пробовать настоящий fullscreen при старте боя. */
+  theaterFullscreen: boolean;
+  setTheaterFullscreen: (v: boolean) => void;
 
   addToQueue: (entry: ExpeditionEntry) => void;
   removeFromQueue: (id: string) => void;
@@ -160,6 +163,7 @@ export const useUiStore = create<UiStore>()(
       confirmExitCombat: true,
       showEnemyHpNumbers: false,
       duckMusicInCombat: false,
+      theaterFullscreen: true,
       // DEBUG: всегда день (для тестов билдов ночью). Персистим.
       forceDay: false,
       isResting: false,
@@ -260,6 +264,7 @@ export const useUiStore = create<UiStore>()(
       setShowEnemyHpNumbers: (v) => set({ showEnemyHpNumbers: v }),
       setDuckMusicInCombat: (v) => set({ duckMusicInCombat: v }),
       setForceDay: (v) => set({ forceDay: v }),
+      setTheaterFullscreen: (v) => set({ theaterFullscreen: v }),
 
       addToQueue: (entry) => set((s) => ({ queue: [...s.queue, entry] })),
       removeFromQueue: (id) => set((s) => ({ queue: s.queue.filter((e) => e.id !== id) })),
@@ -340,7 +345,7 @@ export const useUiStore = create<UiStore>()(
     }),
     {
       name: 'remastered_ui',
-      version: 13,
+      version: 14,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 4) {
@@ -387,6 +392,9 @@ export const useUiStore = create<UiStore>()(
           // Стандарт — длинная панель 24×1.
           state.skillBarSingleRow = true;
         }
+        if (version < 14) {
+          if (state.theaterFullscreen === undefined) state.theaterFullscreen = true;
+        }
         return state as UiStore;
       },
       partialize: (state) => ({
@@ -404,6 +412,7 @@ export const useUiStore = create<UiStore>()(
         showEnemyHpNumbers: state.showEnemyHpNumbers,
         duckMusicInCombat: state.duckMusicInCombat,
         forceDay: state.forceDay,
+        theaterFullscreen: state.theaterFullscreen,
         inventoryPinned: state.inventoryPinned,
         inventoryPinPos: state.inventoryPinPos,
         equipmentPinned: state.equipmentPinned,

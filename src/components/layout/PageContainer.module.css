@@ -18,3 +18,9 @@
   overflow-x: hidden;
   padding: var(--space-lg);
 }
+
+/* Театр боя: контент на весь экран без отступов и скролла. */
+.theater .content {
+  padding: 0;
+  overflow: hidden;
+}
