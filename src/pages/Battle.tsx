@@ -700,7 +700,7 @@ export const Battle = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={theater
-      ? { display: 'flex', gap: 10, alignItems: 'stretch', height: '100vh', padding: 10, overflow: 'hidden', boxSizing: 'border-box' }
+      ? { display: 'flex', gap: 8, alignItems: 'stretch', height: '100vh', padding: 0, overflow: 'hidden', boxSizing: 'border-box' }
       : { display: 'flex', gap: 0, alignItems: 'flex-start' }}>
       {/* Left PDA Control Panel */}
       {isActive && (
@@ -1048,10 +1048,10 @@ export const Battle = () => {
 
       {/* Center - Battle Grid */}
       <div style={theater
-        ? { flex: 1, minWidth: 0, position: 'relative', height: '100%', display: 'flex', alignItems: 'stretch', gap: 10 }
+        ? { flex: 1, minWidth: 0, position: 'relative', height: '100%', display: 'flex', alignItems: 'stretch', gap: 0 }
         : { flex: 1, minWidth: 0, position: 'relative' }}>
         {theater && isActive && !isVictory && !isDefeat && (
-          <div style={{ display: 'flex', alignItems: 'center', overflowY: 'auto', flexShrink: 0, padding: '2px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', height: '100%', flexShrink: 0, overflow: 'hidden' }}>
             <SkillBar vertical />
           </div>
         )}
