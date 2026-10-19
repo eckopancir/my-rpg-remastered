@@ -86,9 +86,14 @@ export const MapEditorPanel = () => {
   const startDrag = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button,input,select,textarea')) return;
     const el = panelRef.current;
-    const parent = el?.parentElement;
-    if (!el || !parent) return;
-    const pr = parent.getBoundingClientRect();
+    if (!el) return;
+    // Опорный контейнер: у панели position:absolute, поэтому реальный
+    // containing block — ближайший позиционированный предок (offsetParent).
+    // Родитель по DOM может быть display:contents — у него нулевой rect.
+    const parent = (el.offsetParent as HTMLElement | null) || el.parentElement;
+    if (!parent) return;
+    let pr = parent.getBoundingClientRect();
+    if (pr.width < 1 || pr.height < 1) pr = { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight } as DOMRect;
     const r = el.getBoundingClientRect();
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: r.left - pr.left, oy: r.top - pr.top };
     const move = (ev: MouseEvent) => {
