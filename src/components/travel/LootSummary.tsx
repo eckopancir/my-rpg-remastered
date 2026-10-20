@@ -17,11 +17,27 @@ export const LootSummary = () => {
   const totalExp = useExplorationStore((s) => s.totalExp);
   const totalItems = useExplorationStore((s) => s.totalItems);
   const consBuffs = useExplorationStore((s) => s.consBuffs);
+  const eventLog = useExplorationStore((s) => s.eventLog);
   const phase = useExplorationStore((s) => s.phase);
   const isReturningHome = useExplorationStore((s) => s.isReturningHome);
   const serverOutcome = useExplorationStore((s) => s.serverOutcome);
   const cancelExploration = useExplorationStore((s) => s.cancelExploration);
   const completeExploration = useExplorationStore((s) => s.completeExploration);
+
+  // Разбивка по событиям: сколько заработано и сколько ушло (часть исходов
+  // забирает чипы — «откупился», «заплатил за проход»), поэтому итог бывает минусом.
+  const breakdown = useMemo(() => {
+    let earnedChips = 0; let spentChips = 0; let earnedExp = 0; let spentExp = 0;
+    for (const row of eventLog) {
+      let eff: any = {};
+      try { eff = JSON.parse(row.effects || '{}'); } catch { eff = {}; }
+      const c = Number(eff.chips || 0);
+      const e = Number(eff.exp || 0);
+      if (c > 0) earnedChips += c; else spentChips += -c;
+      if (e > 0) earnedExp += e; else spentExp += -e;
+    }
+    return { earnedChips, spentChips, earnedExp, spentExp };
+  }, [eventLog]);
 
   const grid = usePlayerStore((s) => s.backpackGrid);
   const backpack = usePlayerStore((s) => (s.equipment as any).backpack);
@@ -67,6 +83,23 @@ export const LootSummary = () => {
           </b>
           <span>опыта</span>
         </div>
+
+        {(breakdown.spentChips > 0 || breakdown.spentExp > 0) && (
+          <div className={styles.sumBreakdown}>
+            {breakdown.earnedChips > 0 && (
+              <div>💾 заработано <b>+{breakdown.earnedChips}</b></div>
+            )}
+            {breakdown.spentChips > 0 && (
+              <div>💸 потрачено <b>−{breakdown.spentChips}</b></div>
+            )}
+            {breakdown.earnedExp > 0 && (
+              <div>⚡ опыта собрано <b>+{breakdown.earnedExp}</b></div>
+            )}
+            {breakdown.spentExp > 0 && (
+              <div>⚡ опыта потеряно <b>−{breakdown.spentExp}</b></div>
+            )}
+          </div>
+        )}
 
         <div className={styles.sumGrid}>
           <div className={styles.sumTile}>

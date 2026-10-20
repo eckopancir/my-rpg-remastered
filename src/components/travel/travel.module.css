@@ -802,6 +802,23 @@
   color: var(--text-muted);
 }
 
+.sumBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: -4px 0 10px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sumBreakdown b {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
 .sumGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;

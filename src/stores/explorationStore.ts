@@ -104,32 +104,35 @@ export const EMPTY_BUFFS: ConsBuffs = {
 // Зеркало expeditionBuffs() из api/exploration/engine_config.php — для превью и локал-зеркала.
 export const calcConsBuffs = (sel: Record<string, number>): ConsBuffs => {
   const n = (name: string) => Math.max(0, Math.floor(sel[name] || 0));
-  const iz = Math.min(n('Изолента'), 20);
-  const fe = Math.min(n('Железо'), 20);
+  const iz = Math.min(n('Изолента'), 5);
+  const fe = Math.min(n('Железо'), 5);
+  const healUnits = Math.min(n('Вода'), 6) + Math.min(n('Консервы'), 6);
+  const expUnits = Math.min(n('Дерево'), 5) + Math.min(n('Гвозди'), 5);
+  const chipsUnits = Math.min(n('Инструменты'), 5) + Math.min(n('Пластмасса'), 5);
   return {
-    regen: Math.min(n('Лекарства'), 10),
-    healPct: Math.min(n('Вода'), 50) * 0.001 + Math.min(n('Консервы'), 50) * 0.001,
-    legPct: Math.min(n('Батарейки'), 30) * 0.001,
-    expPct: Math.min(n('Дерево'), 50) * 0.002 + Math.min(n('Гвозди'), 50) * 0.002,
-    chipsPct: Math.min(n('Инструменты'), 50) * 0.002 + Math.min(n('Пластмасса'), 50) * 0.002,
-    dmgTakenMult: Math.max(0.64, (1 - iz * 0.01) * (1 - fe * 0.01)),
-    returnMult: Math.max(0.5, 1 - Math.min(n('Топливо'), 10) * 0.05),
+    regen: Math.min(n('Лекарства'), 6) * 5,
+    healPct: Math.min(healUnits * 0.05, 0.3),
+    legPct: Math.min(n('Батарейки'), 5) * 0.03,
+    expPct: Math.min(expUnits * 0.1, 1),
+    chipsPct: Math.min(chipsUnits * 0.1, 1),
+    dmgTakenMult: Math.max(0.5, (1 - iz * 0.05) * (1 - fe * 0.05)),
+    returnMult: Math.max(0.25, 1 - Math.min(n('Топливо'), 5) * 0.15),
   };
 };
 
 // Описания для превью в модалке старта.
 export const CONS_BUFF_DEFS: { name: string; desc: string }[] = [
-  { name: 'Лекарства', desc: '+1 реген (макс +10)' },
-  { name: 'Вода', desc: '+0.1% к хилу (макс +5%)' },
-  { name: 'Консервы', desc: '+0.1% к хилу (макс +5%)' },
-  { name: 'Батарейки', desc: '+0.1% к легендарке (макс +3%)' },
-  { name: 'Дерево', desc: '+0.2% опыта (макс +10%)' },
-  { name: 'Гвозди', desc: '+0.2% опыта (макс +10%)' },
-  { name: 'Инструменты', desc: '+0.2% чипов (макс +10%)' },
-  { name: 'Пластмасса', desc: '+0.2% чипов (макс +10%)' },
-  { name: 'Изолента', desc: '−1% входящего урона (макс −20%)' },
-  { name: 'Железо', desc: '−1% входящего урона (макс −20%)' },
-  { name: 'Топливо', desc: '−5% времени возврата (макс −50%)' },
+  { name: 'Лекарства', desc: '+5 реген/мин (макс +30)' },
+  { name: 'Вода', desc: '+5% хил (макс +30%)' },
+  { name: 'Консервы', desc: '+5% хил (макс +30%)' },
+  { name: 'Батарейки', desc: '+3% шанс легендарки (макс +15%)' },
+  { name: 'Дерево', desc: '+10% опыта (макс +100%)' },
+  { name: 'Гвозди', desc: '+10% опыта (макс +100%)' },
+  { name: 'Инструменты', desc: '+10% чипов (макс +100%)' },
+  { name: 'Пластмасса', desc: '+10% чипов (макс +100%)' },
+  { name: 'Изолента', desc: '−5% входящего урона (макс −50%)' },
+  { name: 'Железо', desc: '−5% входящего урона (макс −50%)' },
+  { name: 'Топливо', desc: '−15% времени возврата (макс −75%)' },
 ];
 
 interface ExplorationStore {
