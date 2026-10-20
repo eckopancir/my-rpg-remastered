@@ -44,7 +44,9 @@ const makeMaterial = (name: string, qty: number): Item => {
   return {
     id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     name: def?.name ?? name,
-    displayName: `${def?.name ?? name} x${qty}`,
+    // Количество не вписываем в подпись — его добавляет сетка рюкзака
+    // (иначе в UI получается «Вода x2 ×2»).
+    displayName: def?.name ?? name,
     type: 'material',
     slot: 'any',
     rarity: 'common',

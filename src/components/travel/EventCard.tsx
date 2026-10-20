@@ -16,6 +16,17 @@ const legendaryResultLabel = (r: string | null): { text: string; cls: string } =
   return { text: 'НАЧАЛО ЦЕПОЧКИ', cls: styles.legendaryStage };
 };
 
+/**
+ * Подпись находки: «Вода ×2», «Патроны 9мм ×30», «Редкий СКС 3 ур.».
+ * Количество добавляем один раз — даже если оно уже есть в displayName.
+ */
+const itemLabel = (it: TravelRewardItem): string => {
+  const qty = it.quantity ?? 1;
+  const base = (it.displayName || it.name || '').replace(/\s*[x×]\s*\d+\s*$/i, '').trim();
+  if (qty <= 1) return base || it.name;
+  return `${base} ×${qty}`;
+};
+
 export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: EventCardProps) => {
   const meta = KIND_META[event.kind];
   const r = event.rewards;
@@ -81,7 +92,7 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
                   onMouseMove={onItemMove}
                   onMouseLeave={onItemLeave}
                 >
-                  📦 {it.displayName || it.name}{it.quantity && it.quantity > 1 ? ` ×${it.quantity}` : ''}
+                  📦 {itemLabel(it)}
                 </span>
               ))
               : r.itemCount > 0 && (
