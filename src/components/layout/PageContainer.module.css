@@ -24,3 +24,9 @@
   padding: 0;
   overflow: hidden;
 }
+
+/* Путешествие: свой интерфейс на всю ширину — минимальные отступы. */
+.wide .content {
+  padding: 10px;
+  overflow: hidden;
+}
