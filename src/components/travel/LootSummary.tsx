@@ -42,12 +42,12 @@ export const LootSummary = () => {
     const b = consBuffs;
     if (!b) return out;
     if (b.regen) out.push(`♺ +${b.regen} реген/мин`);
-    if (b.healPct) out.push(`❤ +${(b.healPct * 100).toFixed(1)}% хил`);
-    if (b.legPct) out.push(`⚜ +${(b.legPct * 100).toFixed(1)}% легендарка`);
-    if (b.expPct) out.push(`⚡ +${Math.round(b.expPct * 100)}% опыт`);
-    if (b.chipsPct) out.push(`💾 +${Math.round(b.chipsPct * 100)}% чипы`);
-    if (b.dmgTakenMult < 1) out.push(`🛡 −${Math.round((1 - b.dmgTakenMult) * 100)}% урон`);
-    if (b.returnMult < 1) out.push(`🏠 −${Math.round((1 - b.returnMult) * 100)}% возврат`);
+    if (b.healPct > 0.001) out.push(`❤ +${(b.healPct * 100).toFixed(1)}% хил`);
+    if (b.legPct > 0.001) out.push(`⚜ +${(b.legPct * 100).toFixed(1)}% легендарка`);
+    if (b.expPct > 0.001) out.push(`⚡ +${Math.round(b.expPct * 100)}% опыт`);
+    if (b.chipsPct > 0.001) out.push(`💾 +${Math.round(b.chipsPct * 100)}% чипы`);
+    if (b.dmgTakenMult <= 0.995) out.push(`🛡 −${Math.round((1 - b.dmgTakenMult) * 100)}% урон`);
+    if (b.returnMult <= 0.995) out.push(`🏠 −${Math.round((1 - b.returnMult) * 100)}% возврат`);
     return out;
   }, [consBuffs]);
 

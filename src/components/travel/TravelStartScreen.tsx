@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useExplorationStore, calcConsBuffs, CONS_BUFF_DEFS } from '../../stores/explorationStore';
+import { useExplorationStore, calcConsBuffs } from '../../stores/explorationStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useAuthStore } from '../../stores/authStore';
 import { ZONES } from '../../data/zones';
@@ -45,18 +45,20 @@ const ZONE_COLORS: Record<string, string> = {
 
 /** Что даёт материал: зеркало expeditionBuffs() (превью в рейд-UI). */
 const packBonusText = (name: string, qty: number): string => {
+  // Пока ничего не берём — показываем только суть бонуса, без «→ −0%».
+  const tail = (v: string) => (qty > 0 ? ` → ${v}` : '');
   switch (name) {
-    case 'Лекарства': return `+1 реген/шт (макс +10) → +${Math.min(qty, 10)}`;
+    case 'Лекарства': return `+1 реген/шт (макс +10)${tail(`+${Math.min(qty, 10)}`)}`;
     case 'Вода':
-    case 'Консервы': return `+0.1% хил/шт (макс +5%) → +${(Math.min(qty, 50) * 0.1).toFixed(1)}%`;
-    case 'Батарейки': return `+0.1% шанс легендарки (макс +3%) → +${(Math.min(qty, 30) * 0.1).toFixed(1)}%`;
+    case 'Консервы': return `+0.1% хил/шт (макс +5%)${tail(`+${(Math.min(qty, 50) * 0.1).toFixed(1)}%`)}`;
+    case 'Батарейки': return `+0.1% шанс легендарки (макс +3%)${tail(`+${(Math.min(qty, 30) * 0.1).toFixed(1)}%`)}`;
     case 'Дерево':
-    case 'Гвозди': return `+0.2% опыта (макс +10%) → +${(Math.min(qty, 50) * 0.2).toFixed(1)}%`;
+    case 'Гвозди': return `+0.2% опыта (макс +10%)${tail(`+${(Math.min(qty, 50) * 0.2).toFixed(1)}%`)}`;
     case 'Инструменты':
-    case 'Пластмасса': return `+0.2% чипов (макс +10%) → +${(Math.min(qty, 50) * 0.2).toFixed(1)}%`;
+    case 'Пластмасса': return `+0.2% чипов (макс +10%)${tail(`+${(Math.min(qty, 50) * 0.2).toFixed(1)}%`)}`;
     case 'Изолента':
-    case 'Железо': return `−1% входящего урона (макс −20%) → −${Math.min(qty, 20)}%`;
-    case 'Топливо': return `−5% времени возврата (макс −50%) → −${Math.min(qty, 10) * 5}%`;
+    case 'Железо': return `−1% входящего урона (макс −20%)${tail(`−${Math.min(qty, 20)}%`)}`;
+    case 'Топливо': return `−5% времени возврата (макс −50%)${tail(`−${Math.min(qty, 10) * 5}%`)}`;
     default: return 'без пассивного бонуса';
   }
 };
@@ -339,10 +341,6 @@ export const TravelStartScreen = () => {
                 🎒 Баффы рейда: {packPreview.join(' · ')}
               </div>
             )}
-
-            <div style={{ marginTop: 8, fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              {CONS_BUFF_DEFS.map((d) => `${d.name} — ${d.desc}`).join(' · ')}
-            </div>
 
             <button className={styles.cta} disabled={!zone || starting} onClick={go}>
               {starting ? '⏳ Выдвигаемся…' : '🚀  ВЫДВИНУТЬСЯ'}
