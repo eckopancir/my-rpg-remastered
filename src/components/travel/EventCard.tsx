@@ -62,7 +62,7 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
           </div>
         )}
 
-        {(r.chips !== 0 || r.exp !== 0 || r.healPercent > 0 || r.damagePercent > 0 || r.flatHeal > 0 || r.itemCount > 0 || r.items.length > 0) && (
+        {(r.chips !== 0 || r.exp !== 0 || r.healPercent > 0 || r.damagePercent > 0 || r.flatHeal > 0 || r.heal > 0 || r.damage > 0 || r.itemCount > 0 || r.items.length > 0) && (
           <div className={styles.rewards}>
             {r.chips !== 0 && (
               <span className={`${styles.badge} ${styles.badgeChips}`}>
@@ -77,11 +77,17 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
             {r.healPercent > 0 && (
               <span className={`${styles.badge} ${styles.badgeHeal}`}>❤ +{Math.round(r.healPercent * 100)}%</span>
             )}
+            {r.heal > 0 && (
+              <span className={`${styles.badge} ${styles.badgeHeal}`}>❤ +{r.heal} HP</span>
+            )}
             {r.flatHeal > 0 && (
               <span className={`${styles.badge} ${styles.badgeHeal}`}>❤ +{Math.round(r.flatHeal)}</span>
             )}
             {r.damagePercent > 0 && (
               <span className={`${styles.badge} ${styles.badgeDmg}`}>💥 −{Math.round(r.damagePercent * 100)}%</span>
+            )}
+            {r.damage > 0 && (
+              <span className={`${styles.badge} ${styles.badgeDmg}`}>💥 −{r.damage} HP</span>
             )}
             {r.items.length > 0
               ? r.items.map((it, i) => (

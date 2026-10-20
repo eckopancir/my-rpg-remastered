@@ -7,7 +7,7 @@ import { generateItem, type GeneratedItem } from '../engine/items';
 import { generateTravelReward, type TravelRewardProfile } from '../engine/travelLoot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
-import { backpackSlotsFor, tryInsertIntoGrid, removeItemFromGrid, compactGrid } from '../data/backpacks';
+import { backpackSlotsFor, tryInsertIntoGrid, removeItemFromGrid, compactGrid, createGrid } from '../data/backpacks';
 import { syncNow } from '../utils/serverSync';
 
 
@@ -167,8 +167,14 @@ interface ExplorationStore {
   useMaterials: boolean;
   // Баффы рюкзака с сервера (зеркало expeditionBuffs) для локального применения.
   consBuffs: ConsBuffs;
+  // Штраф за смерть уже применён (чтобы не списать дважды).
+  deathSettled: boolean;
+  // Сложность рейда (normal/hard/danger/nightmare/hell).
+  difficulty: string;
+  // Модификатор рейда (характер) — null, если обычный.
+  modifier: string | null;
 
-  startExploration: (zoneName: string, hours?: number, useMats?: boolean, consumables?: { name: string; qty: number }[]) => Promise<void>;
+  startExploration: (zoneName: string, hours?: number, useMats?: boolean, consumables?: { name: string; qty: number }[], difficulty?: string, modifier?: string | null) => Promise<void>;
   cancelExploration: () => Promise<void>;
   pollServerState: () => Promise<void>;
   loadOlderEvents: () => Promise<void>;
@@ -225,9 +231,11 @@ export const useExplorationStore = create<ExplorationStore>()(
       plannedSec: 0,
       useMaterials: true,
       consBuffs: { ...EMPTY_BUFFS },
+      difficulty: 'normal',
+      modifier: null,
+      deathSettled: false,
 
-
-      startExploration: async (zoneName, hours = 12, useMats = true, consumables = []) => {
+      startExploration: async (zoneName, hours = 12, useMats = true, consumables = [], difficulty = 'normal', modifier: string | null = null) => {
         const token = getToken();
         if (!token) { set({ error: 'Not authenticated' }); return; }
         const h = Math.max(2, Math.min(24, Math.round(hours)));
@@ -237,6 +245,7 @@ export const useExplorationStore = create<ExplorationStore>()(
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               zone: zoneName, hours: h, use_mats: useMats ? 1 : 0,
+              difficulty, modifier,
               consumables: consumables
                 .filter((c) => c.name && c.qty > 0)
                 .map((c) => ({ name: c.name, qty: Math.floor(c.qty) })),
@@ -249,7 +258,7 @@ export const useExplorationStore = create<ExplorationStore>()(
 
           // Refresh inventory from server before starting
           syncInventoryFromServer(token);
-          usePlayerStore.getState().addLog(`🚀 Отправляемся в "${zoneName}".`, 'info');
+          usePlayerStore.getState().addLog(`🚀 Отправляемся в "${zoneName}" (${exp?.difficulty || difficulty}).`, 'info');
           set({
             isExploring: true,
             zoneName,
@@ -332,10 +341,12 @@ export const useExplorationStore = create<ExplorationStore>()(
           // Свежие события, созданные именно этим тиком. Сервер уже учёл их
           // эффекты в сейве — локально повторяем только их, а не всю историю.
           const freshEvents: any[] = data.newEvents ?? [];
-          const serverOutcome = data.state ?? 'active';
+          const serverOutcome = (data.state === 'dead' && !state.deathSettled) ? 'dead' : (data.state ?? 'active');
           const consBuffs = (data.consBuffs && typeof data.consBuffs === 'object')
             ? { ...EMPTY_BUFFS, ...data.consBuffs }
             : state.consBuffs;
+          const diffKey = (exp as any)?.difficulty ?? state.difficulty;
+          const modKey = (exp as any)?.modifier ?? null;
 
           // Применяем эффекты только свежих событий (обычно 0–15 шт).
           // Старый путь — дифф по всей 1000-й истории — после долгого офлайна
@@ -440,6 +451,8 @@ export const useExplorationStore = create<ExplorationStore>()(
                 ? exp.useMaterials
                 : state.useMaterials,
               consBuffs,
+              difficulty: diffKey,
+              modifier: modKey,
             });
           }
           // Process pending rewards after each poll
@@ -513,10 +526,19 @@ export const useExplorationStore = create<ExplorationStore>()(
           if (lostItems > 0) {
             ps.addLog(`📦 Потеряно ${lostItems} предметов.`, 'warning');
           }
+          // Рюкзак обнуляется при смерти (на любой сложности).
+          const pStore = usePlayerStore.getState();
+          const bagItems = pStore.backpackGrid?.items ?? [];
+          if (bagItems.length > 0) {
+            usePlayerStore.setState({ backpackGrid: createGrid(pStore.backpackGrid?.slots ?? 0) });
+            ps.addLog(`🎒 Рюкзак обнулён (${bagItems.length} предметов).`, 'warning');
+            syncNow();
+          }
           // HP to 1%
           const maxHp = ps.stats.maxHp || 10000;
           usePlayerStore.setState({ stats: { ...ps.stats, currentHp: Math.max(1, Math.round(maxHp * 0.01)) } });
           ps.addLog('❤️ Здоровье восстановлено до 1%.', 'heal');
+          set({ deathSettled: true });
           set({ deathFlavor: flavor });
         } else if (state.isReturningHome) {
           ps.addLog(`🏁 Возвращение на базу завершено.`, 'loot');
@@ -707,6 +729,8 @@ export const useExplorationStore = create<ExplorationStore>()(
         plannedSec: state.plannedSec,
         useMaterials: state.useMaterials,
         consBuffs: state.consBuffs,
+        difficulty: state.difficulty,
+        modifier: state.modifier,
         // Кэш несейвленных наград: переживает перезагрузку, чтобы ретрай
         // сейвил те же предметы, а не генерировал дубликаты.
         eventRewardItems: state.eventRewardItems,
@@ -822,6 +846,17 @@ function applyLocalEffects(effectsJson: string, buffs: ConsBuffs = EMPTY_BUFFS) 
     if (eff.damagePercent && typeof eff.damagePercent === 'number') {
       const maxHp = ps.stats.maxHp || 10000;
       const dmgAmt = Math.round(maxHp * eff.damagePercent * (buffs.dmgTakenMult ?? 1));
+      patch.stats = { ...(patch.stats || ps.stats), currentHp: Math.max(0, (patch.stats?.currentHp ?? ps.stats.currentHp) - dmgAmt) };
+    }
+    // Числовой урон/хил (в HP) — база растёт с уровнем, редукция рюкзака режет.
+    if (eff.heal && typeof eff.heal === 'number') {
+      const maxHp = ps.stats.maxHp || 10000;
+      const healAmt = Math.round(eff.heal * (1 + (buffs.healPct || 0)));
+      patch.stats = { ...(patch.stats || ps.stats), currentHp: Math.min(maxHp, (patch.stats?.currentHp ?? ps.stats.currentHp) + healAmt) };
+    }
+    if (eff.damage && typeof eff.damage === 'number') {
+      const maxHp = ps.stats.maxHp || 10000;
+      const dmgAmt = Math.min(Math.round(eff.damage * (buffs.dmgTakenMult ?? 1)), Math.round(maxHp * 0.95));
       patch.stats = { ...(patch.stats || ps.stats), currentHp: Math.max(0, (patch.stats?.currentHp ?? ps.stats.currentHp) - dmgAmt) };
     }
 

@@ -11,8 +11,30 @@ import { adaptEvent, parseServerTs } from './adaptEvent';
 import type { TravelRewardItem } from '../../types/travel';
 import styles from './travel.module.css';
 
-/** Акцентный цвет зоны — по её классу из data/zones. */
-const ZONE_COLORS: Record<string, string> = {
+const DIFF_NAMES: Record<string, string> = {
+  normal: 'Обычная',
+  hard: 'Сложная',
+  danger: 'Опасная',
+  nightmare: 'Кошмар',
+  hell: 'Ад на земле',
+};
+const DIFF_ICONS: Record<string, string> = {
+  normal: '⚪', hard: '🟢', danger: '🔵', nightmare: '🟣', hell: '🔥',
+};
+const DIFF_COLORS: Record<string, string> = {
+  normal: '#e2e8f0', hard: '#4ade80', danger: '#60a5fa', nightmare: '#a78bfa', hell: '#f87171',
+};
+const MOD_NAMES: Record<string, string> = {
+  night: 'Ночь', silence: 'Тишина', ambush: 'Засада', fog: 'Туман', wind: 'Ветер',
+  gnats: 'Мошка', lowtide: 'Отлив', frost: 'Стужа', plague: 'Заражение',
+  compass: 'Компас', trail: 'Тропа', traps: 'Ловушки',
+};
+const MOD_ICONS: Record<string, string> = {
+  night: '🌙', silence: '🤫', ambush: '🚧', fog: '🌫', wind: '🌪', gnats: '🦟',
+  lowtide: '🌊', frost: '❄️', plague: '☣', compass: '🧭', trail: '⛰', traps: '🪤',
+};
+
+/** Акцентный цвет зоны — по её классу из data/zones. */const ZONE_COLORS: Record<string, string> = {
   'zone-base': '#818cf8',
   'zone-swamp': '#4ade80',
   'zone-factory': '#fb923c',
@@ -51,6 +73,8 @@ export const TravelScreen = () => {
   const debtSec = useExplorationStore((s) => s.debtSec);
   const bulkMode = useExplorationStore((s) => s.bulkMode);
   const rewardItems = useExplorationStore((s) => s.eventRewardItems);
+  const difficulty = useExplorationStore((s) => s.difficulty);
+  const modifier = useExplorationStore((s) => s.modifier);
 
   const [tooltipItem, setTooltipItem] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -132,6 +156,17 @@ export const TravelScreen = () => {
             {bulkMode === 'partial' ? ' (пакетная обработка…)' : ''}
           </div>
         )}
+
+        <div className={styles.runBadges}>
+          <span className={styles.runDiff} style={{ color: DIFF_COLORS[difficulty] ?? '#e2e8f0' }}>
+            {DIFF_ICONS[difficulty] ?? '⚪'} {DIFF_NAMES[difficulty] ?? 'Обычная'}
+          </span>
+          {modifier && (
+            <span className={styles.runMod}>
+              {MOD_ICONS[modifier] ?? '•'} {MOD_NAMES[modifier] ?? modifier}
+            </span>
+          )}
+        </div>
 
         <div className={styles.phasePill} style={{ color: phaseColor }}>
           {PHASE_TEXT[phase] ?? phase}

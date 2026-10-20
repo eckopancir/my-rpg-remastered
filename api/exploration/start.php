@@ -16,6 +16,10 @@ $useMats = isset($input['use_mats']) ? (int)$input['use_mats'] : (isset($_GET['u
 $consumables = $input['consumables'] ?? [];
 if (!is_array($consumables)) $consumables = [];
 
+// Сложность рейда и модификатор (характер) — из карточки рейда.
+$difficulty = trim((string)($input['difficulty'] ?? 'normal'));
+$modifier = trim((string)($input['modifier'] ?? ''));
+
 if (!$zone) {
   jsonResponse(['error' => 'zone required'], 400);
 }
@@ -31,7 +35,7 @@ $upd = $pdo->prepare("UPDATE explorations SET phase = 'complete' WHERE user_id =
 $upd->execute([$userId]);
 
 try {
-  $result = startExploration($pdo, $userId, $zone, $hours, $useMats, $consumables);
+  $result = startExploration($pdo, $userId, $zone, $hours, $useMats, $consumables, $difficulty, $modifier);
   jsonResponse(['success' => true, 'exploration' => $result]);
 } catch (Exception $e) {
   jsonResponse(['error' => $e->getMessage()], 500);

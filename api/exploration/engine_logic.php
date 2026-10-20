@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/engine_config.php';
+require_once __DIR__ . '/difficulty.php';
 require_once __DIR__ . '/event_data.php';
 require_once __DIR__ . '/legendary_data.php';
 require_once __DIR__ . '/engine_loot.php';
@@ -208,7 +209,11 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
     // Баффы рюкзака (сгораемые расходники): реген добавляется к тиковому.
     $buffs = expeditionBuffs($exp['consumables'] ?? null);
     $regenPerTick += (int)($buffs['regen'] ?? 0);
-    $legChancePct = LEGENDARY_CHANCE_PCT + ($buffs['legPct'] ?? 0) * 100;
+    // Сложность рейда и его модификатор (характер).
+    $difficulty = travelDifficulty($exp['difficulty'] ?? 'normal');
+    $modifier = travelModifier($exp['modifier'] ?? null);
+    $regenPerTick = (int)round($regenPerTick * (float)($modifier['regen'] ?? 1));
+    $legChancePct = LEGENDARY_CHANCE_PCT + ($buffs['legPct'] ?? 0) * 100 + (float)($modifier['legChance'] ?? 0);
 
     $died = false;
     for ($i = 0; $i < $ticksToProcess; $i++) {
@@ -252,7 +257,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       if ($exp['time_left'] <= 0) {
         $exp['phase'] = 'travel_back';
         // Топливо из рюкзака сокращает возврат (returnMult, пол −50%).
-        $exp['time_left'] = travelSpeed((int)round(TRAVEL_BACK_TICKS * ($buffs['returnMult'] ?? 1.0)));
+        $exp['time_left'] = travelSpeed((int)round(TRAVEL_BACK_TICKS * ($buffs['returnMult'] ?? 1.0) * (float)($modifier['returnTime'] ?? 1.0)));
         $exp['was_cancelled'] = 0;
       }
 
@@ -273,7 +278,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
               $eventId = $pdo->lastInsertId();
               // Награда легендарки — сильнее обычной находки, но с потолком.
               createOfflineReward($pdo, $userId, $expId, $eventId, $legEvent['text'], $legEvent['type'], (int)$legEff['itemCount'], $playerLevel, $legEff, null, null,
-                travelRewardProfile($playerLevel, $exp['zone_difficulty'], null, 'Смертоносный'));
+                travelRewardProfile($playerLevel, $exp['zone_difficulty'], null, travelQualityCap($difficulty, $modifier)));
             }
           }
         }
@@ -283,6 +288,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       $exp['micro_event_cooldown'] = (int)$exp['micro_event_cooldown'] - 1;
       if ($exp['micro_event_cooldown'] <= 0) {
         $me = generateMicroEvent($zoneDesc, '');
+        // %-эффекты микро -> числовые HP + множители сложности/модификатора.
+        $me['effects'] = applyTravelScaling($me['effects'], $playerLevel, trapDmgBand((int)($exp['planned_sec'] ?? 0)), $difficulty, $modifier);
         // 10% микро-событий приносит мелочь (ресурсы/патроны).
         $microItem = (mt_rand(1, 100) <= TRAVEL_MICRO_ITEM_PCT) ? 1 : 0;
         if ($microItem > 0) $me['effects']['itemCount'] = $microItem;
@@ -349,7 +356,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           // Ресурсы в пути не тратятся — инвентарь не трогаем.
           $itemsRef = [];
           $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
-          $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)));
+          $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)), $difficulty, $modifier);
           $applyResult = applyEffects($pdo, $userId, $event['effects'], $buffs);
           $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
           $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
@@ -371,10 +378,10 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           if ($applyResult['count'] > 0) {
             $eventId = $pdo->lastInsertId();
             createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $applyResult['count'], $playerLevel, $event['effects'], $event['itemPool'] ?? null, null,
-              travelRewardProfile($playerLevel, $exp['zone_difficulty'], $event['itemPool'] ?? null));
+              travelRewardProfile($playerLevel, $exp['zone_difficulty'], $event['itemPool'] ?? null, travelQualityCap($difficulty, $modifier)));
           }
         }
-        $exp['event_cooldown'] = travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX));
+        $exp['event_cooldown'] = max(1, (int)round(travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX)) / (float)($modifier['eventRate'] ?? 1)));
       }
 
       $exp['tick_count']++;
@@ -543,6 +550,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     $cdMicro--;
     if ($cdMicro <= 0) {
       $me = generateMicroEvent($zoneDesc, '');
+      $me['effects'] = applyTravelScaling($me['effects'], $playerLevel, trapDmgBand((int)($exp['planned_sec'] ?? 0)), $difficulty, $modifier);
       if (!empty($me['effects']['healPercent'])) {
         $hp = min($maxHp, $hp + (int)round($maxHp * (float)$me['effects']['healPercent'] * $bHealMult));
       }
@@ -567,7 +575,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
         }
       } else {
       $bulkItemsRef = [];
-      $event = generateEvent($exp['zone'], $playerLevel, $factions, $bulkItemsRef, $exp['tick_count']);
+      $event = generateEvent($exp['zone'], $playerLevel, $factions, $bulkItemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)), $difficulty, $modifier);
       $eff = $event['effects'] ?? [];
       $bulkChips += (int)($eff['chips'] ?? 0);
       $bulkExp += (int)($eff['exp'] ?? 0);
@@ -579,7 +587,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       }
       $bigN++;
       }
-      $cdEvent = travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX));
+      $cdEvent = max(1, (int)round(travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX)) / (float)($modifier['eventRate'] ?? 1)));
     }
 
     // Смерть в офлайне — штатный путь с откатом и историей.
@@ -614,7 +622,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   if ($tl > 0 && $tl <= $seconds) {
     $over = $seconds - $tl;
     $exp['phase'] = 'travel_back';
-    $backTotal = travelSpeed((int)round(TRAVEL_BACK_TICKS * ($bBuffs['returnMult'] ?? 1.0)));
+    $backTotal = travelSpeed((int)round(TRAVEL_BACK_TICKS * ($bBuffs['returnMult'] ?? 1.0) * (float)($modifier['returnTime'] ?? 1.0)));
     $exp['time_left'] = max(1, $backTotal - $over);
     $exp['was_cancelled'] = 0;
     // Незавершённая цепочка гаснет вместе с окном (заработанные этапы уже выплачены).
@@ -708,6 +716,15 @@ function pruneOldEvents($pdo, $expId) {
 // ---------------------------------------------------------------------------
 // Legendary stage resolution
 // ---------------------------------------------------------------------------
+/** Множитель награды за сложность рейда (легендарные этапы). */
+function travelScaleRewards($reward, $exp) {
+  if (!is_array($reward)) return $reward;
+  $mult = (float)(travelDifficulty($exp['difficulty'] ?? 'normal')['rewardMult'] ?? 1);
+  if (isset($reward['chips']) && $reward['chips'] > 0) $reward['chips'] = (int)round($reward['chips'] * $mult);
+  if (isset($reward['exp']) && $reward['exp'] > 0) $reward['exp'] = (int)round($reward['exp'] * $mult);
+  return $reward;
+}
+
 function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
   $allLegends = getLegendaryEvents();
   $legKey = $exp['legendary_id'];
@@ -757,6 +774,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
     // Final stage — give final reward (без предметов: вместо них сундук ниже).
     $fr = computeLegendaryReward($leg['fr_rw'], $playerLevel);
     unset($fr['itemCount']);
+    $fr = travelScaleRewards($fr, $exp);
     $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
     $merged = mergeEffectsArr($rewards, $fr);
     $applyResult = applyEffects($pdo, $userId, $merged, $buffs);
@@ -786,7 +804,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
 
   // 70/30 roll
   $success = mt_rand(1, 100) <= 70;
-  $stageReward = computeLegendaryReward($stage['rw'], $playerLevel);
+  $stageReward = travelScaleRewards(computeLegendaryReward($stage['rw'], $playerLevel), $exp);
   $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
 
   if ($success) {
@@ -870,10 +888,13 @@ function handleExplorationDeath($pdo, $userId, &$exp) {
 // ---------------------------------------------------------------------------
 // Exploration start
 // ---------------------------------------------------------------------------
-function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $consumables = []) {
+function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $consumables = [], $difficultyKey = 'normal', $modifierKey = null) {
   $zoneData = getZoneData($zone);
+  $difficulty = travelDifficulty($difficultyKey);
+  $modifier = travelModifier($modifierKey);
   $hours = max(EXP_MIN_HOURS, min(EXP_MAX_HOURS, (int)$hours));
-  $plannedSec = $hours * 3600;
+  // Модификатор может продлить/сократить время в зоне.
+  $plannedSec = (int)round($hours * 3600 * (float)($modifier['tripTime'] ?? 1));
   $useMats = $useMats ? 1 : 0;
   // Рюкзак: нормализуем [{name, qty}] и СЖИГАЕМ из инвентаря сразу.
   $pack = [];
@@ -917,12 +938,13 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
     }
     $packJson = [];
     foreach ($pack as $nm => $q) $packJson[] = ['name' => $nm, 'qty' => $q];
-    $stmt = $pdo->prepare("INSERT INTO explorations (user_id, zone, zone_difficulty, zone_factions, is_infinite, phase, time_left, planned_sec, was_cancelled, use_materials, consumables, event_cooldown, micro_event_cooldown, has_triggered_legendary, last_tick_at, started_at)
-      VALUES (?, ?, ?, ?, 0, 'travel_out', ?, ?, 0, ?, ?, 0, 0, 0, NOW(3), NOW())");
+    $stmt = $pdo->prepare("INSERT INTO explorations (user_id, zone, zone_difficulty, zone_factions, is_infinite, phase, time_left, planned_sec, was_cancelled, use_materials, consumables, difficulty, modifier, event_cooldown, micro_event_cooldown, has_triggered_legendary, last_tick_at, started_at)
+      VALUES (?, ?, ?, ?, 0, 'travel_out', ?, ?, 0, ?, ?, ?, ?, 0, 0, 0, NOW(3), NOW())");
     $stmt->execute([$userId, $zone, (int)($zoneData['difficulty'] ?? 1),
       json_encode($zoneData['allowedFactions'] ?? [], JSON_UNESCAPED_UNICODE),
       travelSpeed(TRAVEL_OUT_TICKS), $plannedSec, $useMats,
-      empty($packJson) ? null : json_encode($packJson, JSON_UNESCAPED_UNICODE)]);
+      empty($packJson) ? null : json_encode($packJson, JSON_UNESCAPED_UNICODE),
+      $difficulty['key'], $modifier['key']]);
     $expId = $pdo->lastInsertId();
     $pdo->commit();
   } catch (Exception $e) {
@@ -930,7 +952,7 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
     throw $e;
   }
 
-  return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => travelSpeed(TRAVEL_OUT_TICKS), 'is_infinite' => false, 'planned_sec' => $plannedSec, 'use_materials' => $useMats];
+  return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => travelSpeed(TRAVEL_OUT_TICKS), 'is_infinite' => false, 'planned_sec' => $plannedSec, 'use_materials' => $useMats, 'difficulty' => $difficulty['key'], 'modifier' => $modifier['key']];
 }
 
 // ---------------------------------------------------------------------------
@@ -967,6 +989,8 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
       'totalItems' => (int)($exp['total_items'] ?? 0),
       'isInfinite' => (bool)$exp['is_infinite'],
       'plannedSec' => (int)($exp['planned_sec'] ?? 0),
+      'difficulty' => $exp['difficulty'] ?? 'normal',
+      'modifier' => $exp['modifier'] ?? null,
       'useMaterials' => !isset($exp['use_materials']) || (int)$exp['use_materials'] === 1,
       'legendaryId' => $exp['legendary_id'],
       'legendaryStage' => $exp['legendary_stage'] !== null ? (int)$exp['legendary_stage'] : null,
@@ -992,7 +1016,8 @@ function cancelExploration($pdo, $userId) {
   if (!$exp) return ['success' => false, 'message' => 'Нет активного исследования'];
   // Досрочный возврат — реальная дорога домой (час минус топливо),
   // без бонуса за зачистку. История запишется по прибытии с исходом 'cancelled'.
-  $retSec = travelSpeed((int)round(TRAVEL_BACK_TICKS * (expeditionBuffs($exp['consumables'] ?? null)['returnMult'] ?? 1.0)));
+  $mod = travelModifier($exp['modifier'] ?? null);
+  $retSec = travelSpeed((int)round(TRAVEL_BACK_TICKS * (expeditionBuffs($exp['consumables'] ?? null)['returnMult'] ?? 1.0) * (float)($mod['returnTime'] ?? 1.0)));
   $upd = $pdo->prepare("UPDATE explorations SET phase = 'travel_back', time_left = ?, was_cancelled = 1 WHERE id = ?");
   $upd->execute([$retSec, $exp['id']]);
   return ['success' => true, 'return_sec' => $retSec];
@@ -1138,6 +1163,24 @@ function applyEffects($pdo, $userId, $effects, $buffs = []) {
     $sd['player']['stats']['currentHp'] = max(0, $cur - (int)round($maxHp * $dmgPct));
     $changed = true;
   }
+  // Числовой урон (в HP) — база растёт с уровнем, редукция рюкзака режет.
+  if (isset($effects['damage']) && (int)$effects['damage'] > 0) {
+    $dmg = (int)round((int)$effects['damage'] * $dmgMult);
+    $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
+    $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
+    // Страховка: одно событие не убивает мгновенно (на «Аде» — почти).
+    $dmg = min($dmg, (int)round($maxHp * 0.95));
+    $sd['player']['stats']['currentHp'] = max(0, $cur - $dmg);
+    $changed = true;
+  }
+  // Числовой хил (в HP).
+  if (isset($effects['heal']) && (int)$effects['heal'] > 0) {
+    $heal = (int)round((int)$effects['heal'] * $healMult);
+    $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
+    $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
+    $sd['player']['stats']['currentHp'] = min($maxHp, $cur + $heal);
+    $changed = true;
+  }
   if (isset($effects['itemCount']) && $effects['itemCount'] > 0) {
     $result['count'] = (int)$effects['itemCount'];
   }
@@ -1252,7 +1295,7 @@ function pickCategory() {
   return 'combat';
 }
 
-function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCount = 0, $dmgBand = null) {
+function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCount = 0, $dmgBand = null, $difficulty = null, $modifier = null) {
   $catData = getCategoryTexts();
   $category = pickCategory();
   $zoneDesc = getZoneDesc($zone);
@@ -1275,6 +1318,8 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
         $eff['damagePercent'] = max($dmgBand[0], min($dmgBand[1], $eff['damagePercent']));
       }
       $eff = capEffects($eff, false, $dmgBand);
+      // %-урон/хил -> числовые HP + множители сложности и модификатора.
+      $eff = applyTravelScaling($eff, $playerLevel, $dmgBand, $difficulty ?: travelDifficulty('normal'), $modifier ?: travelModifier(null));
       // Знак исхода и доля удачных исходов в ветке — для выбора игрока
       // («Осторожно» / «Рискнуть») и подсветки в ленте.
       $good = effectsAreGood($eff);
@@ -1358,7 +1403,66 @@ function effectsWithBuffs($effects, $buffs = []) {
   if (isset($out['damagePercent']) && $out['damagePercent'] > 0) {
     $out['damagePercent'] = round($out['damagePercent'] * $dmgMult, 4);
   }
+  // Числовые урон/хил (после перевода из %).
+  if (isset($out['damage']) && $out['damage'] > 0) {
+    $out['damage'] = (int)round($out['damage'] * $dmgMult);
+  }
+  if (isset($out['heal']) && $out['heal'] > 0) {
+    $out['heal'] = (int)round($out['heal'] * (1 + $healPct));
+  }
   return $out;
+}
+
+// ---------------------------------------------------------------------------
+// Числовой урон: база растёт с уровнем игрока, дальше множители сложности
+// и модификатора. Шаблоны событий остаются в % — это их «вес» исхода.
+// ---------------------------------------------------------------------------
+
+/** База урона/хила события на 1 уровне игрока (в HP). */
+function travelPowerScale($playerLevel) {
+  return 24 + 5 * (max(1, (int)$playerLevel) - 1);
+}
+
+/**
+ * Переводит %-эффекты шаблона в числовые (урон/хил в HP) и применяет
+ * множители сложности и модификатора рейда.
+ */
+function applyTravelScaling($eff, $playerLevel, $dmgBand, $difficulty, $modifier) {
+  if (!is_array($eff)) return $eff;
+  $base = travelPowerScale($playerLevel);
+  $dmgMult = (float)($difficulty['damageMult'] ?? 1) * (float)($modifier['damage'] ?? 1);
+  $rewardMult = (float)($difficulty['rewardMult'] ?? 1);
+  $chipMult = $rewardMult * (float)($modifier['chips'] ?? 1);
+  $expMult = $rewardMult * (float)($modifier['exp'] ?? 1);
+  $healMult = (float)($modifier['heal'] ?? 1);
+  $findRate = (float)($modifier['findRate'] ?? 1);
+  $lootBonus = (float)($modifier['lootBonus'] ?? 0);
+
+  // Урон: % шаблона → множитель базы (8% = 1×), с потолком полосы.
+  if (isset($eff['damagePercent']) && $eff['damagePercent'] > 0) {
+    $factor = (float)$eff['damagePercent'] / 0.08;
+    $factor = min($factor, (float)$dmgBand);
+    unset($eff['damagePercent']);
+    $eff['damage'] = (int)round($base * $factor * $dmgMult);
+  }
+  // Хил: % шаблона → HP (4% = 1× базы).
+  if (isset($eff['healPercent']) && $eff['healPercent'] > 0) {
+    $heal = (int)round($base * ((float)$eff['healPercent'] / 0.04) * $healMult);
+    unset($eff['healPercent']);
+    $eff['heal'] = $heal;
+  }
+  if (isset($eff['chips']) && $eff['chips'] > 0) $eff['chips'] = (int)round($eff['chips'] * $chipMult);
+  if (isset($eff['exp']) && $eff['exp'] > 0) $eff['exp'] = (int)round($eff['exp'] * $expMult);
+
+  // Находки: меньше/больше.
+  if (!empty($eff['itemCount'])) {
+    if ($findRate < 1 && (mt_rand(1, 100) / 100) > $findRate) {
+      unset($eff['itemCount']);
+    } elseif ($lootBonus > 0 && (mt_rand(1, 100) / 100) < $lootBonus) {
+      $eff['itemCount'] = (int)$eff['itemCount'] + 1;
+    }
+  }
+  return $eff;
 }
 
 function capEffects($effects, $hadResource = false, $dmgBand = null) {
@@ -1368,22 +1472,20 @@ function capEffects($effects, $hadResource = false, $dmgBand = null) {
   if (isset($effects['healPercent']) && $effects['healPercent'] > 0) {
     $effects['healPercent'] = min($effects['healPercent'], 0.10);
   }
-  if (isset($effects['damagePercent']) && $effects['damagePercent'] > 0) {
-    // Полоса tier'а длительности, верхняя граница — 60% от полосы.
-    $maxDmg = round($dmgBand[1] * 0.6, 2);
-    $effects['damagePercent'] = min($effects['damagePercent'], $maxDmg);
-  }
   return $effects;
 }
 
-// Полоса урона ловушек по плановой длительности вылазки:
-// +10% tier → 0.15–0.30, +30% → 0.30–0.55, +60% → 0.40–0.75, +100% → 0.80–0.99.
+/**
+ * Полоса урона по длительности рейда — максимальный множитель от базы
+ * (было: полоса в % от максимального HP).
+ * ≤6ч → 1.5×, 6–12ч → 2.0×, 12–18ч → 2.5×, 18–24ч → 3.0×.
+ */
 function trapDmgBand($plannedSec) {
   $h = $plannedSec / 3600;
-  if ($h >= 18) return [0.80, 0.99];
-  if ($h >= 12) return [0.40, 0.75];
-  if ($h >= 6) return [0.30, 0.55];
-  return [0.15, 0.30];
+  if ($h >= 18) return 3.0;
+  if ($h >= 12) return 2.5;
+  if ($h >= 6) return 2.0;
+  return 1.5;
 }
 
 // Масштабирование базового урона исходов (0.05–0.18) к полосам выше.

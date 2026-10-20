@@ -41,6 +41,10 @@ export interface TravelRewards {
   healPercent: number;
   damagePercent: number;
   flatHeal: number;
+  /** Числовой хил (в HP) — новые рейды. */
+  heal: number;
+  /** Числовой урон (в HP) — новые рейды. */
+  damage: number;
   /** Сколько предметов выпало (сервер посчитал). */
   itemCount: number;
   /** Конкретные предметы (клиент уже сгенерировал их). */

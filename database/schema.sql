@@ -127,6 +127,8 @@ CREATE TABLE explorations (
     phase VARCHAR(20) NOT NULL DEFAULT 'travel_out',
     time_left INT NOT NULL DEFAULT 180,
     planned_sec INT NOT NULL DEFAULT 0,
+    difficulty VARCHAR(16) NOT NULL DEFAULT 'normal',
+    modifier VARCHAR(16) DEFAULT NULL,
     was_cancelled TINYINT(1) NOT NULL DEFAULT 0,
     use_materials TINYINT(1) NOT NULL DEFAULT 1,
     consumables JSON DEFAULT NULL,

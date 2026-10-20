@@ -60,6 +60,16 @@ if (!count($colsC)) {
   $pdo->exec("ALTER TABLE explorations ADD COLUMN consumables JSON DEFAULT NULL AFTER use_materials");
 }
 
+// Сложность рейда и модификатор (характер рейда).
+$colsDiff = $pdo->query("SHOW COLUMNS FROM explorations LIKE 'difficulty'")->fetchAll();
+if (!count($colsDiff)) {
+  $pdo->exec("ALTER TABLE explorations ADD COLUMN difficulty VARCHAR(16) NOT NULL DEFAULT 'normal' AFTER planned_sec");
+}
+$colsMod = $pdo->query("SHOW COLUMNS FROM explorations LIKE 'modifier'")->fetchAll();
+if (!count($colsMod)) {
+  $pdo->exec("ALTER TABLE explorations ADD COLUMN modifier VARCHAR(16) DEFAULT NULL AFTER difficulty");
+}
+
 // Колонка выбора в событии больше не используется (исход выбирается случайно).
 $colsPC = $pdo->query("SHOW COLUMNS FROM explorations LIKE 'pending_choice'")->fetchAll();
 if (count($colsPC)) {

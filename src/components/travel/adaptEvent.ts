@@ -77,6 +77,8 @@ const EMPTY_REWARDS: TravelRewards = {
   healPercent: 0,
   damagePercent: 0,
   flatHeal: 0,
+  heal: 0,
+  damage: 0,
   itemCount: 0,
   items: [],
 };
@@ -106,6 +108,8 @@ export const adaptEvent = (
     healPercent: typeof eff.healPercent === 'number' ? eff.healPercent : 0,
     damagePercent: typeof eff.damagePercent === 'number' ? eff.damagePercent : 0,
     flatHeal: typeof eff.flatHeal === 'number' ? eff.flatHeal : 0,
+    heal: typeof eff.heal === 'number' ? eff.heal : 0,
+    damage: typeof eff.damage === 'number' ? eff.damage : 0,
     itemCount: typeof eff.itemCount === 'number' ? eff.itemCount : items.length,
     items,
   };

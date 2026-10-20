@@ -780,6 +780,110 @@
   color: var(--text-primary);
 }
 
+/* ---------- Бейджи рейда (сложность/характер) ---------- */
+.runBadges {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.runDiff {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.runMod {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ---------- Карточки рейдов ---------- */
+.cardRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.tripCard {
+  padding: 11px;
+  border-radius: 9px;
+  cursor: pointer;
+  border: 1px solid var(--border-glass);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.35));
+  transition: all 150ms ease;
+}
+
+.tripCard:hover {
+  border-color: var(--border-accent);
+  transform: translateY(-2px);
+}
+
+.tripCardActive {
+  border-color: var(--diffColor, var(--accent-primary));
+  box-shadow: 0 0 20px -6px var(--diffColor, var(--accent-primary));
+}
+
+.tripCardDiff {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.tripCardMod {
+  margin-top: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tripCardDesc {
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.tripCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.tripCardMeta span {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.tripCardCap {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 /* ---------- Сводка ---------- */
 .sumBig {
   display: flex;

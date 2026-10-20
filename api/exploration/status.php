@@ -18,7 +18,13 @@ $beforeId = isset($_GET['before_id']) ? (int)$_GET['before_id'] : 0;
 $result = processTicks($pdo, $userId);
 
 if (!$result) {
-  jsonResponse(['active' => false]);
+  // Активного рейда нет. Если последний закончился смертью — сообщаем
+  // исход, иначе штраф (потеря добычи и обнуление рюкзака) не применится.
+  $hStmt = $pdo->prepare("SELECT outcome FROM exploration_history WHERE user_id = ? ORDER BY id DESC LIMIT 1");
+  $hStmt->execute([$userId]);
+  $hRow = $hStmt->fetch();
+  $lastOutcome = ($hRow && $hRow['outcome'] === 'dead') ? 'dead' : 'complete';
+  jsonResponse(['active' => false, 'state' => $lastOutcome]);
 }
 
 // Load events only for this exploration (paginated tail)
