@@ -264,6 +264,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $exp['legendary_auto_resolve'] = 0;
           $legEvent = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc, $buffs);
           if ($legEvent) {
+            // В ленту — усиленные баффом числа (как реально получили).
+            $legEvent['effects'] = json_encode(effectsWithBuffs(json_decode($legEvent['effects'], true) ?: [], $buffs), JSON_UNESCAPED_UNICODE);
             $events[] = $legEvent;
             saveEvent($pdo, $userId, $expId, $legEvent);
             $legEff = json_decode($legEvent['effects'], true);
@@ -291,7 +293,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         $meEvent = [
           'text' => $me['text'],
           'type' => $me['type'],
-          'effects' => json_encode($me['effects']),
+          'effects' => json_encode(effectsWithBuffs($me['effects'], $buffs)),
           'is_micro' => 1,
           'tick_number' => $exp['tick_count'],
           'decision' => null,
@@ -355,7 +357,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $ev = [
             'text' => $event['text'],
             'type' => $event['type'],
-            'effects' => json_encode($event['effects']),
+            'effects' => json_encode(effectsWithBuffs($event['effects'], $buffs)),
             'is_micro' => 0,
             'tick_number' => $exp['tick_count'],
             'decision' => $event['decision'],
@@ -654,6 +656,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   }
 
   $summary = buildBulkSummary($sumSec, $microN, $bigN, $legN, $bulkChips, $bulkExp, $bulkItems, false);
+  $summary['effects'] = json_encode(effectsWithBuffs(json_decode($summary['effects'], true) ?: [], $bBuffs), JSON_UNESCAPED_UNICODE);
   $events[] = $summary;
   saveEvent($pdo, $userId, $expId, $summary);
   if ($bulkItems > 0) {
@@ -1328,6 +1331,34 @@ function branchGoodPercent($outcomes, $level) {
   }
   if ($total <= 0) return 100;
   return (int)round($good / $total * 100);
+}
+
+/**
+ * Эффекты с учётом баффов рюкзака — для записи в ленту.
+ * applyEffects() применяет баффы к реальным значениям (HP/чипы/опыт),
+ * а в строку события кладём уже усиленные числа — тогда цифры в ленте
+ * совпадают с тем, что реально получил игрок.
+ */
+function effectsWithBuffs($effects, $buffs = []) {
+  if (!is_array($effects)) return $effects;
+  $out = $effects;
+  $chipsPct = (float)($buffs['chipsPct'] ?? 0);
+  $expPct = (float)($buffs['expPct'] ?? 0);
+  $healPct = (float)($buffs['healPct'] ?? 0);
+  $dmgMult = (float)($buffs['dmgTakenMult'] ?? 1.0);
+  if (isset($out['chips']) && is_numeric($out['chips'])) {
+    $out['chips'] = $out['chips'] > 0 ? (int)round($out['chips'] * (1 + $chipsPct)) : $out['chips'];
+  }
+  if (isset($out['exp']) && is_numeric($out['exp'])) {
+    $out['exp'] = $out['exp'] > 0 ? (int)round($out['exp'] * (1 + $expPct)) : $out['exp'];
+  }
+  if (isset($out['healPercent']) && $out['healPercent'] > 0) {
+    $out['healPercent'] = round($out['healPercent'] * (1 + $healPct), 4);
+  }
+  if (isset($out['damagePercent']) && $out['damagePercent'] > 0) {
+    $out['damagePercent'] = round($out['damagePercent'] * $dmgMult, 4);
+  }
+  return $out;
 }
 
 function capEffects($effects, $hadResource = false, $dmgBand = null) {

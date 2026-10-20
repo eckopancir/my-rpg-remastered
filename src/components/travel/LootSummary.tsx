@@ -41,7 +41,7 @@ export const LootSummary = () => {
     const out: string[] = [];
     const b = consBuffs;
     if (!b) return out;
-    if (b.regen) out.push(`♺ +${b.regen} реген`);
+    if (b.regen) out.push(`♺ +${b.regen} реген/мин`);
     if (b.healPct) out.push(`❤ +${(b.healPct * 100).toFixed(1)}% хил`);
     if (b.legPct) out.push(`⚜ +${(b.legPct * 100).toFixed(1)}% легендарка`);
     if (b.expPct) out.push(`⚡ +${Math.round(b.expPct * 100)}% опыт`);
@@ -100,8 +100,12 @@ export const LootSummary = () => {
 
         {buffs.length > 0 && (
           <>
-            <div className={styles.sectionTitle}>Снаряжение рейда</div>
-            <div className={styles.previewBox}>{buffs.join(' · ')}</div>
+            <div className={styles.sectionTitle}>Бонусы рюкзака</div>
+            <div className={styles.previewBox}>
+              {buffs.map((b, i) => (
+                <div key={i}>{b}</div>
+              ))}
+            </div>
           </>
         )}
 

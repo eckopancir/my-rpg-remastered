@@ -1,4 +1,5 @@
 import { usePlayerStore } from '../../stores/playerStore';
+import { useExplorationStore } from '../../stores/explorationStore';
 import { getCharacterImage } from '../../assets/index';
 import { BackpackPanel } from './BackpackPanel';
 import styles from './travel.module.css';
@@ -6,6 +7,7 @@ import styles from './travel.module.css';
 export const PartyPanel = () => {
   const level = usePlayerStore((s) => s.level);
   const stats = usePlayerStore((s) => s.stats);
+  const consBuffs = useExplorationStore((s) => s.consBuffs);
 
   const maxHp = Math.max(1, stats.maxHp || 1);
   const hp = Math.max(0, Math.min(maxHp, stats.currentHp || 0));
@@ -15,7 +17,8 @@ export const PartyPanel = () => {
   const stam = Math.max(0, Math.min(maxStam, stats.stamina || 0));
   const stamPct = Math.round((stam / maxStam) * 100);
 
-  const regen = stats.regen || 0;
+  const packRegen = Math.round(consBuffs?.regen ?? 0);
+  const regen = Math.round(stats.regen || 0) + packRegen;
   const portrait = getCharacterImage('hero') || getCharacterImage('hero2');
 
   return (
@@ -41,6 +44,7 @@ export const PartyPanel = () => {
             </div>
             <div className={styles.nameSub}>
               {regen > 0 ? `♺ Реген +${Math.round(regen)} HP/мин` : '♺ Регена нет'}
+              {packRegen > 0 ? ' (рюкзак)' : ''}
             </div>
           </div>
         </div>
