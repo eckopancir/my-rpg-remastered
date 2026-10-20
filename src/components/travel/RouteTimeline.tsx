@@ -1,9 +1,8 @@
 import type { TravelPhaseInfo } from '../../types/travel';
+import { TRAVEL_OUT_SEC, TRAVEL_BACK_SEC } from '../../data/travelTuning';
 import styles from './travel.module.css';
 
-const TRAVEL_OUT_SEC = 120;
 const LEGACY_EXPLORE_SEC = 180;
-const TRAVEL_BACK_SEC = 3600;
 
 /** Секунды → «12ч 0м» / «43с». */
 const fmtLeft = (sec: number): string => {

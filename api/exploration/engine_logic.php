@@ -21,6 +21,23 @@ const MICRO_COOLDOWN_MAX = 720;
 define('TRAVEL_GEAR_CHANCE_PCT', 30);
 define('TRAVEL_MICRO_ITEM_PCT', 10);
 define('TRAVEL_QUALITY_CAP', 'Раритетный');
+
+// ТЕСТ: ускорение симуляции в 10 раз (события, микро, легендарка, дорога).
+// Перед релизом вернуть в 1.
+define('TRAVEL_TEST_SPEED', 10);
+// ТЕСТ: микро-события ускоряем слабее — иначе они забивают ленту и крупные
+// события с ветками не видно.
+define('TRAVEL_TEST_SPEED_MICRO', 4);
+
+/** Тестовая скорость: перевести секунды симуляции в «ускоренные». */
+function travelSpeed($sec) {
+  return max(1, (int)round($sec / TRAVEL_TEST_SPEED));
+}
+
+/** Тестовая скорость для микро-событий. */
+function travelSpeedMicro($sec) {
+  return max(1, (int)round($sec / TRAVEL_TEST_SPEED_MICRO));
+}
 const MAX_TICKS_PER_POLL = 60;
 // Шанс запуска легендарной цепочки на каждом крупном событии, %.
 // 2 крупных/час → ~12 за 6 часов → при 3% примерно 1 легендарка за ~16 часов.
@@ -86,7 +103,7 @@ function generateMicroEvent($zoneDesc, $faction) {
 // Сервер решает характер дропа (пул, потолки, количество) — клиент только
 // материализует предмет по профилю из reward_data.
 // ---------------------------------------------------------------------------
-function travelRewardProfile($playerLevel, $zoneDifficulty, $itemPool = null) {
+function travelRewardProfile($playerLevel, $zoneDifficulty, $itemPool = null, $qualityCap = null) {
   $forcedGear = ($itemPool !== null && $itemPool !== '');
   $isGear = $forcedGear || (mt_rand(1, 100) <= TRAVEL_GEAR_CHANCE_PCT);
   if ($isGear) {
@@ -97,7 +114,7 @@ function travelRewardProfile($playerLevel, $zoneDifficulty, $itemPool = null) {
       'pool' => 'gear',
       'slot' => $forcedGear ? $itemPool : null,
       'rarity' => $rarity,
-      'qualityCap' => TRAVEL_QUALITY_CAP,
+      'qualityCap' => $qualityCap ?: TRAVEL_QUALITY_CAP,
       'itemLevel' => $lvl,
       'qty' => 1,
     ];
@@ -227,38 +244,29 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       if ($exp['time_left'] <= 0) {
         $exp['phase'] = 'travel_back';
         // Топливо из рюкзака сокращает возврат (returnMult, пол −50%).
-        $exp['time_left'] = (int)round(TRAVEL_BACK_TICKS * ($buffs['returnMult'] ?? 1.0));
+        $exp['time_left'] = travelSpeed((int)round(TRAVEL_BACK_TICKS * ($buffs['returnMult'] ?? 1.0)));
         $exp['was_cancelled'] = 0;
       }
 
-      // Активная легендарная цепочка: всё остальное на паузе,
-      // этапы идут строго подряд — один в минуту.
+      // Активная легендарная цепочка: этапы идут по своему таймеру
+      // (один в минуту), обычные события при этом НЕ останавливаются.
       if ($exp['legendary_id']) {
         $exp['legendary_auto_resolve'] = (int)($exp['legendary_auto_resolve'] ?? 0) + 1;
-        if ($exp['legendary_auto_resolve'] >= LEGENDARY_STAGE_EVERY_SEC) {
+        if ($exp['legendary_auto_resolve'] >= travelSpeed(LEGENDARY_STAGE_EVERY_SEC)) {
           $exp['legendary_auto_resolve'] = 0;
           $legEvent = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc, $buffs);
-          $exp['legendary_auto_resolve'] = 0;
           if ($legEvent) {
             $events[] = $legEvent;
             saveEvent($pdo, $userId, $expId, $legEvent);
             $legEff = json_decode($legEvent['effects'], true);
             if (isset($legEff['itemCount']) && $legEff['itemCount'] > 0) {
               $eventId = $pdo->lastInsertId();
-              createOfflineReward($pdo, $userId, $expId, $eventId, $legEvent['text'], $legEvent['type'], (int)$legEff['itemCount'], $playerLevel, $legEff);
+              // Награда легендарки — сильнее обычной находки, но с потолком.
+              createOfflineReward($pdo, $userId, $expId, $eventId, $legEvent['text'], $legEvent['type'], (int)$legEff['itemCount'], $playerLevel, $legEff, null, null,
+                travelRewardProfile($playerLevel, $exp['zone_difficulty'], null, 'Смертоносный'));
             }
           }
         }
-        $exp['tick_count']++;
-        setExploreField($pdo, $expId, [
-          'time_left' => $exp['time_left'],
-          'legendary_auto_resolve' => $exp['legendary_auto_resolve'],
-          'legendary_stage' => $exp['legendary_stage'],
-          'legendary_rewards' => $exp['legendary_rewards'],
-          'legendary_id' => $exp['legendary_id'],
-          'tick_count' => $exp['tick_count'],
-        ]);
-        continue;
       }
 
       // Micro events
@@ -292,7 +300,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
             $playerLevel, $me['effects'], null, null,
             travelRewardProfile($playerLevel, $exp['zone_difficulty'], null));
         }
-        $exp['micro_event_cooldown'] = RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX);
+        $exp['micro_event_cooldown'] = travelSpeedMicro(RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX));
       }
 
       // Big events (активная цепочка сюда не доходит — она выше ставит continue).
@@ -319,6 +327,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
               'resource_cost' => null,
               'resource_had' => 0,
               'legendary_event_id' => $pickedKey,
+              'legendary_title' => $legData['title'] ?? $pickedKey,
               'legendary_stage' => 0,
               'legendary_result' => null,
             ];
@@ -327,8 +336,9 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         } else {
           // Regular event
           // Ресурсы в пути не тратятся — инвентарь не трогаем.
+          $itemsRef = [];
           $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
-          $event = generateEvent($exp['zone'], $playerLevel, $factions, [], $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)));
+          $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)));
           $applyResult = applyEffects($pdo, $userId, $event['effects'], $buffs);
           $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
           $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
@@ -353,7 +363,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
               travelRewardProfile($playerLevel, $exp['zone_difficulty'], $event['itemPool'] ?? null));
           }
         }
-        $exp['event_cooldown'] = RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX);
+        $exp['event_cooldown'] = travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX));
       }
 
       $exp['tick_count']++;
@@ -502,21 +512,21 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     // Реген раз в минуту (внутри bulk фаза не важна — ровно 1/60 темп).
     if ($regenPerTick > 0 && ((($s + 1) % 60) === 0)) $hp = min($maxHp, $hp + $regenPerTick);
 
-    // Активная легендарная цепочка: остальное на паузе, этапы тихо —
-    // один в минуту. Награды этапов уже применены внутри resolveLegendaryStage.
+    // Активная легендарная цепочка: этапы тихо идут по своему таймеру
+    // (один в минуту). Обычные события при этом не останавливаются.
     if ($exp['legendary_id']) {
       $exp['legendary_auto_resolve'] = (int)($exp['legendary_auto_resolve'] ?? 0) + 1;
-      if ($exp['legendary_auto_resolve'] >= LEGENDARY_STAGE_EVERY_SEC) {
+      if ($exp['legendary_auto_resolve'] >= travelSpeed(LEGENDARY_STAGE_EVERY_SEC)) {
         $exp['legendary_auto_resolve'] = 0;
         $row = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc, $bBuffs);
-        $exp['legendary_auto_resolve'] = 0;
         if ($row) {
           $legN++;
           $le = json_decode($row['effects'], true) ?: [];
           if (!empty($le['itemCount'])) $bulkItems += (int)$le['itemCount'];
         }
       }
-    } else {
+    }
+
     // Микро: эффекты копим в памяти, строк не пишем.
     // HP трекаем с баффами (как applyEffects), суммы — сырые (бафф разово в конце).
     $cdMicro--;
@@ -526,7 +536,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
         $hp = min($maxHp, $hp + (int)round($maxHp * (float)$me['effects']['healPercent'] * $bHealMult));
       }
       $microN++;
-      $cdMicro = RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX);
+      $cdMicro = travelSpeedMicro(RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX));
     }
 
     // Крупные в bulk: либо ролл запуска новой цепочки (3%),
@@ -545,7 +555,8 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
           $legN++; // интро без наград: цепочка учтена, стадии — дальше по минутам
         }
       } else {
-      $event = generateEvent($exp['zone'], $playerLevel, $factions, [], $exp['tick_count']);
+      $bulkItemsRef = [];
+      $event = generateEvent($exp['zone'], $playerLevel, $factions, $bulkItemsRef, $exp['tick_count']);
       $eff = $event['effects'] ?? [];
       $bulkChips += (int)($eff['chips'] ?? 0);
       $bulkExp += (int)($eff['exp'] ?? 0);
@@ -557,8 +568,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       }
       $bigN++;
       }
-      $cdEvent = RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX);
-    }
+      $cdEvent = travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX));
     }
 
     // Смерть в офлайне — штатный путь с откатом и историей.
@@ -593,7 +603,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   if ($tl > 0 && $tl <= $seconds) {
     $over = $seconds - $tl;
     $exp['phase'] = 'travel_back';
-    $backTotal = (int)round(TRAVEL_BACK_TICKS * ($bBuffs['returnMult'] ?? 1.0));
+    $backTotal = travelSpeed((int)round(TRAVEL_BACK_TICKS * ($bBuffs['returnMult'] ?? 1.0)));
     $exp['time_left'] = max(1, $backTotal - $over);
     $exp['was_cancelled'] = 0;
     // Незавершённая цепочка гаснет вместе с окном (заработанные этапы уже выплачены).
@@ -689,10 +699,46 @@ function pruneOldEvents($pdo, $expId) {
 function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
   $allLegends = getLegendaryEvents();
   $legKey = $exp['legendary_id'];
-  if (!isset($allLegends[$legKey])) return null;
+  if (!isset($allLegends[$legKey])) {
+    // Цепочка неизвестна — закрываем её, иначе путешествие встанет.
+    $exp['legendary_id'] = null;
+    $exp['legendary_stage'] = null;
+    $exp['legendary_auto_resolve'] = null;
+    $exp['legendary_rewards'] = null;
+    return null;
+  }
   $leg = $allLegends[$legKey];
   $stageIdx = (int)$exp['legendary_stage'];
-  if (!isset($leg['stages'][$stageIdx])) return null;
+  if (!isset($leg['stages'][$stageIdx])) {
+    // Стадии кончились (или их нет) — выплачиваем накопленное и закрываем цепочку.
+    $rewards = json_decode($exp['legendary_rewards'] ?? '{}', true) ?: [];
+    if (!empty($rewards)) {
+      $playerLevelNow = getPlayerLevel($pdo, $userId);
+      $applyResult = applyEffects($pdo, $userId, $rewards, $buffs);
+      $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
+      $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
+      $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
+    }
+    grantLegendaryChest($pdo, $userId, $exp, $legKey, $leg, $stageIdx, false);
+    $exp['legendary_id'] = null;
+    $exp['legendary_stage'] = null;
+    $exp['legendary_auto_resolve'] = null;
+    $exp['legendary_rewards'] = null;
+    return [
+      'text' => 'Цепочка обрывается. Накопленное забрано с собой.',
+      'type' => 'legendary',
+      'effects' => json_encode($rewards),
+      'is_micro' => 0,
+      'tick_number' => $exp['tick_count'],
+      'decision' => null,
+      'resource_cost' => null,
+      'resource_had' => 0,
+      'legendary_event_id' => $legKey,
+      'legendary_title' => $leg['title'] ?? $legKey,
+      'legendary_stage' => $stageIdx,
+      'legendary_result' => 'fail',
+    ];
+  }
   $stage = $leg['stages'][$stageIdx];
   $playerLevel = getPlayerLevel($pdo, $userId);
   if (empty($stage['text'])) {
@@ -720,6 +766,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
       'resource_cost' => null,
       'resource_had' => 0,
       'legendary_event_id' => $legKey,
+      'legendary_title' => $leg['title'] ?? $legKey,
       'legendary_stage' => $stageIdx + 1,
       'legendary_result' => 'complete',
     ];
@@ -750,6 +797,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
       'resource_cost' => null,
       'resource_had' => 0,
       'legendary_event_id' => $legKey,
+      'legendary_title' => $leg['title'] ?? $legKey,
       'legendary_stage' => $stageIdx + 1,
       'legendary_result' => 'stage',
     ];
@@ -774,6 +822,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
       'resource_cost' => null,
       'resource_had' => 0,
       'legendary_event_id' => $legKey,
+      'legendary_title' => $leg['title'] ?? $legKey,
       'legendary_stage' => $stageIdx + 1,
       'legendary_result' => 'fail',
     ];
@@ -860,7 +909,7 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
       VALUES (?, ?, ?, ?, 0, 'travel_out', ?, ?, 0, ?, ?, 0, 0, 0, NOW(3), NOW())");
     $stmt->execute([$userId, $zone, (int)($zoneData['difficulty'] ?? 1),
       json_encode($zoneData['allowedFactions'] ?? [], JSON_UNESCAPED_UNICODE),
-      TRAVEL_OUT_TICKS, $plannedSec, $useMats,
+      travelSpeed(TRAVEL_OUT_TICKS), $plannedSec, $useMats,
       empty($packJson) ? null : json_encode($packJson, JSON_UNESCAPED_UNICODE)]);
     $expId = $pdo->lastInsertId();
     $pdo->commit();
@@ -869,7 +918,7 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
     throw $e;
   }
 
-  return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => TRAVEL_OUT_TICKS, 'is_infinite' => false, 'planned_sec' => $plannedSec, 'use_materials' => $useMats];
+  return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => travelSpeed(TRAVEL_OUT_TICKS), 'is_infinite' => false, 'planned_sec' => $plannedSec, 'use_materials' => $useMats];
 }
 
 // ---------------------------------------------------------------------------
@@ -931,7 +980,7 @@ function cancelExploration($pdo, $userId) {
   if (!$exp) return ['success' => false, 'message' => 'Нет активного исследования'];
   // Досрочный возврат — реальная дорога домой (час минус топливо),
   // без бонуса за зачистку. История запишется по прибытии с исходом 'cancelled'.
-  $retSec = (int)round(TRAVEL_BACK_TICKS * (expeditionBuffs($exp['consumables'] ?? null)['returnMult'] ?? 1.0));
+  $retSec = travelSpeed((int)round(TRAVEL_BACK_TICKS * (expeditionBuffs($exp['consumables'] ?? null)['returnMult'] ?? 1.0)));
   $upd = $pdo->prepare("UPDATE explorations SET phase = 'travel_back', time_left = ?, was_cancelled = 1 WHERE id = ?");
   $upd->execute([$retSec, $exp['id']]);
   return ['success' => true, 'return_sec' => $retSec];
@@ -963,13 +1012,13 @@ function saveExplorationHistory($pdo, $userId, $exp, $outcome) {
 // ---------------------------------------------------------------------------
 function saveEvent($pdo, $userId, $expId, $e) {
   if (empty($e['text'])) return;
-  $stmt = $pdo->prepare("INSERT INTO exploration_events (user_id, exploration_id, tick_number, is_micro, text, type, effects, decision, resource_cost, resource_had, legendary_event_id, legendary_stage, legendary_result, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))");
+  $stmt = $pdo->prepare("INSERT INTO exploration_events (user_id, exploration_id, tick_number, is_micro, text, type, effects, decision, resource_cost, resource_had, legendary_event_id, legendary_title, legendary_stage, legendary_result, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))");
   $stmt->execute([$userId, $expId, $e['tick_number'] ?? 0, $e['is_micro'] ?? 0,
     $e['text'], $e['type'] ?? 'unknown',
     $e['effects'] ?? '{}',
     $e['decision'] ?? null, $e['resource_cost'] ?? null, (int)($e['resource_had'] ?? 0),
-    $e['legendary_event_id'] ?? null, $e['legendary_stage'] ?? null,
+    $e['legendary_event_id'] ?? null, $e['legendary_title'] ?? null, $e['legendary_stage'] ?? null,
     $e['legendary_result'] ?? null]);
 }
 

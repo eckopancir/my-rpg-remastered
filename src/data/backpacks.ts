@@ -399,6 +399,45 @@ export const removeItemFromGrid = (grid: BackpackGrid, itemId: string): Backpack
   return { ...grid, cells, items: grid.items.filter((i) => i.id !== itemId) };
 };
 
+/**
+ * Уплотнить сетку: переложить все предметы в начало, чтобы освободить
+ * место под крупные (2×2) вещи. Порядок сохраняется, предметы не теряются.
+ */
+export const compactGrid = (grid: BackpackGrid): BackpackGrid => {
+  const cells = grid.cells.map((row) => row.map(() => null));
+  let g: BackpackGrid = { ...grid, cells, items: [] };
+  for (const item of grid.items) {
+    const w = item.gridW ?? 1;
+    const h = item.gridH ?? 1;
+    const slot = findFreeSlot(g, w, h);
+    if (!slot) {
+      // Не влезает даже после уплотнения — сохраняем предмет в списке.
+      g = { ...g, items: [...g.items, item] };
+      continue;
+    }
+    g = placeItemAt(g, item, slot.x, slot.y);
+  }
+  return g;
+};
+
+/** Найдётся ли в рюкзаке место под предмет w×h (с учётом уплотнения). */
+export const canFitSize = (grid: BackpackGrid, w: number, h: number): boolean => {
+  if (findFreeSlot(grid, w, h)) return true;
+  return !!findFreeSlot(compactGrid(grid), w, h);
+};
+
+/** Сколько крупных (2×2) вещей ещё влезет в рюкзак. */
+export const freeBigSlots = (grid: BackpackGrid): number => {
+  const packed = compactGrid(grid);
+  let n = 0;
+  for (let y = 0; y <= packed.h - 2; y++) {
+    for (let x = 0; x <= packed.w - 2; x++) {
+      if (canPlaceAt(packed, x, y, 2, 2)) n++;
+    }
+  }
+  return n;
+};
+
 /** Попробовать положить предмет в сетку (auto-place). Патроны/расходники стакаются. */
 export const tryInsertIntoGrid = (grid: BackpackGrid, item: Item): { grid: BackpackGrid; moved: boolean; leftoverQty: number } => {
   // Буллеты: стак в существующий неполный стак

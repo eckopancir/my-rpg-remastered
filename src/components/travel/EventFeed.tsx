@@ -3,7 +3,7 @@ import type { TravelEvent, TravelRewardItem } from '../../types/travel';
 import { EventCard } from './EventCard';
 import styles from './travel.module.css';
 
-type Filter = 'all' | 'big' | 'micro';
+type Filter = 'all' | 'big' | 'micro' | 'legendary';
 
 export interface EventFeedProps {
   events: TravelEvent[];
@@ -31,8 +31,9 @@ export const EventFeed = ({
 
   const visible = useMemo(() => {
     let list = events;
-    if (filter === 'big') list = list.filter((e) => !e.micro);
+    if (filter === 'big') list = list.filter((e) => !e.micro && !e.legendary);
     else if (filter === 'micro') list = list.filter((e) => e.micro);
+    else if (filter === 'legendary') list = list.filter((e) => !!e.legendary);
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -92,6 +93,12 @@ export const EventFeed = ({
           onClick={() => setFilter('micro')}
         >
           Микро
+        </button>
+        <button
+          className={`${styles.filterChip} ${filter === 'legendary' ? styles.filterChipActive : ''}`}
+          onClick={() => setFilter('legendary')}
+        >
+          ⚜ Легендарные
         </button>
         <input
           className={styles.searchInput}

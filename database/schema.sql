@@ -162,6 +162,7 @@ CREATE TABLE exploration_events (
     resource_cost VARCHAR(32) DEFAULT NULL,
     resource_had TINYINT(1) NOT NULL DEFAULT 0,
     legendary_event_id VARCHAR(32) DEFAULT NULL,
+    legendary_title VARCHAR(64) DEFAULT NULL,
     legendary_stage INT DEFAULT NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     INDEX idx_exploration (exploration_id),

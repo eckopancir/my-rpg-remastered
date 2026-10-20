@@ -33,15 +33,10 @@ export const EventCard = ({ event, onChoose, onItemHover, onItemMove, onItemLeav
       <div className={styles.cardBody}>
         {event.legendary ? (
           <div className={styles.legendaryTitle}>
-            ⚜ {event.legendary.key}
+            ⚜ {event.legendary.title || event.legendary.key}
             {event.legendary.stage != null ? ` · этап ${event.legendary.stage}` : ''}
           </div>
-        ) : (
-          <div className={styles.cardHead}>
-            <span>{meta.icon}</span>
-            <span>{event.title}</span>
-          </div>
-        )}
+        ) : null}
 
         <div className={styles.cardText}>{event.text}</div>
 

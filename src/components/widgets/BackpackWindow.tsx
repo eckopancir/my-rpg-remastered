@@ -33,6 +33,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
   const backpackGrid = usePlayerStore((s) => s.backpackGrid);
   const putInBackpack = usePlayerStore((s) => s.putInBackpack);
   const takeOutBackpack = usePlayerStore((s) => s.takeOutBackpack);
+  const discardFromBackpack = usePlayerStore((s) => s.discardFromBackpack);
   const emptyBackpackToInventory = usePlayerStore((s) => s.emptyBackpackToInventory);
   const addLog = usePlayerStore((s) => s.addLog);
   const { playClick, playSound } = useSound();
@@ -371,6 +372,20 @@ export const BackpackWindow = ({ onClose }: Props) => {
               onMouseEnter={(e) => { if (!inCombat) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >{inCombat ? '⚔️ Нельзя на арене' : '📤 Вернуть в инвентарь'}</button>
+            <button onClick={() => {
+              const it = ctxMenu.item;
+              setCtxMenu(null);
+              if (!window.confirm(`Выбросить «${it.displayName || it.name}»? Он пропадёт безвозвратно.`)) return;
+              discardFromBackpack(it.id);
+              playSound('laying-out-a-travel-mat', 0.5);
+            }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
+                color: '#f87171', cursor: 'pointer', fontSize: 13, borderRadius: 4,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.15)'; }}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >🗑 Выбросить</button>
           </div>
         )}
       </motion.div>

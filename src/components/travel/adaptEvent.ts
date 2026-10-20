@@ -124,6 +124,7 @@ export const adaptEvent = (
     legendary: isLegendary
       ? {
           key: row.legendary_event_id as string,
+          title: row.legendary_title || row.legendary_event_id || '',
           stage: row.legendary_stage ?? null,
           result: (row.legendary_result as any) ?? null,
         }

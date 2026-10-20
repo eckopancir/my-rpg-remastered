@@ -57,6 +57,8 @@ export interface TravelChoice {
 
 export interface TravelLegendary {
   key: string;
+  /** Русское название цепочки (например «Бункер Заря»). */
+  title: string;
   stage: number | null;
   result: 'stage' | 'complete' | 'fail' | null;
 }

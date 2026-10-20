@@ -226,6 +226,7 @@ interface PlayerStore {
   getActiveWeapon: () => Item | null;
   putInBackpack: (itemId: string) => string;
   takeOutBackpack: (itemId: string) => void;
+  discardFromBackpack: (itemId: string) => void;
   /** Надеть предмет прямо из рюкзака (false — слот занят, предмет возвращён). */
   equipFromBackpack: (itemId: string) => boolean;
   /** Объединить стаки в рюкзаке (true — что-то объединилось). */
@@ -296,8 +297,24 @@ const STAT_KEY_MAP: Record<string, keyof PlayerStats> = {
 };
 
 /** Подсчёт надетых вещей каждого сета. */
-export const setCountsOf = (equipment: Record<string, any>): Record<string, number> => {
-  const counts: Record<string, number> = {};
+/**
+ * Идёт ли сейчас рейд-путешествие.
+ * Читаем persisted-состояние exploration, чтобы не тянуть circular import
+ * (explorationStore → playerStore).
+ */
+export const isExpeditionRunning = (): boolean => {
+  try {
+    const raw = localStorage.getItem('remastered_exploration');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    const st = parsed?.state ?? parsed;
+    return !!st?.isExploring;
+  } catch {
+    return false;
+  }
+};
+
+export const setCountsOf = (equipment: Record<string, any>): Record<string, number> => {  const counts: Record<string, number> = {};
   for (const item of Object.values(equipment)) {
     const set = (item as any)?.set;
     if (set) counts[set] = (counts[set] || 0) + 1;
@@ -965,6 +982,12 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       takeOutBackpack: (itemId) => {
+        // Склад живёт на базе: в рейде-путешествии только рюкзак.
+        if (isExpeditionRunning()) {
+          useUiStore.getState().addToast('🎒 Склад доступен только на базе — в рейде остаётся рюкзак.', 'warning');
+          get().addLog('🎒 Склад на базе — переложить вещь в рейде нельзя.', 'warning');
+          return;
+        }
         const s = get();
         const item = s.backpackGrid.items.find((i) => i.id === itemId);
         if (!item) return;
@@ -975,8 +998,18 @@ export const usePlayerStore = create<PlayerStore>()(
         get().recalcAbilities();
       },
 
-      equipFromBackpack: (itemId) => {
+      /** Выбросить предмет из рюкзака (правый клик). Предмет просто пропадает. */
+      discardFromBackpack: (itemId) => {
         const s = get();
+        const item = s.backpackGrid.items.find((i) => i.id === itemId);
+        if (!item) return;
+        set({ backpackGrid: removeItemFromGrid(s.backpackGrid, itemId) });
+        syncNow();
+        get().recalcAbilities();
+        get().addLog(`🗑 Выброшено: ${item.displayName || item.name}.`, 'warning');
+      },
+
+      equipFromBackpack: (itemId) => {        const s = get();
         const item = s.backpackGrid.items.find((i) => i.id === itemId);
         if (!item || !(item as any).slot) return false;
         const slot = (item as any).slot as EquipmentSlot;

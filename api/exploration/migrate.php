@@ -60,6 +60,12 @@ if (!count($colsC)) {
   $pdo->exec("ALTER TABLE explorations ADD COLUMN consumables JSON DEFAULT NULL AFTER use_materials");
 }
 
+// Русское название легендарной цепочки (для UI).
+$colsLT = $pdo->query("SHOW COLUMNS FROM exploration_events LIKE 'legendary_title'")->fetchAll();
+if (!count($colsLT)) {
+  $pdo->exec("ALTER TABLE exploration_events ADD COLUMN legendary_title VARCHAR(64) DEFAULT NULL AFTER legendary_event_id");
+}
+
 // Колонка «выброшено»: награда не влезла в рюкзак и была потеряна.
 $colsD = $pdo->query("SHOW COLUMNS FROM offline_rewards LIKE 'dropped'")->fetchAll();
 if (!count($colsD)) {

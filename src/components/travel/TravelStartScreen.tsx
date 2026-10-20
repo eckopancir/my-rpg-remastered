@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExplorationStore, calcConsBuffs, CONS_BUFF_DEFS } from '../../stores/explorationStore';
-import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useAuthStore } from '../../stores/authStore';
 import { ZONES } from '../../data/zones';
+import { TRAVEL_OUT_SEC, TRAVEL_BACK_SEC } from '../../data/travelTuning';
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
+
+/** Секунды → «2 мин» / «45с». */
+const fmtShort = (sec: number) => {
+  const s = Math.max(0, Math.round(sec));
+  if (s < 60) return `${s} с`;
+  const m = Math.round(s / 60);
+  return `${m} мин`;
+};
 
 const LOCKED_ZONES = new Set([
   'Болото', 'Свалка мусора', 'Темный лес',
@@ -69,12 +77,7 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 export const TravelStartScreen = () => {
   const navigate = useNavigate();
   const isExploring = useExplorationStore((s) => s.isExploring);
-  const phase = useExplorationStore((s) => s.phase);
-  const zoneName = useExplorationStore((s) => s.zoneName);
-  const plannedSec = useExplorationStore((s) => s.plannedSec);
-  const resetExploration = useExplorationStore((s) => s.resetExploration);
   const startExploration = useExplorationStore((s) => s.startExploration);
-  const addLog = usePlayerStore((s) => s.addLog);
   const token = useAuthStore((s) => s.token);
   const materials = useInventoryStore((s) => s.items);
 
@@ -153,38 +156,20 @@ export const TravelStartScreen = () => {
     navigate(`/explore?zone=${encodeURIComponent(zone.name)}`);
   };
 
-  // Активная вылазка — показываем статус и переход к логу.
+  // Активная вылазка — сразу в журнал рейда.
+  useEffect(() => {
+    if (isExploring) navigate('/explore');
+  }, [isExploring, navigate]);
+
   if (isExploring) {
     return (
       <div className={styles.screen}>
         <div className={styles.columns} style={{ gridTemplateColumns: '1fr' }}>
           <div className={styles.panel}>
-            <div className={styles.panelHead}><span>Рейд в пути</span></div>
+            <div className={styles.panelHead}><span>Журнал рейда</span></div>
             <div className={styles.panelBody} style={{ textAlign: 'center', padding: 40 }}>
-              <div style={{ maxWidth: 520, margin: '0 auto' }}>
-                <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-                  {zoneName}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>
-                  Фаза: <b>{phase}</b> · план {Math.round((plannedSec || 0) / 3600)} ч
-                </div>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button className={`${styles.btn} ${styles.btnOk}`} style={{ maxWidth: 220 }} onClick={() => navigate('/explore')}>
-                    📋 К логу экспедиции
-                  </button>
-                  <button
-                    className={`${styles.btn} ${styles.btnDanger}`}
-                    style={{ maxWidth: 220 }}
-                    onClick={async () => {
-                      if (!token) return;
-                      await fetch('/api/exploration/reset.php', { headers: { Authorization: `Bearer ${token}` } });
-                      resetExploration();
-                      addLog('🔴 Экспедиция принудительно завершена.', 'warning');
-                    }}
-                  >
-                    🔴 Завершить сейчас
-                  </button>
-                </div>
+              <div style={{ fontSize: 15, color: 'var(--text-secondary)' }}>
+                Отряд в пути — открываем журнал рейда…
               </div>
             </div>
           </div>
@@ -312,7 +297,7 @@ export const TravelStartScreen = () => {
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
                 ≈ {estEvents} крупных событий · ≈ {estFinds} находок ·
-                {' '}дорога туда 2 мин, обратно ≈ {Math.round(3600 * packBuffs.returnMult / 60)} мин
+                {' '}дорога туда {fmtShort(TRAVEL_OUT_SEC)}, обратно ≈ {fmtShort(Math.round(TRAVEL_BACK_SEC * packBuffs.returnMult))}
               </div>
             </div>
 

@@ -7,7 +7,7 @@ import { generateItem, type GeneratedItem } from '../engine/items';
 import { generateTravelReward, type TravelRewardProfile } from '../engine/travelLoot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
-import { backpackSlotsFor, tryInsertIntoGrid, removeItemFromGrid } from '../data/backpacks';
+import { backpackSlotsFor, tryInsertIntoGrid, removeItemFromGrid, compactGrid } from '../data/backpacks';
 import { syncNow } from '../utils/serverSync';
 
 
@@ -80,6 +80,8 @@ export interface ServerEventRow {
   resource_cost: string | null;
   resource_had: number;
   legendary_event_id: string | null;
+  /** Русское название легендарной цепочки. */
+  legendary_title?: string | null;
   legendary_stage: number | null;
   legendary_result: string | null;
   created_at: string;
@@ -767,14 +769,24 @@ function deliverToBackpack(items: any[], fresh: boolean) {
       placed.push(item);
       continue;
     }
+    // Уплотняем рюкзак: иначе крупная вещь (2×2) не влезет в раздробленный
+    // рюкзак из одних 1×1 предметов и находка просто сгорит.
     const res = tryInsertIntoGrid(grid, item);
-    if (res.moved) {
-      grid = res.grid;
-      placed.push(item);
-      if (res.leftoverQty > 0) dropped = true;
-    } else {
+    if (!res.moved) {
+      const packed = compactGrid(grid);
+      const res2 = tryInsertIntoGrid(packed, item);
+      if (res2.moved) {
+        grid = res2.grid;
+        placed.push(item);
+        if (res2.leftoverQty > 0) dropped = true;
+        continue;
+      }
       dropped = true;
+      continue;
     }
+    grid = res.grid;
+    placed.push(item);
+    if (res.leftoverQty > 0) dropped = true;
   }
   if (placed.length > 0) {
     usePlayerStore.setState({ backpackGrid: grid });
