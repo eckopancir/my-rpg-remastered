@@ -28,6 +28,8 @@ define('TRAVEL_TEST_SPEED', 10);
 // ТЕСТ: микро-события ускоряем слабее — иначе они забивают ленту и крупные
 // события с ветками не видно.
 define('TRAVEL_TEST_SPEED_MICRO', 4);
+// Таймаут невыбранного решения (сек): не успел — решаем «осторожно».
+define('TRAVEL_CHOICE_TIMEOUT', 300);
 
 /** Тестовая скорость: перевести секунды симуляции в «ускоренные». */
 function travelSpeed($sec) {
@@ -248,6 +250,15 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         $exp['was_cancelled'] = 0;
       }
 
+      // Незакрытый выбор: по таймауту решаем «осторожно».
+      if (!empty($exp['pending_choice'])) {
+        $pc = json_decode($exp['pending_choice'], true);
+        $at = (int)($pc['at'] ?? 0);
+        if ($at > 0 && (time() - $at) > TRAVEL_CHOICE_TIMEOUT) {
+          resolvePendingChoice($pdo, $userId, $exp, 'safe', $buffs);
+        }
+      }
+
       // Активная легендарная цепочка: этапы идут по своему таймеру
       // (один в минуту), обычные события при этом НЕ останавливаются.
       if ($exp['legendary_id']) {
@@ -305,7 +316,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
 
       // Big events (активная цепочка сюда не доходит — она выше ставит continue).
       $exp['event_cooldown'] = (int)$exp['event_cooldown'] - 1;
-      if ($exp['event_cooldown'] <= 0) {
+      if ($exp['event_cooldown'] <= 0 && empty($exp['pending_choice'])) {
         // Ролл запуска новой цепочки (3% + бонус рюкзака).
         if (mt_rand(1, 100) <= $legChancePct) {
           $legEvents = getLegendaryEvents();
@@ -334,22 +345,19 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
             saveEvent($pdo, $userId, $expId, $events[count($events)-1]);
           }
         } else {
-          // Regular event
+          // Regular event: игрок выбирает «Осторожно» или «Рискнуть».
+          // Эффекты применяются после выбора (resolvePendingChoice).
           // Ресурсы в пути не тратятся — инвентарь не трогаем.
           $itemsRef = [];
           $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
           $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)));
-          $applyResult = applyEffects($pdo, $userId, $event['effects'], $buffs);
-          $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
-          $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
-          $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
           $ev = [
-            'text' => $event['text'],
+            'text' => $event['intro'],
             'type' => $event['type'],
-            'effects' => json_encode($event['effects']),
+            'effects' => json_encode([]),
             'is_micro' => 0,
             'tick_number' => $exp['tick_count'],
-            'decision' => $event['decision'],
+            'decision' => null,
             'resource_cost' => null,
             'resource_had' => 0,
             'legendary_event_id' => null,
@@ -357,11 +365,16 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           ];
           $events[] = $ev;
           saveEvent($pdo, $userId, $expId, $ev);
-          if ($applyResult['count'] > 0) {
-            $eventId = $pdo->lastInsertId();
-            createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $applyResult['count'], $playerLevel, $event['effects'], $event['itemPool'] ?? null, null,
-              travelRewardProfile($playerLevel, $exp['zone_difficulty'], $event['itemPool'] ?? null));
-          }
+          $eventId = (int)$pdo->lastInsertId();
+          $exp['pending_choice'] = json_encode([
+            'eventId' => $eventId,
+            'safe' => ['text' => $event['safeText'], 'effects' => $event['safeEffects']],
+            'risky' => ['text' => $event['text'], 'effects' => $event['effects'], 'good' => !empty($event['good'])],
+            'goodPct' => (int)($event['goodPct'] ?? 70),
+            'itemPool' => $event['itemPool'] ?? null,
+            'at' => time(),
+          ], JSON_UNESCAPED_UNICODE);
+          setExploreField($pdo, $expId, ['pending_choice' => $exp['pending_choice']]);
         }
         $exp['event_cooldown'] = travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX));
       }
@@ -965,8 +978,24 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
       'currentHp' => (int)($sd['player']['stats']['currentHp'] ?? 100),
     ],
     'consBuffs' => expeditionBuffs($exp['consumables'] ?? null),
+    'pendingChoice' => pendingChoiceForClient($exp),
     'state' => $forceState ?? ($isActive ? 'active' : 'complete'),
     'newEvents' => $events,
+  ];
+}
+
+/** Незакрытый выбор игрока в удобном для клиента виде. */
+function pendingChoiceForClient($exp) {
+  $raw = $exp['pending_choice'] ?? null;
+  if (!$raw) return null;
+  $pc = json_decode($raw, true);
+  if (!is_array($pc) || empty($pc['eventId'])) return null;
+  return [
+    'eventId' => (int)$pc['eventId'],
+    'goodPct' => (int)($pc['goodPct'] ?? 70),
+    'safeText' => $pc['safe']['text'] ?? '',
+    'riskyText' => $pc['risky']['text'] ?? '',
+    'left' => max(0, TRAVEL_CHOICE_TIMEOUT - (time() - (int)($pc['at'] ?? time()))),
   ];
 }
 
@@ -1263,10 +1292,19 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
         $eff['damagePercent'] = max($dmgBand[0], min($dmgBand[1], $eff['damagePercent']));
       }
       $eff = capEffects($eff, false, $dmgBand);
+      // Знак исхода и доля удачных исходов в ветке — для выбора игрока
+      // («Осторожно» / «Рискнуть») и подсветки в ленте.
+      $good = effectsAreGood($eff);
+      $goodPct = branchGoodPercent($branch['outcomes'], $playerLevel);
       return [
         'eventKey' => $eventKey, 'text' => $text . ' → ' . implode(' → ', $result['texts']),
+        'intro' => $text,
         'type' => $template['type'], 'effects' => $eff,
         'decision' => $result['texts'][0],
+        'good' => $good, 'goodPct' => $goodPct,
+        // Безопасный вариант: не лезешь — берёшь мелочь и уходишь.
+        'safeText' => $text . ' → Ты не лезешь в это. Уходишь, прихватив мелочь.',
+        'safeEffects' => ['chips' => C($playerLevel, 1), 'exp' => E($playerLevel, 1)],
         // Ресурсы в пути не тратятся (трата — только на старте рейда).
         'resourceCost' => null, 'resourceHad' => 0,
         'itemPool' => $template['itemPool'] ?? null,
@@ -1278,18 +1316,101 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
   return [
     'eventKey' => $eventKey,
     'text' => substitute('Ты бредёшь по {zone} в тишине. Ничего особенного.', $zoneDesc, $faction),
+    'intro' => substitute('Ты бредёшь по {zone} в тишине. Ничего особенного.', $zoneDesc, $faction),
     'type' => 'neutral', 'effects' => [], 'decision' => null, 'resourceCost' => null, 'resourceHad' => 0,
+    'good' => true, 'goodPct' => 100,
+    'safeText' => substitute('Ты бредёшь по {zone} в тишине. Ничего особенного.', $zoneDesc, $faction),
+    'safeEffects' => [],
+  ];
+}
+
+/** Исход положительный? (есть чипы/опыт/хил/предмет и нет урона/потерь). */
+function effectsAreGood($eff) {
+  if (!is_array($eff)) return true;
+  $pos = (($eff['chips'] ?? 0) > 0) || (($eff['exp'] ?? 0) > 0) || (($eff['healPercent'] ?? 0) > 0)
+    || (($eff['heal'] ?? 0) > 0) || (($eff['itemCount'] ?? 0) > 0);
+  $neg = (($eff['chips'] ?? 0) < 0) || (($eff['exp'] ?? 0) < 0) || (($eff['damagePercent'] ?? 0) > 0)
+    || (($eff['damage'] ?? 0) > 0);
+  if ($neg && !$pos) return false;
+  return true;
+}
+
+/** Доля удачных исходов в ветке по весу (процент). */
+function branchGoodPercent($outcomes, $level) {
+  $total = 0; $good = 0;
+  foreach ($outcomes as $o) {
+    $w = (int)($o['weight'] ?? 0);
+    $total += $w;
+    $e = [];
+    if (is_callable($o['effects'] ?? null)) { try { $e = $o['effects']('зона', $level); } catch (Throwable $t) { $e = []; } }
+    elseif (is_array($o['effects'] ?? null)) $e = $o['effects'];
+    if (effectsAreGood($e)) $good += $w;
+  }
+  if ($total <= 0) return 100;
+  return (int)round($good / $total * 100);
+}
+
+// ---------------------------------------------------------------------------
+// Выбор игрока: «Осторожно» или «Рискнуть».
+// Событие уже записано в ленту, эффекты применяются здесь.
+// ---------------------------------------------------------------------------
+function resolvePendingChoice($pdo, $userId, &$exp, $which = 'safe', $buffs = []) {
+  $raw = $exp['pending_choice'] ?? null;
+  if (!$raw) return null;
+  $pc = json_decode($raw, true);
+  if (!is_array($pc) || empty($pc['eventId'])) {
+    $exp['pending_choice'] = null;
+    setExploreField($pdo, $exp['id'], ['pending_choice' => null]);
+    return null;
+  }
+  $variant = ($which === 'risky') ? ($pc['risky'] ?? null) : ($pc['safe'] ?? null);
+  if (!is_array($variant)) return null;
+  $effects = is_array($variant['effects'] ?? null) ? $variant['effects'] : [];
+  $applyResult = applyEffects($pdo, $userId, $effects, $buffs);
+  $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
+  $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
+  $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
+
+  $eventId = (int)$pc['eventId'];
+  $decision = $which === 'risky' ? 'Рискнул' : 'Осторожно';
+  $upd = $pdo->prepare("UPDATE exploration_events SET text = ?, effects = ?, decision = ? WHERE id = ? AND user_id = ?");
+  $upd->execute([$variant['text'] ?? '', json_encode($effects, JSON_UNESCAPED_UNICODE), $decision, $eventId, $userId]);
+
+  if ($applyResult['count'] > 0) {
+    createOfflineReward($pdo, $userId, (int)$exp['id'], $eventId, $variant['text'] ?? '', 'loot', $applyResult['count'],
+      getPlayerLevel($pdo, $userId), $effects, $pc['itemPool'] ?? null, null,
+      travelRewardProfile(getPlayerLevel($pdo, $userId), $exp['zone_difficulty'] ?? 1, $pc['itemPool'] ?? null));
+  }
+
+  $exp['pending_choice'] = null;
+  setExploreField($pdo, $exp['id'], [
+    'pending_choice' => null,
+    'total_chips' => (int)$exp['total_chips'],
+    'total_exp' => (int)$exp['total_exp'],
+    'total_items' => (int)$exp['total_items'],
+  ]);
+  return [
+    'which' => $which,
+    'good' => $which === 'risky' ? !empty($pc['risky']['good']) : true,
+    'text' => $variant['text'] ?? '',
+    'decision' => $decision,
+    'effects' => $effects,
+    'appliedChips' => (int)$applyResult['appliedChips'],
+    'appliedExp' => (int)$applyResult['appliedExp'],
   ];
 }
 
 function capEffects($effects, $hadResource = false, $dmgBand = null) {
   if (!is_array($dmgBand)) $dmgBand = trapDmgBand(0);
+  // Ресурсы в событиях больше не тратятся, поэтому капы «мягкие»:
+  // без возможности докупить удачу запас прочности должен быть в запасе.
   if (isset($effects['healPercent']) && $effects['healPercent'] > 0) {
-    $effects['healPercent'] = min($effects['healPercent'], 0.05);
+    $effects['healPercent'] = min($effects['healPercent'], 0.10);
   }
   if (isset($effects['damagePercent']) && $effects['damagePercent'] > 0) {
-    // Полоса tier'а длительности вылазки.
-    $effects['damagePercent'] = min($effects['damagePercent'], $dmgBand[1]);
+    // Полоса tier'а длительности, верхняя граница — 60% от полосы.
+    $maxDmg = round($dmgBand[1] * 0.6, 2);
+    $effects['damagePercent'] = min($effects['damagePercent'], $maxDmg);
   }
   return $effects;
 }

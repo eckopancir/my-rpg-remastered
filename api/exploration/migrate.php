@@ -60,6 +60,12 @@ if (!count($colsC)) {
   $pdo->exec("ALTER TABLE explorations ADD COLUMN consumables JSON DEFAULT NULL AFTER use_materials");
 }
 
+// Незакрытый выбор игрока в крупном событии (JSON).
+$colsPC = $pdo->query("SHOW COLUMNS FROM explorations LIKE 'pending_choice'")->fetchAll();
+if (!count($colsPC)) {
+  $pdo->exec("ALTER TABLE explorations ADD COLUMN pending_choice JSON DEFAULT NULL AFTER use_materials");
+}
+
 // Русское название легендарной цепочки (для UI).
 $colsLT = $pdo->query("SHOW COLUMNS FROM exploration_events LIKE 'legendary_title'")->fetchAll();
 if (!count($colsLT)) {

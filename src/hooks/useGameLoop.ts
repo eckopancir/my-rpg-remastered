@@ -76,9 +76,12 @@ export const useGameLoop = () => {
       }
 
       // 4. Exploration tick (skip if previous poll still in-flight — avoids
-      //    double-processing the same time window when server is slow)
+      //    double-processing the same time window when server is slow).
+      //    Когда рейда нет — опрос раз в 5 сек, чтобы подхватить старт
+      //    из другой вкладки или после перезагрузки.
       const exploration = useExplorationStore.getState();
-      if (exploration.isExploring && !exploringInFlight.current) {
+      const idleTick = secRef.current % 5 === 0;
+      if ((exploration.isExploring || idleTick) && !exploringInFlight.current) {
         exploringInFlight.current = true;
         exploration.pollServerState()
           .catch(() => {})

@@ -51,6 +51,8 @@ export const TravelScreen = () => {
   const debtSec = useExplorationStore((s) => s.debtSec);
   const bulkMode = useExplorationStore((s) => s.bulkMode);
   const rewardItems = useExplorationStore((s) => s.eventRewardItems);
+  const pendingChoice = useExplorationStore((s) => s.pendingChoice);
+  const chooseAction = useExplorationStore((s) => s.chooseAction);
 
   const [tooltipItem, setTooltipItem] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -67,13 +69,30 @@ export const TravelScreen = () => {
 
   const events = useMemo(
     () =>
-      eventLog.map((row) =>
-        adaptEvent(row, {
+      eventLog.map((row) => {
+        const ev = adaptEvent(row, {
           startTs,
           rewardItems: (rewardItems[row.id]?.items ?? []) as TravelRewardItem[],
-        }),
-      ),
-    [eventLog, startTs, rewardItems],
+        });
+        // Незакрытый выбор: приклеиваем к карточке крупного события.
+        if (pendingChoice && pendingChoice.eventId === row.id) {
+          ev.choices = [
+            {
+              id: 'careful',
+              label: 'Осторожно',
+              hint: pendingChoice.safeText || 'Без риска: мелочь, но целый.',
+            },
+            {
+              id: 'risky',
+              label: 'Рискнуть',
+              hint: pendingChoice.riskyText || 'Удачный исход с большей наградой.',
+              chance: Math.max(0, Math.min(100, pendingChoice.goodPct)) / 100,
+            },
+          ];
+        }
+        return ev;
+      }),
+    [eventLog, startTs, rewardItems, pendingChoice],
   );
 
   const hiddenCount = Math.max(0, (totalEvents || 0) - eventLog.length);
@@ -153,6 +172,7 @@ export const TravelScreen = () => {
           events={events}
           hiddenCount={hiddenCount}
           onLoadOlder={hasMoreEvents ? () => void loadOlderEvents() : undefined}
+          onChoose={(_eventId, choiceId) => void chooseAction(choiceId === 'risky' ? 'risky' : 'safe')}
           onItemHover={(item, e) => {
             setTooltipItem(item);
             setTooltipPos({ x: e.clientX, y: e.clientY });
