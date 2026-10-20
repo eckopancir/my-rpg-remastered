@@ -47,14 +47,6 @@ export interface TravelRewards {
   items: TravelRewardItem[];
 }
 
-export interface TravelChoice {
-  id: 'careful' | 'risky';
-  label: string;
-  hint: string;
-  /** Шанс хорошего исхода (0..1), если известен. */
-  chance?: number;
-}
-
 export interface TravelLegendary {
   key: string;
   /** Русское название цепочки (например «Бункер Заря»). */
@@ -77,8 +69,6 @@ export interface TravelEvent {
   /** Потраченный ресурс (до переделки — траты остаются в событиях). */
   spent?: { name: string; had: boolean } | null;
   decision?: string | null;
-  /** Варианты действий (появятся вместе с ветками good/bad). */
-  choices?: TravelChoice[];
   /** Сырая строка сервера — для отладки и расширения. */
   raw?: any;
 }

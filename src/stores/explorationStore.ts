@@ -87,14 +87,6 @@ export interface ServerEventRow {
   created_at: string;
 }
 
-export interface PendingChoice {
-  eventId: number;
-  goodPct: number;
-  safeText: string;
-  riskyText: string;
-  left: number;
-}
-
 export interface ConsBuffs {
   regen: number;
   healPct: number;
@@ -172,9 +164,6 @@ interface ExplorationStore {
   useMaterials: boolean;
   // Баффы рюкзака с сервера (зеркало expeditionBuffs) для локального применения.
   consBuffs: ConsBuffs;
-  /** Незакрытый выбор в крупном событии: «Осторожно» / «Рискнуть». */
-  pendingChoice: PendingChoice | null;
-  chooseAction: (choice: 'safe' | 'risky') => Promise<void>;
 
   startExploration: (zoneName: string, hours?: number, useMats?: boolean, consumables?: { name: string; qty: number }[]) => Promise<void>;
   cancelExploration: () => Promise<void>;
@@ -233,28 +222,7 @@ export const useExplorationStore = create<ExplorationStore>()(
       plannedSec: 0,
       useMaterials: true,
       consBuffs: { ...EMPTY_BUFFS },
-      pendingChoice: null,
 
-      /** Выбор в крупном событии: «осторожно» (гарантия) или «рискнуть». */
-      chooseAction: async (choice) => {
-        const token = getToken();
-        if (!token) return;
-        try {
-          const res = await fetch(`${API_BASE}/choose.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ choice }),
-          });
-          const data = await res.json().catch(() => null);
-          // Сервер применил эффекты к сейву — применяем их и у себя,
-          // чтобы локальные цифры совпали с серверными.
-          if (data?.effects && Object.keys(data.effects).length > 0) {
-            applyLocalEffects(JSON.stringify(data.effects), get().consBuffs);
-          }
-        } catch { /* silent */ }
-        set({ pendingChoice: null });
-        await get().pollServerState();
-      },
 
       startExploration: async (zoneName, hours = 12, useMats = true, consumables = []) => {
         const token = getToken();
@@ -365,9 +333,6 @@ export const useExplorationStore = create<ExplorationStore>()(
           const consBuffs = (data.consBuffs && typeof data.consBuffs === 'object')
             ? { ...EMPTY_BUFFS, ...data.consBuffs }
             : state.consBuffs;
-          const pendingChoice = (data.pendingChoice && typeof data.pendingChoice === 'object')
-            ? (data.pendingChoice as PendingChoice)
-            : null;
 
           // Применяем эффекты только свежих событий (обычно 0–15 шт).
           // Старый путь — дифф по всей 1000-й истории — после долгого офлайна
@@ -435,7 +400,6 @@ export const useExplorationStore = create<ExplorationStore>()(
               bulkMode: 'none',
               engineVersion,
               consBuffs: { ...EMPTY_BUFFS },
-              pendingChoice: null,
             });
             return;
           }
@@ -473,7 +437,6 @@ export const useExplorationStore = create<ExplorationStore>()(
                 ? exp.useMaterials
                 : state.useMaterials,
               consBuffs,
-              pendingChoice,
             });
           }
           // Process pending rewards after each poll
@@ -569,7 +532,6 @@ export const useExplorationStore = create<ExplorationStore>()(
           debtSec: 0, bulkMode: 'none',
           useMaterials: true,
           consBuffs: { ...EMPTY_BUFFS },
-          pendingChoice: null,
         });
         // Process pending rewards after completion
         get().processPendingRewards();
@@ -585,7 +547,6 @@ export const useExplorationStore = create<ExplorationStore>()(
           debtSec: 0, bulkMode: 'none',
           useMaterials: true,
           consBuffs: { ...EMPTY_BUFFS },
-          pendingChoice: null,
         });
       },
 

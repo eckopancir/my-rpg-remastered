@@ -1,11 +1,9 @@
 import type { TravelEvent, TravelRewardItem } from '../../types/travel';
 import { KIND_META } from './adaptEvent';
-import { ChoicePanel } from './ChoicePanel';
 import styles from './travel.module.css';
 
 export interface EventCardProps {
   event: TravelEvent;
-  onChoose?: (id: string) => void;
   onItemHover?: (item: TravelRewardItem, e: React.MouseEvent) => void;
   onItemMove?: (e: React.MouseEvent) => void;
   onItemLeave?: () => void;
@@ -18,7 +16,7 @@ const legendaryResultLabel = (r: string | null): { text: string; cls: string } =
   return { text: 'НАЧАЛО ЦЕПОЧКИ', cls: styles.legendaryStage };
 };
 
-export const EventCard = ({ event, onChoose, onItemHover, onItemMove, onItemLeave }: EventCardProps) => {
+export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: EventCardProps) => {
   const meta = KIND_META[event.kind];
   const r = event.rewards;
   const cls = [
@@ -40,7 +38,10 @@ export const EventCard = ({ event, onChoose, onItemHover, onItemMove, onItemLeav
 
         <div className={styles.cardText}>{event.text}</div>
 
-        {event.decision && <div className={styles.cardDecision}>→ {event.decision}</div>}
+        {/* Решение показываем отдельной строкой, только если его ещё нет в тексте. */}
+        {event.decision && !event.text.includes(event.decision) && (
+          <div className={styles.cardDecision}>→ {event.decision}</div>
+        )}
 
         {event.spent && (
           <div className={`${styles.cardSpent} ${event.spent.had ? styles.spentOk : styles.spentMiss}`}>
@@ -95,9 +96,6 @@ export const EventCard = ({ event, onChoose, onItemHover, onItemMove, onItemLeav
           </span>
         )}
 
-        {event.choices && event.choices.length > 0 && onChoose && (
-          <ChoicePanel choices={event.choices} onChoose={onChoose} />
-        )}
       </div>
     </div>
   );

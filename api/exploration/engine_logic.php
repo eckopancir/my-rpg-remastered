@@ -24,12 +24,13 @@ define('TRAVEL_QUALITY_CAP', 'Раритетный');
 
 // ТЕСТ: ускорение симуляции в 10 раз (события, микро, легендарка, дорога).
 // Перед релизом вернуть в 1.
-define('TRAVEL_TEST_SPEED', 10);
+define('TRAVEL_TEST_SPEED', 30);
 // ТЕСТ: микро-события ускоряем слабее — иначе они забивают ленту и крупные
 // события с ветками не видно.
-define('TRAVEL_TEST_SPEED_MICRO', 4);
-// Таймаут невыбранного решения (сек): не успел — решаем «осторожно».
-define('TRAVEL_CHOICE_TIMEOUT', 300);
+define('TRAVEL_TEST_SPEED_MICRO', 12);
+// ТЕСТ: этап легендарной цепочки — свой темп (иначе при общем ускорении
+// цепочка пролетает за секунды).
+define('TRAVEL_TEST_SPEED_LEG', 8);
 
 /** Тестовая скорость: перевести секунды симуляции в «ускоренные». */
 function travelSpeed($sec) {
@@ -39,6 +40,11 @@ function travelSpeed($sec) {
 /** Тестовая скорость для микро-событий. */
 function travelSpeedMicro($sec) {
   return max(1, (int)round($sec / TRAVEL_TEST_SPEED_MICRO));
+}
+
+/** Тестовая скорость для этапов легендарной цепочки. */
+function travelSpeedLeg($sec) {
+  return max(1, (int)round($sec / TRAVEL_TEST_SPEED_LEG));
 }
 const MAX_TICKS_PER_POLL = 60;
 // Шанс запуска легендарной цепочки на каждом крупном событии, %.
@@ -250,20 +256,11 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         $exp['was_cancelled'] = 0;
       }
 
-      // Незакрытый выбор: по таймауту решаем «осторожно».
-      if (!empty($exp['pending_choice'])) {
-        $pc = json_decode($exp['pending_choice'], true);
-        $at = (int)($pc['at'] ?? 0);
-        if ($at > 0 && (time() - $at) > TRAVEL_CHOICE_TIMEOUT) {
-          resolvePendingChoice($pdo, $userId, $exp, 'safe', $buffs);
-        }
-      }
-
       // Активная легендарная цепочка: этапы идут по своему таймеру
       // (один в минуту), обычные события при этом НЕ останавливаются.
       if ($exp['legendary_id']) {
         $exp['legendary_auto_resolve'] = (int)($exp['legendary_auto_resolve'] ?? 0) + 1;
-        if ($exp['legendary_auto_resolve'] >= travelSpeed(LEGENDARY_STAGE_EVERY_SEC)) {
+        if ($exp['legendary_auto_resolve'] >= travelSpeedLeg(LEGENDARY_STAGE_EVERY_SEC)) {
           $exp['legendary_auto_resolve'] = 0;
           $legEvent = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc, $buffs);
           if ($legEvent) {
@@ -316,7 +313,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
 
       // Big events (активная цепочка сюда не доходит — она выше ставит continue).
       $exp['event_cooldown'] = (int)$exp['event_cooldown'] - 1;
-      if ($exp['event_cooldown'] <= 0 && empty($exp['pending_choice'])) {
+      if ($exp['event_cooldown'] <= 0) {
         // Ролл запуска новой цепочки (3% + бонус рюкзака).
         if (mt_rand(1, 100) <= $legChancePct) {
           $legEvents = getLegendaryEvents();
@@ -345,19 +342,23 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
             saveEvent($pdo, $userId, $expId, $events[count($events)-1]);
           }
         } else {
-          // Regular event: игрок выбирает «Осторожно» или «Рискнуть».
-          // Эффекты применяются после выбора (resolvePendingChoice).
+          // Regular event: исход выбирается случайно (веса 20/20/20/20/15),
+          // эффекты применяются сразу и попадают в строку события.
           // Ресурсы в пути не тратятся — инвентарь не трогаем.
           $itemsRef = [];
           $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
           $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)));
+          $applyResult = applyEffects($pdo, $userId, $event['effects'], $buffs);
+          $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
+          $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
+          $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
           $ev = [
-            'text' => $event['intro'],
+            'text' => $event['text'],
             'type' => $event['type'],
-            'effects' => json_encode([]),
+            'effects' => json_encode($event['effects']),
             'is_micro' => 0,
             'tick_number' => $exp['tick_count'],
-            'decision' => null,
+            'decision' => $event['decision'],
             'resource_cost' => null,
             'resource_had' => 0,
             'legendary_event_id' => null,
@@ -365,16 +366,11 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           ];
           $events[] = $ev;
           saveEvent($pdo, $userId, $expId, $ev);
-          $eventId = (int)$pdo->lastInsertId();
-          $exp['pending_choice'] = json_encode([
-            'eventId' => $eventId,
-            'safe' => ['text' => $event['safeText'], 'effects' => $event['safeEffects']],
-            'risky' => ['text' => $event['text'], 'effects' => $event['effects'], 'good' => !empty($event['good'])],
-            'goodPct' => (int)($event['goodPct'] ?? 70),
-            'itemPool' => $event['itemPool'] ?? null,
-            'at' => time(),
-          ], JSON_UNESCAPED_UNICODE);
-          setExploreField($pdo, $expId, ['pending_choice' => $exp['pending_choice']]);
+          if ($applyResult['count'] > 0) {
+            $eventId = $pdo->lastInsertId();
+            createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $applyResult['count'], $playerLevel, $event['effects'], $event['itemPool'] ?? null, null,
+              travelRewardProfile($playerLevel, $exp['zone_difficulty'], $event['itemPool'] ?? null));
+          }
         }
         $exp['event_cooldown'] = travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX));
       }
@@ -529,7 +525,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     // (один в минуту). Обычные события при этом не останавливаются.
     if ($exp['legendary_id']) {
       $exp['legendary_auto_resolve'] = (int)($exp['legendary_auto_resolve'] ?? 0) + 1;
-      if ($exp['legendary_auto_resolve'] >= travelSpeed(LEGENDARY_STAGE_EVERY_SEC)) {
+      if ($exp['legendary_auto_resolve'] >= travelSpeedLeg(LEGENDARY_STAGE_EVERY_SEC)) {
         $exp['legendary_auto_resolve'] = 0;
         $row = resolveLegendaryStage($pdo, $userId, $exp, $zoneDesc, $bBuffs);
         if ($row) {
@@ -978,24 +974,8 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
       'currentHp' => (int)($sd['player']['stats']['currentHp'] ?? 100),
     ],
     'consBuffs' => expeditionBuffs($exp['consumables'] ?? null),
-    'pendingChoice' => pendingChoiceForClient($exp),
     'state' => $forceState ?? ($isActive ? 'active' : 'complete'),
     'newEvents' => $events,
-  ];
-}
-
-/** Незакрытый выбор игрока в удобном для клиента виде. */
-function pendingChoiceForClient($exp) {
-  $raw = $exp['pending_choice'] ?? null;
-  if (!$raw) return null;
-  $pc = json_decode($raw, true);
-  if (!is_array($pc) || empty($pc['eventId'])) return null;
-  return [
-    'eventId' => (int)$pc['eventId'],
-    'goodPct' => (int)($pc['goodPct'] ?? 70),
-    'safeText' => $pc['safe']['text'] ?? '',
-    'riskyText' => $pc['risky']['text'] ?? '',
-    'left' => max(0, TRAVEL_CHOICE_TIMEOUT - (time() - (int)($pc['at'] ?? time()))),
   ];
 }
 
@@ -1348,56 +1328,6 @@ function branchGoodPercent($outcomes, $level) {
   }
   if ($total <= 0) return 100;
   return (int)round($good / $total * 100);
-}
-
-// ---------------------------------------------------------------------------
-// Выбор игрока: «Осторожно» или «Рискнуть».
-// Событие уже записано в ленту, эффекты применяются здесь.
-// ---------------------------------------------------------------------------
-function resolvePendingChoice($pdo, $userId, &$exp, $which = 'safe', $buffs = []) {
-  $raw = $exp['pending_choice'] ?? null;
-  if (!$raw) return null;
-  $pc = json_decode($raw, true);
-  if (!is_array($pc) || empty($pc['eventId'])) {
-    $exp['pending_choice'] = null;
-    setExploreField($pdo, $exp['id'], ['pending_choice' => null]);
-    return null;
-  }
-  $variant = ($which === 'risky') ? ($pc['risky'] ?? null) : ($pc['safe'] ?? null);
-  if (!is_array($variant)) return null;
-  $effects = is_array($variant['effects'] ?? null) ? $variant['effects'] : [];
-  $applyResult = applyEffects($pdo, $userId, $effects, $buffs);
-  $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
-  $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
-  $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
-
-  $eventId = (int)$pc['eventId'];
-  $decision = $which === 'risky' ? 'Рискнул' : 'Осторожно';
-  $upd = $pdo->prepare("UPDATE exploration_events SET text = ?, effects = ?, decision = ? WHERE id = ? AND user_id = ?");
-  $upd->execute([$variant['text'] ?? '', json_encode($effects, JSON_UNESCAPED_UNICODE), $decision, $eventId, $userId]);
-
-  if ($applyResult['count'] > 0) {
-    createOfflineReward($pdo, $userId, (int)$exp['id'], $eventId, $variant['text'] ?? '', 'loot', $applyResult['count'],
-      getPlayerLevel($pdo, $userId), $effects, $pc['itemPool'] ?? null, null,
-      travelRewardProfile(getPlayerLevel($pdo, $userId), $exp['zone_difficulty'] ?? 1, $pc['itemPool'] ?? null));
-  }
-
-  $exp['pending_choice'] = null;
-  setExploreField($pdo, $exp['id'], [
-    'pending_choice' => null,
-    'total_chips' => (int)$exp['total_chips'],
-    'total_exp' => (int)$exp['total_exp'],
-    'total_items' => (int)$exp['total_items'],
-  ]);
-  return [
-    'which' => $which,
-    'good' => $which === 'risky' ? !empty($pc['risky']['good']) : true,
-    'text' => $variant['text'] ?? '',
-    'decision' => $decision,
-    'effects' => $effects,
-    'appliedChips' => (int)$applyResult['appliedChips'],
-    'appliedExp' => (int)$applyResult['appliedExp'],
-  ];
 }
 
 function capEffects($effects, $hadResource = false, $dmgBand = null) {

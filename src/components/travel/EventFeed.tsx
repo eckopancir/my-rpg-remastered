@@ -9,7 +9,6 @@ export interface EventFeedProps {
   events: TravelEvent[];
   hiddenCount: number;
   onLoadOlder?: () => void;
-  onChoose?: (eventId: string, choiceId: string) => void;
   onItemHover?: (item: TravelRewardItem, e: React.MouseEvent) => void;
   onItemMove?: (e: React.MouseEvent) => void;
   onItemLeave?: () => void;
@@ -19,7 +18,6 @@ export const EventFeed = ({
   events,
   hiddenCount,
   onLoadOlder,
-  onChoose,
   onItemHover,
   onItemMove,
   onItemLeave,
@@ -120,7 +118,6 @@ export const EventFeed = ({
             <EventCard
               key={ev.id}
               event={ev}
-              onChoose={onChoose ? (choiceId) => onChoose(ev.id, choiceId) : undefined}
               onItemHover={onItemHover}
               onItemMove={onItemMove}
               onItemLeave={onItemLeave}
