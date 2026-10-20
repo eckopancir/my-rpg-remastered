@@ -326,16 +326,9 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           }
         } else {
           // Regular event
-          // Флаг use_materials=0: события считают, что ресурсов нет
-          // (пустой инвентарь → всегда no-resource ветки, ничего не списывается).
-          $useMats = !isset($exp['use_materials']) || (int)$exp['use_materials'] === 1;
-          $itemsRef = $useMats ? loadInventoryItems($pdo, $userId) : [];
-          $origIds = $useMats ? array_column($itemsRef, 'id') : [];
+          // Ресурсы в пути не тратятся — инвентарь не трогаем.
           $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
-          $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)));
-          if (!empty($event['resourceHad'])) {
-            persistInventoryItems($pdo, $userId, $itemsRef, $origIds);
-          }
+          $event = generateEvent($exp['zone'], $playerLevel, $factions, [], $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)));
           $applyResult = applyEffects($pdo, $userId, $event['effects'], $buffs);
           $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
           $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
@@ -347,8 +340,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
             'is_micro' => 0,
             'tick_number' => $exp['tick_count'],
             'decision' => $event['decision'],
-            'resource_cost' => $event['resourceCost'],
-            'resource_had' => $event['resourceHad'] ?? 0,
+            'resource_cost' => null,
+            'resource_had' => 0,
             'legendary_event_id' => null,
             'legendary_stage' => null,
           ];
@@ -481,10 +474,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   $itemPool = null;
 
   $zoneDesc = getZoneDesc($exp['zone']);
-  // Флаг use_materials=0: bulk тоже считает инвентарь пустым.
-  $useMatsBulk = !isset($exp['use_materials']) || (int)$exp['use_materials'] === 1;
-  $itemsRef = $useMatsBulk ? loadInventoryItems($pdo, $userId) : [];
-  $origIds = $useMatsBulk ? array_column($itemsRef, 'id') : [];
+  // Ресурсы в пути не тратятся — инвентарь не трогаем.
   // Баффы рюкзака в bulk: копим СЫРЫЕ значения (как в строках событий),
   // баффы применяются один раз в финальном applyEffects — иначе задвоение.
   $bBuffs = expeditionBuffs($exp['consumables'] ?? null);
@@ -555,7 +545,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
           $legN++; // интро без наград: цепочка учтена, стадии — дальше по минутам
         }
       } else {
-      $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count']);
+      $event = generateEvent($exp['zone'], $playerLevel, $factions, [], $exp['tick_count']);
       $eff = $event['effects'] ?? [];
       $bulkChips += (int)($eff['chips'] ?? 0);
       $bulkExp += (int)($eff['exp'] ?? 0);
@@ -583,7 +573,6 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       $exp['tick_count'] += 1;
       $exp['event_cooldown'] = $cdEvent;
       $exp['micro_event_cooldown'] = $cdMicro;
-      persistInventoryItems($pdo, $userId, $itemsRef, $origIds);
       $summary = buildBulkSummary($s + 1, $microN, $bigN, $legN, $arDeath['appliedChips'], $arDeath['appliedExp'], $bulkItems, true);
       $events[] = $summary;
       saveEvent($pdo, $userId, $expId, $summary);
@@ -638,7 +627,6 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     $sd2['player']['stats']['currentHp'] = $hp;
     putSaveData($pdo, $userId, $sd2);
   }
-  persistInventoryItems($pdo, $userId, $itemsRef, $origIds);
 
   // Сводную строку и награду пишем ТОЛЬКО при полном закрытии долга —
   // иначе каждый чанк плодил бы по сводке.
@@ -1223,16 +1211,15 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
       // в полосу tier'а длительности (с ресурсом — только верхняя граница).
       if (($template['type'] ?? '') === 'trap' && !empty($eff['damagePercent']) && $eff['damagePercent'] > 0) {
         $eff['damagePercent'] = $eff['damagePercent'] * TRAP_DAMAGE_MULT;
-        if (empty($result['resourceHad'])) {
-          $eff['damagePercent'] = max($dmgBand[0], min($dmgBand[1], $eff['damagePercent']));
-        }
+        $eff['damagePercent'] = max($dmgBand[0], min($dmgBand[1], $eff['damagePercent']));
       }
-      $eff = capEffects($eff, $result['resourceHad'], $dmgBand);
+      $eff = capEffects($eff, false, $dmgBand);
       return [
         'eventKey' => $eventKey, 'text' => $text . ' → ' . implode(' → ', $result['texts']),
         'type' => $template['type'], 'effects' => $eff,
         'decision' => $result['texts'][0],
-        'resourceCost' => $result['resourceCost'], 'resourceHad' => $result['resourceHad'] ? 1 : 0,
+        // Ресурсы в пути не тратятся (трата — только на старте рейда).
+        'resourceCost' => null, 'resourceHad' => 0,
         'itemPool' => $template['itemPool'] ?? null,
       ];
     }
@@ -1246,15 +1233,14 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
   ];
 }
 
-function capEffects($effects, $hadResource, $dmgBand = null) {
+function capEffects($effects, $hadResource = false, $dmgBand = null) {
   if (!is_array($dmgBand)) $dmgBand = trapDmgBand(0);
   if (isset($effects['healPercent']) && $effects['healPercent'] > 0) {
-    $effects['healPercent'] = min($effects['healPercent'], $hadResource ? 0.15 : 0.05);
+    $effects['healPercent'] = min($effects['healPercent'], 0.05);
   }
   if (isset($effects['damagePercent']) && $effects['damagePercent'] > 0) {
-    // Полоса tier'а длительности; с ресурсом — только верхняя граница (60% max).
-    $maxRes = round($dmgBand[1] * 0.6, 2);
-    $effects['damagePercent'] = min($effects['damagePercent'], $hadResource ? $maxRes : $dmgBand[1]);
+    // Полоса tier'а длительности вылазки.
+    $effects['damagePercent'] = min($effects['damagePercent'], $dmgBand[1]);
   }
   return $effects;
 }

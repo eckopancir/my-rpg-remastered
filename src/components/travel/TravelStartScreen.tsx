@@ -80,7 +80,6 @@ export const TravelStartScreen = () => {
 
   const [selected, setSelected] = useState<string | null>(null);
   const [hours, setHours] = useState(12);
-  const [useMats, setUseMats] = useState(true);
   const [pack, setPack] = useState<Record<string, number>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [starting, setStarting] = useState(false);
@@ -149,7 +148,7 @@ export const TravelStartScreen = () => {
     const list = Object.entries(pack)
       .filter(([, q]) => q > 0)
       .map(([name, qty]) => ({ name, qty }));
-    await startExploration(zone.name, hours, useMats, list);
+    await startExploration(zone.name, hours, true, list);
     setStarting(false);
     navigate(`/explore?zone=${encodeURIComponent(zone.name)}`);
   };
@@ -318,21 +317,9 @@ export const TravelStartScreen = () => {
             </div>
 
             <div className={styles.sectionTitle}>Снаряжение рейда</div>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 8 }}>
-              <input
-                type="checkbox"
-                checked={useMats}
-                onChange={(e) => setUseMats(e.target.checked)}
-                style={{ marginTop: 2, accentColor: '#4ade80' }}
-              />
-              <span>
-                Тратить материалы из инвентаря.
-                <br />
-                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                  Выкл — события будут считать, что ресурсов нет (бережёт запасы, но награды скромнее).
-                </span>
-              </span>
-            </label>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.5 }}>
+              Материалы сгорают на старте и дают баффы на весь рейд. В пути ресурсы не тратятся.
+            </div>
 
             {packMats.length === 0 ? (
               <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
