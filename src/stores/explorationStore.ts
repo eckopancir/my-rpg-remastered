@@ -7,6 +7,7 @@ import { generateItem, type GeneratedItem } from '../engine/items';
 import { generateTravelReward, type TravelRewardProfile } from '../engine/travelLoot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
+import type { TravelModeInfo } from '../data/travelModes';
 import { backpackSlotsFor, tryInsertIntoGrid, removeItemFromGrid, compactGrid, createGrid } from '../data/backpacks';
 import { syncNow } from '../utils/serverSync';
 
@@ -97,6 +98,12 @@ export interface ConsBuffs {
   returnMult: number;
 }
 
+/**
+ * Характеристики режима рейда с сервера: сложность (урон/награда/потолок
+ * качества) либо модификатор (характер пути).
+ */
+export type { TravelModeInfo } from '../data/travelModes';
+
 export const EMPTY_BUFFS: ConsBuffs = {
   regen: 0, healPct: 0, legPct: 0, expPct: 0, chipsPct: 0, dmgTakenMult: 1, returnMult: 1,
 };
@@ -173,13 +180,16 @@ interface ExplorationStore {
   difficulty: string;
   // Модификатор рейда (характер) — null, если обычный.
   modifier: string | null;
+  // Характеристики режимов с сервера (для шапки журнала).
+  difficultyInfo: TravelModeInfo | null;
+  modifierInfo: TravelModeInfo | null;
 
   startExploration: (zoneName: string, hours?: number, useMats?: boolean, consumables?: { name: string; qty: number }[], difficulty?: string, modifier?: string | null) => Promise<void>;
   cancelExploration: () => Promise<void>;
   pollServerState: () => Promise<void>;
   loadOlderEvents: () => Promise<void>;
   completeExploration: () => void;
-  resetExploration: () => void;
+  resetExploration: () => Promise<void>;
   processPendingRewards: () => Promise<void>;
 }
 
@@ -233,6 +243,8 @@ export const useExplorationStore = create<ExplorationStore>()(
       consBuffs: { ...EMPTY_BUFFS },
       difficulty: 'normal',
       modifier: null,
+      difficultyInfo: null,
+      modifierInfo: null,
       deathSettled: false,
 
       startExploration: async (zoneName, hours = 12, useMats = true, consumables = [], difficulty = 'normal', modifier: string | null = null) => {
@@ -347,6 +359,13 @@ export const useExplorationStore = create<ExplorationStore>()(
             : state.consBuffs;
           const diffKey = (exp as any)?.difficulty ?? state.difficulty;
           const modKey = (exp as any)?.modifier ?? null;
+          // Характеристики режимов с сервера — рисуем их в шапке журнала.
+          const diffInfo = (data.difficultyInfo && typeof data.difficultyInfo === 'object')
+            ? (data.difficultyInfo as TravelModeInfo)
+            : state.difficultyInfo;
+          const modInfo = (data.modifierInfo && typeof data.modifierInfo === 'object')
+            ? (data.modifierInfo as TravelModeInfo)
+            : state.modifierInfo;
 
           // Применяем эффекты только свежих событий (обычно 0–15 шт).
           // Старый путь — дифф по всей 1000-й истории — после долгого офлайна
@@ -414,6 +433,11 @@ export const useExplorationStore = create<ExplorationStore>()(
               bulkMode: 'none',
               engineVersion,
               consBuffs: { ...EMPTY_BUFFS },
+              // Характеристики последнего режима — шапка показывает их и без активного рейда.
+              difficulty: typeof data.difficulty === 'string' ? data.difficulty : state.difficulty,
+              modifier: 'modifier' in data ? ((data.modifier as string | null) ?? null) : state.modifier,
+              difficultyInfo: diffInfo,
+              modifierInfo: modInfo,
             });
             return;
           }
@@ -453,6 +477,8 @@ export const useExplorationStore = create<ExplorationStore>()(
               consBuffs,
               difficulty: diffKey,
               modifier: modKey,
+              difficultyInfo: diffInfo,
+              modifierInfo: modInfo,
             });
           }
           // Process pending rewards after each poll
@@ -562,7 +588,20 @@ export const useExplorationStore = create<ExplorationStore>()(
         get().processPendingRewards();
       },
 
-      resetExploration: () => {
+      // Сброс экспедиции: сначала сервер помечает активный рейд завершённым
+      // (reset.php), иначе ближайший полл status.php снова «загрузит» рейд.
+      // Сервер не ответил — локально не сбрасываем, чтобы не расходиться с ним.
+      resetExploration: async () => {
+        const token = getToken();
+        if (!token) return;
+        try {
+          const res = await fetch(`${API_BASE}/reset.php`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) return;
+        } catch {
+          return;
+        }
         set({
           isExploring: false, zoneName: null, phase: 'idle', serverPhase: '',
           serverOutcome: null, timeLeft: 0, tickCount: 0,
@@ -572,6 +611,8 @@ export const useExplorationStore = create<ExplorationStore>()(
           debtSec: 0, bulkMode: 'none',
           useMaterials: true,
           consBuffs: { ...EMPTY_BUFFS },
+          deathSettled: true,
+          isReturningHome: false,
         });
       },
 
@@ -731,6 +772,8 @@ export const useExplorationStore = create<ExplorationStore>()(
         consBuffs: state.consBuffs,
         difficulty: state.difficulty,
         modifier: state.modifier,
+        difficultyInfo: state.difficultyInfo,
+        modifierInfo: state.modifierInfo,
         // Кэш несейвленных наград: переживает перезагрузку, чтобы ретрай
         // сейвил те же предметы, а не генерировал дубликаты.
         eventRewardItems: state.eventRewardItems,

@@ -98,11 +98,11 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
                   onMouseMove={onItemMove}
                   onMouseLeave={onItemLeave}
                 >
-                  📦 {itemLabel(it)}
+                  нашли 📦 {itemLabel(it)}
                 </span>
               ))
               : r.itemCount > 0 && (
-                <span className={styles.badge}>📦 +{r.itemCount}</span>
+                <span className={styles.badge}>нашли 📦 +{r.itemCount}</span>
               )}
           </div>
         )}

@@ -24,7 +24,19 @@ if (!$result) {
   $hStmt->execute([$userId]);
   $hRow = $hStmt->fetch();
   $lastOutcome = ($hRow && $hRow['outcome'] === 'dead') ? 'dead' : 'complete';
-  jsonResponse(['active' => false, 'state' => $lastOutcome]);
+  // Характеристики последнего режима — клиент рисует их в шапке журнала,
+  // даже когда рейд уже закончился.
+  $lStmt = $pdo->prepare("SELECT difficulty, modifier FROM explorations WHERE user_id = ? ORDER BY id DESC LIMIT 1");
+  $lStmt->execute([$userId]);
+  $lastExp = $lStmt->fetch() ?: [];
+  jsonResponse([
+    'active' => false,
+    'state' => $lastOutcome,
+    'difficulty' => $lastExp['difficulty'] ?? 'normal',
+    'modifier' => $lastExp['modifier'] ?? null,
+    'difficultyInfo' => travelDifficulty($lastExp['difficulty'] ?? 'normal'),
+    'modifierInfo' => travelModifier($lastExp['modifier'] ?? null),
+  ]);
 }
 
 // Load events only for this exploration (paginated tail)

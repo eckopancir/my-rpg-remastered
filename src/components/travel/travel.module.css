@@ -813,11 +813,129 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+/* ---------- Характеристики режимов рейда (сложность/характер) ---------- */
+.modeStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+.modeCard {
+  --modeColor: #94a3b8;
+  padding: 10px 13px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border-glass);
+  border-left: 3px solid var(--modeColor);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--modeColor) 12%, transparent), transparent 55%),
+    linear-gradient(180deg, rgba(18, 18, 26, 0.96), rgba(10, 10, 15, 0.96));
+  box-shadow: var(--shadow-glass);
+}
+
+.modeHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modeIcon {
+  font-size: 17px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--modeColor) 60%, transparent));
+}
+
+.modeName {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--modeColor);
+}
+
+.modeTag {
+  margin-left: auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.traitRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.trait {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.trait b {
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.traitUp {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.09);
+}
+
+.traitUp b {
+  color: #86efac;
+}
+
+.traitDown {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.09);
+}
+
+.traitDown b {
+  color: #fca5a5;
+}
+
+.modeDesc {
+  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 /* ---------- Карточки рейдов ---------- */
 .cardRow {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
   gap: 10px;
+  align-content: start;
+}
+
+.tripCardZone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px dashed var(--border-glass);
+}
+
+.tripCardZoneName {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
 }
 
 .tripCard {
@@ -849,10 +967,11 @@
 }
 
 .tripCardMod {
-  margin-top: 7px;
+  margin-left: auto;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .tripCardDesc {

@@ -3,15 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useExplorationStore, calcConsBuffs } from '../../stores/explorationStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useAuthStore } from '../../stores/authStore';
-import { ZONES } from '../../data/zones';
 import { TRAVEL_OUT_SEC, TRAVEL_BACK_SEC } from '../../data/travelTuning';
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
-
-const LOCKED_ZONES = new Set([
-  'Болото', 'Свалка мусора', 'Темный лес',
-  'База бандитов', 'Руины города', 'Старый завод',
-]);
 
 /** Что даёт материал: зеркало expeditionBuffs() (превью в рейд-UI). */
 const packBonusText = (name: string, qty: number): string => {
@@ -46,6 +40,8 @@ interface HistoryEntry {
 interface TripCard {
   id: string;
   zone: string;
+  zoneLevel: number;
+  zoneFactions: string[];
   difficulty: string;
   difficultyName: string;
   difficultyIcon: string;
@@ -59,6 +55,7 @@ interface TripCard {
   modifierIcon: string;
   modifierDesc: string;
   hours: number;
+  durationBonusPct: number;
   refreshIn: number;
 }
 
@@ -76,11 +73,9 @@ export const TravelStartScreen = () => {
   const token = useAuthStore((s) => s.token);
   const materials = useInventoryStore((s) => s.items);
 
-  const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [cards, setCards] = useState<TripCard[]>([]);
   const [cardIdx, setCardIdx] = useState(0);
   const [cardsLoading, setCardsLoading] = useState(false);
-  const [hours, setHours] = useState(12);
   const [pack, setPack] = useState<Record<string, number>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [starting, setStarting] = useState(false);
@@ -93,30 +88,24 @@ export const TravelStartScreen = () => {
       .catch(() => {});
   }, [token]);
 
-  // Карточки рейдов для выбранной зоны.
+  // Карточки рейдов: зона + сложность + характер + длительность.
   useEffect(() => {
-    if (!selectedZone || !token) { setCards([]); return; }
+    if (!token) return;
     setCardsLoading(true);
-    fetch(`/api/exploration/trip_cards.php?zone=${encodeURIComponent(selectedZone)}`, {
+    fetch('/api/exploration/trip_cards.php', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
       .then((data) => {
-        const list: TripCard[] = data.cards || [];
-        setCards(list);
+        setCards(data.cards || []);
         setCardIdx(0);
-        if (list[0]) setHours(list[0].hours);
       })
       .catch(() => setCards([]))
       .finally(() => setCardsLoading(false));
-  }, [selectedZone, token]);
+  }, [token]);
 
   const card = cards[cardIdx] ?? null;
-
-  const zones = useMemo(
-    () => ZONES.filter((z) => z.name !== 'Наша база' && z.name !== 'Базар'),
-    [],
-  );
+  const hours = card?.hours ?? 12;
 
   const packMats = useMemo(() => {
     const map = new Map<string, { name: string; have: number; img?: string }>();
@@ -154,15 +143,15 @@ export const TravelStartScreen = () => {
   };
 
   const go = useCallback(async () => {
-    if (!selectedZone || !card || starting) return;
+    if (!card || starting) return;
     setStarting(true);
     const list = Object.entries(pack)
       .filter(([, q]) => q > 0)
       .map(([name, qty]) => ({ name, qty }));
-    await startExploration(selectedZone, hours, true, list, card.difficulty, card.modifier);
+    await startExploration(card.zone, card.hours, true, list, card.difficulty, card.modifier);
     setStarting(false);
-    navigate(`/explore?zone=${encodeURIComponent(selectedZone)}`);
-  }, [selectedZone, card, hours, pack, starting, startExploration, navigate]);
+    navigate(`/explore?zone=${encodeURIComponent(card.zone)}`);
+  }, [card, pack, starting, startExploration, navigate]);
 
   // Активная вылазка — сразу в журнал рейда.
   useEffect(() => {
@@ -195,86 +184,51 @@ export const TravelStartScreen = () => {
             План рейда
           </div>
           <div className={styles.zoneSub}>
-            Выбери зону и карточку рейда: сложность, характер и длительность.
+            Выбери карточку: зона, сложность, характер и длительность заданы в ней.
           </div>
         </div>
       </div>
 
       <div className={styles.start}>
-        {/* ---------- Зоны ---------- */}
+        {/* ---------- Карточки рейдов ---------- */}
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <span>Зоны</span>
+            <span>Карточки рейдов</span>
             <span style={{ color: 'var(--text-secondary)', letterSpacing: 0, textTransform: 'none' }}>
-              {zones.length} шт.
+              {cardsLoading ? 'загрузка…' : `обновление через ${fmtShort(cards[0]?.refreshIn ?? 600)}`}
             </span>
           </div>
           <div className={styles.panelBody}>
-            <div className={styles.zoneList}>
-              {zones.map((z) => {
-                const locked = LOCKED_ZONES.has(z.name);
-                const active = selectedZone === z.name;
-                return (
-                  <div
-                    key={z.name}
-                    className={`${styles.zoneCard} ${active ? styles.zoneCardActive : ''} ${locked ? styles.zoneCardLocked : ''}`}
-                    onClick={() => !locked && setSelectedZone(z.name)}
-                  >
-                    <div className={styles.zoneName}>
-                      {z.name}
-                      {locked && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>🔒</span>}
-                    </div>
-                    <div className={styles.zoneDesc}>{z.description}</div>
-                    <div className={styles.zoneTags}>
-                      <span className={styles.tag}>SL {z.difficulty}</span>
-                      {z.allowedFactions.map((f) => (
-                        <span key={f} className={styles.tag}>{f}</span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* ---------- Карточки рейдов ---------- */}
-            {selectedZone && (
-              <div style={{ marginTop: 16 }}>
-                <div className={styles.sectionTitle}>
-                  Карточки рейдов
-                  <span style={{ float: 'right', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                    {cardsLoading ? 'загрузка…' : `обновление через ${fmtShort(cards[0]?.refreshIn ?? 600)}`}
-                  </span>
-                </div>
-                {!cardsLoading && cards.length === 0 && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Карточки не пришли — обнови страницу.</div>
-                )}
-                <div className={styles.cardRow}>
-                  {cards.map((c, i) => (
-                    <div
-                      key={c.id}
-                      className={`${styles.tripCard} ${i === cardIdx ? styles.tripCardActive : ''}`}
-                      style={{ ['--diffColor' as any]: c.difficultyColor }}
-                      onClick={() => { setCardIdx(i); setHours(c.hours); }}
-                    >
-                      <div className={styles.tripCardDiff}>
-                        <span style={{ fontSize: 18 }}>{c.difficultyIcon}</span>
-                        <span style={{ color: c.difficultyColor }}>{c.difficultyName}</span>
-                      </div>
-                      <div className={styles.tripCardMod}>
-                        <span>{c.modifierIcon}</span> {c.modifierName}
-                      </div>
-                      <div className={styles.tripCardDesc}>{c.modifierDesc}</div>
-                      <div className={styles.tripCardMeta}>
-                        <span>⏱ {c.hours} ч</span>
-                        <span>урон ×{c.damageMult}</span>
-                        <span>награда ×{c.rewardMult}</span>
-                      </div>
-                      <div className={styles.tripCardCap}>потолок: {c.qualityCap}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {!cardsLoading && cards.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Карточки не пришли — обнови страницу.</div>
             )}
+            <div className={styles.cardRow}>
+              {cards.map((c, i) => (
+                <div
+                  key={c.id}
+                  className={`${styles.tripCard} ${i === cardIdx ? styles.tripCardActive : ''}`}
+                  style={{ ['--diffColor' as any]: c.difficultyColor }}
+                  onClick={() => setCardIdx(i)}
+                >
+                  <div className={styles.tripCardZone}>
+                    <span className={styles.tripCardZoneName}>{c.zone}</span>
+                    <span className={styles.tag}>SL {c.zoneLevel}</span>
+                  </div>
+                  <div className={styles.tripCardDiff}>
+                    <span style={{ fontSize: 18 }}>{c.difficultyIcon}</span>
+                    <span style={{ color: c.difficultyColor }}>{c.difficultyName}</span>
+                    <span className={styles.tripCardMod}>{c.modifierIcon} {c.modifierName}</span>
+                  </div>
+                  <div className={styles.tripCardDesc}>{c.modifierDesc}</div>
+                  <div className={styles.tripCardMeta}>
+                    <span>⏱ {c.hours} ч</span>
+                    <span>урон ×{c.damageMult}</span>
+                    <span>награда ×{c.rewardMult}</span>
+                  </div>
+                  <div className={styles.tripCardCap}>потолок: {c.qualityCap}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -286,7 +240,7 @@ export const TravelStartScreen = () => {
           <div className={styles.panelBody}>
             <div className={styles.planRow}>
               <span className={styles.planLabel}>Зона</span>
-              <span className={styles.planValue}>{selectedZone ?? 'не выбрана'}</span>
+              <span className={styles.planValue}>{card?.zone ?? 'не выбрана'}</span>
             </div>
             {card && (
               <>
@@ -312,17 +266,8 @@ export const TravelStartScreen = () => {
                 <span className={styles.planLabel}>Длительность в зоне</span>
                 <span className={styles.planValue}>{hours} ч</span>
               </div>
-              <input
-                className={styles.slider}
-                type="range"
-                min={2}
-                max={24}
-                step={1}
-                value={hours}
-                onChange={(e) => setHours(Number(e.target.value))}
-              />
               <div style={{ fontSize: 11, color: '#4ade80' }}>
-                🏆 Бонус за полную зачистку: +{durationBonusPct(hours)}% к чипам и опыту
+                🏆 Бонус за полную зачистку: +{card?.durationBonusPct ?? durationBonusPct(hours)}% к чипам и опыту
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
                 ≈ {Math.round((hours * 3600) / 1800)} крупных событий · дорога туда {fmtShort(TRAVEL_OUT_SEC)},
@@ -369,7 +314,7 @@ export const TravelStartScreen = () => {
               </div>
             )}
 
-            <button className={styles.cta} disabled={!selectedZone || !card || starting} onClick={go}>
+            <button className={styles.cta} disabled={!card || starting} onClick={go}>
               {starting ? '⏳ Выдвигаемся…' : '🚀  ВЫДВИНУТЬСЯ'}
             </button>
           </div>

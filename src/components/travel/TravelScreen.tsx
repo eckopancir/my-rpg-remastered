@@ -8,6 +8,7 @@ import { RouteTimeline } from './RouteTimeline';
 import { EventFeed } from './EventFeed';
 import { LootSummary } from './LootSummary';
 import { adaptEvent, parseServerTs } from './adaptEvent';
+import { difficultyTraits, modifierTraits } from '../../data/travelModes';
 import type { TravelRewardItem } from '../../types/travel';
 import styles from './travel.module.css';
 
@@ -75,6 +76,8 @@ export const TravelScreen = () => {
   const rewardItems = useExplorationStore((s) => s.eventRewardItems);
   const difficulty = useExplorationStore((s) => s.difficulty);
   const modifier = useExplorationStore((s) => s.modifier);
+  const difficultyInfo = useExplorationStore((s) => s.difficultyInfo);
+  const modifierInfo = useExplorationStore((s) => s.modifierInfo);
 
   const [tooltipItem, setTooltipItem] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -171,6 +174,48 @@ export const TravelScreen = () => {
         <div className={styles.phasePill} style={{ color: phaseColor }}>
           {PHASE_TEXT[phase] ?? phase}
         </div>
+      </div>
+
+      <div className={styles.modeStrip}>
+        <div
+          className={styles.modeCard}
+          style={{ ['--modeColor' as any]: difficultyInfo?.color ?? DIFF_COLORS[difficulty] ?? '#e2e8f0' }}
+        >
+          <div className={styles.modeHead}>
+            <span className={styles.modeIcon}>{difficultyInfo?.icon ?? DIFF_ICONS[difficulty] ?? '⚪'}</span>
+            <span className={styles.modeName}>{difficultyInfo?.name ?? DIFF_NAMES[difficulty] ?? 'Обычная'}</span>
+            <span className={styles.modeTag}>сложность</span>
+          </div>
+          <div className={styles.traitRow}>
+            {difficultyTraits(difficultyInfo).map((t) => (
+              <span key={`d-${t.label}`} className={`${styles.trait} ${styles[`trait${t.tone === 'up' ? 'Up' : t.tone === 'down' ? 'Down' : 'Flat'}`]}`}>
+                {t.label} <b>{t.value}</b>
+              </span>
+            ))}
+          </div>
+          {difficultyInfo?.desc && <div className={styles.modeDesc}>{difficultyInfo.desc}</div>}
+        </div>
+
+        {modifier && (
+          <div
+            className={styles.modeCard}
+            style={{ ['--modeColor' as any]: modifierInfo?.color ?? '#a5b4fc' }}
+          >
+            <div className={styles.modeHead}>
+              <span className={styles.modeIcon}>{modifierInfo?.icon ?? MOD_ICONS[modifier] ?? '•'}</span>
+              <span className={styles.modeName}>{modifierInfo?.name ?? MOD_NAMES[modifier] ?? modifier}</span>
+              <span className={styles.modeTag}>характер пути</span>
+            </div>
+            <div className={styles.traitRow}>
+              {modifierTraits(modifierInfo).map((t) => (
+                <span key={`m-${t.label}`} className={`${styles.trait} ${styles[`trait${t.tone === 'up' ? 'Up' : t.tone === 'down' ? 'Down' : 'Flat'}`]}`}>
+                  {t.label} <b>{t.value}</b>
+                </span>
+              ))}
+            </div>
+            {modifierInfo?.desc && <div className={styles.modeDesc}>{modifierInfo.desc}</div>}
+          </div>
+        )}
       </div>
 
       <div className={styles.panel} style={{ padding: '8px 12px' }}>

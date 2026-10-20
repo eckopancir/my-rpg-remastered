@@ -23,15 +23,13 @@ define('TRAVEL_GEAR_CHANCE_PCT', 30);
 define('TRAVEL_MICRO_ITEM_PCT', 10);
 define('TRAVEL_QUALITY_CAP', 'Раритетный');
 
-// ТЕСТ: ускорение симуляции в 10 раз (события, микро, легендарка, дорога).
-// Перед релизом вернуть в 1.
-define('TRAVEL_TEST_SPEED', 30);
-// ТЕСТ: микро-события ускоряем слабее — иначе они забивают ленту и крупные
-// события с ветками не видно.
-define('TRAVEL_TEST_SPEED_MICRO', 12);
-// ТЕСТ: этап легендарной цепочки — свой темп (иначе при общем ускорении
-// цепочка пролетает за секунды).
-define('TRAVEL_TEST_SPEED_LEG', 8);
+// Темп симуляции: 1 = реальное время (крупные события ~2/час, микро раз в
+// 8-12 мин, этап легендарки — раз в минуту). Баланс урона в пути посчитан
+// именно под этот темп, поэтому ускорение здесь ломает баланс:
+// 1 = боевой темп, >1 = только для отладки.
+define('TRAVEL_TEST_SPEED', 1);
+define('TRAVEL_TEST_SPEED_MICRO', 1);
+define('TRAVEL_TEST_SPEED_LEG', 1);
 
 /** Тестовая скорость: перевести секунды симуляции в «ускоренные». */
 function travelSpeed($sec) {
@@ -551,8 +549,9 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     if ($cdMicro <= 0) {
       $me = generateMicroEvent($zoneDesc, '');
       $me['effects'] = applyTravelScaling($me['effects'], $playerLevel, trapDmgBand((int)($exp['planned_sec'] ?? 0)), $difficulty, $modifier);
-      if (!empty($me['effects']['healPercent'])) {
-        $hp = min($maxHp, $hp + (int)round($maxHp * (float)$me['effects']['healPercent'] * $bHealMult));
+      // Числовой хил (в HP) — applyTravelScaling уже перевёл % в HP.
+      if (!empty($me['effects']['heal'])) {
+        $hp = min($maxHp, $hp + (int)round((int)$me['effects']['heal'] * $bHealMult));
       }
       $microN++;
       $cdMicro = travelSpeedMicro(RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX));
@@ -579,8 +578,13 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       $eff = $event['effects'] ?? [];
       $bulkChips += (int)($eff['chips'] ?? 0);
       $bulkExp += (int)($eff['exp'] ?? 0);
-      if (!empty($eff['healPercent'])) $hp = min($maxHp, $hp + (int)round($maxHp * (float)$eff['healPercent'] * $bHealMult));
-      if (!empty($eff['damagePercent'])) $hp = max(0, $hp - (int)round($maxHp * (float)$eff['damagePercent'] * $bDmgMult));
+      // Числовые HP (applyTravelScaling уже перевёл % в HP).
+      if (!empty($eff['heal'])) $hp = min($maxHp, $hp + (int)round((int)$eff['heal'] * $bHealMult));
+      if (!empty($eff['damage'])) {
+        $dmg = (int)round((int)$eff['damage'] * $bDmgMult);
+        $dmg = min($dmg, (int)round($maxHp * 0.95));
+        $hp = max(0, $hp - $dmg);
+      }
       if (!empty($eff['itemCount'])) {
         $bulkItems += (int)$eff['itemCount'];
         if ($itemPool === null && !empty($event['itemPool'])) $itemPool = $event['itemPool'];
@@ -1001,6 +1005,9 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
       'currentHp' => (int)($sd['player']['stats']['currentHp'] ?? 100),
     ],
     'consBuffs' => expeditionBuffs($exp['consumables'] ?? null),
+    // Характеристики режимов рейда — клиент рисует их в шапке журнала.
+    'difficultyInfo' => travelDifficulty($exp['difficulty'] ?? 'normal'),
+    'modifierInfo' => travelModifier($exp['modifier'] ?? null),
     'state' => $forceState ?? ($isActive ? 'active' : 'complete'),
     'newEvents' => $events,
   ];
@@ -1311,11 +1318,11 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
     if ($branch) {
       $result = resolveBranch(['outcomes' => $branch['outcomes']], $zone, $playerLevel, $items);
       $eff = mergeEffectsArr($template['effects'] ?? [], $result['effects']);
-      // Ловушки бьют редко, поэтому каждый удар весомый: масштабируем урон
-      // в полосу tier'а длительности (с ресурсом — только верхняя граница).
+      // Ловушки бьют редко, поэтому каждый удар весомый: ×4 к урону шаблона.
+      // Потолок (полоса по длительности) ставит applyTravelScaling — он же
+      // переводит % в числовой HP.
       if (($template['type'] ?? '') === 'trap' && !empty($eff['damagePercent']) && $eff['damagePercent'] > 0) {
         $eff['damagePercent'] = $eff['damagePercent'] * TRAP_DAMAGE_MULT;
-        $eff['damagePercent'] = max($dmgBand[0], min($dmgBand[1], $eff['damagePercent']));
       }
       $eff = capEffects($eff, false, $dmgBand);
       // %-урон/хил -> числовые HP + множители сложности и модификатора.
@@ -1414,13 +1421,27 @@ function effectsWithBuffs($effects, $buffs = []) {
 }
 
 // ---------------------------------------------------------------------------
-// Числовой урон: база растёт с уровнем игрока, дальше множители сложности
-// и модификатора. Шаблоны событий остаются в % — это их «вес» исхода.
+// Числовой урон: база растёт с уровнем игрока (через ожидаемый пул HP
+// уровня), дальше множители сложности и модификатора. Шаблоны событий
+// остаются в % — это их «вес» исхода.
 // ---------------------------------------------------------------------------
 
-/** База урона/хила события на 1 уровне игрока (в HP). */
+/**
+ * Ожидаемый пул HP для уровня игрока: кривая «уровень + снаряжение»
+ * (500 HP на 1 ур. → 150 000 на 100 ур.).
+ * Урон в пути считается от неё, а не от реального HP игрока: тогда
+ * снаряжение даёт запас прочности, но не раздувает цель. Слабый по HP
+ * персонаж на своём уровне получает те же числа — и умирает первым.
+ */
+function travelExpectedHp($playerLevel) {
+  $L = max(1, (int)$playerLevel);
+  $x = min(1, ($L - 1) / 99);
+  return 500 + 149500 * pow($x, 1.6);
+}
+
+/** База урона/хила события (в HP): 10% от ожидаемого пула HP уровня. */
 function travelPowerScale($playerLevel) {
-  return 24 + 5 * (max(1, (int)$playerLevel) - 1);
+  return (int)round(travelExpectedHp($playerLevel) * 0.10);
 }
 
 /**
@@ -1445,9 +1466,9 @@ function applyTravelScaling($eff, $playerLevel, $dmgBand, $difficulty, $modifier
     unset($eff['damagePercent']);
     $eff['damage'] = (int)round($base * $factor * $dmgMult);
   }
-  // Хил: % шаблона → HP (4% = 1× базы).
+  // Хил: % шаблона → HP (8% = 1× базы, как и урон).
   if (isset($eff['healPercent']) && $eff['healPercent'] > 0) {
-    $heal = (int)round($base * ((float)$eff['healPercent'] / 0.04) * $healMult);
+    $heal = (int)round($base * ((float)$eff['healPercent'] / 0.08) * $healMult);
     unset($eff['healPercent']);
     $eff['heal'] = $heal;
   }
@@ -1477,15 +1498,15 @@ function capEffects($effects, $hadResource = false, $dmgBand = null) {
 
 /**
  * Полоса урона по длительности рейда — максимальный множитель от базы
- * (было: полоса в % от максимального HP).
- * ≤6ч → 1.5×, 6–12ч → 2.0×, 12–18ч → 2.5×, 18–24ч → 3.0×.
+ * (потолок для одного удара: ловушка не превышает полосу).
+ * ≤6ч → 2.5×, 6–12ч → 3.5×, 12–18ч → 4.5×, 18–24ч → 6.0×.
  */
 function trapDmgBand($plannedSec) {
   $h = $plannedSec / 3600;
-  if ($h >= 18) return 3.0;
-  if ($h >= 12) return 2.5;
-  if ($h >= 6) return 2.0;
-  return 1.5;
+  if ($h >= 18) return 6.0;
+  if ($h >= 12) return 4.5;
+  if ($h >= 6) return 3.5;
+  return 2.5;
 }
 
 // Масштабирование базового урона исходов (0.05–0.18) к полосам выше.

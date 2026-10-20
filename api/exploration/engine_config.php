@@ -103,6 +103,27 @@ $ZONES = [
   ['name' => 'Старый завод', 'difficulty' => 25, 'allowedFactions' => ['Бандиты','Военные','Роботы'], 'travelTime' => 1, 'minLevel' => 5],
 ];
 
+// Зоны, закрытые для путешествий: открываются по мере прохождения.
+// Список зон убран из интерфейса — игрок выбирает зону прямо из карточек рейдов,
+// поэтому закрытость решает сервер.
+const TRAVEL_LOCKED_ZONES = [
+  'Болото', 'Свалка мусора', 'Темный лес',
+  'База бандитов', 'Руины города', 'Старый завод',
+];
+
+/** Зоны, доступные для рейда: без базы/базара и без закрытых. */
+function travelOpenZones() {
+  global $ZONES;
+  $out = [];
+  foreach ($ZONES as $z) {
+    $name = $z['name'];
+    if ($name === 'Наша база' || $name === 'Базар') continue;
+    if (in_array($name, TRAVEL_LOCKED_ZONES, true)) continue;
+    $out[] = $z;
+  }
+  return $out;
+}
+
 function substituteText($text, $zone, $factions) {
   global $MALE_NAMES, $FEMALE_NAMES, $NICKNAMES, $ITEM_NAMES, $LOOT_ROOMS, $ZONE_ADJECTIVES, $FACTION_WEAPONS, $FACTION_EQUIP, $FACTION_LEADER;
   $replacements = [

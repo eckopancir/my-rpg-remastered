@@ -24,6 +24,13 @@ if (!$zone) {
   jsonResponse(['error' => 'zone required'], 400);
 }
 
+// Зона должна быть открытой: список зон убран из интерфейса, зону выбирают
+// из карточек рейдов, а закрытость решает сервер.
+$openZones = array_column(travelOpenZones(), 'name');
+if (!in_array($zone, $openZones, true)) {
+  jsonResponse(['error' => 'Зона закрыта для путешествий'], 400);
+}
+
 // Auto-resolve any stale exploration before starting a new one
 $stmt = $pdo->prepare("SELECT * FROM explorations WHERE user_id = ? AND phase NOT IN ('complete','idle') ORDER BY id DESC");
 $stmt->execute([$userId]);
