@@ -4,8 +4,11 @@ import { usePlayerStore } from './playerStore';
 import { useInventoryStore } from './inventoryStore';
 import { useAuthStore } from './authStore';
 import { generateItem, type GeneratedItem } from '../engine/items';
+import { generateTravelReward, type TravelRewardProfile } from '../engine/travelLoot';
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
+import { backpackSlotsFor, tryInsertIntoGrid, removeItemFromGrid } from '../data/backpacks';
+import { syncNow } from '../utils/serverSync';
 
 
 const API_BASE = '/api/exploration';
@@ -579,20 +582,20 @@ export const useExplorationStore = create<ExplorationStore>()(
             if (newItems[eventId]) {
               const cached = newItems[eventId];
               if (cached.saved) continue;
+              // Кэш пережил перезагрузку: предметы уже лежат в рюкзаке,
+              // повторно их не кладём — только переклеймиваем награду.
+              const del = deliverToBackpack(cached.items as any[], false);
               const saveRes = await fetch(`${API_BASE}/save_items.php`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ items: cached.items, rewardId }),
+                body: JSON.stringify({
+                  items: del.placed,
+                  rewardId,
+                  mode: del.usedBackpack ? 'backpack' : 'inventory',
+                  drop: del.dropped && del.placed.length === 0 ? 1 : 0,
+                }),
               });
               if (saveRes.ok) {
-                const sj = await saveRes.json().catch(() => null);
-                if (sj?.already) {
-                  // Награда уже заклеймена (вторая вкладка / повторный запрос):
-                  // наши локальные копии — дубликаты, откатываем их.
-                  for (const item of cached.items) {
-                    inv.removeItem(item.id);
-                  }
-                }
                 newItems[eventId] = { items: cached.items, saved: true };
                 changed = true;
               }
@@ -602,11 +605,13 @@ export const useExplorationStore = create<ExplorationStore>()(
             // Generate new items
             let itemPool: string | null = null;
             let chestSpec: { quality?: string; level?: number } | null = null;
+            let profile: TravelRewardProfile | null = null;
             if (reward.reward_data) {
               try {
                 const rd = typeof reward.reward_data === 'string' ? JSON.parse(reward.reward_data) : reward.reward_data;
                 itemPool = rd?.itemPool || null;
                 chestSpec = rd?.chest || null;
+                profile = rd?.profile || null;
               } catch (_) {}
             }
             const items: GeneratedItem[] = [];
@@ -614,42 +619,48 @@ export const useExplorationStore = create<ExplorationStore>()(
               // Награда-сундук с легендарки: качество и уровень зафиксированы сервером.
               const chest = createChest(chestSpec.quality || 'Обычный', chestSpec.level || rewardPlayerLevel);
               items.push(chest as unknown as GeneratedItem);
+            } else if (profile) {
+              // Сервер решил характер дропа (пул/потолки/количество).
+              items.push(...(generateTravelReward(profile, rewardPlayerLevel) as unknown as GeneratedItem[]));
             } else {
               for (let i = 0; i < itemCount; i++) {
                 items.push(generateItem(GAME_ITEMS, rewardPlayerLevel, null, null, itemPool));
               }
             }
 
-            // Add to inventory (immediate UI)
-            for (const item of items) {
-              inv.addItem(item);
-            }
+            // Доставка в Тетрис-рюкзак. Если рюкзак переполнен — добыча
+            // остаётся в зоне (предмет не выдаётся вообще).
+            const del = deliverToBackpack(items as any[], true);
+            const placed = del.placed;
 
             // Save to server (transactional: INSERT + CLAIM)
+            const saveBody: any = placed.length > 0
+              ? { items: placed, rewardId, mode: del.usedBackpack ? 'backpack' : 'inventory' }
+              : { rewardId, drop: 1 };
             const saveRes = await fetch(`${API_BASE}/save_items.php`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ items, rewardId }),
+              body: JSON.stringify(saveBody),
             });
 
             if (saveRes.ok) {
-              const sj = await saveRes.json().catch(() => null);
-              if (sj?.already) {
-                // Гонка: другая вкладка/ретрай заклеймила раньше —
-                // только что добавленные копии лишние, убираем.
-                for (const item of items) {
+              newItems[eventId] = { items: placed, saved: true };
+              changed = true;
+            } else {
+              // Rollback: убираем только то, что положили сами.
+              for (const item of placed) {
+                if (del.usedBackpack) {
+                  const g = usePlayerStore.getState().backpackGrid;
+                  usePlayerStore.setState({ backpackGrid: removeItemFromGrid(g, item.id) });
+                } else {
                   inv.removeItem(item.id);
                 }
               }
-              newItems[eventId] = { items, saved: true };
+              newItems[eventId] = { items: placed, saved: false };
               changed = true;
-            } else {
-              // Rollback inventory
-              for (const item of items) {
-                inv.removeItem(item.id);
-              }
-              newItems[eventId] = { items, saved: false };
-              changed = true;
+            }
+            if (del.dropped) {
+              usePlayerStore.getState().addLog('🎒 Рюкзак полон — добыча осталась в зоне.', 'warning');
             }
           }
 
@@ -727,6 +738,49 @@ export async function catchUpExploration() {
   } catch (e) {
     console.error('[EXP_CATCHUP] error', e);
   }
+}
+
+/**
+ * Доставка наград в Тетрис-рюкзак игрока.
+ * - Рюкзака нет (0 слотов) → находки идут в склад (плоский инвентарь).
+ * - Рюкзак есть, но не влезает → предмет теряется (добыча остаётся в зоне).
+ * - fresh=false — повторная попытка (кэш после перезагрузки): предметы,
+ *   уже лежащие в рюкзаке, повторно не кладём.
+ */
+function deliverToBackpack(items: any[], fresh: boolean) {
+  const pStore = usePlayerStore.getState();
+  const grid0 = pStore.backpackGrid;
+  const pack: any = (pStore.equipment as any).backpack;
+  const slots = Math.max(grid0?.slots ?? 0, backpackSlotsFor(pack));
+  const inv = useInventoryStore.getState();
+
+  if (slots <= 0) {
+    for (const item of items) inv.addItem(item as any);
+    return { placed: items, dropped: false, usedBackpack: false };
+  }
+
+  let grid = grid0;
+  const placed: any[] = [];
+  let dropped = false;
+  for (const item of items) {
+    if (!fresh && grid.items.some((i: any) => i.id === item.id)) {
+      placed.push(item);
+      continue;
+    }
+    const res = tryInsertIntoGrid(grid, item);
+    if (res.moved) {
+      grid = res.grid;
+      placed.push(item);
+      if (res.leftoverQty > 0) dropped = true;
+    } else {
+      dropped = true;
+    }
+  }
+  if (placed.length > 0) {
+    usePlayerStore.setState({ backpackGrid: grid });
+    syncNow();
+  }
+  return { placed, dropped, usedBackpack: true };
 }
 
 // Apply effects from a JSON effects string to the player store (client-side safety net).

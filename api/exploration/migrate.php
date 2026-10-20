@@ -60,4 +60,10 @@ if (!count($colsC)) {
   $pdo->exec("ALTER TABLE explorations ADD COLUMN consumables JSON DEFAULT NULL AFTER use_materials");
 }
 
+// Колонка «выброшено»: награда не влезла в рюкзак и была потеряна.
+$colsD = $pdo->query("SHOW COLUMNS FROM offline_rewards LIKE 'dropped'")->fetchAll();
+if (!count($colsD)) {
+  $pdo->exec("ALTER TABLE offline_rewards ADD COLUMN dropped TINYINT(1) NOT NULL DEFAULT 0 AFTER claimed");
+}
+
 echo json_encode(['ok' => true]);

@@ -13,6 +13,14 @@ const EVENT_COOLDOWN_MIN = 1500;
 const EVENT_COOLDOWN_MAX = 2100;
 const MICRO_COOLDOWN_MIN = 480;
 const MICRO_COOLDOWN_MAX = 720;
+
+// --- Профиль дропа из путешествия ---
+// 30% находок — снаряжение, 70% — ресурсы/патроны/расходники.
+// Снаряжение ограничено потолком качества и редкости: находка из пути
+// не должна быть сильнее добычи с боссов.
+define('TRAVEL_GEAR_CHANCE_PCT', 30);
+define('TRAVEL_MICRO_ITEM_PCT', 10);
+define('TRAVEL_QUALITY_CAP', 'Раритетный');
 const MAX_TICKS_PER_POLL = 60;
 // Шанс запуска легендарной цепочки на каждом крупном событии, %.
 // 2 крупных/час → ~12 за 6 часов → при 3% примерно 1 легендарка за ~16 часов.
@@ -73,7 +81,39 @@ function generateMicroEvent($zoneDesc, $faction) {
 // ---------------------------------------------------------------------------
 // Offline reward creation
 // ---------------------------------------------------------------------------
-function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr, $itemPool = null, $chest = null) {
+// ---------------------------------------------------------------------------
+// Профиль награды из путешествия.
+// Сервер решает характер дропа (пул, потолки, количество) — клиент только
+// материализует предмет по профилю из reward_data.
+// ---------------------------------------------------------------------------
+function travelRewardProfile($playerLevel, $zoneDifficulty, $itemPool = null) {
+  $forcedGear = ($itemPool !== null && $itemPool !== '');
+  $isGear = $forcedGear || (mt_rand(1, 100) <= TRAVEL_GEAR_CHANCE_PCT);
+  if ($isGear) {
+    $roll = mt_rand(1, 100);
+    $rarity = $roll <= 70 ? 'normal' : ($roll <= 95 ? 'epic' : 'superepic');
+    $lvl = max(1, min((int)$playerLevel, max(1, (int)$zoneDifficulty + 2)));
+    return [
+      'pool' => 'gear',
+      'slot' => $forcedGear ? $itemPool : null,
+      'rarity' => $rarity,
+      'qualityCap' => TRAVEL_QUALITY_CAP,
+      'itemLevel' => $lvl,
+      'qty' => 1,
+    ];
+  }
+  $kindRoll = mt_rand(1, 100);
+  $kind = $kindRoll <= 60 ? 'material' : ($kindRoll <= 85 ? 'ammo' : 'consumable');
+  $qty = $kind === 'ammo' ? mt_rand(6, 18) : ($kind === 'consumable' ? mt_rand(1, 2) : mt_rand(2, 5));
+  return [
+    'pool' => 'resource',
+    'kind' => $kind,
+    'itemLevel' => 1,
+    'qty' => $qty,
+  ];
+}
+
+function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr, $itemPool = null, $chest = null, $profile = null) {
   if ($itemCount <= 0) return;
   // Крупные суммы (например, bulk-сводка за сутки) режем на чанки, иначе
   // клиент попытается сгенерировать и POST'нуть сотни предметов одним
@@ -89,6 +129,7 @@ function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $event
     'effects' => $effectsArr,
     'itemPool' => $itemPool,
     'chest' => $chest,
+    'profile' => $profile,
   ], JSON_UNESCAPED_UNICODE);
   $stmt = $pdo->prepare("INSERT INTO offline_rewards (user_id, exploration_id, event_id, event_text, item_count, player_level, generation_version, reward_data)
     VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
@@ -224,10 +265,11 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
       $exp['micro_event_cooldown'] = (int)$exp['micro_event_cooldown'] - 1;
       if ($exp['micro_event_cooldown'] <= 0) {
         $me = generateMicroEvent($zoneDesc, '');
+        // 10% микро-событий приносит мелочь (ресурсы/патроны).
+        $microItem = (mt_rand(1, 100) <= TRAVEL_MICRO_ITEM_PCT) ? 1 : 0;
+        if ($microItem > 0) $me['effects']['itemCount'] = $microItem;
         $applyResult = applyEffects($pdo, $userId, $me['effects'], $buffs);
-        // Micro events never generate items
-        unset($me['effects']['itemCount']);
-        $exp['total_items'] = (int)$exp['total_items'] + (int)($me['effects']['itemCount'] ?? 0);
+        $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
         $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
         $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
         $meEvent = [
@@ -244,6 +286,12 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         ];
         $events[] = $meEvent;
         saveEvent($pdo, $userId, $expId, $meEvent);
+        if ($microItem > 0) {
+          $microEventId = (int)$pdo->lastInsertId();
+          createOfflineReward($pdo, $userId, $expId, $microEventId, $meEvent['text'], $meEvent['type'], $microItem,
+            $playerLevel, $me['effects'], null, null,
+            travelRewardProfile($playerLevel, $exp['zone_difficulty'], null));
+        }
         $exp['micro_event_cooldown'] = RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX);
       }
 
@@ -308,7 +356,8 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           saveEvent($pdo, $userId, $expId, $ev);
           if ($applyResult['count'] > 0) {
             $eventId = $pdo->lastInsertId();
-            createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $applyResult['count'], $playerLevel, $event['effects'], $event['itemPool'] ?? null);
+            createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $applyResult['count'], $playerLevel, $event['effects'], $event['itemPool'] ?? null, null,
+              travelRewardProfile($playerLevel, $exp['zone_difficulty'], $event['itemPool'] ?? null));
           }
         }
         $exp['event_cooldown'] = RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX);
@@ -603,7 +652,8 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   if ($bulkItems > 0) {
     $eventId = (int)$pdo->lastInsertId();
     createOfflineReward($pdo, $userId, $expId, $eventId, $summary['text'], 'loot', $bulkItems, $playerLevel,
-      ['chips' => $bulkChips, 'exp' => $bulkExp, 'itemCount' => $bulkItems], $itemPool);
+      ['chips' => $bulkChips, 'exp' => $bulkExp, 'itemCount' => $bulkItems], $itemPool, null,
+      travelRewardProfile($playerLevel, $exp['zone_difficulty'] ?? 1, $itemPool));
   }
 }
 

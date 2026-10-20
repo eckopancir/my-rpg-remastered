@@ -7,13 +7,19 @@ require_once __DIR__ . '/../../api/config.php';
 $user = requireAuth();
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($input['items']) || !is_array($input['items']) || count($input['items']) === 0) {
-  jsonResponse(['error' => 'Missing items array'], 400);
-}
+// mode: 'inventory' (legacy — предметы в плоский инвентарь) или
+// 'backpack' (предмет уже лежит в Тетрис-рюкзаке игрока — только клейм).
+// drop: 1 — награда не влезла в рюкзак и была потеряна: клейм без вставки.
+$mode = (($input['mode'] ?? 'inventory') === 'backpack') ? 'backpack' : 'inventory';
+$drop = !empty($input['drop']);
+
 if (!isset($input['rewardId'])) {
   jsonResponse(['error' => 'Missing rewardId'], 400);
 }
-if (count($input['items']) > 50) {
+if (!$drop && (!isset($input['items']) || !is_array($input['items']) || count($input['items']) === 0)) {
+  jsonResponse(['error' => 'Missing items array'], 400);
+}
+if (isset($input['items']) && is_array($input['items']) && count($input['items']) > 50) {
   jsonResponse(['error' => 'Too many items'], 400);
 }
 
@@ -36,6 +42,16 @@ try {
     }
     $pdo->rollBack();
     jsonResponse(['error' => 'Reward not found'], 404);
+  }
+
+  // Режим 'backpack': предмет уже лежит в Тетрис-рюкзаке игрока (он
+  // синхронизируется в сейв-блобе), в плоский инвентарь не пишем.
+  // Режим 'drop': награда не влезла в рюкзак — помечаем потерянной.
+  if ($mode === 'backpack' || $drop) {
+    $claim = $pdo->prepare('UPDATE offline_rewards SET claimed = 1, dropped = ?, claimed_at = NOW() WHERE id = ?');
+    $claim->execute([$drop ? 1 : 0, (int)$reward['id']]);
+    $pdo->commit();
+    jsonResponse(['ok' => true, 'count' => 0, 'mode' => $mode, 'dropped' => $drop ? 1 : 0]);
   }
 
   // Вставка в том же формате, что inventory/sync.php (колонки + остальное в data).

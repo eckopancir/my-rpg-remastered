@@ -260,7 +260,10 @@ export const generateItem = (
 
   let filteredItems: ItemDefinition[];
   if (slotFilter) {
-    filteredItems = items.filter((item) => item.slot === slotFilter);
+    // Слот + редкость (если заданы) — иначе берём всё из слота.
+    filteredItems = items.filter(
+      (item) => item.slot === slotFilter && (!guaranteedRarity || item.rarity === guaranteedRarity),
+    );
   } else {
     filteredItems = items.filter((item) => item.rarity === selectedRarity);
   }

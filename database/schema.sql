@@ -183,6 +183,7 @@ CREATE TABLE offline_rewards (
     generation_version INT NOT NULL DEFAULT 1,
     reward_data JSON DEFAULT NULL,
     claimed TINYINT(1) NOT NULL DEFAULT 0,
+    dropped TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     claimed_at DATETIME DEFAULT NULL,
     INDEX idx_user_claimed (user_id, claimed),
