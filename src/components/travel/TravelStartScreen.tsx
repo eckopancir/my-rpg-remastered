@@ -14,10 +14,10 @@ import frame5 from '../../assets/images/ui/5.jfif';
 import frame6 from '../../assets/images/ui/6.jfif';
 import frame7 from '../../assets/images/ui/7.jfif';
 import frame8 from '../../assets/images/ui/8.jfif';
-import frame9 from '../../assets/images/ui/9.jfif';
-import frame10 from '../../assets/images/ui/10.jfif';
-import frame11 from '../../assets/images/ui/11.jfif';
-import frame12 from '../../assets/images/ui/12.jfif';
+import frame9 from '../../assets/images/ui/9.png';
+import frame10 from '../../assets/images/ui/10.png';
+import frame11 from '../../assets/images/ui/11.png';
+import frame12 from '../../assets/images/ui/12.png';
 
 /** Кадры анимации кнопки «ВЫДВИНУТЬСЯ» (12 шт., цикл 0.5 с @ 24 fps). */
 const GO_FRAMES = [
