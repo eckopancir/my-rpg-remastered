@@ -1441,20 +1441,21 @@
   cursor: pointer;
   color: transparent;
   font-size: 0;
+  /* Картинка не во весь прямоугольник — пустые поля зальём чёрным. */
+  background-color: #000;
   background-image: url('../../assets/images/ui/trip-go-up.png');
   background-size: 100% 100%;
   background-repeat: no-repeat;
   transition: all 150ms ease;
 }
 
-.cta:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
+.cta:hover:not(:disabled) {
+  background-image: url('../../assets/images/ui/trip-go-down.png');
+  filter: brightness(1.06);
 }
 
 .cta:active:not(:disabled) {
-  background-image: url('../../assets/images/ui/trip-go-down.png');
-  transform: none;
+  filter: brightness(0.92);
 }
 
 .cta:disabled {
