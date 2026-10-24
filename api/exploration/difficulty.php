@@ -47,6 +47,25 @@ function travelDifficulty($key) {
   return $all[$key] ?? $all['normal'];
 }
 
+/**
+ * Плата выносливостью за старт рейда (SL-число на карточке).
+ * Складывается из ступени сложности и надбавки за «характер пути».
+ */
+function travelStaminaCost($difficulty, $modifier) {
+  $base = [
+    'normal' => 8,    'hard' => 12,   'danger' => 17,
+    'nightmare' => 23, 'hell' => 30,
+  ];
+  $extra = [
+    'night' => 3, 'silence' => 4, 'ambush' => 2, 'fog' => 3,
+    'wind' => 1, 'gnats' => 1, 'lowtide' => 2, 'frost' => 1,
+    'plague' => 4, 'compass' => 2, 'trail' => -2, 'traps' => 2,
+  ];
+  $b = $base[$difficulty['key']] ?? 8;
+  $e = $modifier['key'] ? ($extra[$modifier['key']] ?? 0) : 0;
+  return max(1, (int)round($b + $e));
+}
+
 function travelModifiers() {
   return [
     'night' => [

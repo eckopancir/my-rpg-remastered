@@ -57,6 +57,8 @@ interface TripCard {
   modifierIcon: string;
   modifierDesc: string;
   hours: number;
+  /** Плата за старт выносливостью (SL-число карточки). */
+  sl: number;
   durationBonusPct: number;
   refreshIn: number;
 }
@@ -229,7 +231,7 @@ export const TravelStartScreen = () => {
                   </div>
                   <div className={styles.tripCardZone}>
                     <span className={styles.tripCardZoneName}>{c.zone}</span>
-                    <span className={styles.tag}>SL {c.zoneLevel}</span>
+                    <span className={styles.tag}>SL {c.sl}</span>
                   </div>
                   <div className={styles.tripCardDiff}>
                     <span style={{ fontSize: 18 }}>{c.difficultyIcon}</span>
@@ -251,8 +253,8 @@ export const TravelStartScreen = () => {
         </div>
 
         {/* ---------- План рейда ---------- */}
-        <div className={`${styles.panel} ${styles.plan}`}>
-          <div className={styles.panelHead}>
+        <div className={`${styles.panel} ${styles.plan} ${styles.planStone}`}>
+          <div className={`${styles.panelHead} ${styles.planStoneHead}`}>
             <span>План рейда</span>
           </div>
           <div className={styles.panelBody}>
@@ -278,13 +280,17 @@ export const TravelStartScreen = () => {
                     style={{ ...modArtStyle(card.modifier)!, marginTop: 10 }}
                   >
                     <div className={styles.modArtCaption}>
-                      {card.modifierName} · SL {card.zoneLevel}
+                      {card.modifierName} · SL {card.sl}
                     </div>
                   </div>
                 )}
                 <div className={styles.planRow}>
                   <span className={styles.planLabel}>Урон / награда</span>
                   <span className={styles.planValue}>×{card.damageMult} / ×{card.rewardMult}</span>
+                </div>
+                <div className={styles.planRow}>
+                  <span className={styles.planLabel}>Выносливость за старт</span>
+                  <span className={styles.planValue} style={{ color: '#fbbf24' }}>SL {card.sl}</span>
                 </div>
               </>
             )}

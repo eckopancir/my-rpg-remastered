@@ -62,6 +62,7 @@ foreach ($durations as $hours) {
       'modifierIcon' => $mod['icon'],
       'modifierDesc' => $mod['desc'],
       'hours' => $hours,
+      'sl' => travelStaminaCost($diff, $mod),
       'durationBonusPct' => durationBonusPct($hours * 3600),
       'refreshIn' => 600 - (time() % 600),
     ];

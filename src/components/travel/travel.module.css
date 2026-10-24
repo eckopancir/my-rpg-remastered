@@ -1473,6 +1473,28 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
+/* ---------- «План рейда» в стиле кнопки trip-go-up ----------
+   Фон — тот же каменно-металлический лист, затёртый тёмной
+   вуалью, чтобы текст оставался читабельным.                      */
+.planStone {
+  border-color: #4c4f55;
+  background-image:
+    linear-gradient(180deg, rgba(10, 11, 14, 0.84), rgba(8, 9, 12, 0.94)),
+    url('../../assets/images/ui/trip-go-up.png');
+  background-size: auto, cover;
+  background-position: center, center;
+  box-shadow:
+    0 10px 28px -12px rgba(0, 0, 0, 0.85),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.planStoneHead {
+  color: #d3d0c8;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.24));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+
 .previewBox {
   padding: 8px 10px;
   border-radius: 6px;

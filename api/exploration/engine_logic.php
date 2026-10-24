@@ -942,6 +942,26 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
     }
     $packJson = [];
     foreach ($pack as $nm => $q) $packJson[] = ['name' => $nm, 'qty' => $q];
+
+    // Плата за старт: выносливость (SL-число карточки).
+    $staminaCost = travelStaminaCost($difficulty, $modifier);
+    $stmt = $pdo->prepare("SELECT save_data FROM saves WHERE user_id = ? FOR UPDATE");
+    $stmt->execute([$userId]);
+    $saveRow = $stmt->fetch();
+    $saveData = $saveRow ? json_decode($saveRow['save_data'], true) : null;
+    $stats = $saveData['player']['stats'] ?? null;
+    if (!is_array($saveData) || !is_array($stats)) {
+      throw new Exception('Сохранение не найдено');
+    }
+    $curSt = (float)($stats['stamina'] ?? 0);
+    if ($curSt < $staminaCost) {
+      throw new Exception("Не хватает выносливости (SL {$staminaCost}): есть " . (int)floor($curSt));
+    }
+    $stats['stamina'] = $curSt - $staminaCost;
+    $saveData['player']['stats'] = $stats;
+    $upd = $pdo->prepare("UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?");
+    $upd->execute([json_encode($saveData, JSON_UNESCAPED_UNICODE), $userId]);
+
     $stmt = $pdo->prepare("INSERT INTO explorations (user_id, zone, zone_difficulty, zone_factions, is_infinite, phase, time_left, planned_sec, was_cancelled, use_materials, consumables, difficulty, modifier, event_cooldown, micro_event_cooldown, has_triggered_legendary, last_tick_at, started_at)
       VALUES (?, ?, ?, ?, 0, 'travel_out', ?, ?, 0, ?, ?, ?, ?, 0, 0, 0, NOW(3), NOW())");
     $stmt->execute([$userId, $zone, (int)($zoneData['difficulty'] ?? 1),
@@ -956,7 +976,7 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
     throw $e;
   }
 
-  return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => travelSpeed(TRAVEL_OUT_TICKS), 'is_infinite' => false, 'planned_sec' => $plannedSec, 'use_materials' => $useMats, 'difficulty' => $difficulty['key'], 'modifier' => $modifier['key']];
+  return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => travelSpeed(TRAVEL_OUT_TICKS), 'is_infinite' => false, 'planned_sec' => $plannedSec, 'use_materials' => $useMats, 'stamina_spent' => $staminaCost, 'difficulty' => $difficulty['key'], 'modifier' => $modifier['key']];
 }
 
 // ---------------------------------------------------------------------------
