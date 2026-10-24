@@ -1434,69 +1434,76 @@
 .cta {
   position: relative;
   margin-top: 14px;
-  width: 100%;
-  aspect-ratio: 1408 / 768;
-  padding: 0;
+  padding: 6px 12px 4px;
   border: none;
-  border-radius: 10px;
-  overflow: hidden;
+  background: none;
   cursor: pointer;
-  color: transparent;
-  font-size: 0;
-  /* Рамка анимации полностью чёрная — подложка в цвет кадрам. */
-  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   transition: filter 150ms ease;
 }
 
-/* ---------- Стопка кадров анимации (12 шт. @ 12 fps, цикл 1 c) ---------- */
-.animStack {
-  position: absolute;
-  inset: 0;
-  display: block;
+/* ---------- Иллюминатор-кнопка: спрайт «кнопка старта.jfif» ----------
+   Лист 1408×768, сетка 5×3 = 15 кадров, ячейка 281.6×256.
+   background-size 500% 300% — ячейка = размер бокса, позиции
+   (col×25%, row×50%). Чёрный квадрат вокруг круга оставлен как в листе. */
+.goDial {
+  width: 168px;
+  aspect-ratio: 281.6 / 256;
+  background-image: url('../../assets/images/ui/trip-go-sheet.jfif');
+  background-size: 500% 300%;
+  background-repeat: no-repeat;
+  background-position: 0% 0%;
 }
 
-.animStack img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  opacity: 0;
+/* Без ховера — статичный кадр 1. Навёл мышь — цикл с кадра 1. */
+.cta:hover:not(:disabled) .goDial {
+  animation: sheetCycle 1.25s step-end infinite;
 }
 
-/* Без ховера — живёт только первый кадр (статичная кнопка). */
-.animStack img:first-child {
-  opacity: 1;
+.cta:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 
-/* Навёл мышь — цикл запускается с кадра 1. */
-.cta:hover:not(:disabled) .animStack img {
-  animation: frameCycle 1s infinite;
+/* Подпись под иллюминатором. */
+.ctaCaption {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  color: #4ade80;
+  text-shadow: 0 0 9px rgba(74, 222, 128, 0.55);
 }
 
-@keyframes frameCycle {
-  0% { opacity: 1; }
-  8.2% { opacity: 1; }
-  8.4% { opacity: 0; }
-  100% { opacity: 0; }
+/* Ключевые кадры: построчно слева направо, мгновенная смена (step-end). */
+@keyframes sheetCycle {
+  0%      { background-position: 0% 0%; }
+  6.667%  { background-position: 25% 0%; }
+  13.333% { background-position: 50% 0%; }
+  20%     { background-position: 75% 0%; }
+  26.667% { background-position: 100% 0%; }
+  33.333% { background-position: 0% 50%; }
+  40%     { background-position: 25% 50%; }
+  46.667% { background-position: 50% 50%; }
+  53.333% { background-position: 75% 50%; }
+  60%     { background-position: 100% 50%; }
+  66.667% { background-position: 0% 100%; }
+  73.333% { background-position: 25% 100%; }
+  80%     { background-position: 50% 100%; }
+  86.667% { background-position: 75% 100%; }
+  93.333% { background-position: 100% 100%; }
+  100%    { background-position: 0% 0%; }
 }
 
-.cta:hover:not(:disabled) .animStack img {
-  filter: brightness(1.12) saturate(1.06);
-}
-
-.cta:active:not(:disabled) .animStack img {
-  filter: brightness(0.92);
-}
-
-/* Надпись поверх кадра, пока рейд стартует. */
+/* Надпись поверх, пока рейд стартует. */
 .ctaLoadText {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 1px;
   color: #fff;

@@ -6,25 +6,6 @@ import { useAuthStore } from '../../stores/authStore';
 import { TRAVEL_OUT_SEC, TRAVEL_BACK_SEC } from '../../data/travelTuning';
 import { modArtStyle } from '../../data/travelModes';
 import { useSound } from '../../hooks/useSound';
-import frame1 from '../../assets/images/ui/1.jfif';
-import frame2 from '../../assets/images/ui/2.jfif';
-import frame3 from '../../assets/images/ui/3.jfif';
-import frame4 from '../../assets/images/ui/4.jfif';
-import frame5 from '../../assets/images/ui/5.jfif';
-import frame6 from '../../assets/images/ui/6.jfif';
-import frame7 from '../../assets/images/ui/7.jfif';
-import frame8 from '../../assets/images/ui/8.jfif';
-import frame9 from '../../assets/images/ui/9.png';
-import frame10 from '../../assets/images/ui/10.png';
-import frame11 from '../../assets/images/ui/11.png';
-import frame12 from '../../assets/images/ui/12.png';
-
-/** Кадры анимации кнопки «ВЫДВИНУТЬСЯ» (12 шт., цикл 1 с @ 12 fps). */
-const GO_FRAMES = [
-  frame1, frame2, frame3, frame4, frame5, frame6,
-  frame7, frame8, frame9, frame10, frame11, frame12,
-];
-const FRAME_STEP_S = 1 / 12; // длительность одного кадра, с (12 fps, цикл 1 с)
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
 
@@ -368,16 +349,13 @@ export const TravelStartScreen = () => {
             )}
 
             <button
-              className={`${styles.cta} ${starting ? styles.ctaLoading : ''}`}
+              className={styles.cta}
               disabled={!card || starting}
               aria-label="Выдвинуться"
               onClick={go}
             >
-              <span className={styles.animStack} aria-hidden>
-                {GO_FRAMES.map((src, i) => (
-                  <img key={src} src={src} alt="" style={{ animationDelay: `${i * FRAME_STEP_S}s` }} />
-                ))}
-              </span>
+              <span className={styles.goDial} aria-hidden />
+              <span className={styles.ctaCaption}>ВЫДВИНУТЬСЯ</span>
               {starting ? <span className={styles.ctaLoadText}>⏳ Выдвигаемся…</span> : null}
             </button>
           </div>
