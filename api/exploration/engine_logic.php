@@ -46,6 +46,9 @@ function travelSpeedLeg($sec) {
   return max(1, (int)round($sec / TRAVEL_TEST_SPEED_LEG));
 }
 const MAX_TICKS_PER_POLL = 60;
+// ТЕСТ: сколько крупных событий прогенерировать сразу при старте рейда,
+// чтобы лента наполнилась без ожидания кулдаунов. 0 = отключено.
+const TRAVEL_TEST_START_EVENTS = 10;
 // Шанс запуска легендарной цепочки на каждом крупном событии, %.
 // 2 крупных/час → ~12 за 6 часов → при 3% примерно 1 легендарка за ~16 часов.
 // Только если нет активной цепочки. Латч has_triggered_legendary больше не используется.
@@ -975,6 +978,60 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
   } catch (Exception $e) {
     $pdo->rollBack();
     throw $e;
+  }
+
+  // ТЕСТ: сразу после старта прогенерировать N крупных событий (лента
+  // наполняется мгновенно; см. TRAVEL_TEST_START_EVENTS). Логика повторяет
+  // обычный тик (строки ~352-383): генерация → применение → запись → награда.
+  if (TRAVEL_TEST_START_EVENTS > 0 && $expId > 0) {
+    $stmt = $pdo->prepare("SELECT * FROM explorations WHERE id = ?");
+    $stmt->execute([$expId]);
+    $exp = $stmt->fetch();
+    if ($exp) {
+      $playerLevel = getPlayerLevel($pdo, $userId);
+      $buffs = expeditionBuffs($exp['consumables'] ?? null);
+      $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
+      $itemsRef = [];
+      $band = trapDmgBand((int)($exp['planned_sec'] ?? 0));
+      $addItems = 0; $addChips = 0; $addExp = 0;
+      for ($i = 1; $i <= TRAVEL_TEST_START_EVENTS; $i++) {
+        $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $i, $band, $difficulty, $modifier);
+        $apply = applyEffects($pdo, $userId, $event['effects'], $buffs);
+        $addItems += $apply['count']; $addChips += $apply['appliedChips']; $addExp += $apply['appliedExp'];
+        // Страховка тестового прогона: регулярные события не убивают — HP не ниже 1.
+        if (getPlayerHp($pdo, $userId) <= 0) {
+          $sd = getSaveData($pdo, $userId);
+          if (is_array($sd)) {
+            $sd['player']['stats']['currentHp'] = 1;
+            putSaveData($pdo, $userId, $sd);
+          }
+        }
+        $ev = [
+          'text' => $event['text'],
+          'type' => $event['type'],
+          'effects' => json_encode(effectsWithBuffs($event['effects'], $buffs)),
+          'is_micro' => 0,
+          'tick_number' => $i,
+          'art' => $event['art'] ?? null,
+          'decision' => $event['decision'] ?? null,
+          'resource_cost' => null,
+          'resource_had' => 0,
+          'legendary_event_id' => null,
+          'legendary_stage' => null,
+        ];
+        saveEvent($pdo, $userId, $expId, $ev);
+        if ($apply['count'] > 0) {
+          $eventId = $pdo->lastInsertId();
+          createOfflineReward($pdo, $userId, $expId, $eventId, $event['text'], $event['type'], $apply['count'], $playerLevel, $event['effects'], $event['itemPool'] ?? null, null,
+            travelRewardProfile($playerLevel, (int)($exp['zone_difficulty'] ?? 1), $event['itemPool'] ?? null, travelQualityCap($difficulty, $modifier)));
+        }
+      }
+      $pdo->prepare("UPDATE explorations SET total_items = total_items + ?, total_chips = total_chips + ?, total_exp = total_exp + ?, tick_count = ?,
+        event_cooldown = ?, micro_event_cooldown = ? WHERE id = ?")
+        ->execute([$addItems, $addChips, $addExp, TRAVEL_TEST_START_EVENTS,
+          max(1, (int)round(travelSpeed(RNG(EVENT_COOLDOWN_MIN, EVENT_COOLDOWN_MAX)) / (float)($modifier['eventRate'] ?? 1))),
+          max(1, travelSpeedMicro(RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX))), $expId]);
+    }
   }
 
   return ['id' => $expId, 'phase' => 'travel_out', 'time_left' => travelSpeed(TRAVEL_OUT_TICKS), 'is_infinite' => false, 'planned_sec' => $plannedSec, 'use_materials' => $useMats, 'stamina_spent' => $staminaCost, 'difficulty' => $difficulty['key'], 'modifier' => $modifier['key']];
