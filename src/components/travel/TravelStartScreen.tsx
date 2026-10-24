@@ -19,12 +19,12 @@ import frame10 from '../../assets/images/ui/10.png';
 import frame11 from '../../assets/images/ui/11.png';
 import frame12 from '../../assets/images/ui/12.png';
 
-/** Кадры анимации кнопки «ВЫДВИНУТЬСЯ» (12 шт., цикл 0.5 с @ 24 fps). */
+/** Кадры анимации кнопки «ВЫДВИНУТЬСЯ» (12 шт., цикл 1 с @ 12 fps). */
 const GO_FRAMES = [
   frame1, frame2, frame3, frame4, frame5, frame6,
   frame7, frame8, frame9, frame10, frame11, frame12,
 ];
-const FRAME_STEP_S = 1 / 24; // длительность одного кадра, с (24 fps, цикл 0.5 с)
+const FRAME_STEP_S = 1 / 12; // длительность одного кадра, с (12 fps, цикл 1 с)
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
 

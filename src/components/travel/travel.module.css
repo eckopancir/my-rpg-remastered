@@ -1448,7 +1448,7 @@
   transition: filter 150ms ease;
 }
 
-/* ---------- Стопка кадров анимации (12 шт. @ 24 fps, цикл 0.5 c) ---------- */
+/* ---------- Стопка кадров анимации (12 шт. @ 12 fps, цикл 1 c) ---------- */
 .animStack {
   position: absolute;
   inset: 0;
@@ -1462,7 +1462,16 @@
   height: 100%;
   object-fit: fill;
   opacity: 0;
-  animation: frameCycle 0.5s infinite;
+}
+
+/* Без ховера — живёт только первый кадр (статичная кнопка). */
+.animStack img:first-child {
+  opacity: 1;
+}
+
+/* Навёл мышь — цикл запускается с кадра 1. */
+.cta:hover:not(:disabled) .animStack img {
+  animation: frameCycle 1s infinite;
 }
 
 @keyframes frameCycle {
