@@ -1448,7 +1448,7 @@
   transition: filter 150ms ease;
 }
 
-/* ---------- Стопка кадров анимации (12 шт. @ ~4 fps, цикл 3 с) ---------- */
+/* ---------- Стопка кадров анимации (12 шт. @ ~6 fps, цикл ~2 c) ---------- */
 .animStack {
   position: absolute;
   inset: 0;
@@ -1462,7 +1462,7 @@
   height: 100%;
   object-fit: fill;
   opacity: 0;
-  animation: frameCycle 3s infinite;
+  animation: frameCycle 2.04s infinite;
 }
 
 @keyframes frameCycle {

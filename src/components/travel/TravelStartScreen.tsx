@@ -24,7 +24,7 @@ const GO_FRAMES = [
   frame1, frame2, frame3, frame4, frame5, frame6,
   frame7, frame8, frame9, frame10, frame11, frame12,
 ];
-const FRAME_STEP_S = 0.25; // длительность одного кадра, с (цикл 3 с)
+const FRAME_STEP_S = 0.17; // длительность одного кадра, с (цикл ~2 с)
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
 
