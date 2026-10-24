@@ -5,6 +5,7 @@ import { useInventoryStore } from '../../stores/inventoryStore';
 import { useAuthStore } from '../../stores/authStore';
 import { TRAVEL_OUT_SEC, TRAVEL_BACK_SEC } from '../../data/travelTuning';
 import { modArtStyle } from '../../data/travelModes';
+import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
 
@@ -80,6 +81,7 @@ export const TravelStartScreen = () => {
   const [pack, setPack] = useState<Record<string, number>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [starting, setStarting] = useState(false);
+  const { playSound } = useSound();
 
   useEffect(() => {
     if (!token) return;
@@ -145,6 +147,7 @@ export const TravelStartScreen = () => {
 
   const go = useCallback(async () => {
     if (!card || starting) return;
+    playSound('trip-go', 0.5);
     setStarting(true);
     const list = Object.entries(pack)
       .filter(([, q]) => q > 0)
@@ -152,7 +155,7 @@ export const TravelStartScreen = () => {
     await startExploration(card.zone, card.hours, true, list, card.difficulty, card.modifier);
     setStarting(false);
     navigate(`/explore?zone=${encodeURIComponent(card.zone)}`);
-  }, [card, pack, starting, startExploration, navigate]);
+  }, [card, pack, starting, startExploration, navigate, playSound]);
 
   // Активная вылазка — сразу в журнал рейда.
   useEffect(() => {
