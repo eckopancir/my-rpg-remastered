@@ -4,6 +4,8 @@
  * api/exploration/difficulty.php) — здесь только подписи и раскладка.
  */
 
+import type { CSSProperties } from 'react';
+
 export interface TravelModeInfo {
   key: string;
   name: string;
@@ -96,4 +98,33 @@ export const modifierTraits = (m?: TravelModeInfo | null): ModeTrait[] => {
     out.push({ label: 'лишняя находка', value: `+${fmtMult(Math.round(m.lootBonus * 100))}%`, tone: 'up' });
   }
   return out;
+};
+
+// ---------------------------------------------------------------------------
+// Спрайт картинок модификаторов: один лист public/art/mods/mod-sheet.jpg,
+// сетка 3 колонки × 4 ряда (каждая ячейка 4:3). Файл не режется — нужная
+// ячейка показывается смещением фона (см. .modArt в travel.module.css).
+// Порядок на листе = порядок travelModifiers() в difficulty.php.
+// ---------------------------------------------------------------------------
+export const MOD_SHEET = '/art/mods/mod-sheet.jpg';
+export const MOD_ART: Record<string, { col: number; row: number }> = {
+  night: { col: 0, row: 0 },   // 🌙 луна над руинами
+  silence: { col: 1, row: 0 }, // 🤫 туманное поле с силуэтами
+  ambush: { col: 2, row: 0 },  // 🚧 боец за стеной
+  fog: { col: 0, row: 1 },     // 🌫 улица в дымке
+  wind: { col: 1, row: 1 },    // 🌪 пыль и бумаги
+  gnats: { col: 2, row: 1 },   // 🦟 мошкара у лица
+  lowtide: { col: 0, row: 2 }, // 🌊 корабль на мели
+  frost: { col: 1, row: 2 },   // ❄️ снежный лес
+  plague: { col: 2, row: 2 },  // ☣ зелёный заражённый тоннель
+  compass: { col: 0, row: 3 }, // 🧭 компас в руке
+  trail: { col: 1, row: 3 },   // ⛰ подъём по скале
+  traps: { col: 2, row: 3 },   // 🪤 капканы на земле
+};
+
+/** Инлайн-переменные спрайта (--artCol/--artRow) для .modArt; null = нет ячейки. */
+export const modArtStyle = (key?: string | null): CSSProperties | null => {
+  const cell = key ? MOD_ART[key] : undefined;
+  if (!cell) return null;
+  return { ['--artCol' as any]: cell.col, ['--artRow' as any]: cell.row };
 };

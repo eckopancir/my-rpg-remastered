@@ -4,6 +4,7 @@ import { useExplorationStore, calcConsBuffs } from '../../stores/explorationStor
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useAuthStore } from '../../stores/authStore';
 import { TRAVEL_OUT_SEC, TRAVEL_BACK_SEC } from '../../data/travelTuning';
+import { modArtStyle } from '../../data/travelModes';
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
 
@@ -203,13 +204,26 @@ export const TravelStartScreen = () => {
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Карточки не пришли — обнови страницу.</div>
             )}
             <div className={styles.cardRow}>
-              {cards.map((c, i) => (
+              {cards.map((c, i) => {
+                const art = modArtStyle(c.modifier);
+                return (
                 <div
                   key={c.id}
                   className={`${styles.tripCard} ${i === cardIdx ? styles.tripCardActive : ''}`}
                   style={{ ['--diffColor' as any]: c.difficultyColor }}
                   onClick={() => setCardIdx(i)}
                 >
+                  <div className={styles.modArtBannerPos}>
+                    {art && (
+                      <>
+                        <div
+                          className={`${styles.modArt} ${styles.modArtBanner}`}
+                          style={art}
+                        />
+                        <div className={styles.modArtLabel}>{c.modifierIcon} {c.modifierName}</div>
+                      </>
+                    )}
+                  </div>
                   <div className={styles.tripCardZone}>
                     <span className={styles.tripCardZoneName}>{c.zone}</span>
                     <span className={styles.tag}>SL {c.zoneLevel}</span>
@@ -217,7 +231,7 @@ export const TravelStartScreen = () => {
                   <div className={styles.tripCardDiff}>
                     <span style={{ fontSize: 18 }}>{c.difficultyIcon}</span>
                     <span style={{ color: c.difficultyColor }}>{c.difficultyName}</span>
-                    <span className={styles.tripCardMod}>{c.modifierIcon} {c.modifierName}</span>
+                    {!art && <span className={styles.tripCardMod}>{c.modifierIcon} {c.modifierName}</span>}
                   </div>
                   <div className={styles.tripCardDesc}>{c.modifierDesc}</div>
                   <div className={styles.tripCardMeta}>
@@ -227,7 +241,8 @@ export const TravelStartScreen = () => {
                   </div>
                   <div className={styles.tripCardCap}>потолок: {c.qualityCap}</div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -254,6 +269,16 @@ export const TravelStartScreen = () => {
                   <span className={styles.planLabel}>Характер</span>
                   <span className={styles.planValue}>{card.modifierIcon} {card.modifierName}</span>
                 </div>
+                {modArtStyle(card.modifier) && (
+                  <div
+                    className={`${styles.modArt} ${styles.modArtPreview}`}
+                    style={{ ...modArtStyle(card.modifier)!, marginTop: 10 }}
+                  >
+                    <div className={styles.modArtCaption}>
+                      {card.modifierName} · SL {card.zoneLevel}
+                    </div>
+                  </div>
+                )}
                 <div className={styles.planRow}>
                   <span className={styles.planLabel}>Урон / награда</span>
                   <span className={styles.planValue}>×{card.damageMult} / ×{card.rewardMult}</span>
