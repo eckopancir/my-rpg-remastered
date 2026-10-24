@@ -1,5 +1,6 @@
 import type { TravelEvent, TravelRewardItem } from '../../types/travel';
 import { KIND_META } from './adaptEvent';
+import { eventArtStyle } from '../../data/eventArt';
 import styles from './travel.module.css';
 
 export interface EventCardProps {
@@ -39,6 +40,9 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
   return (
     <div className={cls} style={{ ['--cardColor' as any]: meta.color }}>
       <div className={styles.cardTime}>{event.time}</div>
+      {event.art ? (
+        <div className={styles.cardArt} style={eventArtStyle(event.art) ?? undefined} aria-hidden />
+      ) : null}
       <div className={styles.cardBody}>
         {event.legendary ? (
           <div className={styles.legendaryTitle}>

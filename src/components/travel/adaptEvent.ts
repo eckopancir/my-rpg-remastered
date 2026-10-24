@@ -124,6 +124,7 @@ export const adaptEvent = (
     text: row.text || '',
     time: formatOffset(offset),
     micro: isMicro,
+    art: typeof row.art === 'number' && row.art > 0 ? row.art : null,
     rewards,
     legendary: isLegendary
       ? {

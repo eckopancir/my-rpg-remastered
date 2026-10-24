@@ -365,6 +365,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
             'effects' => json_encode(effectsWithBuffs($event['effects'], $buffs)),
             'is_micro' => 0,
             'tick_number' => $exp['tick_count'],
+            'art' => $event['art'] ?? null,
             'decision' => $event['decision'],
             'resource_cost' => null,
             'resource_had' => 0,
@@ -1076,11 +1077,12 @@ function saveExplorationHistory($pdo, $userId, $exp, $outcome) {
 // ---------------------------------------------------------------------------
 function saveEvent($pdo, $userId, $expId, $e) {
   if (empty($e['text'])) return;
-  $stmt = $pdo->prepare("INSERT INTO exploration_events (user_id, exploration_id, tick_number, is_micro, text, type, effects, decision, resource_cost, resource_had, legendary_event_id, legendary_title, legendary_stage, legendary_result, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))");
+  $stmt = $pdo->prepare("INSERT INTO exploration_events (user_id, exploration_id, tick_number, is_micro, text, type, effects, art, decision, resource_cost, resource_had, legendary_event_id, legendary_title, legendary_stage, legendary_result, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))");
   $stmt->execute([$userId, $expId, $e['tick_number'] ?? 0, $e['is_micro'] ?? 0,
     $e['text'], $e['type'] ?? 'unknown',
     $e['effects'] ?? '{}',
+    $e['art'] ?? null,
     $e['decision'] ?? null, $e['resource_cost'] ?? null, (int)($e['resource_had'] ?? 0),
     $e['legendary_event_id'] ?? null, $e['legendary_title'] ?? null, $e['legendary_stage'] ?? null,
     $e['legendary_result'] ?? null]);
@@ -1332,7 +1334,11 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
 
   // Rich events (any category with hand-crafted branches)
   if (!empty($catData[$category]['rich'])) {
-    $template = $catData[$category]['rich'][array_rand($catData[$category]['rich'])];
+    // Номер арта = база категории + индекс шаблона (раскладка совпадает
+    // с src/data/eventArt.ts: help 1–28, trap 29–58, loot 59–162, item 163).
+    $artBase = ['help' => 1, 'trap' => 29, 'loot' => 59, 'item' => 163][$category] ?? null;
+    $richIdx = (int)array_rand($catData[$category]['rich']);
+    $template = $catData[$category]['rich'][$richIdx];
     $text = substitute($template['text'], $zoneDesc, $faction);
     $branch = $template['branch'] ?? null;
     if ($branch) {
@@ -1355,6 +1361,8 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
         'eventKey' => $eventKey, 'text' => $text . ' → ' . implode(' → ', $result['texts']),
         'intro' => $text,
         'type' => $template['type'], 'effects' => $eff,
+        // Арт события (номер в спрайт-листах) — если картинка назначена.
+        'art' => $artBase !== null ? $artBase + $richIdx : null,
         'decision' => $result['texts'][0],
         'good' => $good, 'goodPct' => $goodPct,
         // Безопасный вариант: не лезешь — берёшь мелочь и уходишь.

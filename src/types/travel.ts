@@ -68,6 +68,8 @@ export interface TravelEvent {
   /** Относительное время «+02:14» от начала рейда. */
   time: string;
   micro: boolean;
+  /** Номер арта (1–163) из спрайтов public/art/events — null, если картинка не назначена. */
+  art: number | null;
   rewards: TravelRewards;
   legendary?: TravelLegendary | null;
   /** Потраченный ресурс (до переделки — траты остаются в событиях). */

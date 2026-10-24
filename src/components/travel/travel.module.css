@@ -531,6 +531,28 @@
   min-width: 0;
 }
 
+/**
+ * Миниатюра события в карточке ленты: фон = точная ячейка спрайт-листа
+ * (style приходит из eventArt.eventArtStyle — размер/сдвиг/пропорции).
+ * border-radius подрезает скруглённые уголки исходной рамки.
+ */
+.cardArt {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: 104px;
+  margin-top: 2px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.3);
+  background-repeat: no-repeat;
+}
+
+/* На узких экранах миниатюра ужимается. */
+@media (max-width: 520px) {
+  .cardArt {
+    width: 86px;
+  }
+}
+
 .cardHead {
   display: flex;
   align-items: center;
@@ -983,6 +1005,34 @@
   align-items: flex-start;
 }
 
+/**
+ * Арт сложности (diff-sheet.jpg): фоновая ячейка задаётся inline-стилем
+ * из eventArt.diffArtStyle(). Скругления прячет уголки листа.
+ */
+.diffArt {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background-repeat: no-repeat;
+}
+
+.diffArt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 8, 12, 0.03) 50%, rgba(6, 8, 12, 0.62) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+/* Миниатюра в карточке сложности шапки журнала. */
+.diffArtThumb {
+  flex: 0 0 auto;
+  width: 76px;
+}
+
+/* Плоская картинка с обложки — как и раньше z-index контента выше */
+
 .traitUp {
   color: #4ade80;
   border-color: rgba(74, 222, 128, 0.35);
@@ -1359,6 +1409,21 @@
 
 .planValue {
   font-weight: 700;
+}
+
+/* Раскладка значения с миниатюрой сложности (план рейда). */
+.planValue:has(.planDiffArt) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Миниатюра сложности в строке «Сложность» плана (квадрат текущего режима). */
+.planDiffArt {
+  display: block;
+  width: 40px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
 .slider {

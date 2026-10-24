@@ -77,6 +77,8 @@ export interface ServerEventRow {
   effects: string;
   is_micro: number;
   tick_number: number;
+  /** Номер арта события (1–163), если у шаблона есть картинка. */
+  art: number | null;
   decision: string | null;
   resource_cost: string | null;
   resource_had: number;

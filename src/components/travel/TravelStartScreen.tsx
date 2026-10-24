@@ -5,6 +5,7 @@ import { useInventoryStore } from '../../stores/inventoryStore';
 import { useAuthStore } from '../../stores/authStore';
 import { TRAVEL_OUT_SEC, TRAVEL_BACK_SEC } from '../../data/travelTuning';
 import { modArtStyle } from '../../data/travelModes';
+import { diffArtStyle } from '../../data/eventArt';
 import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
@@ -267,6 +268,13 @@ export const TravelStartScreen = () => {
                 <div className={styles.planRow}>
                   <span className={styles.planLabel}>Сложность</span>
                   <span className={styles.planValue} style={{ color: card.difficultyColor }}>
+                    {diffArtStyle(card.difficulty) && (
+                      <i
+                        className={styles.planDiffArt}
+                        style={diffArtStyle(card.difficulty) ?? undefined}
+                        aria-hidden
+                      />
+                    )}
                     {card.difficultyIcon} {card.difficultyName}
                   </span>
                 </div>

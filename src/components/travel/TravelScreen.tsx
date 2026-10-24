@@ -9,6 +9,7 @@ import { EventFeed } from './EventFeed';
 import { LootSummary } from './LootSummary';
 import { adaptEvent, parseServerTs } from './adaptEvent';
 import { difficultyTraits, modifierTraits, modArtStyle } from '../../data/travelModes';
+import { diffArtStyle } from '../../data/eventArt';
 import type { TravelRewardItem } from '../../types/travel';
 import styles from './travel.module.css';
 
@@ -81,6 +82,9 @@ export const TravelScreen = () => {
 
   const [tooltipItem, setTooltipItem] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+  // Спрайт сложности: 5 квадратов на одном листе, cell = key.
+  const diffArt = useMemo(() => diffArtStyle(difficultyInfo?.key ?? difficulty), [difficultyInfo, difficulty]);
 
   const startTs = useMemo(() => {
     if (eventLog.length === 0) return Date.now();
@@ -181,17 +185,22 @@ export const TravelScreen = () => {
           className={styles.modeCard}
           style={{ ['--modeColor' as any]: difficultyInfo?.color ?? DIFF_COLORS[difficulty] ?? '#e2e8f0' }}
         >
-          <div className={styles.modeHead}>
-            <span className={styles.modeIcon}>{difficultyInfo?.icon ?? DIFF_ICONS[difficulty] ?? '⚪'}</span>
-            <span className={styles.modeName}>{difficultyInfo?.name ?? DIFF_NAMES[difficulty] ?? 'Обычная'}</span>
-            <span className={styles.modeTag}>сложность</span>
-          </div>
-          <div className={styles.traitRow}>
-            {difficultyTraits(difficultyInfo).map((t) => (
-              <span key={`d-${t.label}`} className={`${styles.trait} ${styles[`trait${t.tone === 'up' ? 'Up' : t.tone === 'down' ? 'Down' : 'Flat'}`]}`}>
-                {t.label} <b>{t.value}</b>
-              </span>
-            ))}
+          <div className={styles.modArtRow}>
+            {diffArt && <div className={`${styles.diffArt} ${styles.diffArtThumb}`} style={diffArt} />}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className={styles.modeHead}>
+                <span className={styles.modeIcon}>{difficultyInfo?.icon ?? DIFF_ICONS[difficulty] ?? '⚪'}</span>
+                <span className={styles.modeName}>{difficultyInfo?.name ?? DIFF_NAMES[difficulty] ?? 'Обычная'}</span>
+                <span className={styles.modeTag}>сложность</span>
+              </div>
+              <div className={styles.traitRow}>
+                {difficultyTraits(difficultyInfo).map((t) => (
+                  <span key={`d-${t.label}`} className={`${styles.trait} ${styles[`trait${t.tone === 'up' ? 'Up' : t.tone === 'down' ? 'Down' : 'Flat'}`]}`}>
+                    {t.label} <b>{t.value}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
           {difficultyInfo?.desc && <div className={styles.modeDesc}>{difficultyInfo.desc}</div>}
         </div>

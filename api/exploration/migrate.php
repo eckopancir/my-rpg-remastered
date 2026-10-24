@@ -88,4 +88,11 @@ if (!count($colsD)) {
   $pdo->exec("ALTER TABLE offline_rewards ADD COLUMN dropped TINYINT(1) NOT NULL DEFAULT 0 AFTER claimed");
 }
 
+// Номер арта события (картинки из спрайтов public/art/events, см.
+// src/data/eventArt.ts). NULL = событие без картинки (микро/системные).
+$colsArt = $pdo->query("SHOW COLUMNS FROM exploration_events LIKE 'art'")->fetchAll();
+if (!count($colsArt)) {
+  $pdo->exec("ALTER TABLE exploration_events ADD COLUMN art SMALLINT DEFAULT NULL AFTER tick_number");
+}
+
 echo json_encode(['ok' => true]);
