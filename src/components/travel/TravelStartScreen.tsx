@@ -212,6 +212,7 @@ export const TravelStartScreen = () => {
             <div className={styles.cardRow}>
               {cards.map((c, i) => {
                 const art = modArtStyle(c.modifier);
+                const diffArt = diffArtStyle(c.difficulty);
                 return (
                 <div
                   key={c.id}
@@ -235,6 +236,7 @@ export const TravelStartScreen = () => {
                     <span className={styles.tag}>SL {c.sl}</span>
                   </div>
                   <div className={styles.tripCardDiff}>
+                    {diffArt && <i className={styles.tripCardDiffArt} style={diffArt} aria-hidden />}
                     <span style={{ fontSize: 18 }}>{c.difficultyIcon}</span>
                     <span style={{ color: c.difficultyColor }}>{c.difficultyName}</span>
                     {!art && <span className={styles.tripCardMod}>{c.modifierIcon} {c.modifierName}</span>}
