@@ -1434,16 +1434,16 @@
 .cta {
   margin-top: 14px;
   width: 100%;
-  padding: 13px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  cursor: pointer;
-  color: #052e16;
+  aspect-ratio: 2400 / 426;
+  padding: 0;
   border: none;
-  background: linear-gradient(180deg, #4ade80, #16a34a);
-  box-shadow: 0 8px 24px -8px rgba(74, 222, 128, 0.6);
+  border-radius: 10px;
+  cursor: pointer;
+  color: transparent;
+  font-size: 0;
+  background-image: url('../../assets/images/ui/trip-go-up.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   transition: all 150ms ease;
 }
 
@@ -1452,10 +1452,24 @@
   transform: translateY(-1px);
 }
 
+.cta:active:not(:disabled) {
+  background-image: url('../../assets/images/ui/trip-go-down.png');
+  transform: none;
+}
+
 .cta:disabled {
   filter: grayscale(0.8) brightness(0.7);
-  cursor: not-allowed;
+  cursor: wait;
   transform: none;
+}
+
+/* Пока рейд стартует — поверх картинки видна надпись «Выдвигаемся…». */
+.ctaLoading {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 .previewBox {

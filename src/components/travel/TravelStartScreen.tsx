@@ -339,8 +339,13 @@ export const TravelStartScreen = () => {
               </div>
             )}
 
-            <button className={styles.cta} disabled={!card || starting} onClick={go}>
-              {starting ? '⏳ Выдвигаемся…' : '🚀  ВЫДВИНУТЬСЯ'}
+            <button
+              className={`${styles.cta} ${starting ? styles.ctaLoading : ''}`}
+              disabled={!card || starting}
+              aria-label="Выдвинуться"
+              onClick={go}
+            >
+              {starting ? '⏳ Выдвигаемся…' : ''}
             </button>
           </div>
         </div>
