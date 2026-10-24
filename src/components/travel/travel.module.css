@@ -933,14 +933,6 @@
   --artH: 0.75;
 }
 
-/* Маленькая миниатюра (мини-режимы, шапка журнала). */
-.modArtThumb {
-  width: 76px;
-  aspect-ratio: 4 / 3;
-  --artH: 0.75;
-  flex: 0 0 auto;
-}
-
 /* Подпись поверх баннера карточки (внизу — на затемнении). */
 .modArtLabel {
   position: absolute;
@@ -977,10 +969,32 @@
 }
 
 /* Мини-режимы: картинка + трейлы в одну строку. */
-.modArtRow {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
+.modArtBg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 10px;
+}
+
+/* Фон на всю карточку — сильнее затемнение для читаемости текста. */
+.modArtBg::after {
+  background: linear-gradient(180deg, rgba(6, 8, 12, 0.55), rgba(6, 8, 12, 0.9));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Карточка «характера пути»: картинка модификатора = фон. */
+.modeCardArt {
+  position: relative;
+  overflow: hidden;
+}
+
+.modeCardArt .modArtBg {
+  border-radius: 9px;
+}
+
+.modeCardInner {
+  position: relative;
+  z-index: 1;
 }
 
 .traitUp {

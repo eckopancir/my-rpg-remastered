@@ -8,7 +8,7 @@ import { RouteTimeline } from './RouteTimeline';
 import { EventFeed } from './EventFeed';
 import { LootSummary } from './LootSummary';
 import { adaptEvent, parseServerTs } from './adaptEvent';
-import { difficultyTraits, modifierTraits, modArtStyle } from '../../data/travelModes';
+import { difficultyTraits, modifierTraits, modArtStyle, MOD_ART } from '../../data/travelModes';
 import type { TravelRewardItem } from '../../types/travel';
 import styles from './travel.module.css';
 
@@ -198,30 +198,30 @@ export const TravelScreen = () => {
 
         {modifier && (
           <div
-            className={styles.modeCard}
+            className={`${styles.modeCard} ${styles.modeCardArt}`}
             style={{ ['--modeColor' as any]: modifierInfo?.color ?? '#a5b4fc' }}
           >
-            <div className={styles.modArtRow}>
+            {(modifierInfo || MOD_ART[modifier]) && (
               <div
-                className={`${styles.modArt} ${styles.modArtThumb}`}
+                className={`${styles.modArt} ${styles.modArtBg}`}
                 style={modArtStyle(modifier) ?? undefined}
               />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className={styles.modeHead}>
-                  <span className={styles.modeIcon}>{modifierInfo?.icon ?? MOD_ICONS[modifier] ?? '•'}</span>
-                  <span className={styles.modeName}>{modifierInfo?.name ?? MOD_NAMES[modifier] ?? modifier}</span>
-                  <span className={styles.modeTag}>характер пути</span>
-                </div>
-                <div className={styles.traitRow}>
-                  {modifierTraits(modifierInfo).map((t) => (
-                    <span key={`m-${t.label}`} className={`${styles.trait} ${styles[`trait${t.tone === 'up' ? 'Up' : t.tone === 'down' ? 'Down' : 'Flat'}`]}`}>
-                      {t.label} <b>{t.value}</b>
-                    </span>
-                  ))}
-                </div>
+            )}
+            <div className={styles.modeCardInner}>
+              <div className={styles.modeHead}>
+                <span className={styles.modeIcon}>{modifierInfo?.icon ?? MOD_ICONS[modifier] ?? '•'}</span>
+                <span className={styles.modeName}>{modifierInfo?.name ?? MOD_NAMES[modifier] ?? modifier}</span>
+                <span className={styles.modeTag}>характер пути</span>
               </div>
+              <div className={styles.traitRow}>
+                {modifierTraits(modifierInfo).map((t) => (
+                  <span key={`m-${t.label}`} className={`${styles.trait} ${styles[`trait${t.tone === 'up' ? 'Up' : t.tone === 'down' ? 'Down' : 'Flat'}`]}`}>
+                    {t.label} <b>{t.value}</b>
+                  </span>
+                ))}
+              </div>
+              {modifierInfo?.desc && <div className={styles.modeDesc}>{modifierInfo.desc}</div>}
             </div>
-            {modifierInfo?.desc && <div className={styles.modeDesc}>{modifierInfo.desc}</div>}
           </div>
         )}
       </div>
