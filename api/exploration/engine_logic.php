@@ -75,6 +75,9 @@ const BULK_TIME_BUDGET_SEC = 15;
 // Максимум предметов в одной строке offline_rewards: клиент материализует
 // награду одним POST'ом в save_items.php, сотни за раз вешают стор и упираются в лимит.
 const OFFLINE_REWARD_CHUNK = 20;
+// Сколько записей истории путешествий храним на игрока. Всё, что старше,
+// удаляется вместе с журналом событий — история не растёт бесконечно.
+const HISTORY_KEEP_ROWS = 20;
 
 // Tiny MB texts
 const MICRO_TEXTS = [
@@ -1200,6 +1203,17 @@ function saveExplorationHistory($pdo, $userId, $exp, $outcome, $extra = []) {
     $extra['death_cause'] ?? null, (int)($extra['lost_chips'] ?? 0), (int)($extra['lost_items'] ?? 0),
     json_encode($lastEvents, JSON_UNESCAPED_UNICODE),
   ]);
+
+  // Держим только последние HISTORY_KEEP_ROWS записей: старые удаляем вместе
+  // с логом, чтобы таблица не разрасталась. Ищем граничный id и режем всё,
+  // что вставлено раньше (id монотонно растёт).
+  $cutStmt = $pdo->prepare("SELECT id FROM exploration_history WHERE user_id = ? ORDER BY id DESC LIMIT 1 OFFSET " . HISTORY_KEEP_ROWS);
+  $cutStmt->execute([$userId]);
+  $cutId = $cutStmt->fetchColumn();
+  if ($cutId) {
+    $prune = $pdo->prepare("DELETE FROM exploration_history WHERE user_id = ? AND id <= ?");
+    $prune->execute([$userId, (int)$cutId]);
+  }
 }
 
 // ---------------------------------------------------------------------------

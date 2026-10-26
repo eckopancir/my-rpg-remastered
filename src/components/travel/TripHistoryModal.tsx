@@ -7,6 +7,10 @@ import styles from './TripHistoryModal.module.css';
 
 const PAGE = 20;
 
+// Сервер хранит только последние 20 рейдов (HISTORY_KEEP_ROWS в engine_logic.php),
+// поэтому листать историю не нужно — грузим один раз.
+const HISTORY_HINT = 'Хранятся последние 20 рейдов';
+
 interface EventLogRow {
   text: string;
   type: string;
@@ -149,17 +153,16 @@ export const TripHistoryModal = ({ open, onClose }: { open: boolean; onClose: ()
   const openWrapRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(
-    (f: Filter, offset: number, append: boolean) => {
+    (f: Filter) => {
       if (!token) return;
       setLoading(true);
-      fetch(`/api/exploration/history.php?limit=${PAGE}&offset=${offset}&outcome=${f}`, {
+      fetch(`/api/exploration/history.php?limit=${PAGE}&outcome=${f}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => r.json())
         .then((data) => {
-          const list: HistRow[] = data.history ?? [];
+          setRows(data.history ?? []);
           if (data.summary) setSummary(data.summary);
-          setRows((prev) => (append ? [...prev, ...list] : list));
           setLoading(false);
         })
         .catch(() => setLoading(false));
@@ -172,7 +175,7 @@ export const TripHistoryModal = ({ open, onClose }: { open: boolean; onClose: ()
       setExpanded(null);
       setRows([]);
       setSummary(null);
-      load(filter, 0, false);
+      load(filter);
     }
   }, [open, filter, load]);
 
@@ -181,8 +184,6 @@ export const TripHistoryModal = ({ open, onClose }: { open: boolean; onClose: ()
   useEffect(() => {
     if (expanded != null) openWrapRef.current?.scrollIntoView({ block: 'nearest' });
   }, [expanded]);
-
-  const hasMore = rows.length > 0 && rows.length % PAGE === 0;
 
   return (
     <ModalWindow
@@ -267,11 +268,7 @@ export const TripHistoryModal = ({ open, onClose }: { open: boolean; onClose: ()
         {loading && <div className={styles.empty}>загрузка…</div>}
       </div>
 
-      {hasMore && !loading && (
-        <button className={styles.moreBtn} onClick={() => load(filter, rows.length, true)}>
-          Показать ещё
-        </button>
-      )}
+      <div className={styles.hint}>{HISTORY_HINT}</div>
     </ModalWindow>
   );
 };

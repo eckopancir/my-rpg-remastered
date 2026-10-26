@@ -110,4 +110,15 @@ foreach ($histCols as $name => $sql) {
   if (!count($c)) $pdo->exec($sql);
 }
 
+// Чистим накопленную историю: на каждого игрока оставляем 20 последних
+// записей (актуальный кап см. HISTORY_KEEP_ROWS в engine_logic.php).
+$histUsers = $pdo->query("SELECT DISTINCT user_id FROM exploration_history")->fetchAll(PDO::FETCH_COLUMN);
+$histCutSel = $pdo->prepare("SELECT id FROM exploration_history WHERE user_id = ? ORDER BY id DESC LIMIT 1 OFFSET 20");
+$histCutDel = $pdo->prepare("DELETE FROM exploration_history WHERE user_id = ? AND id <= ?");
+foreach ($histUsers as $histUser) {
+  $histCutSel->execute([$histUser]);
+  $histCutId = $histCutSel->fetchColumn();
+  if ($histCutId) $histCutDel->execute([$histUser, (int)$histCutId]);
+}
+
 echo json_encode(['ok' => true]);
