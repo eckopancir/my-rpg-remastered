@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { usePlayerStore } from '../../stores/playerStore';
+import { usePlayerStore, isExpeditionRunning } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useSound } from '../../hooks/useSound';
@@ -50,6 +50,8 @@ export const BackpackWindow = ({ onClose }: Props) => {
   const gridRows = Math.max(1, Math.ceil(slots / GRID_COLS));
   const contents = backpackGrid.items;
   const inCombat = useCombatGridStore((s) => s.isActive);
+  // Рейд-путешествие: склад закрыт — «Выложить всё» и «Вернуть в инвентарь» блокированы.
+  const inTravel = isExpeditionRunning();
 
   // Build occupied map for grid rendering
   const occupied = useMemo(() => {
@@ -268,19 +270,20 @@ export const BackpackWindow = ({ onClose }: Props) => {
         }}>
           <button
             onClick={() => {
+              if (inTravel) { addLog('🎒 Склад на базе — выложить всё в рейде нельзя.', 'warning'); return; }
               const n = emptyBackpackToInventory();
               if (n > 0) { playSound('laying-out-a-travel-mat', 0.5); addLog(`📤 Выложено из рюкзака: ${n} шт.`, 'info'); }
             }}
-            disabled={contents.length === 0 || inCombat}
+            disabled={contents.length === 0 || inCombat || inTravel}
             style={{
               width: '100%', padding: '6px 0',
-              background: contents.length === 0 || inCombat ? 'transparent' : 'rgba(217,119,6,0.15)',
+              background: contents.length === 0 || inCombat || inTravel ? 'transparent' : 'rgba(217,119,6,0.15)',
               border: '1px solid rgba(217,119,6,0.4)', borderRadius: 6,
-              color: contents.length === 0 || inCombat ? 'var(--text-muted)' : '#fbbf24',
-              cursor: contents.length === 0 || inCombat ? 'default' : 'pointer', fontSize: 12, fontWeight: 600,
+              color: contents.length === 0 || inCombat || inTravel ? 'var(--text-muted)' : '#fbbf24',
+              cursor: contents.length === 0 || inCombat || inTravel ? 'default' : 'pointer', fontSize: 12, fontWeight: 600,
             }}
           >
-            {inCombat ? 'На арене нельзя' : `Выложить всё (${contents.length})`}
+            {inTravel ? '🎒 В рейде нельзя' : inCombat ? 'На арене нельзя' : `Выложить всё (${contents.length})`}
           </button>
           <button
             onClick={() => {
@@ -360,6 +363,7 @@ export const BackpackWindow = ({ onClose }: Props) => {
               );
             })()}
             <button onClick={() => {
+              if (inTravel) { addLog('🎒 Склад на базе — в рейде переложить нельзя.', 'warning'); setCtxMenu(null); return; }
               if (inCombat) { addLog('⚔️ На арене нельзя доставать из рюкзака!', 'warning'); setCtxMenu(null); return; }
               takeOutBackpack(ctxMenu.item.id);
               playSound('laying-out-a-travel-mat', 0.5);
@@ -367,11 +371,11 @@ export const BackpackWindow = ({ onClose }: Props) => {
             }}
               style={{
                 width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
-                color: inCombat ? '#666' : '#eee', cursor: inCombat ? 'not-allowed' : 'pointer', fontSize: 13, borderRadius: 4,
+                color: inCombat || inTravel ? '#666' : '#eee', cursor: inCombat || inTravel ? 'not-allowed' : 'pointer', fontSize: 13, borderRadius: 4,
               }}
-              onMouseEnter={(e) => { if (!inCombat) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+              onMouseEnter={(e) => { if (!inCombat && !inTravel) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >{inCombat ? '⚔️ Нельзя на арене' : '📤 Вернуть в инвентарь'}</button>
+            >{inTravel ? '🎒 В рейде нельзя' : inCombat ? '⚔️ Нельзя на арене' : '📤 Вернуть в инвентарь'}</button>
             <button onClick={() => {
               const it = ctxMenu.item;
               setCtxMenu(null);

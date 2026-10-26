@@ -1041,6 +1041,12 @@ export const usePlayerStore = create<PlayerStore>()(
 
       // Выложить всё содержимое рюкзака в инвентарь. Возвращает число предметов.
       emptyBackpackToInventory: () => {
+        // Склад живёт на базе: в рейде выкладывать некуда.
+        if (isExpeditionRunning()) {
+          useUiStore.getState().addToast('🎒 Склад доступен только на базе — в рейде остаётся рюкзак.', 'warning');
+          get().addLog('🎒 Склад на базе — выложить всё в рейде нельзя.', 'warning');
+          return 0;
+        }
         const s = get();
         if (s.backpackGrid.items.length === 0) return 0;
         const inv = useInventoryStore.getState();

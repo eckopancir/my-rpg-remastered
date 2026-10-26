@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { usePlayerStore } from '../stores/playerStore';
+import { usePlayerStore, isExpeditionRunning } from '../stores/playerStore';
 import { useCombatGridStore } from '../stores/combatGridStore';
 import { useMapEditorStore } from '../stores/mapEditorStore';
 
@@ -462,7 +462,7 @@ export const Dashboard = () => {
         <WapHeader title="БЫСТРЫЕ ДЕЙСТВИЯ" glow="none" />
         <div style={{ display: 'flex', gap: 6 }}>
           <Button size="sm" variant="primary" onClick={() => { playClick(); navigate('/map'); }} style={{ flex: 1, fontSize: 10 }}>🗺️ Карта</Button>
-          <Button size="sm" variant="secondary" onClick={() => { playClick(); if (useCombatGridStore.getState().isActive) { usePlayerStore.getState().addLog('⚔️ В бою инвентарь недоступен — только рюкзак (B)', 'warning'); return; } toggleInventory(); }} style={{ flex: 1, fontSize: 10 }}>🎒 Инвентарь</Button>
+          <Button size="sm" variant="secondary" onClick={() => { playClick(); if (useCombatGridStore.getState().isActive) { usePlayerStore.getState().addLog('⚔️ В бою инвентарь недоступен — только рюкзак (B)', 'warning'); return; } if (isExpeditionRunning()) { usePlayerStore.getState().addLog('🎒 В рейде инвентарь недоступен — только рюкзак (B)', 'warning'); return; } toggleInventory(); }} style={{ flex: 1, fontSize: 10 }}>🎒 Инвентарь</Button>
           <Button size="sm" variant="secondary" onClick={() => { playClick(); toggleEquipment(); }} style={{ flex: 1, fontSize: 10 }}>⚔️ Экипировка</Button>
           <Button size="sm" variant="secondary" onClick={() => { playClick(); if (combat.isFighting || travel.isTraveling) { useUiStore.getState().addToast('Нельзя отдыхать в бою или пути!', 'warning'); return; } setIsResting(true); usePlayerStore.getState().rest(); }} style={{ flex: 1, fontSize: 10 }}>🛌 Отдых</Button>
         </div>

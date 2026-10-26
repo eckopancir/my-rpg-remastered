@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { usePlayerStore } from '../../stores/playerStore';
-import { gridSlots, freeBigSlots } from '../../data/backpacks';
+import { useEffect, useMemo, useState } from 'react';
+import { usePlayerStore, isExpeditionRunning } from '../../stores/playerStore';
+import { gridSlots, freeBigSlots, removeItemFromGrid } from '../../data/backpacks';
 import { getItemImage } from '../../assets/index';
 import { chestImageFor } from '../../data/chests';
 import { ItemTooltip } from '../widgets/ItemTooltip';
@@ -19,12 +19,17 @@ const imageOf = (item: any): string | undefined =>
 /**
  * Панель «Рюкзак» — что внутри рюкзака игрока во время рейда.
  * Показывает сетку слотов, крупные вещи (2×2) и тултипы предметов.
+ * ПКМ по предмету — контекстное меню: Использовать / Вернуть в инвентарь /
+ * Выбросить. В активном рейде склад закрыт, поэтому «Вернуть в инвентарь»
+ * заблокирован (store-гард takeOutBackpack тоже дублирует это).
  */
 export const BackpackPanel = () => {
   const grid = usePlayerStore((s) => s.backpackGrid);
   const discardFromBackpack = usePlayerStore((s) => s.discardFromBackpack);
+  const inTravel = isExpeditionRunning();
   const [tip, setTip] = useState<Item | null>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; item: Item } | null>(null);
 
   const slots = gridSlots(grid);
   const cols = grid.w || 5;
@@ -51,6 +56,21 @@ export const BackpackPanel = () => {
     setTip(item);
     setPos({ x: e.clientX, y: e.clientY });
   };
+
+  // Закрытие меню: клик мимо, повторный ПКМ, Escape.
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') close(); };
+    window.addEventListener('click', close);
+    window.addEventListener('contextmenu', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('contextmenu', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [ctxMenu]);
 
   return (
     <div className={styles.bagBox}>
@@ -97,11 +117,10 @@ export const BackpackPanel = () => {
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!window.confirm(`Выбросить «${item.displayName || item.name}»? Он пропадёт безвозвратно.`)) return;
-                discardFromBackpack(item.id);
                 setTip(null);
+                setCtxMenu({ x: e.clientX, y: e.clientY, item });
               }}
-              title={`${item.displayName || item.name}\nПКМ — выбросить`}
+              title={`${item.displayName || item.name}\nПКМ — меню`}
             >
               {img ? <img className={styles.bagImg} src={img} alt="" /> : <span className={styles.bagIcon}>📦</span>}
               {qty > 1 && <span className={styles.bagQty}>{qty}</span>}
@@ -125,6 +144,83 @@ export const BackpackPanel = () => {
       )}
 
       {tip && <ItemTooltip item={tip} x={pos.x} y={pos.y} />}
+
+      {ctxMenu && (() => {
+        const isConsumable = ctxMenu.item.type === 'consumable';
+        const menuPos = {
+          x: Math.min(ctxMenu.x, window.innerWidth - 180),
+          y: Math.min(ctxMenu.y, window.innerHeight - 130),
+        };
+        return (
+          <div
+            style={{
+              position: 'fixed', left: menuPos.x, top: menuPos.y, zIndex: 9500,
+              background: 'linear-gradient(180deg, #1a1a1a 0%, #151515 58%, #23272b 100%)',
+              border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: 4, minWidth: 150,
+              boxShadow: '0 16px 48px rgba(0,0,0,0.75)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.stopPropagation()}
+          >
+            {isConsumable && (
+              <button onClick={() => {
+                const item = ctxMenu.item;
+                consumeOne(item);
+                setCtxMenu(null);
+              }}
+                style={{
+                  width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
+                  color: '#eee', cursor: 'pointer', fontSize: 13, borderRadius: 4,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >🍖 Использовать</button>
+            )}
+            {/* В активном рейде склад недоступен: из рюкзака нельзя вернуть
+                в инвентарь. Гард продублирован в playerStore.takeOutBackpack. */}
+            <button
+              onClick={() => {
+                if (inTravel) return;
+                usePlayerStore.getState().takeOutBackpack(ctxMenu.item.id);
+                setCtxMenu(null);
+              }}
+              disabled={inTravel}
+              title={inTravel ? 'Склад доступен только на базе — в рейде остаётся рюкзак' : 'Вернуть предмет в инвентарь'}
+              style={{
+                width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
+                color: inTravel ? '#666' : '#eee', cursor: inTravel ? 'not-allowed' : 'pointer', fontSize: 13, borderRadius: 4,
+              }}
+            >{inTravel ? '🔒 В рейде нельзя' : '📤 Вернуть в инвентарь'}</button>
+            <button onClick={() => {
+              const it = ctxMenu.item;
+              setCtxMenu(null);
+              if (!window.confirm(`Выбросить «${it.displayName || it.name}»? Он пропадёт безвозвратно.`)) return;
+              discardFromBackpack(it.id);
+              setTip(null);
+            }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none',
+                color: '#f87171', cursor: 'pointer', fontSize: 13, borderRadius: 4,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.15)'; }}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >🗑 Выбросить</button>
+          </div>
+        );
+      })()}
     </div>
   );
+
+  /** Использовать расходник из рюкзака: списывает одну штуку из стака. */
+  function consumeOne(item: Item) {
+    const cur = usePlayerStore.getState().backpackGrid;
+    const qty = (item.quantity ?? 1) as number;
+    if (qty <= 1) {
+      usePlayerStore.setState({ backpackGrid: removeItemFromGrid(cur, item.id) });
+    } else {
+      usePlayerStore.setState({ backpackGrid: { ...cur, items: cur.items.map((i) => i.id === item.id ? { ...i, quantity: qty - 1 } : i) } });
+    }
+    usePlayerStore.getState().useConsumable({ ...item, quantity: 1 });
+    usePlayerStore.getState().addLog(`🍖 Использовано: ${item.displayName || item.name}.`, 'heal');
+  }
 };

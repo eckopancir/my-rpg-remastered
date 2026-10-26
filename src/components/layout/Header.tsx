@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { usePlayerStore } from '../../stores/playerStore';
+import { usePlayerStore, isExpeditionRunning } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -182,7 +182,7 @@ export const Header = () => {
           </button>
           <button
             className={`${styles.navLink} ${styles.navImageLink} ${inventoryOpen ? styles.navLinkActive : ''}`}
-            onClick={() => { playClick(); if (useCombatGridStore.getState().isActive) { usePlayerStore.getState().addLog('⚔️ В бою инвентарь недоступен — только рюкзак (B)', 'warning'); return; } toggleInventory(); }}
+            onClick={() => { playClick(); if (useCombatGridStore.getState().isActive) { usePlayerStore.getState().addLog('⚔️ В бою инвентарь недоступен — только рюкзак (B)', 'warning'); return; } if (isExpeditionRunning()) { usePlayerStore.getState().addLog('🎒 В рейде инвентарь недоступен — только рюкзак (B)', 'warning'); return; } toggleInventory(); }}
             onMouseEnter={() => setHoverImg('inventory')}
             onMouseLeave={() => setHoverImg(null)}
             style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '2px 0' }}
