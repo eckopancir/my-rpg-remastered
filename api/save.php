@@ -14,6 +14,10 @@ $pdo = getDB();
 // Сытость питомца — серверный источник правды (часы клиента могут спешить,
 // поэтому клиентское значение игнорируем и оставляем stored).
 $data = $input['data'];
+// Гвард «воскрешения после смерти» (см. ниже): инициализация до try —
+// исключение не должно оставить переменные неопределёнными.
+$keepWipeMarker = false;
+$wipeAt = 0;
 $nowMs = (int)(microtime(true) * 1000);
 try {
     $curStmt = $pdo->prepare('SELECT save_data, updated_at FROM saves WHERE user_id = ?');
@@ -23,6 +27,33 @@ try {
         if (isset($curSd['player']['petSatiety']) && is_array($curSd['player']['petSatiety'])) {
             if (!isset($data['player']) || !is_array($data['player'])) $data['player'] = [];
             $data['player']['petSatiety'] = $curSd['player']['petSatiety'];
+        }
+        // Гвард «воскрешения после смерти»: handleExplorationDeath уже вычистил
+        // блоб (рюкзак пуст, чипы рейда списаны) и поставил маркер backpackWipeAt.
+        // Клиентский сейв перезаписывает блоб целиком — полный рюкзак из
+        // автосейва/beforeunload/старой вкладки не должен «воскресить» потери.
+        // Пока экран смерти не квитирован (exploration.deathSettled), вхожий
+        // рюкзак и чипы заменяем серверными значениями.
+        // HP не гвардим: клиент доливает вылеченное HP через flush перед
+        // стартом рейда (deathSettled к этому моменту стоит).
+        $keepWipeMarker = false;
+        $wipeAt = isset($curSd['player']['backpackWipeAt']) ? (int)$curSd['player']['backpackWipeAt'] : 0;
+        if ($wipeAt > 0) {
+            $expIn = isset($data['exploration']) && is_array($data['exploration']) ? $data['exploration'] : [];
+            $settled = !empty($expIn['deathSettled']);
+            if (!$settled && (time() - $wipeAt) < 600) {
+                if (is_array($curSd['player']['backpackGrid'] ?? null)
+                    && isset($data['player']) && is_array($data['player'])) {
+                    $data['player']['backpackGrid'] = $curSd['player']['backpackGrid'];
+                }
+                if (isset($data['player']) && is_array($data['player']) && isset($curSd['player']['dataChips'])) {
+                    $data['player']['dataChips'] = min(
+                        (int)($data['player']['dataChips'] ?? $curSd['player']['dataChips']),
+                        (int)$curSd['player']['dataChips']
+                    );
+                }
+                $keepWipeMarker = true;
+            }
         }
         // Safety net: this save arrives after an offline gap without a prior
         // load.php catch-up (normally load runs first on open). Advance the
@@ -52,6 +83,15 @@ try {
 // Штамп времени виталов: точка отсчёта офлайн-регена.
 if (!isset($data['player']) || !is_array($data['player'])) $data['player'] = [];
 $data['player']['vitalsAt'] = $nowMs;
+
+// Маркер wipe — серверный, клиенту не принадлежит: если гвард ещё активен,
+// возвращаем серверное значение (до квитации смерти или старта рейда),
+// иначе вычищаем, чтобы не мигрировал в клиент и не гонялся по сейвам.
+if ($keepWipeMarker) {
+    $data['player']['backpackWipeAt'] = $wipeAt;
+} else {
+    unset($data['player']['backpackWipeAt']);
+}
 
 $stmt = $pdo->prepare(
     'INSERT INTO saves (user_id, save_data, updated_at) VALUES (?, ?, NOW())

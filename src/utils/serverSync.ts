@@ -48,3 +48,39 @@ export const syncNow = (): void => {
     }).catch(() => {});
   } catch { /* best effort */ }
 };
+
+/**
+ * Ожидающая версия сейва: блокируется до завершения POST /api/save.php.
+ * Нужна перед стартом рейда (startExploration): серверу важно иметь
+ * актуальный (вылеченный) блоб ДО начала путешествия, иначе последний
+ * полл подгонит HP клиента к серверным 1% после смерти.
+ */
+export const flushPlayerBlob = async (): Promise<boolean> => {
+  try {
+    const token = useAuthStore.getState().token;
+    if (!token) return false;
+    const ui = useUiStore.getState() as any;
+    const { craftingTimer, craftingTimerMax, craftingType, craftingLabel, queue, ...safeUi } = ui;
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    const data = {
+      player: usePlayerStore.getState(),
+      inventory: useInventoryStore.getState(),
+      exploration: useExplorationStore.getState(),
+      ui: safeUi,
+    };
+    const res = await fetch('/api/save.php', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ data }),
+    });
+    // Инвентарь-сепаратор — вне троттлинга, на свой страх (best effort).
+    fetch('/api/inventory/sync.php', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ items: useInventoryStore.getState().items }),
+    }).catch(() => {});
+    return res.ok;
+  } catch {
+    return false;
+  }
+};

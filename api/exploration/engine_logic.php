@@ -877,6 +877,10 @@ function handleExplorationDeath($pdo, $userId, &$exp, $deathInfo = null) {
     $sd['player']['backpackGrid']['items'] = [];
   }
   $sd['player']['stats']['currentHp'] = max(1, (int)floor(($sd['player']['stats']['maxHp'] ?? 100) * 0.01));
+  // Гвард-маркер для save.php: пока клиент не квитировал смерть
+  // (exploration.deathSettled), штампы клиента со старым полным рюкзаком
+  // не должны перезаписывать вычищенный блоб (https-«воскрешение» рюкзака).
+  $sd['player']['backpackWipeAt'] = time();
   putSaveData($pdo, $userId, $sd);
 
   // Причина смерти — последнее событие, наносившее урон.
@@ -1012,6 +1016,9 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
     }
     $stats['stamina'] = $curSt - $staminaCost;
     $saveData['player']['stats'] = $stats;
+    // Новый рейд: снимаем гвард-маркер смерти (deathSettled мог не прийти —
+    // стартовый рейд сам является квитацией: играть-то начали).
+    unset($saveData['player']['backpackWipeAt']);
     $upd = $pdo->prepare("UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?");
     $upd->execute([json_encode($saveData, JSON_UNESCAPED_UNICODE), $userId]);
 

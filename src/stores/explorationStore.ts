@@ -12,10 +12,17 @@ import type { TravelModeInfo } from '../data/travelModes';
 /** Кап кэша имён находок (eventRewardItems): больше 120 событий рейда лента не показывает. */
 const REWARD_CACHE_MAX = 120;
 import { backpackSlotsFor, tryInsertIntoGrid, removeItemFromGrid, compactGrid, createGrid } from '../data/backpacks';
-import { syncNow } from '../utils/serverSync';
+import { syncNow, flushPlayerBlob } from '../utils/serverSync';
 
 
 const API_BASE = '/api/exploration';
+
+/**
+ * Гвард «смерть уже отзеркалена в этой сессии»: штрафы смерти (пустой рюкзак,
+ * списанные чипы, HP 1%) принимаются из серверного блоба однажды за смерть.
+ * Сбрасывается при старте нового рейда (startExploration).
+ */
+let deathMirrorApplied = false;
 
 // Сколько событий держим в памяти. После долгого офлайна в БД могут быть
 // тысячи строк — весь лог в стейт не кладём, иначе виснет рендер.
@@ -265,6 +272,11 @@ export const useExplorationStore = create<ExplorationStore>()(
       startExploration: async (zoneName, hours = 12, useMats = true, consumables = [], difficulty = 'normal', modifier: string | null = null) => {
         const token = getToken();
         if (!token) { set({ error: 'Not authenticated' }); return; }
+        // Срочно доливаем актуальное состояние до сервера: после смерти+лечения
+        // серверный блоб может ещё держать HP 1% (автосейв раз в 60с), и тогда
+        // полл прижмёт шкалу HP к 1% на весь новый рейд. flush гарантирует,
+        // что сервер получил вылеченное HP ДО начала путешествия.
+        await flushPlayerBlob();
         const h = Math.max(2, Math.min(24, Math.round(hours)));
         try {
           const res = await fetch(`${API_BASE}/start.php`, {
@@ -311,10 +323,12 @@ export const useExplorationStore = create<ExplorationStore>()(
             useMaterials: exp?.use_materials === undefined ? useMats : exp.use_materials !== 0,
             deathInfo: null,
             deathFlavor: '',
-            // Новый рейд — новый цикл: экран смерти снова может сработать.
+            // Новый рейд — новый цикл: экран смерти снова может сработать,
+            // а свежая смерть снова должна отзеркалиться из блоба.
             deathSettled: false,
             deathFresh: false,
           });
+          deathMirrorApplied = false;
         } catch (e) {
           set({ error: `Network error: ${e}` });
         }
@@ -442,14 +456,22 @@ export const useExplorationStore = create<ExplorationStore>()(
           const engineVersion = typeof data.engine_version === 'string' ? data.engine_version : state.engineVersion;
 
           // Sync player data from server (HP only — XP is applied via applyLocalEffects → addExp)
+          // Адоптим вверх всегда (реген/баффы на сервере). Вниз — только во
+          // время активного рейда (сервер — источник урона). Вне рейда
+          // серверное HP могло остаться 1% после смерти (клиентский flush
+          // с вылеченным HP ещё не доставлен) — не прижимаем лечёное к 1%.
           const playerData = data.player as { currentHp?: number } | undefined;
           if (playerData?.currentHp !== undefined) {
             const ps = usePlayerStore.getState();
             const serverHp = playerData.currentHp;
             const cappedHp = Math.min(serverHp, ps.stats.maxHp);
-            if (cappedHp !== ps.stats.currentHp) {
-              console.log('[SERVER_HP_SYNC]', { before: ps.stats.currentHp, serverHp, cappedHp, maxHp: ps.stats.maxHp, ts: Date.now() });
-              usePlayerStore.setState({ stats: { ...ps.stats, currentHp: cappedHp } });
+            const adoptDown = data.active === true;
+            const nextHp = (adoptDown || cappedHp >= ps.stats.currentHp)
+              ? cappedHp
+              : ps.stats.currentHp;
+            if (nextHp !== ps.stats.currentHp) {
+              console.log('[SERVER_HP_SYNC]', { before: ps.stats.currentHp, serverHp, nextHp, maxHp: ps.stats.maxHp, active: data.active, ts: Date.now() });
+              usePlayerStore.setState({ stats: { ...ps.stats, currentHp: nextHp } });
             }
           }
 
@@ -477,13 +499,31 @@ export const useExplorationStore = create<ExplorationStore>()(
               difficultyInfo: diffInfo,
               modifierInfo: modInfo,
             });
-            // Оффлайн-смерть: клиент НЕ зеркалит штрафы (deathFresh=false, «сервер
-            // уже всё списал сам»). Но серверный сейв-блоб тогда отличается от
-            // локального (рюкзак опустошён, чипы списаны). Автосейв устаревшего
-            // локального состояния со временем «воскресил» бы потерянное —
-            // подтягиваем блоб с сервера и перенимаем его как истину.
-            if (serverOutcome === 'dead' && !deathFresh && !settledNow) {
-              void refreshPlayerBlobAfterOfflineDeath(token);
+            // Смерть: штрафы зеркалим СРАЗУ при первом распознавании (не при
+            // клике по экрану смерти) — и для офлайн-смерти (deathFresh=false),
+            // и для смерти, случившейся в этой сессии (deathFresh=true).
+            // Принимаем серверный блоб как истину: рюкзак опустошён, чипы
+            // списаны, HP 1%. Иначе до клика по экрану смерти автосейв (60с)
+            // успевает «воскресить» полный рюкзак, а [SERVER_HP_SYNC] — держать
+            // устаревшее высокое HP.
+            if (serverOutcome === 'dead' && !settledNow && !deathMirrorApplied) {
+              deathMirrorApplied = true;
+              const psBefore = usePlayerStore.getState();
+              const bagCountBefore = psBefore.backpackGrid?.items?.length ?? 0;
+              void refreshPlayerBlobAfterOfflineDeath(token).then(() => {
+                const ps = usePlayerStore.getState();
+                const lostChips = deathInfo?.lostChips ?? 0;
+                if (lostChips > 0) ps.addLog(`💾 Потеряно ${lostChips} чипов.`, 'warning');
+                if (bagCountBefore > 0) {
+                  ps.addLog(`🎒 Рюкзак опустошён (${bagCountBefore} предметов).`, 'warning');
+                }
+                // Рюкзак честнее достроить с сервера (инкубатор сессионных
+                // предметов: сервер удалил их из inventory_items).
+                syncInventoryFromServer(token);
+                // Сразу гоним вычищенный блоб на сервер: следующие сейвы
+                // (автосейв/flush в startExploration) уже не несут потерь.
+                syncNow();
+              });
             }
             return;
           }
@@ -578,53 +618,13 @@ export const useExplorationStore = create<ExplorationStore>()(
         const ps = usePlayerStore.getState();
 
         if (state.serverOutcome === 'dead') {
-          // Штрафы уже применил сервер. Клиент зеркалит их только для смерти,
-          // случившейся в этой сессии: иначе F5 после смерти снова резал HP до 1%
-          // и чистил рюкзак, который сервер уже почистил.
-          if (state.deathFresh) {
-            // Pick random death flavor
-            const flavor = DEATH_FLAVORS[Math.floor(Math.random() * DEATH_FLAVORS.length)];
-            ps.addLog(`💀 ${flavor}`, 'danger');
-            // Lose chips earned this trip
-            const lostChips = state.totalChips;
-            if (lostChips > 0) {
-              usePlayerStore.setState({ dataChips: Math.max(0, ps.dataChips - lostChips) });
-              ps.addLog(`💾 Потеряно ${lostChips} чипов.`, 'warning');
-            }
-            // Lose all items found this trip
-            const inv = useInventoryStore.getState();
-            const rewardItems = state.eventRewardItems as Record<
-              number,
-              { items: GeneratedItem[]; saved: boolean; dropped?: boolean }
-            >;
-            let lostItems = 0;
-            for (const entry of Object.values(rewardItems)) {
-              // Потерянные из-за полного рюкзака предметы в рюкзак не попадали —
-              // в потерях рейда их не считаем.
-              if (entry.dropped) continue;
-              for (const item of entry.items) {
-                inv.removeItem(item.id);
-                lostItems++;
-              }
-            }
-            if (lostItems > 0) {
-              ps.addLog(`📦 Потеряно ${lostItems} предметов.`, 'warning');
-            }
-            // Рюкзак обнуляется при смерти (на любой сложности).
-            const pStore = usePlayerStore.getState();
-            const bagItems = pStore.backpackGrid?.items ?? [];
-            if (bagItems.length > 0) {
-              usePlayerStore.setState({ backpackGrid: createGrid(pStore.backpackGrid?.slots ?? 0) });
-              ps.addLog(`🎒 Рюкзак обнулён (${bagItems.length} предметов).`, 'warning');
-              syncNow();
-            }
-            // HP to 1%
-            const maxHp = ps.stats.maxHp || 10000;
-            usePlayerStore.setState({ stats: { ...ps.stats, currentHp: Math.max(1, Math.round(maxHp * 0.01)) } });
-            ps.addLog('❤️ Здоровье восстановлено до 1%.', 'heal');
-            set({ deathFlavor: flavor });
-          }
-          set({ deathSettled: true, deathFresh: false });
+          // Штрафы смерти уже отзеркалены в pollServerState (первый полл с
+          // исходом 'dead' принял серверный блоб: пустой рюкзак, чипы, HP 1%).
+          // Здесь только квитация: закрываем экран смерти и ставим штамп,
+          // чтобы герд в save.php пропустил дальнейшие сейвы.
+          const flavor = DEATH_FLAVORS[Math.floor(Math.random() * DEATH_FLAVORS.length)];
+          ps.addLog(`💀 ${flavor}`, 'danger');
+          set({ deathFlavor: flavor, deathSettled: true, deathFresh: false });
         } else if (state.isReturningHome) {
           ps.addLog(`🏁 Возвращение на базу завершено.`, 'loot');
         } else {
