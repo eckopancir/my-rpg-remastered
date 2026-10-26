@@ -28,7 +28,7 @@ $summary = $sumStmt->fetch();
 foreach ($summary as $k => $v) $summary[$k] = (int)$v;
 
 $stmt = $pdo->prepare("SELECT id, zone, difficulty, modifier, planned_sec, outcome, total_chips, total_exp, total_items,
-    duration_seconds, started_at, death_cause, lost_chips, lost_items, event_log, ended_at
+    duration_seconds, started_at, death_cause, death_hp_before, death_damage, lost_chips, lost_items, event_log, ended_at
   FROM exploration_history WHERE $where ORDER BY ended_at DESC, id DESC LIMIT ? OFFSET ?");
 $stmt->bindValue(array_push($params, $limit) - 1, $limit, PDO::PARAM_INT);
 $stmt->bindValue(array_push($params, $offset) - 1, $offset, PDO::PARAM_INT);
@@ -36,8 +36,26 @@ $stmt->execute($params);
 $rows = $stmt->fetchAll();
 
 foreach ($rows as &$r) {
-  $r['event_log'] = $r['event_log'] ? json_decode($r['event_log'], true) : [];
-  foreach (['total_chips', 'total_exp', 'total_items', 'duration_seconds', 'planned_sec', 'lost_chips', 'lost_items'] as $f) {
+  $logRaw = $r['event_log'] ?? null;
+  $r['event_log'] = [];
+  if ($logRaw) {
+    $log = json_decode($logRaw, true) ?: [];
+    // Строке журнала расшифровываем effects: бейджи наград/урона в UI.
+    // effects приходит и строкой ('{"chips":1}'), и уже объектом (mysqlnd
+    // декодирует JSON-колонку exploration_events на выборке) — нормализуем.
+    foreach ($log as &$ev) {
+      if (!isset($ev['effects']) || $ev['effects'] === null) {
+        $ev['effects'] = new stdClass();
+      } elseif (is_array($ev['effects'])) {
+        // уже декодирован mysqlnd'ом
+      } else {
+        $ev['effects'] = json_decode((string)$ev['effects'], true) ?: new stdClass();
+      }
+    }
+    unset($ev);
+    $r['event_log'] = $log;
+  }
+  foreach (['total_chips', 'total_exp', 'total_items', 'duration_seconds', 'planned_sec', 'lost_chips', 'lost_items', 'death_hp_before', 'death_damage'] as $f) {
     $r[$f] = (int)$r[$f];
   }
 }

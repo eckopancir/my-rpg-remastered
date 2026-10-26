@@ -17,6 +17,8 @@ interface EventLogRow {
   is_micro: number;
   art: number | null;
   created_at: string;
+  /** Числа события (чипы/опыт/урон/хил/находки) — сервер отдаёт уже декодированные. */
+  effects?: Record<string, number> | null;
 }
 
 interface HistRow {
@@ -32,6 +34,9 @@ interface HistRow {
   duration_seconds: number;
   started_at: string | null;
   death_cause: string | null;
+  /** HP до фатального удара и урон самого удара (отчёт о смерти). */
+  death_hp_before: number;
+  death_damage: number;
   lost_chips: number;
   lost_items: number;
   event_log: EventLogRow[];
@@ -92,6 +97,20 @@ const fmtOffset = (ts: string | null, startedAt: string | null) => {
   return `+${Math.floor(c / 60)}:${(c % 60).toString().padStart(2, '0')}`;
 };
 
+/** Числовые плашки события из effects строки журнала (чипы/опыт/урон/хил/находки). */
+const effectBadges = (eff: EventLogRow['effects']): { label: string; color: string }[] => {
+  if (!eff) return [];
+  const out: { label: string; color: string }[] = [];
+  const num = (k: string) => Number(eff[k] ?? 0);
+  if (num('chips')) out.push({ label: `💾${num('chips') > 0 ? '+' : '−'}${Math.abs(num('chips'))}`, color: '#38bdf8' });
+  if (num('exp')) out.push({ label: `⚡${num('exp') > 0 ? '+' : '−'}${Math.abs(num('exp'))}`, color: '#4ade80' });
+  if (num('itemCount')) out.push({ label: `📦+${num('itemCount')}`, color: '#93c5fd' });
+  if (num('heal')) out.push({ label: `❤️+${num('heal')}`, color: '#34d399' });
+  if (num('damage')) out.push({ label: `💥−${num('damage')}`, color: '#f87171' });
+  if (num('damagePercent')) out.push({ label: `💥−${num('damagePercent')}%`, color: '#f87171' });
+  return out;
+};
+
 /**
  * Раскрытая запись: параметры рейда, причина смерти и полный журнал событий.
  * Отдельный компонент получает запись пропсом — деталь всегда рисует ровно тот
@@ -116,8 +135,15 @@ const HistoryDetail = ({ h }: { h: HistRow }) => {
             </>
           )}
         </div>
-        {h.outcome === 'dead' && h.death_cause && (
-          <div className={styles.deathCause}>💀 {h.death_cause}</div>
+        {h.outcome === 'dead' && (
+          <>
+            {/* Отчёт о смерти: сколько было HP, сколько урона получил, чем убило. */}
+            <div className={styles.deathFact}>
+              <span title="Здоровье прямо перед фатальным ударом">❤ HP до удара: <b>{h.death_hp_before > 0 ? h.death_hp_before : '—'}</b></span>
+              <span title="Урон фатального события">💥 Урон: <b style={{ color: '#f87171' }}>{h.death_damage > 0 ? `−${h.death_damage}` : '—'}</b></span>
+            </div>
+            {h.death_cause && <div className={styles.deathCause}>💀 {h.death_cause}</div>}
+          </>
         )}
       </div>
 
@@ -127,11 +153,19 @@ const HistoryDetail = ({ h }: { h: HistRow }) => {
           <div className={styles.logList}>
             {log.map((e, i) => {
               const art = e.art ? eventArtStyle(e.art) : null;
+              const badges = effectBadges(e.effects);
               return (
                 <div key={i} className={styles.logRow}>
                   <span className={styles.logIcon}>{LOG_ICON[e.type] ?? '•'}</span>
                   {art ? <i className={styles.logArt} style={art as Record<string, unknown>} /> : null}
                   <span className={styles.logText}>{e.text}</span>
+                  {badges.length > 0 && (
+                    <span className={styles.logBadges}>
+                      {badges.map((b) => (
+                        <span key={b.label} className={styles.logBadge} style={{ color: b.color }}>{b.label}</span>
+                      ))}
+                    </span>
+                  )}
                   <span className={styles.logTime}>{fmtOffset(e.created_at, h.started_at)}</span>
                 </div>
               );

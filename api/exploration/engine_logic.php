@@ -482,6 +482,8 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   $bulkChips = 0; $bulkExp = 0; $bulkItems = 0;
   $microN = 0; $bigN = 0; $legN = 0;
   $itemPool = null;
+  // Отчёт о смерти (заполняется при фатальном ударе, см. ниже).
+  $fatalInfo = null;
 
   $zoneDesc = getZoneDesc($exp['zone']);
   // Ресурсы в пути не тратятся — инвентарь не трогаем.
@@ -567,6 +569,8 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       if (!empty($eff['damage'])) {
         $dmg = (int)round((int)$eff['damage'] * $bDmgMult);
         $dmg = min($dmg, (int)round($maxHp * 0.95));
+        // Фатальный удар: запоминаем HP ДО вычитания и урон — отчёт о смерти.
+        $fatalInfo = ['hp_before' => $hp, 'damage' => $dmg, 'cause' => (string)($event['text'] ?? '')];
         $hp = max(0, $hp - $dmg);
       }
       if (!empty($eff['itemCount'])) {
@@ -593,7 +597,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       $summary = buildBulkSummary($s + 1, $microN, $bigN, $legN, $arDeath['appliedChips'], $arDeath['appliedExp'], $bulkItems, true);
       $events[] = $summary;
       saveEvent($pdo, $userId, $expId, $summary);
-      handleExplorationDeath($pdo, $userId, $exp);
+      handleExplorationDeath($pdo, $userId, $exp, $fatalInfo);
       $exp['phase'] = 'complete';
       $died = true;
       $bulkDone = $s + 1;
@@ -850,7 +854,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
 // ---------------------------------------------------------------------------
 // Death rollback
 // ---------------------------------------------------------------------------
-function handleExplorationDeath($pdo, $userId, &$exp) {
+function handleExplorationDeath($pdo, $userId, &$exp, $deathInfo = null) {
   // Добыча рейда (сессийные предметы) — сгорает полностью.
   $sessionIds = json_decode($exp['session_item_ids'] ?? '[]', true) ?: [];
   if (!empty($sessionIds)) {
@@ -876,15 +880,29 @@ function handleExplorationDeath($pdo, $userId, &$exp) {
   putSaveData($pdo, $userId, $sd);
 
   // Причина смерти — последнее событие, наносившее урон.
-  $deathCause = null;
-  $evStmt = $pdo->prepare("SELECT text, effects FROM exploration_events WHERE exploration_id = ? ORDER BY id DESC LIMIT 10");
-  $evStmt->execute([$exp['id']]);
-  foreach ($evStmt->fetchAll() as $row) {
-    $eff = json_decode($row['effects'] ?: '[]', true) ?: [];
-    if ((int)($eff['damage'] ?? 0) > 0 || (float)($eff['damagePercent'] ?? 0) > 0) {
-      $deathCause = $row['text'];
-      break;
+  // Bulk-путь передаёт удар напрямую ($deathInfo), онлайн-путь — вычисляем
+  // по последним событиям из базы.
+  $deathCause = is_array($deathInfo) ? (string)($deathInfo['cause'] ?? '') : '';
+  $deathDamage = is_array($deathInfo) ? (int)($deathInfo['damage'] ?? 0) : 0;
+  $deathHpBefore = is_array($deathInfo) ? (int)($deathInfo['hp_before'] ?? 0) : 0;
+  if ($deathCause === '') {
+    $evStmt = $pdo->prepare("SELECT text, effects FROM exploration_events WHERE exploration_id = ? ORDER BY id DESC LIMIT 10");
+    $evStmt->execute([$exp['id']]);
+    foreach ($evStmt->fetchAll() as $row) {
+      $eff = json_decode($row['effects'] ?: '[]', true) ?: [];
+      if ((int)($eff['damage'] ?? 0) > 0 || (float)($eff['damagePercent'] ?? 0) > 0) {
+        $deathCause = $row['text'];
+        $deathDamage = max($deathDamage, (int)($eff['damage'] ?? 0));
+        break;
+      }
     }
+  }
+  // HP до удара: bulk-путь передаёт точно. Для онлайн-пути считаем от
+  // текущего HP в базе (после удара) + урон фатального события.
+  if ($deathHpBefore <= 0) {
+    $maxHpRow = $sd['player']['stats']['maxHp'] ?? 100;
+    $hpNow = (int)getPlayerHp($pdo, $userId);
+    $deathHpBefore = min((int)$maxHpRow, $hpNow + max(1, $deathDamage));
   }
 
   // Отложенные награды событий этого рейда сгорают вместе с добычей:
@@ -917,6 +935,8 @@ function handleExplorationDeath($pdo, $userId, &$exp) {
   setExploreFields($pdo, $exp['id'], ['phase' => 'complete', 'last_tick_at' => $dbNowRow['dbnow']]);
   saveExplorationHistory($pdo, $userId, $exp, 'dead', [
     'death_cause' => $deathCause,
+    'death_hp_before' => max(0, $deathHpBefore),
+    'death_damage' => max(0, $deathDamage),
     'lost_chips'  => $lostChips,
     'lost_items'  => $lostItems,
   ]);
@@ -1170,14 +1190,14 @@ function saveExplorationHistory($pdo, $userId, $exp, $outcome, $extra = []) {
     $durStmt->execute([$exp['started_at']]);
     $duration = max(0, (int)($durStmt->fetch()['d'] ?? 0));
   }
-  $stmt = $pdo->prepare("INSERT INTO exploration_history (user_id, zone, difficulty, modifier, planned_sec, outcome, total_chips, total_exp, total_items, duration_seconds, started_at, death_cause, lost_chips, lost_items, event_log, ended_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+  $stmt = $pdo->prepare("INSERT INTO exploration_history (user_id, zone, difficulty, modifier, planned_sec, outcome, total_chips, total_exp, total_items, duration_seconds, started_at, death_cause, death_hp_before, death_damage, lost_chips, lost_items, event_log, ended_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
   $stmt->execute([
     $userId, $exp['zone'],
     $exp['difficulty'] ?? 'normal', $exp['modifier'] ?? null, (int)($exp['planned_sec'] ?? 0),
     $outcome, (int)$exp['total_chips'], (int)$exp['total_exp'], (int)($exp['total_items'] ?? 0),
     $duration, $exp['started_at'] ?: null,
-    $extra['death_cause'] ?? null, (int)($extra['lost_chips'] ?? 0), (int)($extra['lost_items'] ?? 0),
+    $extra['death_cause'] ?? null, (int)($extra['death_hp_before'] ?? 0), (int)($extra['death_damage'] ?? 0), (int)($extra['lost_chips'] ?? 0), (int)($extra['lost_items'] ?? 0),
     json_encode($lastEvents, JSON_UNESCAPED_UNICODE),
   ]);
 

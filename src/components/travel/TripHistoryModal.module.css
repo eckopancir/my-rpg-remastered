@@ -137,13 +137,20 @@
 .meta {
   font-size: 10.5px;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .totals {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .date {
@@ -205,6 +212,24 @@
   line-height: 1.45;
 }
 
+/* Отчёт о смерти: HP до удара + урон фатального события. */
+.deathFact {
+  flex: 1 1 240px;
+  max-width: 320px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.deathFact b {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #fca5a5;
+}
+
 .log {
   display: flex;
   flex-direction: column;
@@ -263,6 +288,27 @@
   font-size: 10px;
   color: var(--text-muted);
   padding-top: 1px;
+}
+
+/* Числовые плашки события: +чипы, +опыт, −урон и т.д. */
+.logBadges {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 40%;
+}
+
+.logBadge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  white-space: nowrap;
 }
 
 .hint {

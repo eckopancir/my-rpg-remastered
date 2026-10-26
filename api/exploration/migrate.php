@@ -102,7 +102,10 @@ $histCols = [
   'planned_sec'  => "ALTER TABLE exploration_history ADD COLUMN planned_sec INT NOT NULL DEFAULT 0 AFTER modifier",
   'started_at'   => "ALTER TABLE exploration_history ADD COLUMN started_at DATETIME DEFAULT NULL AFTER duration_seconds",
   'death_cause'  => "ALTER TABLE exploration_history ADD COLUMN death_cause VARCHAR(255) DEFAULT NULL AFTER started_at",
-  'lost_chips'   => "ALTER TABLE exploration_history ADD COLUMN lost_chips INT NOT NULL DEFAULT 0 AFTER death_cause",
+  // Отчёт о смерти: HP до фатального удара и сколько урона он нанёс.
+  'death_hp_before' => "ALTER TABLE exploration_history ADD COLUMN death_hp_before INT NOT NULL DEFAULT 0 AFTER death_cause",
+  'death_damage' => "ALTER TABLE exploration_history ADD COLUMN death_damage INT NOT NULL DEFAULT 0 AFTER death_hp_before",
+  'lost_chips'   => "ALTER TABLE exploration_history ADD COLUMN lost_chips INT NOT NULL DEFAULT 0 AFTER death_damage",
   'lost_items'   => "ALTER TABLE exploration_history ADD COLUMN lost_items INT NOT NULL DEFAULT 0 AFTER lost_chips",
 ];
 foreach ($histCols as $name => $sql) {

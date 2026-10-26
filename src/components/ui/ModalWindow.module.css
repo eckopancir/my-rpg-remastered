@@ -115,6 +115,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  /* линии декора должны растянуться — иначе правая половина шапки
+     схлопывается и крестик прилипает к заголовку (margin-left: auto не работает) */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .diamond {
