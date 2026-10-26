@@ -477,6 +477,14 @@ export const useExplorationStore = create<ExplorationStore>()(
               difficultyInfo: diffInfo,
               modifierInfo: modInfo,
             });
+            // Оффлайн-смерть: клиент НЕ зеркалит штрафы (deathFresh=false, «сервер
+            // уже всё списал сам»). Но серверный сейв-блоб тогда отличается от
+            // локального (рюкзак опустошён, чипы списаны). Автосейв устаревшего
+            // локального состояния со временем «воскресил» бы потерянное —
+            // подтягиваем блоб с сервера и перенимаем его как истину.
+            if (serverOutcome === 'dead' && !deathFresh && !settledNow) {
+              void refreshPlayerBlobAfterOfflineDeath(token);
+            }
             return;
           }
 
@@ -864,6 +872,42 @@ export const useExplorationStore = create<ExplorationStore>()(
     },
   ),
 );
+
+/**
+ * Оффлайн-смерть: сервер уже применил штрафы к сейв-блобу (handleExplorationDeath:
+ * рюкзак опустошён, чипы рейда списаны, HP 1%). Клиент, узнав об исходе 'dead',
+ * принимает блоб как истину — иначе последующий автосейв старого локального
+ * состояния перезапишет сервер и потерянные предметы «воскреснут».
+ * Только приоритет XP/уровня сохраняем (максимальный из клиент/сервер).
+ */
+async function refreshPlayerBlobAfterOfflineDeath(token: string): Promise<void> {
+  try {
+    const res = await fetch(`${API_BASE}/load.php`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    const serverPlayer = (json?.data as any)?.player as any;
+    if (!serverPlayer) return;
+    const ps = usePlayerStore.getState();
+    usePlayerStore.setState({
+      backpackGrid: serverPlayer.backpackGrid ?? ps.backpackGrid,
+      dataChips: Math.max(0, Number(serverPlayer.dataChips ?? ps.dataChips) || 0),
+      stats: {
+        ...ps.stats,
+        currentHp: Math.min(
+          ps.stats.currentHp,
+          Number.isFinite(serverPlayer.stats?.currentHp) ? serverPlayer.stats.currentHp : ps.stats.currentHp,
+        ),
+      },
+      // XP/уровень выше — приоритет клиентского счёта (см. doLoad).
+      level: Math.max(ps.level, serverPlayer.level ?? 1),
+      currentExp: Math.max(ps.currentExp, serverPlayer.currentExp ?? 0),
+      expToNext: Math.max(ps.expToNext, serverPlayer.expToNext ?? 100),
+    });
+    usePlayerStore.getState().recalcStats();
+  } catch { /* смерть-адаптация не должна ронять приложение */ }
+}
 
 export async function catchUpExploration() {
   try {
