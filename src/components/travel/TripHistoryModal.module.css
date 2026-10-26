@@ -86,6 +86,9 @@
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.02);
   overflow: hidden;
+  /* Flex-элемент .list: overflow:hidden обнуляет auto min-size — без запрета
+     сжатия плашки сплющивались в fixed-высоту списка вместо скролла. */
+  flex-shrink: 0;
 }
 
 .rowWrapOpen {
