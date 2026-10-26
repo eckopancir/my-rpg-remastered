@@ -871,7 +871,7 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = []) {
 // Death rollback
 // ---------------------------------------------------------------------------
 function handleExplorationDeath($pdo, $userId, &$exp) {
-  // Remove session items
+  // Добыча рейда (сессийные предметы) — сгорает полностью.
   $sessionIds = json_decode($exp['session_item_ids'] ?? '[]', true) ?: [];
   if (!empty($sessionIds)) {
     $placeholders = implode(',', array_fill(0, count($sessionIds), '?'));
@@ -879,18 +879,67 @@ function handleExplorationDeath($pdo, $userId, &$exp) {
     $del = $pdo->prepare("DELETE FROM inventory_items WHERE id IN ($placeholders) AND user_id = ?");
     $del->execute($params);
   }
-  // Rollback chips
+  // Чипы, заработанные за рейд, — сгорают. HP всегда 1% (фикс: раньше
+  // ставилось только при наличии чипов).
   $lostChips = (int)$exp['total_chips'];
+  $sd = getSaveData($pdo, $userId);
   if ($lostChips > 0) {
-    $sd = getSaveData($pdo, $userId);
     $sd['player']['dataChips'] = max(0, ($sd['player']['dataChips'] ?? 0) - $lostChips);
-    $sd['player']['stats']['currentHp'] = 1;
-    putSaveData($pdo, $userId, $sd);
   }
+  // Личный рюкзак — обнуляется (как и добыча рейда).
+  $bagItems = $sd['player']['backpackGrid']['items'] ?? [];
+  $lostItems = count($sessionIds) + (is_array($bagItems) ? count($bagItems) : 0);
+  if (is_array($sd['player']['backpackGrid'] ?? null)) {
+    $sd['player']['backpackGrid']['items'] = [];
+  }
+  $sd['player']['stats']['currentHp'] = max(1, (int)floor(($sd['player']['stats']['maxHp'] ?? 100) * 0.01));
+  putSaveData($pdo, $userId, $sd);
+
+  // Причина смерти — последнее событие, наносившее урон.
+  $deathCause = null;
+  $evStmt = $pdo->prepare("SELECT text, effects FROM exploration_events WHERE exploration_id = ? ORDER BY id DESC LIMIT 10");
+  $evStmt->execute([$exp['id']]);
+  foreach ($evStmt->fetchAll() as $row) {
+    $eff = json_decode($row['effects'] ?: '[]', true) ?: [];
+    if ((int)($eff['damage'] ?? 0) > 0 || (float)($eff['damagePercent'] ?? 0) > 0) {
+      $deathCause = $row['text'];
+      break;
+    }
+  }
+
+  // Отложенные награды событий этого рейда сгорают вместе с добычей:
+  // иначе клиент подберёт их через get_pending_rewards.php уже после смерти.
+  try {
+    $pdo->prepare("UPDATE offline_rewards SET claimed = 1 WHERE user_id = ? AND exploration_id = ?")
+        ->execute([$userId, $exp['id']]);
+  } catch (Exception $e) {
+    // Таблицы нет в старых базах — не критично для смерти.
+  }
+
+  // Финальная запись в ленту — чтобы в журнале рейда остался след.
+  $ev = [
+    'text' => 'Вы погибли.' . ($deathCause ? ' ' . $deathCause : '') . ' Добыча рейда и личный рюкзак потеряны.',
+    'type' => 'death',
+    'effects' => '{}',
+    'is_micro' => 0,
+    'tick_number' => (int)$exp['tick_count'],
+    'art' => null,
+    'decision' => null,
+    'resource_cost' => null,
+    'resource_had' => 0,
+    'legendary_event_id' => null,
+    'legendary_stage' => null,
+  ];
+  saveEvent($pdo, $userId, $exp['id'], $ev);
+
   $exp['phase'] = 'complete';
   $dbNowRow = $pdo->query("SELECT NOW(3) AS dbnow")->fetch();
   setExploreFields($pdo, $exp['id'], ['phase' => 'complete', 'last_tick_at' => $dbNowRow['dbnow']]);
-  saveExplorationHistory($pdo, $userId, $exp, 'dead');
+  saveExplorationHistory($pdo, $userId, $exp, 'dead', [
+    'death_cause' => $deathCause,
+    'lost_chips'  => $lostChips,
+    'lost_items'  => $lostItems,
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -1087,7 +1136,24 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
     'difficultyInfo' => travelDifficulty($exp['difficulty'] ?? 'normal'),
     'modifierInfo' => travelModifier($exp['modifier'] ?? null),
     'state' => $forceState ?? ($isActive ? 'active' : 'complete'),
+    // Данные о смерти (причина/потери) — для экрана смерти на клиенте.
+    'death' => ($forceState ?? '') === 'dead' ? lastDeathInfo($pdo, $exp['user_id']) : null,
     'newEvents' => $events,
+  ];
+}
+
+/** Последняя запись о смерти пользователя (причина, потери). */
+function lastDeathInfo($pdo, $userId) {
+  $stmt = $pdo->prepare("SELECT death_cause, lost_chips, lost_items, difficulty, modifier FROM exploration_history WHERE user_id = ? AND outcome = 'dead' ORDER BY id DESC LIMIT 1");
+  $stmt->execute([$userId]);
+  $row = $stmt->fetch();
+  if (!$row) return null;
+  return [
+    'cause' => $row['death_cause'],
+    'lostChips' => (int)$row['lost_chips'],
+    'lostItems' => (int)$row['lost_items'],
+    'difficulty' => $row['difficulty'],
+    'modifier' => $row['modifier'],
   ];
 }
 
@@ -1111,22 +1177,29 @@ function cancelExploration($pdo, $userId) {
 // ---------------------------------------------------------------------------
 // History
 // ---------------------------------------------------------------------------
-function saveExplorationHistory($pdo, $userId, $exp, $outcome) {
+function saveExplorationHistory($pdo, $userId, $exp, $outcome, $extra = []) {
   $lastEvents = [];
-  $evStmt = $pdo->prepare("SELECT text, type, effects, is_micro, created_at FROM exploration_events WHERE exploration_id = ? ORDER BY id DESC LIMIT 50");
+  $evStmt = $pdo->prepare("SELECT text, type, effects, is_micro, art, created_at FROM exploration_events WHERE exploration_id = ? ORDER BY id DESC LIMIT 50");
   $evStmt->execute([$exp['id']]);
   $lastEvents = $evStmt->fetchAll();
+  // Длительность считаем на стороне СУБД — иначе PHP-таймзона расходится
+  // с серверной и в историю попадали отрицательные «-119 мин».
   $duration = 0;
   if ($exp['started_at']) {
-    $start = new DateTimeImmutable($exp['started_at']);
-    $dbNowForDur = $pdo->query("SELECT UNIX_TIMESTAMP(NOW()) AS dbts")->fetch();
-    $duration = (int)$dbNowForDur['dbts'] - $start->getTimestamp();
+    $durStmt = $pdo->prepare("SELECT UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(?) AS d");
+    $durStmt->execute([$exp['started_at']]);
+    $duration = max(0, (int)($durStmt->fetch()['d'] ?? 0));
   }
-  $stmt = $pdo->prepare("INSERT INTO exploration_history (user_id, zone, outcome, total_chips, total_exp, total_items, duration_seconds, event_log, ended_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-  $stmt->execute([$userId, $exp['zone'], $outcome, (int)$exp['total_chips'],
-    (int)$exp['total_exp'], (int)($exp['total_items'] ?? 0), $duration,
-    json_encode($lastEvents, JSON_UNESCAPED_UNICODE)]);
+  $stmt = $pdo->prepare("INSERT INTO exploration_history (user_id, zone, difficulty, modifier, planned_sec, outcome, total_chips, total_exp, total_items, duration_seconds, started_at, death_cause, lost_chips, lost_items, event_log, ended_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+  $stmt->execute([
+    $userId, $exp['zone'],
+    $exp['difficulty'] ?? 'normal', $exp['modifier'] ?? null, (int)($exp['planned_sec'] ?? 0),
+    $outcome, (int)$exp['total_chips'], (int)$exp['total_exp'], (int)($exp['total_items'] ?? 0),
+    $duration, $exp['started_at'] ?: null,
+    $extra['death_cause'] ?? null, (int)($extra['lost_chips'] ?? 0), (int)($extra['lost_items'] ?? 0),
+    json_encode($lastEvents, JSON_UNESCAPED_UNICODE),
+  ]);
 }
 
 // ---------------------------------------------------------------------------

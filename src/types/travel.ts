@@ -18,7 +18,8 @@ export type TravelEventKind =
   | 'heal'
   | 'legendary'
   | 'system'
-  | 'micro';
+  | 'micro'
+  | 'death';
 
 export interface TravelRewardItem {
   id: string;

@@ -36,6 +36,8 @@ if (!$result) {
     'modifier' => $lastExp['modifier'] ?? null,
     'difficultyInfo' => travelDifficulty($lastExp['difficulty'] ?? 'normal'),
     'modifierInfo' => travelModifier($lastExp['modifier'] ?? null),
+    // Данные последней смерти — клиент рисует экран смерти после перезагрузки.
+    'death' => $lastOutcome === 'dead' ? lastDeathInfo($pdo, $userId) : null,
   ]);
 }
 

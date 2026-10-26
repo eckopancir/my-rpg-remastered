@@ -54,6 +54,10 @@ const DEATH_FLAVORS = [
   'Вас смыло рекой, но рыбаки вытянули сетями и откачали.',
 ];
 
+/** Случайная «спасательная» история для экрана смерти (гарантированно одна за рейд). */
+export const pickDeathFlavor = (): string =>
+  DEATH_FLAVORS[Math.floor(Math.random() * DEATH_FLAVORS.length)];
+
 export interface ServerExploration {
   id: number;
   zone: string;
@@ -164,6 +168,10 @@ interface ExplorationStore {
   isProcessingRewards: boolean;
   isReturningHome: boolean;
   deathFlavor: string;
+  /** Данные смерти от сервера: причина, потери (для экрана смерти). */
+  deathInfo: { cause: string | null; lostChips: number; lostItems: number; difficulty: string } | null;
+  /** Смерть случилась в этой сессии (рейд был активен) — можно зеркалить штрафы. */
+  deathFresh: boolean;
   totalEvents: number;
   hasMoreEvents: boolean;
   // Догон офлайна: сколько секунд долга осталось на сервере + режим bulk.
@@ -235,6 +243,8 @@ export const useExplorationStore = create<ExplorationStore>()(
       isProcessingRewards: false,
       isReturningHome: false,
       deathFlavor: '',
+      deathInfo: null,
+      deathFresh: false,
       totalEvents: 0,
       hasMoreEvents: false,
       debtSec: 0,
@@ -296,6 +306,11 @@ export const useExplorationStore = create<ExplorationStore>()(
             engineVersion: '',
             plannedSec: typeof exp?.planned_sec === 'number' ? exp.planned_sec : h * 3600,
             useMaterials: exp?.use_materials === undefined ? useMats : exp.use_materials !== 0,
+            deathInfo: null,
+            deathFlavor: '',
+            // Новый рейд — новый цикл: экран смерти снова может сработать.
+            deathSettled: false,
+            deathFresh: false,
           });
         } catch (e) {
           set({ error: `Network error: ${e}` });
@@ -355,7 +370,23 @@ export const useExplorationStore = create<ExplorationStore>()(
           // Свежие события, созданные именно этим тиком. Сервер уже учёл их
           // эффекты в сейве — локально повторяем только их, а не всю историю.
           const freshEvents: any[] = data.newEvents ?? [];
-          const serverOutcome = (data.state === 'dead' && !state.deathSettled) ? 'dead' : (data.state ?? 'active');
+          // get() после await: пока шёл запрос, смерть могли уже закрыть кнопкой —
+          // иначе «поздний» полл снова покажет экран смерти.
+          const settledNow = get().deathSettled;
+          const serverOutcome = (data.state === 'dead' && !settledNow) ? 'dead' : (data.state ?? 'active');
+          // «Свежая» смерть — рейд был активен в этой сессии. Только тогда
+          // клиент зеркалит штрафы: после F5 сервер уже всё списал сам.
+          const deathFresh = serverOutcome === 'dead' && state.isExploring;
+          // Данные смерти от сервера: причина, потери, сложность.
+          const deathServer = (data as any).death as any;
+          const deathInfo = serverOutcome === 'dead' && deathServer && typeof deathServer === 'object'
+            ? {
+                cause: deathServer.cause ?? null,
+                lostChips: Number(deathServer.lostChips ?? 0),
+                lostItems: Number(deathServer.lostItems ?? 0),
+                difficulty: String(deathServer.difficulty ?? ''),
+              }
+            : null;
           const consBuffs = (data.consBuffs && typeof data.consBuffs === 'object')
             ? { ...EMPTY_BUFFS, ...data.consBuffs }
             : state.consBuffs;
@@ -424,6 +455,8 @@ export const useExplorationStore = create<ExplorationStore>()(
               isExploring: false,
               phase: 'complete', serverPhase: 'complete',
               serverOutcome,
+              deathInfo: serverOutcome === 'dead' ? (deathInfo ?? state.deathInfo) : null,
+              deathFresh,
               eventLog: mergedLog,
               totalChips: exp?.totalChips ?? 0,
               totalExp: exp?.totalExp ?? 0,
@@ -481,6 +514,8 @@ export const useExplorationStore = create<ExplorationStore>()(
               modifier: modKey,
               difficultyInfo: diffInfo,
               modifierInfo: modInfo,
+              // Живой рейд — данные смерти неактуальны.
+              deathInfo: null,
             });
           }
           // Process pending rewards after each poll
@@ -532,42 +567,47 @@ export const useExplorationStore = create<ExplorationStore>()(
         const ps = usePlayerStore.getState();
 
         if (state.serverOutcome === 'dead') {
-          // Pick random death flavor
-          const flavor = DEATH_FLAVORS[Math.floor(Math.random() * DEATH_FLAVORS.length)];
-          ps.addLog(`💀 ${flavor}`, 'danger');
-          // Lose chips earned this trip
-          const lostChips = state.totalChips;
-          if (lostChips > 0) {
-            usePlayerStore.setState({ dataChips: Math.max(0, ps.dataChips - lostChips) });
-            ps.addLog(`💾 Потеряно ${lostChips} чипов.`, 'warning');
-          }
-          // Lose all items found this trip
-          const inv = useInventoryStore.getState();
-          const rewardItems = state.eventRewardItems;
-          let lostItems = 0;
-          for (const entry of Object.values(rewardItems)) {
-            for (const item of entry.items) {
-              inv.removeItem(item.id);
-              lostItems++;
+          // Штрафы уже применил сервер. Клиент зеркалит их только для смерти,
+          // случившейся в этой сессии: иначе F5 после смерти снова резал HP до 1%
+          // и чистил рюкзак, который сервер уже почистил.
+          if (state.deathFresh) {
+            // Pick random death flavor
+            const flavor = DEATH_FLAVORS[Math.floor(Math.random() * DEATH_FLAVORS.length)];
+            ps.addLog(`💀 ${flavor}`, 'danger');
+            // Lose chips earned this trip
+            const lostChips = state.totalChips;
+            if (lostChips > 0) {
+              usePlayerStore.setState({ dataChips: Math.max(0, ps.dataChips - lostChips) });
+              ps.addLog(`💾 Потеряно ${lostChips} чипов.`, 'warning');
             }
+            // Lose all items found this trip
+            const inv = useInventoryStore.getState();
+            const rewardItems = state.eventRewardItems;
+            let lostItems = 0;
+            for (const entry of Object.values(rewardItems)) {
+              for (const item of entry.items) {
+                inv.removeItem(item.id);
+                lostItems++;
+              }
+            }
+            if (lostItems > 0) {
+              ps.addLog(`📦 Потеряно ${lostItems} предметов.`, 'warning');
+            }
+            // Рюкзак обнуляется при смерти (на любой сложности).
+            const pStore = usePlayerStore.getState();
+            const bagItems = pStore.backpackGrid?.items ?? [];
+            if (bagItems.length > 0) {
+              usePlayerStore.setState({ backpackGrid: createGrid(pStore.backpackGrid?.slots ?? 0) });
+              ps.addLog(`🎒 Рюкзак обнулён (${bagItems.length} предметов).`, 'warning');
+              syncNow();
+            }
+            // HP to 1%
+            const maxHp = ps.stats.maxHp || 10000;
+            usePlayerStore.setState({ stats: { ...ps.stats, currentHp: Math.max(1, Math.round(maxHp * 0.01)) } });
+            ps.addLog('❤️ Здоровье восстановлено до 1%.', 'heal');
+            set({ deathFlavor: flavor });
           }
-          if (lostItems > 0) {
-            ps.addLog(`📦 Потеряно ${lostItems} предметов.`, 'warning');
-          }
-          // Рюкзак обнуляется при смерти (на любой сложности).
-          const pStore = usePlayerStore.getState();
-          const bagItems = pStore.backpackGrid?.items ?? [];
-          if (bagItems.length > 0) {
-            usePlayerStore.setState({ backpackGrid: createGrid(pStore.backpackGrid?.slots ?? 0) });
-            ps.addLog(`🎒 Рюкзак обнулён (${bagItems.length} предметов).`, 'warning');
-            syncNow();
-          }
-          // HP to 1%
-          const maxHp = ps.stats.maxHp || 10000;
-          usePlayerStore.setState({ stats: { ...ps.stats, currentHp: Math.max(1, Math.round(maxHp * 0.01)) } });
-          ps.addLog('❤️ Здоровье восстановлено до 1%.', 'heal');
-          set({ deathSettled: true });
-          set({ deathFlavor: flavor });
+          set({ deathSettled: true, deathFresh: false });
         } else if (state.isReturningHome) {
           ps.addLog(`🏁 Возвращение на базу завершено.`, 'loot');
         } else {
@@ -585,6 +625,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           debtSec: 0, bulkMode: 'none',
           useMaterials: true,
           consBuffs: { ...EMPTY_BUFFS },
+          deathInfo: null,
         });
         // Process pending rewards after completion
         get().processPendingRewards();
@@ -615,6 +656,8 @@ export const useExplorationStore = create<ExplorationStore>()(
           consBuffs: { ...EMPTY_BUFFS },
           deathSettled: true,
           isReturningHome: false,
+          deathInfo: null,
+          deathFresh: false,
         });
       },
 
@@ -779,6 +822,9 @@ export const useExplorationStore = create<ExplorationStore>()(
         // Кэш несейвленных наград: переживает перезагрузку, чтобы ретрай
         // сейвил те же предметы, а не генерировал дубликаты.
         eventRewardItems: state.eventRewardItems,
+        // Смерть уже обработана в этой сессии: после F5 не применяем штраф
+        // повторно и не показываем экран смерти заново.
+        deathSettled: state.deathSettled,
       }),
       merge: (persisted: any, current: any) => ({
         ...current,

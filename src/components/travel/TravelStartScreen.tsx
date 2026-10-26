@@ -5,6 +5,8 @@ import { useInventoryStore } from '../../stores/inventoryStore';
 import { useAuthStore } from '../../stores/authStore';
 import { TRAVEL_OUT_SEC, TRAVEL_BACK_SEC } from '../../data/travelTuning';
 import { modArtStyle } from '../../data/travelModes';
+import { DeathScreen } from './DeathScreen';
+import { TripHistoryModal } from './TripHistoryModal';
 import { useSound } from '../../hooks/useSound';
 import { getItemImage } from '../../assets/index';
 import styles from './travel.module.css';
@@ -82,6 +84,7 @@ export const TravelStartScreen = () => {
   const [cardsLoading, setCardsLoading] = useState(false);
   const [pack, setPack] = useState<Record<string, number>>({});
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [starting, setStarting] = useState(false);
   const { playSound } = useSound();
 
@@ -193,6 +196,9 @@ export const TravelStartScreen = () => {
             Выбери карточку: зона, сложность, характер и длительность заданы в ней.
           </div>
         </div>
+        <button className={styles.historyBtn} onClick={() => setHistoryOpen(true)}>
+          📜 История{history.length > 0 ? ` (${history.length})` : ''}
+        </button>
       </div>
 
       <div className={styles.start}>
@@ -362,25 +368,11 @@ export const TravelStartScreen = () => {
         </div>
       </div>
 
-      {history.length > 0 && (
-        <div className={styles.panel}>
-          <div className={styles.panelHead}><span>История путешествий</span></div>
-          <div className={styles.panelBody} style={{ maxHeight: 200 }}>
-            {history.slice(0, 10).map((h) => (
-              <div key={h.id} className={styles.historyRow}>
-                <span>{h.outcome === 'dead' ? '💀' : h.outcome === 'cancelled' ? '🛑' : '🏁'}</span>
-                <b>{h.zone}</b>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
-                  💾{h.total_chips} ⚡{h.total_exp} 📦{h.total_items}
-                </span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                  {Math.round(h.duration_seconds / 60)} мин
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Кнопка истории в шапке «Плана рейда» — открытие окна истории. */}
+      <TripHistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} />
+
+      {/* Смерть поверх всего: рейд окончен, экран нельзя перещёлкать. */}
+      <DeathScreen />
     </div>
   );
 };

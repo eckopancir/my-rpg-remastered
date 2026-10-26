@@ -95,4 +95,19 @@ if (!count($colsArt)) {
   $pdo->exec("ALTER TABLE exploration_events ADD COLUMN art SMALLINT DEFAULT NULL AFTER tick_number");
 }
 
+// Расширенная история рейдов: режим, тайминги, причина смерти и потери.
+$histCols = [
+  'difficulty'   => "ALTER TABLE exploration_history ADD COLUMN difficulty VARCHAR(16) NOT NULL DEFAULT 'normal' AFTER zone",
+  'modifier'     => "ALTER TABLE exploration_history ADD COLUMN modifier VARCHAR(16) DEFAULT NULL AFTER difficulty",
+  'planned_sec'  => "ALTER TABLE exploration_history ADD COLUMN planned_sec INT NOT NULL DEFAULT 0 AFTER modifier",
+  'started_at'   => "ALTER TABLE exploration_history ADD COLUMN started_at DATETIME DEFAULT NULL AFTER duration_seconds",
+  'death_cause'  => "ALTER TABLE exploration_history ADD COLUMN death_cause VARCHAR(255) DEFAULT NULL AFTER started_at",
+  'lost_chips'   => "ALTER TABLE exploration_history ADD COLUMN lost_chips INT NOT NULL DEFAULT 0 AFTER death_cause",
+  'lost_items'   => "ALTER TABLE exploration_history ADD COLUMN lost_items INT NOT NULL DEFAULT 0 AFTER lost_chips",
+];
+foreach ($histCols as $name => $sql) {
+  $c = $pdo->query("SHOW COLUMNS FROM exploration_history LIKE '$name'")->fetchAll();
+  if (!count($c)) $pdo->exec($sql);
+}
+
 echo json_encode(['ok' => true]);

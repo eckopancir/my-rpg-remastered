@@ -7,6 +7,7 @@ import { PartyPanel } from './PartyPanel';
 import { RouteTimeline } from './RouteTimeline';
 import { EventFeed } from './EventFeed';
 import { LootSummary } from './LootSummary';
+import { DeathScreen } from './DeathScreen';
 import { adaptEvent, parseServerTs } from './adaptEvent';
 import { difficultyTraits, modifierTraits, modArtStyle } from '../../data/travelModes';
 import type { TravelRewardItem } from '../../types/travel';
@@ -254,6 +255,9 @@ export const TravelScreen = () => {
       </div>
 
       {tooltipItem && <ItemTooltip item={tooltipItem} x={tooltipPos.x} y={tooltipPos.y} />}
+
+      {/* Смерть в рейде — полноэкранная страница-эпилог. */}
+      <DeathScreen />
     </div>
   );
 };

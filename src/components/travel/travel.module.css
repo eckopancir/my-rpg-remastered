@@ -50,6 +50,30 @@
   color: var(--text-muted);
 }
 
+/* Кнопка «История» в шапке плана рейда (открывает окно истории). */
+.historyBtn {
+  margin-left: auto;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 9px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.12), rgba(251, 191, 36, 0.05));
+  color: #fbbf24;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.historyBtn:hover {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.08));
+  transform: translateY(-1px);
+}
+
 .phasePill {
   margin-left: auto;
   display: inline-flex;

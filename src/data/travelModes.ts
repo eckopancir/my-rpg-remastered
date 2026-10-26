@@ -107,6 +107,32 @@ export const modifierTraits = (m?: TravelModeInfo | null): ModeTrait[] => {
 // Порядок на листе = порядок travelModifiers() в difficulty.php.
 // ---------------------------------------------------------------------------
 export const MOD_SHEET = '/art/mods/mod-sheet.jpg';
+
+/** Имена сложностей (зеркало travelDifficulty с сервера). */
+export const DIFF_NAMES: Record<string, string> = {
+  normal: 'Обычная',
+  hard: 'Сложная',
+  danger: 'Опасная',
+  nightmare: 'Кошмар',
+  hell: 'Ад на земле',
+};
+/** Имена характеров (зеркало travelModifiers с сервера). */
+export const MOD_NAMES: Record<string, string> = {
+  none: 'Обычный рейд',
+  night: 'Ночь',
+  silence: 'Тишина',
+  ambush: 'Засада',
+  fog: 'Туман',
+  wind: 'Ветер',
+  gnats: 'Мошка',
+  lowtide: 'Отлив',
+  frost: 'Стужа',
+  plague: 'Заражение',
+  compass: 'Компас',
+  trail: 'Тропа',
+  traps: 'Ловушки',
+};
+
 export const MOD_ART: Record<string, { col: number; row: number }> = {
   night: { col: 0, row: 0 },   // 🌙 луна над руинами
   silence: { col: 1, row: 0 }, // 🤫 туманное поле с силуэтами

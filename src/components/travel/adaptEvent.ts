@@ -19,6 +19,7 @@ const KIND_BY_TYPE: Record<string, TravelEventKind> = {
   loot: 'loot',
   legendary: 'legendary',
   system: 'system',
+  death: 'death',
 };
 
 export interface KindMeta {
@@ -41,6 +42,7 @@ export const KIND_META: Record<TravelEventKind, KindMeta> = {
   legendary: { label: 'Легенда', icon: '⚜', color: '#fbbf24' },
   system: { label: 'Система', icon: '•', color: '#94a3b8' },
   micro: { label: 'Мелочь', icon: '·', color: '#64748b' },
+  death: { label: 'Смерть', icon: '💀', color: '#ef4444' },
 };
 
 /** Разобрать JSON эффектов события (сервер шлёт строку). */
