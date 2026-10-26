@@ -96,9 +96,11 @@ export const TravelScreen = () => {
   const events = useMemo(
     () =>
       eventLog.map((row) => {
+        const entry = rewardItems[row.id];
         const ev = adaptEvent(row, {
           startTs,
-          rewardItems: (rewardItems[row.id]?.items ?? []) as TravelRewardItem[],
+          rewardItems: entry && !entry.dropped ? (entry.items as TravelRewardItem[]) : [],
+          droppedItems: entry?.dropped ? (entry.items as TravelRewardItem[]) : [],
         });
         return ev;
       }),

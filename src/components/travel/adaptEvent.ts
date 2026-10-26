@@ -92,7 +92,12 @@ const EMPTY_REWARDS: TravelRewards = {
  */
 export const adaptEvent = (
   row: ServerEventRow,
-  opts: { startTs?: number; rewardItems?: TravelRewardItem[] } = {},
+  opts: {
+    startTs?: number;
+    rewardItems?: TravelRewardItem[];
+    /** Находки, не влезшие в рюкзак (показываем названия + предупреждение). */
+    droppedItems?: TravelRewardItem[];
+  } = {},
 ): TravelEvent => {
   const eff = parseEffects(row.effects);
   const isMicro = row.is_micro === 1;
@@ -104,6 +109,7 @@ export const adaptEvent = (
   if (isMicro && kind === 'system') kind = 'micro';
 
   const items = opts.rewardItems ?? [];
+  const droppedItems = opts.droppedItems ?? [];
   const rewards: TravelRewards = {
     chips: typeof eff.chips === 'number' ? eff.chips : 0,
     exp: typeof eff.exp === 'number' ? eff.exp : 0,
@@ -112,8 +118,11 @@ export const adaptEvent = (
     flatHeal: typeof eff.flatHeal === 'number' ? eff.flatHeal : 0,
     heal: typeof eff.heal === 'number' ? eff.heal : 0,
     damage: typeof eff.damage === 'number' ? eff.damage : 0,
-    itemCount: typeof eff.itemCount === 'number' ? eff.itemCount : items.length,
+    // Если находка не влезла в рюкзак — не показываем обезличенное «+1»,
+    // вместо него будет плашка с названием предмета и пометкой «не влезло».
+    itemCount: droppedItems.length > 0 ? 0 : (typeof eff.itemCount === 'number' ? eff.itemCount : items.length),
     items,
+    droppedItems,
   };
 
   const meta = KIND_META[kind];
@@ -152,6 +161,7 @@ export const hasRewards = (r: TravelRewards): boolean =>
   r.damagePercent > 0 ||
   r.flatHeal > 0 ||
   r.itemCount > 0 ||
-  r.items.length > 0;
+  r.items.length > 0 ||
+  (r.droppedItems?.length ?? 0) > 0;
 
 export { EMPTY_REWARDS };

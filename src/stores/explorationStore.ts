@@ -164,7 +164,7 @@ interface ExplorationStore {
   serverOutcome: string | null; // 'active', 'complete', 'dead'
   error: string | null;
   processedEventId: number;
-  eventRewardItems: Record<number, { items: GeneratedItem[]; saved: boolean }>;
+  eventRewardItems: Record<number, { items: GeneratedItem[]; saved: boolean; dropped?: boolean }>;
   isProcessingRewards: boolean;
   isReturningHome: boolean;
   deathFlavor: string;
@@ -582,9 +582,15 @@ export const useExplorationStore = create<ExplorationStore>()(
             }
             // Lose all items found this trip
             const inv = useInventoryStore.getState();
-            const rewardItems = state.eventRewardItems;
+            const rewardItems = state.eventRewardItems as Record<
+              number,
+              { items: GeneratedItem[]; saved: boolean; dropped?: boolean }
+            >;
             let lostItems = 0;
             for (const entry of Object.values(rewardItems)) {
+              // Потерянные из-за полного рюкзака предметы в рюкзак не попадали —
+              // в потерях рейда их не считаем.
+              if (entry.dropped) continue;
               for (const item of entry.items) {
                 inv.removeItem(item.id);
                 lostItems++;
@@ -757,7 +763,13 @@ export const useExplorationStore = create<ExplorationStore>()(
             });
 
             if (saveRes.ok) {
-              newItems[eventId] = { items: placed, saved: true };
+              // Если предмет не влез в рюкзак — награда помечена потерянной,
+              // но сами предметы запоминаем: в ленте покажем, что именно нашли.
+              newItems[eventId] = {
+                items: placed.length > 0 ? placed : items,
+                saved: true,
+                dropped: placed.length === 0,
+              };
               changed = true;
             } else {
               // Rollback: убираем только то, что положили сами.

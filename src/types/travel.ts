@@ -50,6 +50,8 @@ export interface TravelRewards {
   itemCount: number;
   /** Конкретные предметы (клиент уже сгенерировал их). */
   items: TravelRewardItem[];
+  /** Находки, которые не влезли в рюкзак и остались в зоне. */
+  droppedItems?: TravelRewardItem[];
 }
 
 export interface TravelLegendary {

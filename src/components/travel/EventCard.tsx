@@ -1,5 +1,5 @@
 import type { TravelEvent, TravelRewardItem } from '../../types/travel';
-import { KIND_META } from './adaptEvent';
+import { KIND_META, hasRewards } from './adaptEvent';
 import { eventArtStyle } from '../../data/eventArt';
 import styles from './travel.module.css';
 
@@ -66,7 +66,7 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
           </div>
         )}
 
-        {(r.chips !== 0 || r.exp !== 0 || r.healPercent > 0 || r.damagePercent > 0 || r.flatHeal > 0 || r.heal > 0 || r.damage > 0 || r.itemCount > 0 || r.items.length > 0) && (
+        {hasRewards(r) && (
           <div className={styles.rewards}>
             {r.chips !== 0 && (
               <span className={`${styles.badge} ${styles.badgeChips}`}>
@@ -108,6 +108,11 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
               : r.itemCount > 0 && (
                 <span className={styles.badge}>нашли 📦 +{r.itemCount}</span>
               )}
+            {(r.droppedItems?.length ?? 0) > 0 && (
+              <span className={`${styles.badge} ${styles.badgeDmg}`}>
+                📦 {r.droppedItems!.map(itemLabel).join(', ')} — не влезло в рюкзак
+              </span>
+            )}
           </div>
         )}
 

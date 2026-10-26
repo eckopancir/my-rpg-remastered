@@ -79,35 +79,6 @@ const OFFLINE_REWARD_CHUNK = 20;
 // удаляется вместе с журналом событий — история не растёт бесконечно.
 const HISTORY_KEEP_ROWS = 20;
 
-// Tiny MB texts
-const MICRO_TEXTS = [
-  'Под ногой хрустнула ветка. Тишина.',
-  'Где-то вдалеке ухнул филин.',
-  'Ветер доносит запах гари и сырости.',
-  'Вы останавливаетесь перевести дух.',
-  'Слышен отдалённый гул генератора.',
-  'На земле — чей-то след. Свежий.',
-  'Капли воды падают с ржавой трубы.',
-  'В траве блестит пустая гильза.',
-  'Над головой пролетела стая птиц.',
-  'Где-то лают собаки. Или не собаки.',
-  'Вы протираете запотевшие очки.',
-  'Пульс учащается. Вокруг ни души.',
-  'Из-за облака выглядывает солнце.',
-  'Вы находите несколько ягод шиповника.',
-  'Тени становятся длиннее. Вечереет.',
-];
-
-if (!function_exists('generateMicroEvent')) {
-function generateMicroEvent($zoneDesc, $faction) {
-  $text = substitute(MICRO_TEXTS[array_rand(MICRO_TEXTS)], $zoneDesc, $faction);
-  $heal = mt_rand(0, 100) < 15 ? RF(0.005, 0.02) : 0;
-  $eff = [];
-  if ($heal > 0) $eff['healPercent'] = $heal;
-  return ['text' => $text, 'effects' => $eff, 'type' => 'ambient'];
-}
-}
-
 // ---------------------------------------------------------------------------
 // Offline reward creation
 // ---------------------------------------------------------------------------
@@ -294,9 +265,15 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         $me = generateMicroEvent($zoneDesc, '');
         // %-эффекты микро -> числовые HP + множители сложности/модификатора.
         $me['effects'] = applyTravelScaling($me['effects'], $playerLevel, trapDmgBand((int)($exp['planned_sec'] ?? 0)), $difficulty, $modifier);
-        // 10% микро-событий приносит мелочь (ресурсы/патроны).
-        $microItem = (mt_rand(1, 100) <= TRAVEL_MICRO_ITEM_PCT) ? 1 : 0;
-        if ($microItem > 0) $me['effects']['itemCount'] = $microItem;
+        // Находка: генератор микро-событий сам может выдать itemCount (см.
+        // generateMicroEvent в event_data.php). Раньше награду создавал только
+        // отдельный 10%-ролл — и предмет из ветки генератора терялся: в ленте
+        // «нашли 📦 +1», а в рюкзак ничего не приходило. Теперь источник истины
+        // — сами эффекты события; 10% добавляем только если находки ещё нет.
+        if (empty($me['effects']['itemCount']) && mt_rand(1, 100) <= TRAVEL_MICRO_ITEM_PCT) {
+          $me['effects']['itemCount'] = 1;
+        }
+        $microItem = (int)($me['effects']['itemCount'] ?? 0);
         $applyResult = applyEffects($pdo, $userId, $me['effects'], $buffs);
         $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
         $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
