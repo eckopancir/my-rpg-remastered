@@ -56,9 +56,9 @@
   --transition-base: 250ms ease;
   --transition-slow: 400ms ease;
 
-  /* Fonts */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* Fonts — 'WA-Emoji' (Twemoji) вставлен до generic-ключевых слов, чтобы эмодзи попадали в него, а не в Segoe UI Emoji */
+  --font-sans: 'Inter', system-ui, -apple-system, 'WA-Emoji', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'WA-Emoji', monospace;
 
   /* Z-index layers */
   --z-base: 1;
@@ -88,7 +88,7 @@
   --wa-glow-amber:   0 0 12px rgba(217, 119, 6, 0.3);
   --wa-glow-teal:    0 0 12px rgba(20, 184, 166, 0.3);
   --wa-glow-green:   0 0 12px rgba(74, 222, 128, 0.3);
-  --wa-font-display: 'Orbitron', 'Courier New', monospace;
-  --wa-font-hud:     'Rajdhani', 'Arial', sans-serif;
-  --wa-font-terminal:'VT323', 'Courier New', monospace;
+  --wa-font-display: 'Orbitron', 'Courier New', 'WA-Emoji', monospace;
+  --wa-font-hud:     'Rajdhani', 'Arial', 'WA-Emoji', sans-serif;
+  --wa-font-terminal:'VT323', 'Courier New', 'WA-Emoji', monospace;
 }

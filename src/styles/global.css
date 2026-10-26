@@ -6,6 +6,20 @@
 @import './design-system.css';
 @import './animations.css';
 
+/* Эмодзи-шрифт: Twemoji (Mozilla COLR build) вместо системного Segoe UI Emoji.
+   Файл: /fonts/TwemojiMozilla.ttf. Арт © Twitter/X, лицензия CC BY 4.0:
+   https://github.com/twitter/twemoji → github.com/jdecked/twemoji
+   Шрифт-сборка: mozilla/twemoji-colr (BSD-3), см. /fonts/README.md. */
+@font-face {
+  font-family: 'WA-Emoji';
+  src: url('/fonts/TwemojiMozilla.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  /* только emoji-диапазоны — обычный текст не трогаем */
+  unicode-range: U+1F000-1FAFF, U+2300-23FF, U+2600-27BF, U+2B00-2B55, U+25AB, U+25FB-25FE, U+FE0F, U+200D;
+}
+
 *, *::before, *::after {
   margin: 0;
   padding: 0;

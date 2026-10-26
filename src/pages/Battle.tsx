@@ -1427,7 +1427,7 @@ export const Battle = () => {
           position: 'fixed', inset: 0, zIndex: 9999,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: 'rgba(0,0,0,0.85)',
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "'Courier New', 'WA-Emoji', monospace",
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>💀</div>
