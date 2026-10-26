@@ -77,6 +77,17 @@ try {
                 if ($maxSt > 0) $st['stamina'] = min($maxSt, max((float)($cst['stamina'] ?? 0), (float)($st['stamina'] ?? 0)));
             }
         }
+        // Гвард HP в окне смерти: пока смерть не квитирована, вылеченное на
+        // сервере HP = 1%. Рост HP у НЕквитированного клиента — это либо
+        // устаревший стейт старой вкладки, либо даже офлайн-реген catch-up
+        // выше — в любом случае HP не должно подниматься до квитации
+        // (иначе после смерти в новом рейде HP-sync прижмёт шкалу к 1%).
+        if ($keepWipeMarker && isset($data['player']['stats'], $curSd['player']['stats'])) {
+            $data['player']['stats']['currentHp'] = min(
+                (float)($data['player']['stats']['currentHp'] ?? 0),
+                (float)($curSd['player']['stats']['currentHp'] ?? 0)
+            );
+        }
     }
 } catch (Exception $e) { /* best effort, сохраняем как есть */ }
 

@@ -178,10 +178,16 @@ interface ExplorationStore {
   isProcessingRewards: boolean;
   isReturningHome: boolean;
   deathFlavor: string;
-  /** Данные смерти от сервера: причина, потери (для экрана смерти). */
-  deathInfo: { cause: string | null; lostChips: number; lostItems: number; difficulty: string } | null;
+  deathInfo: { cause: string | null; lostChips: number; lostItems: number; difficulty: string; explorationId?: number | null } | null;
   /** Смерть случилась в этой сессии (рейд был активен) — можно зеркалить штрафы. */
   deathFresh: boolean;
+  /** ID смерти (запись exploration_history), которая уже была квитирована
+   *  (клик по экрану смерти / reset). Персистится: глушит только СВОЮ смерть,
+   *  новая смерть (другой id) снова показывает экран и разрешает зеркало. */
+  settledDeathId: number | null;
+  /** Штраф за смерть уже применён (чтобы не списать дважды).
+   *  Квитируется только смертью с тем же id (см. settledDeathId). */
+  deathSettled: boolean;
   totalEvents: number;
   hasMoreEvents: boolean;
   // Догон офлайна: сколько секунд долга осталось на сервере + режим bulk.
@@ -194,8 +200,6 @@ interface ExplorationStore {
   useMaterials: boolean;
   // Баффы рюкзака с сервера (зеркало expeditionBuffs) для локального применения.
   consBuffs: ConsBuffs;
-  // Штраф за смерть уже применён (чтобы не списать дважды).
-  deathSettled: boolean;
   // Сложность рейда (normal/hard/danger/nightmare/hell).
   difficulty: string;
   // Модификатор рейда (характер) — null, если обычный.
@@ -255,6 +259,7 @@ export const useExplorationStore = create<ExplorationStore>()(
       deathFlavor: '',
       deathInfo: null,
       deathFresh: false,
+      settledDeathId: null,
       totalEvents: 0,
       hasMoreEvents: false,
       debtSec: 0,
@@ -327,6 +332,7 @@ export const useExplorationStore = create<ExplorationStore>()(
             // а свежая смерть снова должна отзеркалиться из блоба.
             deathSettled: false,
             deathFresh: false,
+            settledDeathId: null,
           });
           deathMirrorApplied = false;
         } catch (e) {
@@ -387,17 +393,33 @@ export const useExplorationStore = create<ExplorationStore>()(
           // Свежие события, созданные именно этим тиком. Сервер уже учёл их
           // эффекты в сейве — локально повторяем только их, а не всю историю.
           const freshEvents: any[] = data.newEvents ?? [];
+          // Данные смерти от сервера: id записи истории, причина, потери.
+          const deathServer = (data as any).death as any;
+          const incomingDeathId = deathServer && typeof deathServer === 'object'
+            && Number.isFinite(Number(deathServer.explorationId))
+            ? Number(deathServer.explorationId) : null;
           // get() после await: пока шёл запрос, смерть могли уже закрыть кнопкой —
           // иначе «поздний» полл снова покажет экран смерти.
-          const settledNow = get().deathSettled;
+          // Смерть считается квитированной только если штамп (deathSettled)
+          // относится к ЭТОЙ же смерти (id совпадает с settledDeathId).
+          // Персист «смерть уже обработана» из прошлой сессии больше не глушит
+          // НОВУЮ смерть: сбрасываем штамп, экран и зеркало снова активны.
+          let settledNow = get().deathSettled;
+          if (
+            data.state === 'dead' && settledNow
+            && incomingDeathId !== null
+            && incomingDeathId !== get().settledDeathId
+          ) {
+            set({ deathSettled: false, settledDeathId: null });
+            settledNow = false;
+          }
           const serverOutcome = (data.state === 'dead' && !settledNow) ? 'dead' : (data.state ?? 'active');
           // «Свежая» смерть — рейд был активен в этой сессии. Только тогда
           // клиент зеркалит штрафы: после F5 сервер уже всё списал сам.
           const deathFresh = serverOutcome === 'dead' && state.isExploring;
-          // Данные смерти от сервера: причина, потери, сложность.
-          const deathServer = (data as any).death as any;
           const deathInfo = serverOutcome === 'dead' && deathServer && typeof deathServer === 'object'
             ? {
+                explorationId: incomingDeathId,
                 cause: deathServer.cause ?? null,
                 lostChips: Number(deathServer.lostChips ?? 0),
                 lostItems: Number(deathServer.lostItems ?? 0),
@@ -624,7 +646,17 @@ export const useExplorationStore = create<ExplorationStore>()(
           // чтобы герд в save.php пропустил дальнейшие сейвы.
           const flavor = DEATH_FLAVORS[Math.floor(Math.random() * DEATH_FLAVORS.length)];
           ps.addLog(`💀 ${flavor}`, 'danger');
-          set({ deathFlavor: flavor, deathSettled: true, deathFresh: false });
+          set({
+            deathFlavor: flavor,
+            deathSettled: true,
+            deathFresh: false,
+            // Штамп привязан к конкретной смерти (id записи истории):
+            // следующая смерть (другой id) снова покажет экран и зеркало.
+            settledDeathId: state.deathInfo?.explorationId ?? null,
+          });
+          // Немедленный сейв с квитацией: save.php увидит deathSettled=true,
+          // снимет гвард-маркер и перестанет чистить рюкзак/чипы/HP.
+          syncNow();
         } else if (state.isReturningHome) {
           ps.addLog(`🏁 Возвращение на базу завершено.`, 'loot');
         } else {
@@ -676,6 +708,7 @@ export const useExplorationStore = create<ExplorationStore>()(
           useMaterials: true,
           consBuffs: { ...EMPTY_BUFFS },
           deathSettled: true,
+          settledDeathId: get().deathInfo?.explorationId ?? null,
           isReturningHome: false,
           deathInfo: null,
           deathFresh: false,
@@ -855,9 +888,11 @@ export const useExplorationStore = create<ExplorationStore>()(
         // Кэш несейвленных наград: переживает перезагрузку, чтобы ретрай
         // сейвил те же предметы, а не генерировал дубликаты.
         eventRewardItems: state.eventRewardItems,
-        // Смерть уже обработана в этой сессии: после F5 не применяем штраф
-        // повторно и не показываем экран смерти заново.
+        // Штампы квитации смерти: переживают перезагрузку, но привязаны
+        // к id конкретной смерти (settledDeathId) — новая смерть
+        // (другой id) снова покажет экран и разрешит зеркало штрафов.
         deathSettled: state.deathSettled,
+        settledDeathId: state.settledDeathId,
       }),
       merge: (persisted: any, current: any) => ({
         ...current,
@@ -889,6 +924,8 @@ async function refreshPlayerBlobAfterOfflineDeath(token: string): Promise<void> 
     const json = await res.json();
     const serverPlayer = (json?.data as any)?.player as any;
     if (!serverPlayer) return;
+    // Серверный гвард-маркер не должен утекать в клиентский стейк и блобы сейва.
+    delete serverPlayer.backpackWipeAt;
     const ps = usePlayerStore.getState();
     usePlayerStore.setState({
       backpackGrid: serverPlayer.backpackGrid ?? ps.backpackGrid,

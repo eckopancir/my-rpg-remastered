@@ -1151,11 +1151,15 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
 
 /** Последняя запись о смерти пользователя (причина, потери). */
 function lastDeathInfo($pdo, $userId) {
-  $stmt = $pdo->prepare("SELECT death_cause, lost_chips, lost_items, difficulty, modifier FROM exploration_history WHERE user_id = ? AND outcome = 'dead' ORDER BY id DESC LIMIT 1");
+  $stmt = $pdo->prepare("SELECT id, death_cause, lost_chips, lost_items, difficulty, modifier FROM exploration_history WHERE user_id = ? AND outcome = 'dead' ORDER BY id DESC LIMIT 1");
   $stmt->execute([$userId]);
   $row = $stmt->fetch();
   if (!$row) return null;
   return [
+    // ID записи истории — квитация смерти на клиенте (deathSettled) привязана
+    // к конкретной смерти: персист «смерть уже обработана» из старой сессии
+    // больше не глушит экран/зеркало для НОВЫХ смертей после перезагрузки.
+    'explorationId' => (int)$row['id'],
     'cause' => $row['death_cause'],
     'lostChips' => (int)$row['lost_chips'],
     'lostItems' => (int)$row['lost_items'],

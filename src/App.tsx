@@ -198,6 +198,11 @@ const AppContent = () => {
       const data = await loadGame();
       if (!data) return;
 
+      // Серверный гвард-маркер (backpackWipeAt) в клиентский стейт не переносим.
+      if (data.player && typeof data.player === 'object') {
+        try { delete (data.player as any).backpackWipeAt; } catch { /* ignore */ }
+      }
+
       // Backend offline catch-up (regen while the site was closed) — show it.
       try {
         const vc = takeVitalsCatchup() as any;
