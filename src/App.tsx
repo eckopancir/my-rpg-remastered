@@ -35,6 +35,7 @@ import { useAuthStore } from './stores/authStore';
 import { takeVitalsCatchup } from './stores/authStore';
 import { demoteModStats, healWronglyDemoted } from './utils/itemStats';
 import { useEffect, useRef } from 'react';
+import { initWaEmojiGlyphFixes } from './utils/emojiGlyphFixes';
 import { images } from './assets/index';
 import './styles/global.css';
 
@@ -102,6 +103,7 @@ const AppContent = () => {
   const loadedRef = useRef(false);
 
   useEffect(() => {
+    initWaEmojiGlyphFixes();
     seedInventory();
     usePlayerStore.getState().recalcStats();
     // Сиротский бой после рефреша: поле потеряно, точки переигровки нет —
