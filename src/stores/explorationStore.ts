@@ -8,6 +8,9 @@ import { generateTravelReward, type TravelRewardProfile } from '../engine/travel
 import { GAME_ITEMS } from '../data/GameItems';
 import { createChest } from '../data/chests';
 import type { TravelModeInfo } from '../data/travelModes';
+
+/** Кап кэша имён находок (eventRewardItems): больше 120 событий рейда лента не показывает. */
+const REWARD_CACHE_MAX = 120;
 import { backpackSlotsFor, tryInsertIntoGrid, removeItemFromGrid, compactGrid, createGrid } from '../data/backpacks';
 import { syncNow } from '../utils/serverSync';
 
@@ -633,8 +636,12 @@ export const useExplorationStore = create<ExplorationStore>()(
           consBuffs: { ...EMPTY_BUFFS },
           deathInfo: null,
         });
-        // Process pending rewards after completion
-        get().processPendingRewards();
+        // Process pending rewards after completion; после обработки
+        // кэш находок чистим — лента рейда уже сброшена, имена
+        // больше не нужны (и не накапливаются в localStorage).
+        void get().processPendingRewards().then(() => {
+          if (!get().isProcessingRewards) set({ eventRewardItems: {} });
+        });
       },
 
       // Сброс экспедиции: сначала сервер помечает активный рейд завершённым
@@ -790,6 +797,12 @@ export const useExplorationStore = create<ExplorationStore>()(
           }
 
           if (changed) {
+            // Кап кэша: имена живут только в ленте рейда, хранить весь
+            // бесконечный журнал в localStorage незачем.
+            const keys = Object.keys(newItems)
+              .map(Number)
+              .sort((a, b) => b - a);
+            for (const k of keys.slice(REWARD_CACHE_MAX)) delete newItems[k];
             set({ eventRewardItems: newItems, isProcessingRewards: false });
           } else {
             set({ isProcessingRewards: false });
@@ -842,7 +855,11 @@ export const useExplorationStore = create<ExplorationStore>()(
         ...current,
         ...persisted,
         isProcessingRewards: false,
-        eventRewardItems: {},
+        // eventRewardItems НЕ трогаем: он в partialize осознанно — кэш
+        // находок переживает перезагрузку, иначе клеймлённые раньше
+        // награды навсегда теряют имена в ленте (fallback «нашли 📦 +N»
+        // без тултипа). Ретрай несейвленных и дублирование страхует
+        // processPendingRewards.
       }),
     },
   ),
