@@ -111,16 +111,31 @@ function applyVitalsCatchup(array &$saveData, int $nowMs, $fallbackUpdatedAtSec 
             $drainSec = $elapsedSec;
         }
     }
-    $minutes = (int)floor($regenSec / 60);
-    // В экспедиции HP стоит; если она стартовала внутри гэпа — реген за idle-часть.
-    $hpMinutes = $exploring ? (int)floor($regenSecForStam / 60) : $minutes;
-    if ($hpMinutes > 0) {
-        if ($maxHp > 0 && $curHp < $maxHp && $regen > 0) {
-            $newHp = min($maxHp, $curHp + $hpMinutes * $regen);
+    // HP-реген посекундно: ставка за минуту (regen) раскладывается на 1/60
+    // в секунду. Сумма за гэп та же, что раньше за целые минуты, но честнее
+    // на краях (59-я секунда не теряется). Дробный хвостик копится в
+    // stats.regenFrac — тот же аккумулятор, что у клиентского игрового цикла.
+    $hpSec = $exploring ? $regenSecForStam : $regenSec;
+    $pl['stats']['regenFrac'] = max(0.0, (float)($stats['regenFrac'] ?? 0)); // значение по умолчанию — без изменений
+    if ($maxHp > 0 && $curHp < $maxHp && $regen > 0 && $hpSec > 0) {
+        $acc = $pl['stats']['regenFrac'] + ($hpSec * $regen / 60);
+        $gain = (int)floor($acc);
+        $newHp = min($maxHp, $curHp + $gain);
+        if ($newHp >= $maxHp) {
+            // Достигли капа: «собранный, но не применённый» хвостик не копим —
+            // реген за пределам HP «сгорает» (как раньше за целые минуты).
+            $pl['stats']['regenFrac'] = 0.0;
+        } else {
+            $pl['stats']['regenFrac'] = max(0.0, $acc - $gain);
+        }
+        if ($newHp > $curHp) {
             $summary['hpGained'] = (int)round($newHp - $curHp);
             $curHp = $newHp;
             $pl['stats']['currentHp'] = $curHp;
         }
+    } elseif ($maxHp > 0 && $curHp >= $maxHp) {
+        // HP полное — хвостик не копим (иначе «банк» копится впрок).
+        $pl['stats']['regenFrac'] = 0.0;
     }
     if ($maxSt > 0) {
         if ($drainSec > 0) {

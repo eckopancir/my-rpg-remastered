@@ -1140,6 +1140,14 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
     $timeLeft = max(0, $elapsed);
   }
 
+  // Плавный визуальный реген на клиенте: эффективная ставка за минуту
+  // (база + баффы рюкзака × модификатор — те же числа, что кредитует
+  // processTicks раз в 60 тиков) и фаза = секунды с последнего начисления.
+  $raidRegen = (int)($sd['player']['stats']['regen'] ?? 0);
+  $raidBuffs = expeditionBuffs($exp['consumables'] ?? null);
+  $raidRegen += (int)($raidBuffs['regen'] ?? 0);
+  $raidRegen = (int)round($raidRegen * (float)(travelModifier($exp['modifier'] ?? null)['regen'] ?? 1));
+
   return [
     'active' => $isActive,
     'engine_version' => $meta['engine_version'] ?? ENGINE_VERSION,
@@ -1152,6 +1160,10 @@ function buildStatus($pdo, $exp, $events, $forceState = null, $meta = []) {
       'phase' => $phase,
       'timeLeft' => $timeLeft,
       'tickCount' => (int)$exp['tick_count'],
+      'regenPerMin' => max(0, $raidRegen),
+      // Начисление идёт на тике (tick_count+1)%60==0, т.е. phase — секунды,
+      // «наработанные» с прошлого начисления (0..59).
+      'regenPhase' => max(0, (int)$exp['tick_count'] % 60),
       'totalChips' => (int)$exp['total_chips'],
       'totalExp' => (int)$exp['total_exp'],
       'totalItems' => (int)($exp['total_items'] ?? 0),

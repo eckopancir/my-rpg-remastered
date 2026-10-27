@@ -113,6 +113,11 @@ export interface PlayerStats {
   incomingDamageMult: number;
   bonusAp: number;
   shieldCharges: number;
+  /** Накопленный дробный остаток пассивного регена (тик 1/60 ставки в сек).
+   *  Сейвится в статах — при перезаходе/офлайне ничего не теряется. */
+  regenFrac?: number;
+  /** То же для отдыха (ставка отдыха своя, копится отдельно). */
+  restFrac?: number;
 }
 
 interface CombatState {
@@ -709,6 +714,10 @@ export const usePlayerStore = create<PlayerStore>()(
         const fresh = get().stats;
         newStats.currentHp = Math.round(Math.min(fresh.currentHp, newStats.maxHp));
         newStats.stamina = Math.round(Math.min(fresh.stamina, newStats.maxStamina));
+        // Дробные хвостики реген-аккумуляторов переживают пересчёт статов —
+        // иначе смена шмотки «съедает» накопленную долю секунды.
+        (newStats as any).regenFrac = Math.max(0, Number((s.stats as any).regenFrac ?? 0));
+        (newStats as any).restFrac = Math.max(0, Number((s.stats as any).restFrac ?? 0));
         newStats.incomingDamageMult = Math.max(0, newStats.incomingDamageMult);
 
         // Per-item power contribution (delta: full - without this item).
@@ -2445,18 +2454,35 @@ export const usePlayerStore = create<PlayerStore>()(
 
       restTick: () => {
         const s = get();
-        if (s.stats.currentHp >= s.stats.maxHp && s.stats.stamina >= s.stats.maxStamina) return true;
+        // Эпсилон у стамины: копление 2/60 в float может не добить до капа.
+        if (s.stats.currentHp >= s.stats.maxHp && s.stats.stamina >= s.stats.maxStamina - 1e-3) {
+          if (s.stats.stamina !== s.stats.maxStamina) {
+            set((st) => ({ stats: { ...st.stats, stamina: st.stats.maxStamina } as any }));
+          }
+          return true;
+        }
         // Сет «Учёный» 3пк: при HP<25% реген удваивается (и на отдыхе).
         const regenUsed = s.stats.regen * lowHpRegenMult();
+        // Посекундный тик: минутная ставка (regen*3+5) раскладывается на 60
+        // секунд, дробный хвостик копится в stats.restFrac (сейвится).
+        // Итог за минуту — ровно прежний: regen*3+5 HP и +2 стамины.
+        const perSecAdd = (regenUsed * 3 + 5) / 60;
+        const acc = Math.max(0, Number((s.stats as any).restFrac ?? 0)) + perSecAdd;
+        const whole = Math.floor(acc);
+        const frac = acc - whole;
         const hpBefore = s.stats.currentHp;
-        const hpAfter = Math.min(s.stats.maxHp, hpBefore + regenUsed * 3 + 5);
-        console.log('[REST_TICK_FN]', { before: hpBefore, regenUsed, formula: `${regenUsed}*3+5=${regenUsed*3+5}`, after: hpAfter, maxHp: s.stats.maxHp, ts: Date.now() });
+        const hpAfter = Math.min(s.stats.maxHp, hpBefore + whole);
+        if (whole > 0) {
+          console.log('[REST_TICK_FN]', { before: hpBefore, regenUsed, formula: `${regenUsed}*3+5=${regenUsed*3+5} → ${perSecAdd.toFixed(2)}/s`, gained: whole, after: hpAfter, maxHp: s.stats.maxHp, ts: Date.now() });
+        }
         set((state) => ({
           stats: {
             ...state.stats,
-            currentHp: Math.min(state.stats.maxHp, state.stats.currentHp + state.stats.regen * lowHpRegenMult() * 3 + 5),
-            stamina: Math.min(state.stats.maxStamina, state.stats.stamina + 2),
-          },
+            currentHp: hpAfter,
+            // Стамина отдыха тоже на секундах в ставке минуты: от +2 / мин.
+            stamina: Math.min(state.stats.maxStamina, state.stats.stamina + 2 / 60),
+            restFrac: frac,
+          } as any,
         }));
         return false;
       },

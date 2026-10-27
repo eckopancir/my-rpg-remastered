@@ -8,7 +8,7 @@ import { CUSTOM_MAPS } from '../data/encounters';
 export const useGameLoop = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const exploringInFlight = useRef(false);
-  // Счётчик секунд для минутного каденса регена (кроме арены).
+  // Счётчик секунд игрового цикла (секундный каденс регена, минутный — стамины).
   const secRef = useRef(0);
 
   useEffect(() => {
@@ -16,8 +16,6 @@ export const useGameLoop = () => {
 
     intervalRef.current = setInterval(() => {
       secRef.current += 1;
-      // Реген тикает раз в минуту, а не раз в секунду.
-      const isRegenTick = secRef.current % 60 === 0;
       const player = usePlayerStore.getState();
       const ui = useUiStore.getState();
 
@@ -88,8 +86,9 @@ export const useGameLoop = () => {
           .finally(() => { exploringInFlight.current = false; });
       }
 
-      // 5. Rest tick (раз в минуту)
-      if (ui.isResting && isRegenTick) {
+      // 5. Rest tick (посекундно: минутная ставка отдыха раскладывается
+      //    на 60 секунд внутри restTick — итог за минуту прежний).
+      if (ui.isResting) {
         const sBefore = usePlayerStore.getState().stats;
         console.log('[REST_TICK] before', { currentHp: sBefore.currentHp, maxHp: sBefore.maxHp, regen: sBefore.regen, stamina: sBefore.stamina, maxStamina: sBefore.maxStamina, ts: Date.now() });
         const done = player.restTick();
@@ -103,31 +102,44 @@ export const useGameLoop = () => {
         }
       }
 
-      // 6. Passive regen — faster at base, slower outside (skip during server-polled phase of exploration)
-      // Тикает раз в минуту (isRegenTick), кроме арены.
-      // Стамина — почасовая модель: в активном travel −1%/ч, иначе +2%/ч от maxStamina.
+      // 6. Passive regen — по-секундный, чтобы HP полз плавно («1 с хвостиком»),
+      //    а не прыжком раз в минуту. Ставка за минуту прежняя:
+      //    regen × (atBase ? 1 : 0.3) → раскладываем на 1/60 за секунду,
+      //    дробный хвостик копится в stats.regenFrac (сейвится в статах) —
+      //    итог за минуту совпадает до единицы. Стамина остаётся на минутном
+      //    каденсе (почасовая модель, шаги слишком мелкие для показа).
+      //    Арена — не здесь: в бою реген тикает с выстрела (см. combat store).
       const skipRegenDueToExploration = exploration.isExploring && !exploration.isReturningHome;
       const traveling = exploration.isExploring || player.travel.isTraveling || player.travel.isReturning;
-      if (isRegenTick && !skipRegenDueToExploration && !player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
+      if (!skipRegenDueToExploration && !player.combat.isFighting && !player.travel.isTraveling && !player.travel.isReturning && !ui.isResting) {
         const s = player.stats;
-        if (s.currentHp !== s.maxHp || s.stamina !== s.maxStamina) {
+        // HP — посекундно.
+        if (s.currentHp < s.maxHp) {
           const atBase = !player.travel.isReturning && !player.travel.isTraveling;
-          const regenVal = s.regen * (atBase ? 1 : 0.3);
-          const newHp = Math.min(s.maxHp, s.currentHp + regenVal);
-          const maxSt = s.maxStamina || 0;
-          const newStam = maxSt > 0
-            ? (traveling
-              ? Math.max(0, s.stamina - (maxSt * 0.01) / 60)
-              : Math.min(maxSt, s.stamina + (maxSt * 0.02) / 60))
-            : s.stamina;
-          console.log('[PASSIVE_REGEN]', { before: s.currentHp, regenUsed: s.regen, multiplier: atBase ? 1 : 0.3, regenVal, after: newHp, maxHp: s.maxHp, stamina: s.stamina, staminaAfter: newStam, traveling, ts: Date.now() });
-          usePlayerStore.setState({
-            stats: {
-              ...s,
-              currentHp: newHp,
-              stamina: newStam,
-            },
-          });
+          const regenVal = s.regen * (atBase ? 1 : 0.3); // за минуту
+          const acc = Math.max(0, Number((s as any).regenFrac ?? 0)) + regenVal / 60;
+          const whole = Math.floor(acc);
+          const frac = acc - whole;
+          if (whole > 0) {
+            const newHp = Math.min(s.maxHp, s.currentHp + whole);
+            console.log('[PASSIVE_REGEN]', { before: s.currentHp, regenUsed: s.regen, multiplier: atBase ? 1 : 0.3, regenVal, gained: whole, after: newHp, maxHp: s.maxHp, ts: Date.now() });
+            usePlayerStore.setState({ stats: { ...s, currentHp: newHp, regenFrac: frac } as any });
+          } else {
+            usePlayerStore.setState({ stats: { ...s, regenFrac: frac } as any });
+          }
+        }
+        // Стамина — минутный каденс, как раньше (почасовая модель).
+        if (secRef.current % 60 === 0) {
+          const st = usePlayerStore.getState().stats;
+          if (st.stamina !== st.maxStamina) {
+            const maxSt = st.maxStamina || 0;
+            const newStam = maxSt > 0
+              ? (traveling
+                ? Math.max(0, st.stamina - (maxSt * 0.01) / 60)
+                : Math.min(maxSt, st.stamina + (maxSt * 0.02) / 60))
+              : st.stamina;
+            usePlayerStore.setState({ stats: { ...st, stamina: newStam } });
+          }
         }
       }
 

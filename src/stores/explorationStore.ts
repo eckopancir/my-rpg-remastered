@@ -74,6 +74,9 @@ export interface ServerExploration {
   phase: string;
   timeLeft: number;
   tickCount: number;
+  /** Плавный визуальный реген: ставка/мин и фаза (сек с последнего начисления). */
+  regenPerMin?: number;
+  regenPhase?: number;
   totalChips: number;
   totalExp: number;
   totalItems?: number;
@@ -207,6 +210,11 @@ interface ExplorationStore {
   // Характеристики режимов с сервера (для шапки журнала).
   difficultyInfo: TravelModeInfo | null;
   modifierInfo: TravelModeInfo | null;
+  /** Плавный визуальный реген в рейде: ставка/мин, фаза и момент полла.
+   *  Только для СЛОЯ ОТОБРАЖЕНИЯ (шапка) — в store HP не пишем. */
+  raidRegenPerMin: number;
+  raidRegenPhase: number;
+  raidRegenAt: number;
 
   startExploration: (zoneName: string, hours?: number, useMats?: boolean, consumables?: { name: string; qty: number }[], difficulty?: string, modifier?: string | null) => Promise<void>;
   cancelExploration: () => Promise<void>;
@@ -272,6 +280,9 @@ export const useExplorationStore = create<ExplorationStore>()(
       modifier: null,
       difficultyInfo: null,
       modifierInfo: null,
+      raidRegenPerMin: 0,
+      raidRegenPhase: 0,
+      raidRegenAt: 0,
       deathSettled: false,
 
       startExploration: async (zoneName, hours = 12, useMats = true, consumables = [], difficulty = 'normal', modifier: string | null = null) => {
@@ -501,6 +512,8 @@ export const useExplorationStore = create<ExplorationStore>()(
             set({
               isExploring: false,
               phase: 'complete', serverPhase: 'complete',
+              // Проекция визуального регена вне активного рейда выключена.
+              raidRegenPerMin: 0, raidRegenPhase: 0, raidRegenAt: 0,
               serverOutcome,
               deathInfo: serverOutcome === 'dead' ? (deathInfo ?? state.deathInfo) : null,
               deathFresh,
@@ -565,6 +578,12 @@ export const useExplorationStore = create<ExplorationStore>()(
               phase: clientPhase,
               timeLeft: exp.timeLeft,
               tickCount: exp.tickCount,
+              // Плавный визуальный реген: шапка тикает 1/60 ставки посекундно
+              // от зеркального HP, между поллами. raidRegenAt — именно момент,
+              // когда сервер замерил currentHp: проекция считается от него.
+              raidRegenPerMin: Number.isFinite(Number(exp.regenPerMin)) ? Math.max(0, Number(exp.regenPerMin)) : 0,
+              raidRegenPhase: Number.isFinite(Number(exp.regenPhase)) ? Math.min(60, Math.max(0, Number(exp.regenPhase))) : 0,
+              raidRegenAt: Date.now(),
               totalChips: exp.totalChips,
               totalExp: exp.totalExp,
               totalItems: exp.totalItems ?? 0,

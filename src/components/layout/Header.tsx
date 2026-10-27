@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { usePlayerStore, isExpeditionRunning } from '../../stores/playerStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useCombatGridStore } from '../../stores/combatGridStore';
+import { useExplorationStore } from '../../stores/explorationStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useSound } from '../../hooks/useSound';
 import { images } from '../../assets/index';
@@ -51,6 +52,29 @@ export const Header = () => {
   const stats = usePlayerStore((s) => s.stats);
   const exp = usePlayerStore((s) => s.currentExp);
   const expToNext = usePlayerStore((s) => s.expToNext);
+  // Плавный визуальный реген в рейде: сервер кредитует HP поминутно (честный
+  // учёт), а шапка тикает 1/60 ставки каждую секунду от зеркального HP —
+  // за минуту набегает ровно вся минутная ставка. Проекция живёт ТОЛЬКО в
+  // слое отображения ( store не пишем): урон/лечение с сервера мгновенно
+  // идут по честной базе, «ghost HP» не заводим.
+  const raidRegenPerMin = useExplorationStore((s) => s.raidRegenPerMin);
+  const raidRegenPhase = useExplorationStore((s) => s.raidRegenPhase);
+  const raidRegenAt = useExplorationStore((s) => s.raidRegenAt);
+  const raidActive = useExplorationStore((s) => s.isExploring);
+  const [, forceTickNow] = useState(0);
+  useEffect(() => {
+    if (!raidActive || raidRegenPerMin <= 0) return;
+    const t = window.setInterval(() => forceTickNow((n) => n + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [raidActive, raidRegenPerMin]);
+  const shownHp = (() => {
+    const base = stats.currentHp;
+    if (!raidActive || raidRegenPerMin <= 0 || !raidRegenAt) return base;
+    const elapsed = (Date.now() - raidRegenAt) / 1000;
+    // Не дальше одного минутного начисления от базы (полл мог задержаться).
+    const accrued = Math.min(raidRegenPhase + Math.max(0, elapsed), 60) * (raidRegenPerMin / 60);
+    return Math.min(stats.maxHp, base + Math.floor(accrued));
+  })();
   const toggleInventory = useUiStore((s) => s.toggleInventory);
   const toggleEquipment = useUiStore((s) => s.toggleEquipment);
   const toggleBackpack = useUiStore((s) => s.toggleBackpack);
@@ -210,10 +234,10 @@ export const Header = () => {
         </nav>
       </div>
       <div className={styles.right}>
-        <div className={`${styles.stat} ${styles.hpBar}`} title={`HP ${Math.round(stats.currentHp)} / ${stats.maxHp}`}>
+        <div className={`${styles.stat} ${styles.hpBar}`} title={`HP ${Math.round(shownHp)} / ${stats.maxHp}`}>
           <img src={hpIconImg} alt="HP" draggable={false} style={{ height: 31, width: 'auto', display: 'block' }} />
-          <span className={styles.statValue} style={{ fontSize: 15, color: stats.currentHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : undefined }}>
-            {Math.round(stats.currentHp)} / {stats.maxHp}
+          <span className={styles.statValue} style={{ fontSize: 15, color: shownHp / Math.max(1, stats.maxHp) < 0.3 ? '#f87171' : undefined }}>
+            {Math.round(shownHp)} / {stats.maxHp}
           </span>
         </div>
         <div className={styles.stat} title={`Стамина ${Math.round(stats.stamina)}`}>
