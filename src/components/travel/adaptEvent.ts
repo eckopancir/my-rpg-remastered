@@ -160,6 +160,8 @@ export const hasRewards = (r: TravelRewards): boolean =>
   r.healPercent > 0 ||
   r.damagePercent > 0 ||
   r.flatHeal > 0 ||
+  r.heal > 0 ||
+  r.damage > 0 ||
   r.itemCount > 0 ||
   r.items.length > 0 ||
   (r.droppedItems?.length ?? 0) > 0;
