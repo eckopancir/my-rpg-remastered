@@ -12,7 +12,7 @@ function travelDifficulties() {
     'normal' => [
       'key' => 'normal', 'name' => 'Обычная', 'icon' => '⚪', 'color' => '#e2e8f0',
       'damageMult' => 1.0, 'rewardMult' => 1.0,
-      'qualityCap' => 'Раритетный',
+      'qualityCap' => 'Редкий',
       'desc' => 'Обычная вылазка. Зона знакомая, добыча скромная.',
     ],
     'hard' => [
@@ -23,19 +23,19 @@ function travelDifficulties() {
     ],
     'danger' => [
       'key' => 'danger', 'name' => 'Опасная', 'icon' => '🔵', 'color' => '#60a5fa',
-      'damageMult' => 2.2, 'rewardMult' => 2.6,
+      'damageMult' => 2.2, 'rewardMult' => 2.2,
       'qualityCap' => 'Смертоносный',
       'desc' => 'Территория не прощает ошибок.',
     ],
     'nightmare' => [
       'key' => 'nightmare', 'name' => 'Кошмар', 'icon' => '🟣', 'color' => '#a78bfa',
-      'damageMult' => 3.5, 'rewardMult' => 4.2,
+      'damageMult' => 3.5, 'rewardMult' => 2.6,
       'qualityCap' => 'Легендарный',
       'desc' => 'Только для тех, кто умеет умирать и возвращаться.',
     ],
     'hell' => [
       'key' => 'hell', 'name' => 'Ад на земле', 'icon' => '🔥', 'color' => '#f87171',
-      'damageMult' => 5.0, 'rewardMult' => 6.0,
+      'damageMult' => 5.0, 'rewardMult' => 3.0,
       'qualityCap' => 'Божественный',
       'desc' => 'Один удар — и рюкзак пуст. Награда correspondingly адская.',
     ],

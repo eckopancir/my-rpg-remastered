@@ -25,8 +25,8 @@ export interface TravelRewardProfile {
   qty?: number;
 }
 
-/** Потолок качества для обычных находок в путешествии. */
-export const TRAVEL_QUALITY_CAP = 'Раритетный';
+/** Потолок качества для обычных находок в путешествии (зеркало серверного фолбэка). */
+export const TRAVEL_QUALITY_CAP = 'Редкий';
 
 const GEAR_SLOTS = [
   'weapon1', 'weapon2',

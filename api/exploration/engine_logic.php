@@ -21,7 +21,7 @@ const MICRO_COOLDOWN_MAX = 720;
 // не должна быть сильнее добычи с боссов.
 define('TRAVEL_GEAR_CHANCE_PCT', 30);
 define('TRAVEL_MICRO_ITEM_PCT', 10);
-define('TRAVEL_QUALITY_CAP', 'Раритетный');
+define('TRAVEL_QUALITY_CAP', 'Редкий');
 
 // Темп симуляции: 1 = реальное время (крупные события ~2/час, микро раз в
 // 8-12 мин, этап легендарки — раз в минуту). Баланс урона в пути посчитан
@@ -189,6 +189,9 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
     $modifier = travelModifier($exp['modifier'] ?? null);
     $regenPerTick = (int)round($regenPerTick * (float)($modifier['regen'] ?? 1));
     $legChancePct = LEGENDARY_CHANCE_PCT + ($buffs['legPct'] ?? 0) * 100 + (float)($modifier['legChance'] ?? 0);
+    // Страховка «падение ≤95% maxHp за удар» — только на Обычной. Без неё
+    // на Сложной+ событие способно убить с полного HP (см. applyEffects).
+    $capDamage = (($exp['difficulty'] ?? 'normal') === 'normal');
 
     $died = false;
     for ($i = 0; $i < $ticksToProcess; $i++) {
@@ -274,7 +277,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $me['effects']['itemCount'] = 1;
         }
         $microItem = (int)($me['effects']['itemCount'] ?? 0);
-        $applyResult = applyEffects($pdo, $userId, $me['effects'], $buffs);
+        $applyResult = applyEffects($pdo, $userId, $me['effects'], $buffs, $capDamage);
         $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
         $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
         $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
@@ -305,7 +308,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $microEventId = (int)$pdo->lastInsertId();
           createOfflineReward($pdo, $userId, $expId, $microEventId, $meEvent['text'], $meEvent['type'], $microItem,
             $playerLevel, $me['effects'], null, null,
-            travelRewardProfile($playerLevel, $exp['zone_difficulty'], null));
+            travelRewardProfile($playerLevel, $exp['zone_difficulty'], null, travelQualityCap($difficulty, $modifier)));
         }
         $exp['micro_event_cooldown'] = travelSpeedMicro(RNG(MICRO_COOLDOWN_MIN, MICRO_COOLDOWN_MAX));
       }
@@ -347,7 +350,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $itemsRef = [];
           $factions = $exp['zone_factions'] ? json_decode($exp['zone_factions'], true) ?? [] : [];
           $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $exp['tick_count'], trapDmgBand((int)($exp['planned_sec'] ?? 0)), $difficulty, $modifier);
-          $applyResult = applyEffects($pdo, $userId, $event['effects'], $buffs);
+          $applyResult = applyEffects($pdo, $userId, $event['effects'], $buffs, $capDamage);
           $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
           $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
           $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
@@ -507,6 +510,13 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
   // Баффы рюкзака в bulk: копим СЫРЫЕ значения (как в строках событий),
   // баффы применяются один раз в финальном applyEffects — иначе задвоение.
   $bBuffs = expeditionBuffs($exp['consumables'] ?? null);
+  // Раньше здесь $difficulty/$modifier не определялись (undefined → PHP 8
+  // превращает в null → скейлинг догона шёл по «нормальной» сложности,
+  // а потолок дропа — по глобальному фолбэку). Берём из рейда.
+  $difficulty = travelDifficulty($exp['difficulty'] ?? 'normal');
+  $modifier = travelModifier($exp['modifier'] ?? null);
+  // Страховка 95% — только на Обычной (единое правило с онлайн-тиком).
+  $bCapDamage = (($exp['difficulty'] ?? 'normal') === 'normal');
   $bChipsMult = 1 + (float)($bBuffs['chipsPct'] ?? 0);
   $bExpMult = 1 + (float)($bBuffs['expPct'] ?? 0);
   $bHealMult = 1 + (float)($bBuffs['healPct'] ?? 0);
@@ -585,7 +595,10 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
       if (!empty($eff['heal'])) $hp = min($maxHp, $hp + (int)round((int)$eff['heal'] * $bHealMult));
       if (!empty($eff['damage'])) {
         $dmg = (int)round((int)$eff['damage'] * $bDmgMult);
-        $dmg = min($dmg, (int)round($maxHp * 0.95));
+        // Единое правило с онлайн-тиком: кап 95% только на Обычной.
+        if ($bCapDamage) {
+          $dmg = min($dmg, (int)round($maxHp * 0.95));
+        }
         // Фатальный удар: запоминаем HP ДО вычитания и урон — отчёт о смерти.
         $fatalInfo = ['hp_before' => $hp, 'damage' => $dmg, 'cause' => (string)($event['text'] ?? '')];
         $hp = max(0, $hp - $dmg);
@@ -680,7 +693,7 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
     $eventId = (int)$pdo->lastInsertId();
     createOfflineReward($pdo, $userId, $expId, $eventId, $summary['text'], 'loot', $bulkItems, $playerLevel,
       ['chips' => $bulkChips, 'exp' => $bulkExp, 'itemCount' => $bulkItems], $itemPool, null,
-      travelRewardProfile($playerLevel, $exp['zone_difficulty'] ?? 1, $itemPool));
+      travelRewardProfile($playerLevel, $exp['zone_difficulty'] ?? 1, $itemPool, travelQualityCap($difficulty, $modifier)));
   }
 }
 
@@ -1069,7 +1082,7 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
       $addItems = 0; $addChips = 0; $addExp = 0;
       for ($i = 1; $i <= TRAVEL_TEST_START_EVENTS; $i++) {
         $event = generateEvent($exp['zone'], $playerLevel, $factions, $itemsRef, $i, $band, $difficulty, $modifier);
-        $apply = applyEffects($pdo, $userId, $event['effects'], $buffs);
+        $apply = applyEffects($pdo, $userId, $event['effects'], $buffs, (($difficulty['key'] ?? 'normal') === 'normal'));
         $addItems += $apply['count']; $addChips += $apply['appliedChips']; $addExp += $apply['appliedExp'];
         // Страховка тестового прогона: регулярные события не убивают — HP не ниже 1.
         if (getPlayerHp($pdo, $userId) <= 0) {
@@ -1314,7 +1327,7 @@ function getZoneFactions($zone) {
 // ---------------------------------------------------------------------------
 // Effects
 // ---------------------------------------------------------------------------
-function applyEffects($pdo, $userId, $effects, $buffs = []) {
+function applyEffects($pdo, $userId, $effects, $buffs = [], $capDamage = true) {
   $sd = getSaveData($pdo, $userId);
   $changed = false;
   $chips = isset($effects['chips']) ? (int)$effects['chips'] : 0;
@@ -1372,8 +1385,12 @@ function applyEffects($pdo, $userId, $effects, $buffs = []) {
     $dmg = (int)round((int)$effects['damage'] * $dmgMult);
     $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
     $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
-    // Страховка: одно событие не убивает мгновенно (на «Аде» — почти).
-    $dmg = min($dmg, (int)round($maxHp * 0.95));
+    // Страховка «одно событие не убивает мгновенно» — только на Обычной:
+    // подготовка (HP-снаряжение) — реальная защита жизни. На Сложной и выше
+    // урон не режется: событие может снять всё и убить с полного HP.
+    if ($capDamage) {
+      $dmg = min($dmg, (int)round($maxHp * 0.95));
+    }
     $newHp = max(0, $cur - $dmg);
     $sd['player']['stats']['currentHp'] = $newHp;
     // Фактически снятое HP: ролл по кривой уровня может быть больше пул
