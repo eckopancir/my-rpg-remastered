@@ -278,10 +278,19 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
         $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
         $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
+        // В ленту — фактически применённые урон/хил (движок режет урон
+        // до 95% максHp и хил до свободного места), а не сырой ролл.
+        $meEff = effectsWithBuffs($me['effects'], $buffs);
+        if (($applyResult['appliedDamage'] ?? 0) > 0 && isset($meEff['damage'])) {
+          $meEff['damage'] = (int)$applyResult['appliedDamage'];
+        }
+        if (($applyResult['appliedHeal'] ?? 0) > 0 && isset($meEff['heal'])) {
+          $meEff['heal'] = (int)$applyResult['appliedHeal'];
+        }
         $meEvent = [
           'text' => $me['text'],
           'type' => $me['type'],
-          'effects' => json_encode(effectsWithBuffs($me['effects'], $buffs)),
+          'effects' => json_encode($meEff),
           'is_micro' => 1,
           'tick_number' => $exp['tick_count'],
           'decision' => null,
@@ -342,10 +351,18 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
           $exp['total_items'] = (int)$exp['total_items'] + $applyResult['count'];
           $exp['total_chips'] = (int)$exp['total_chips'] + $applyResult['appliedChips'];
           $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
+          // В ленту — фактически применённые урон/хил (см. микро-ветку выше).
+          $evEff = effectsWithBuffs($event['effects'], $buffs);
+          if (($applyResult['appliedDamage'] ?? 0) > 0 && isset($evEff['damage'])) {
+            $evEff['damage'] = (int)$applyResult['appliedDamage'];
+          }
+          if (($applyResult['appliedHeal'] ?? 0) > 0 && isset($evEff['heal'])) {
+            $evEff['heal'] = (int)$applyResult['appliedHeal'];
+          }
           $ev = [
             'text' => $event['text'],
             'type' => $event['type'],
-            'effects' => json_encode(effectsWithBuffs($event['effects'], $buffs)),
+            'effects' => json_encode($evEff),
             'is_micro' => 0,
             'tick_number' => $exp['tick_count'],
             'art' => $event['art'] ?? null,
@@ -1305,7 +1322,7 @@ function applyEffects($pdo, $userId, $effects, $buffs = []) {
   $healPct = isset($effects['healPercent']) ? (float)$effects['healPercent'] : 0;
   $dmgPct = isset($effects['damagePercent']) ? (float)$effects['damagePercent'] : 0;
   $flatHeal = isset($effects['flatHeal']) ? (int)$effects['flatHeal'] : 0;
-  $result = ['count' => 0, 'items' => [], 'appliedChips' => 0, 'appliedExp' => 0];
+  $result = ['count' => 0, 'items' => [], 'appliedChips' => 0, 'appliedExp' => 0, 'appliedDamage' => 0, 'appliedHeal' => 0];
   // Баффы рюкзака: только позитивные ветки (потери не раздуваем).
   $chipsMult = 1 + (float)($buffs['chipsPct'] ?? 0);
   $expMult = 1 + (float)($buffs['expPct'] ?? 0);
@@ -1334,14 +1351,20 @@ function applyEffects($pdo, $userId, $effects, $buffs = []) {
   if ($flatHeal > 0) {
     $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
     $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
-    $sd['player']['stats']['currentHp'] = min($maxHp, $cur + $flatHeal);
+    $newHp = min($maxHp, $cur + $flatHeal);
+    $sd['player']['stats']['currentHp'] = $newHp;
+    // Сколько реально долилось (у потолка запрошенное может не поместиться).
+    $result['appliedHeal'] += $newHp - $cur;
     $changed = true;
   }
   if ($dmgPct > 0) {
     $dmgPct = $dmgPct * $dmgMult;
     $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
     $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
-    $sd['player']['stats']['currentHp'] = max(0, $cur - (int)round($maxHp * $dmgPct));
+    $newHp = max(0, $cur - (int)round($maxHp * $dmgPct));
+    $sd['player']['stats']['currentHp'] = $newHp;
+    // Фактически снятое HP (до нуля, если добило) — в ленту пишем это.
+    $result['appliedDamage'] += $cur - $newHp;
     $changed = true;
   }
   // Числовой урон (в HP) — база растёт с уровнем, редукция рюкзака режет.
@@ -1351,7 +1374,11 @@ function applyEffects($pdo, $userId, $effects, $buffs = []) {
     $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
     // Страховка: одно событие не убивает мгновенно (на «Аде» — почти).
     $dmg = min($dmg, (int)round($maxHp * 0.95));
-    $sd['player']['stats']['currentHp'] = max(0, $cur - $dmg);
+    $newHp = max(0, $cur - $dmg);
+    $sd['player']['stats']['currentHp'] = $newHp;
+    // Фактически снятое HP: ролл по кривой уровня может быть больше пул
+    // игрока — в ленте не должно быть «−6440 HP» при максимуме 5523.
+    $result['appliedDamage'] += $cur - $newHp;
     $changed = true;
   }
   // Числовой хил (в HP).
@@ -1359,7 +1386,9 @@ function applyEffects($pdo, $userId, $effects, $buffs = []) {
     $heal = (int)round((int)$effects['heal'] * $healMult);
     $maxHp = $sd['player']['stats']['maxHp'] ?? 100;
     $cur = $sd['player']['stats']['currentHp'] ?? $maxHp;
-    $sd['player']['stats']['currentHp'] = min($maxHp, $cur + $heal);
+    $newHp = min($maxHp, $cur + $heal);
+    $sd['player']['stats']['currentHp'] = $newHp;
+    $result['appliedHeal'] += $newHp - $cur;
     $changed = true;
   }
   if (isset($effects['itemCount']) && $effects['itemCount'] > 0) {
