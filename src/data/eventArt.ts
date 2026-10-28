@@ -15,6 +15,8 @@ import type { CSSProperties } from 'react';
 interface SheetDef {
   /** РќРѕРјРµСЂ Р»РёСЃС‚Р° в†’ public/art/events/pack-N.jpg */
   file: number;
+  /** Number of columns on the sheet (default 5). */
+  cols?: number;
   /** Р”РёР°РїР°Р·РѕРЅ РЅРѕРјРµСЂРѕРІ СЃРѕР±С‹С‚РёР№ РЅР° Р»РёСЃС‚Рµ */
   from: number;
   to: number;
@@ -45,12 +47,11 @@ const SHEETS: SheetDef[] = [
     // РєР°СЂС‚РёРЅРєР°РјРё-РїСЂРµРґРјРµС‚Р°РјРё Рё СЃРѕР±С‹С‚РёСЏРј РЅРµ РїСЂРёРЅР°РґР»РµР¶Р°С‚.
     cells: { 151: 0, 152: 1, 153: 2, 154: 3, 155: 4, 156: 5, 157: 6, 158: 7, 159: 8, 160: 9, 161: 10, 162: 11, 163: 24 },
   },
-  // Brutal events (164-193): pack-8 = danger list, pack-9 = nightmare,
-  // pack-10 = hell. Geometry below is a provisional flat 5x5 grid;
-  // remeasure xs/ys/w/h when the final sheets arrive.
-  { file: 8,  from: 164, to: 173, xs: [25, 299, 572, 845, 1118], ys: [25, 173, 322, 470, 619], w: 264, h: 140, W: 1408, H: 768 },
-  { file: 9,  from: 174, to: 183, xs: [25, 299, 572, 845, 1118], ys: [25, 173, 322, 470, 619], w: 264, h: 140, W: 1408, H: 768 },
-  { file: 10, from: 184, to: 193, xs: [25, 299, 572, 845, 1118], ys: [25, 173, 322, 470, 619], w: 264, h: 140, W: 1408, H: 768 },
+  // Brutal events (164-193): ONE sheet pack-8, 6 columns x 5 rows = 30 cells,
+  // row-major order (art 164 = r1c1 ... 193 = r5c6). Geometry measured on the
+  // final sheet 2026-10-28.
+  { file: 8, from: 164, to: 193, cols: 6,
+    xs: [25, 253, 482, 707, 934, 1162], ys: [24, 173, 321, 469, 618], w: 222, h: 142, W: 1408, H: 768 },
 ];
 
 /** Р›РёСЃС‚ СЃР»РѕР¶РЅРѕСЃС‚Рё (public/art/diffs/diff-sheet.jpg): 5 РєРІР°РґСЂР°С‚РѕРІ РІ СЂСЏРґ. */
@@ -85,10 +86,11 @@ export const eventArtStyle = (n?: number | null): CSSProperties | null => {
   if (sheet) {
     const idx = sheet.cells ? (sheet.cells[n] ?? -1) : n - sheet.from;
     if (idx >= 0) {
+      const cols = sheet.cols ?? 5;
       out = cellStyle({
         url: `/art/events/pack-${sheet.file}.jpg`,
-        x: sheet.xs[idx % 5],
-        y: sheet.ys[Math.floor(idx / 5)],
+        x: sheet.xs[idx % cols],
+        y: sheet.ys[Math.floor(idx / cols)],
         w: sheet.w, h: sheet.h, W: sheet.W, H: sheet.H,
       });
     }
