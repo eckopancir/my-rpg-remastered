@@ -2242,6 +2242,10 @@ export const usePlayerStore = create<PlayerStore>()(
           } else {
             useInventoryStore.getState().removeItem(item.id);
           }
+          // Еда лечит только в сторе — если это не долить на сервер, следующий
+          // полл рейда затрёт HP своим значением (adoptDown) и откатит поедание.
+          // Флашим вылеченный блоб сразу (троттлинг 2с внутри syncNow).
+          import('../utils/serverSync').then((m) => m.syncNow()).catch(() => {});
           return;
         }
         get().addLog(`🧪 Использован: ${item.displayName || item.name}`, 'heal');
