@@ -35,6 +35,7 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
     styles.card,
     event.micro ? styles.cardMicro : '',
     event.legendary ? styles.cardLegendary : '',
+    event.kind === 'brutal' ? styles.cardBrutal : '',
   ].filter(Boolean).join(' ');
 
   return (
@@ -50,6 +51,10 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
             {event.legendary.stage != null ? ` · этап ${event.legendary.stage}` : ''}
           </div>
         ) : null}
+
+        {event.kind === 'brutal' && (
+          <div className={styles.brutalTitle}>💀 ЖЕСТОКОЕ</div>
+        )}
 
         <div className={styles.cardText}>{event.text}</div>
 

@@ -3,6 +3,7 @@ require_once __DIR__ . '/engine_config.php';
 require_once __DIR__ . '/difficulty.php';
 require_once __DIR__ . '/event_data.php';
 require_once __DIR__ . '/legendary_data.php';
+require_once __DIR__ . '/event_data_brutal.php';
 require_once __DIR__ . '/engine_loot.php';
 
 const TRAVEL_OUT_TICKS = 120;
@@ -14,6 +15,10 @@ const EVENT_COOLDOWN_MIN = 1500;
 const EVENT_COOLDOWN_MAX = 2100;
 const MICRO_COOLDOWN_MIN = 480;
 const MICRO_COOLDOWN_MAX = 720;
+
+// Серия «Жестокие события»: шанс занять слот крупного события только на
+// Опасной / Кошмаре / Аде. Каскад доступности см. pickBrutalTemplate().
+const BRUTAL_CHANCE_PCT = 15;
 
 // --- Профиль дропа из путешествия ---
 // 30% находок — снаряжение, 70% — ресурсы/патроны/расходники.
@@ -968,7 +973,8 @@ function handleExplorationDeath($pdo, $userId, &$exp, $deathInfo = null) {
   $dbNowRow = $pdo->query("SELECT NOW(3) AS dbnow")->fetch();
   setExploreFields($pdo, $exp['id'], ['phase' => 'complete', 'last_tick_at' => $dbNowRow['dbnow']]);
   saveExplorationHistory($pdo, $userId, $exp, 'dead', [
-    'death_cause' => $deathCause,
+    // Причина — полный текст события; в истории хранится обрезанной (varchar(255)).
+    'death_cause' => mb_substr($deathCause, 0, 250),
     'death_hp_before' => max(0, $deathHpBefore),
     'death_damage' => max(0, $deathDamage),
     'lost_chips'  => $lostChips,
@@ -1534,6 +1540,28 @@ function pickCategory() {
   return 'combat';
 }
 
+/**
+ * Серия «Жестокие события»: выбор шаблона по сложности (каскад доступности).
+ * Чем выше сложность, тем шире пул:
+ *   Опасная → [danger],
+ *   Кошмар  → [danger, nightmare],
+ *   Ад      → [danger, nightmare, hell].
+ * Возвращает шаблон или null (на Обычной/Сложной — всегда null).
+ */
+function pickBrutalTemplate($diffKey) {
+  if (empty($GLOBALS['BRUTAL_EVENTS'])) return null;
+  $tierOrder = ['normal' => 0, 'hard' => 1, 'danger' => 2, 'nightmare' => 3, 'hell' => 4];
+  if (!isset($tierOrder[$diffKey]) || $tierOrder[$diffKey] < $tierOrder['danger']) return null;
+  $pool = [];
+  foreach ($GLOBALS['BRUTAL_EVENTS'] as $t) {
+    $min = (string)($t['difficultyMin'] ?? 'danger');
+    if (!isset($tierOrder[$min])) continue;
+    if ($tierOrder[$min] >= $tierOrder['danger'] && $tierOrder[$min] <= $tierOrder[$diffKey]) $pool[] = $t;
+  }
+  if (!$pool) return null;
+  return $pool[array_rand($pool)];
+}
+
 function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCount = 0, $dmgBand = null, $difficulty = null, $modifier = null) {
   $catData = getCategoryTexts();
   $category = pickCategory();
@@ -1541,6 +1569,32 @@ function generateEvent($zone, $playerLevel, $factions, &$items, $existingEventCo
   $faction = $factions ? pick($factions) : 'Бандиты';
   $eventKey = $existingEventCount;
   if ($dmgBand === null) $dmgBand = trapDmgBand(0);
+
+  // Жестокие события: ~15% на слоте крупного события, только на высоких
+  // сложностях (Опасная/Кошмар/Ад). Пул каскадный — см. pickBrutalTemplate().
+  // Урон бьёт по полосе рейда (trapDmgBand), но 95%-кап на этих сложностях
+  // не ставится — жестокий исход может убить, это задумано.
+  $diffKey = (string)($difficulty['key'] ?? 'normal');
+  if ($diffKey !== 'normal' && mt_rand(1, 100) <= BRUTAL_CHANCE_PCT && ($tpl = pickBrutalTemplate($diffKey)) !== null) {
+    $text = substitute($tpl['text'], $zoneDesc, $faction);
+    $result = resolveBranch($tpl['branch'], $zone, $playerLevel, $items);
+    $eff = $result['effects'];
+    $eff = capEffects($eff, false, $dmgBand);
+    $eff = applyTravelScaling($eff, $playerLevel, $dmgBand, $difficulty ?: travelDifficulty('normal'), $modifier ?: travelModifier(null));
+    return [
+      'eventKey' => $eventKey,
+      'text' => $text . ' → ' . implode(' → ', $result['texts']),
+      'intro' => $text,
+      'type' => 'brutal', 'effects' => $eff,
+      'art' => (int)($tpl['art'] ?? 0) ?: null,
+      'decision' => $result['texts'][0],
+      'good' => effectsAreGood($eff),
+      'goodPct' => branchGoodPercent($tpl['branch']['outcomes'], $playerLevel),
+      'safeText' => null, 'safeEffects' => [],
+      'resourceCost' => null, 'resourceHad' => 0,
+      'itemPool' => $tpl['itemPool'] ?? null,
+    ];
+  }
 
   // Rich events (any category with hand-crafted branches)
   if (!empty($catData[$category]['rich'])) {

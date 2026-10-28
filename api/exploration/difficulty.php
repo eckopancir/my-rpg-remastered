@@ -37,7 +37,7 @@ function travelDifficulties() {
       'key' => 'hell', 'name' => 'Ад на земле', 'icon' => '🔥', 'color' => '#f87171',
       'damageMult' => 5.0, 'rewardMult' => 3.0,
       'qualityCap' => 'Божественный',
-      'desc' => 'Один удар — и рюкзак пуст. Награда correspondingly адская.',
+      'desc' => 'Один удар — и рюкзак пуст. Награда адская.',
     ],
   ];
 }

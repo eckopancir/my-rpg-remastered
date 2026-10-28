@@ -18,6 +18,7 @@ const KIND_BY_TYPE: Record<string, TravelEventKind> = {
   heal: 'heal',
   loot: 'loot',
   legendary: 'legendary',
+  brutal: 'brutal',
   system: 'system',
   death: 'death',
 };
@@ -40,6 +41,7 @@ export const KIND_META: Record<TravelEventKind, KindMeta> = {
   neutral: { label: 'Встреча', icon: '🧑', color: '#94a3b8' },
   heal: { label: 'Отдых', icon: '🩹', color: '#4ade80' },
   legendary: { label: 'Легенда', icon: '⚜', color: '#fbbf24' },
+  brutal: { label: 'Жестокое', icon: '💀', color: '#ff4d4d' },
   system: { label: 'Система', icon: '•', color: '#94a3b8' },
   micro: { label: 'Мелочь', icon: '·', color: '#64748b' },
   death: { label: 'Смерть', icon: '💀', color: '#ef4444' },

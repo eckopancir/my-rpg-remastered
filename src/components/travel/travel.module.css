@@ -542,6 +542,24 @@
   box-shadow: 0 0 18px rgba(251, 191, 36, 0.12);
 }
 
+/* Жестокое событие: красный контур, тень и плашка «💀 ЖЕСТОКОЕ». */
+.cardBrutal {
+  background: linear-gradient(120deg, rgba(239, 68, 68, 0.13), rgba(239, 68, 68, 0.03));
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.16);
+}
+
+.brutalTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ff6b6b;
+  margin-bottom: 2px;
+}
+
 .cardTime {
   font-family: var(--font-mono);
   font-size: 10px;

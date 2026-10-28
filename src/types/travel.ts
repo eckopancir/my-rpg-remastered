@@ -17,6 +17,7 @@ export type TravelEventKind =
   | 'neutral'
   | 'heal'
   | 'legendary'
+  | 'brutal'
   | 'system'
   | 'micro'
   | 'death';
