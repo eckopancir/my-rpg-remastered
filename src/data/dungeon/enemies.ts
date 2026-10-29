@@ -35,6 +35,9 @@ export const ENEMY_POOL: EnemyDef[] = [
   { id: 'hunter', name: 'Паук-охотник', hp: 55, atk: 14, logic: 'hunter', icon: '🕸️', color: '#22d3ee' },
   { id: 'weaver', name: 'Паук-ткач', hp: 60, atk: 8, logic: 'tactician', icon: '🕸️', color: '#c084fc' },
   { id: 'guard', name: 'Паук-страж', hp: 70, atk: 16, logic: 'aggressor', icon: '🛡️', color: '#f97316' },
+  { id: 'soldier', name: 'Паук-солдат', hp: 64, atk: 13, logic: 'aggressor', icon: '🕷️', color: '#eab308' },
+  { id: 'spitter', name: 'Паук-плевун', hp: 48, atk: 12, logic: 'hunter', icon: '🕸️', color: '#2dd4bf' },
+  { id: 'carrier', name: 'Паук-носитель', hp: 78, atk: 9, logic: 'swarm', icon: '🥚', color: '#fb923c' },
 ];
 
 export const BOSS_DEF: EnemyDef = {
