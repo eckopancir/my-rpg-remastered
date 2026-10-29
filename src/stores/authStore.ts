@@ -13,6 +13,7 @@ interface SaveData {
   player?: Record<string, unknown>;
   inventory?: Record<string, unknown>;
   exploration?: Record<string, unknown>;
+  dungeon?: Record<string, unknown>;
   ui?: Record<string, unknown>;
 }
 

@@ -5,6 +5,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useCombatGridStore } from '../../stores/combatGridStore';
 import { useExplorationStore } from '../../stores/explorationStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useDungeonStore } from '../../stores/dungeonStore';
 import { useSound } from '../../hooks/useSound';
 import { images } from '../../assets/index';
 import styles from './Header.module.css';
@@ -213,6 +214,14 @@ export const Header = () => {
             title="Inventory"
           >
             <img src={hoverImg === 'inventory' || inventoryOpen ? inventoryOn : inventoryOff} alt="Inventory" className={styles.navImage} />
+          </button>
+          <button
+            className={styles.navLink}
+            onClick={() => { playClick(); useDungeonStore.getState().openOverlay(); }}
+            style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, color: '#f5c56a', whiteSpace: 'nowrap' }}
+            title="Карточный данж (легендарный ключ)"
+          >
+            🗝️ Данж
           </button>
           <NavLink
             to="/settings"

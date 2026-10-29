@@ -29,6 +29,32 @@ const debugAddBullets = () => {
   useUiStore.getState().addToast('🔸 +60 патронов каждого типа', 'loot');
 };
 
+// DEBUG: легендарные ключи. Тир 1-7, имя/картинка как у дропа из экспедиции.
+const KEY_TIER_NAMES = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
+const KEY_TIER_COLORS = ['white', 'lime', 'deepskyblue', 'mediumpurple', 'red', 'gold', 'cyan'];
+
+const debugAddKey = (tier: number, slug = 'spider_hive', title = 'Логово паука-ткача') => {
+  const addItem = useInventoryStore.getState().addItem;
+  const t = Math.max(1, Math.min(7, Math.floor(tier)));
+  addItem({
+    id: `key_${slug}_${t}_${Math.random().toString(16).slice(2, 8)}`,
+    name: `legendary_key_${slug}`,
+    displayName: `Ключ: ${title}`,
+    type: 'key',
+    slot: 'key',
+    rarity: 'common',
+    level: usePlayerStore.getState().level,
+    quality: KEY_TIER_NAMES[t - 1],
+    qualityColor: KEY_TIER_COLORS[t - 1],
+    image: `/art/keys/key-${t}.png`,
+    stats: {},
+    quantity: 1,
+    stackable: false,
+    description: 'Трофей легендарной цепочки рейда. Валюта подземелий.',
+  } as any);
+  useUiStore.getState().addToast(`🗝️ Выдан ключ тира ${t} (${KEY_TIER_NAMES[t - 1]})`, 'loot');
+};
+
 const debugAddConsumables = () => {
   const addItem = useInventoryStore.getState().addItem;
   for (const d of CONSUMABLE_DEFS) addItem(makeConsumable(d.abilityId, 3));
@@ -658,6 +684,9 @@ export const Dashboard = () => {
             <Button size="sm" variant="primary" onClick={() => debugAddConsumables()} style={{ fontSize: 11 }}>+расходники 🧪</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddBackpacks()} style={{ fontSize: 11 }}>+рюкзаки 🎒</Button>
             <Button size="sm" variant="primary" onClick={() => debugAddBullets()} style={{ fontSize: 11 }}>+патроны 🔸</Button>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Button key={i} size="sm" variant="primary" onClick={() => debugAddKey(i + 1)} style={{ fontSize: 11 }} title={`Бесплатный легендарный ключ тира ${i + 1}`}>🗝️ т{i + 1}</Button>
+            ))}
             <Button size="sm" variant="success" onClick={() => usePlayerStore.setState((s) => ({ stats: { ...s.stats, currentHp: s.stats.maxHp } }))} style={{ fontSize: 11 }}>❤️ Полное исцеление</Button>
             <Button size="sm" variant="success" onClick={() => { usePlayerStore.setState((s) => ({ stats: { ...s.stats, stamina: s.stats.maxStamina } })); useUiStore.getState().addToast('⚡ Выносливость восстановлена', 'success'); }} style={{ fontSize: 11 }}>⚡ Полная выносливость</Button>
             <Button size="sm" variant="danger" onClick={() => { useInventoryStore.getState().setItems([]); usePlayerStore.getState().addLog('🧹 Инвентарь очищен', 'info'); }} style={{ fontSize: 11 }}>🗑️ Очистить инвентарь</Button>

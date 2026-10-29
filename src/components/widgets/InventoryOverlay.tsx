@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useUiStore } from '../../stores/uiStore';
+import { useDungeonStore } from '../../stores/dungeonStore';
 import { usePlayerStore, gunSlotForWeapon } from '../../stores/playerStore';import { useInventoryStore } from '../../stores/inventoryStore';
 import { getItemImage, isLargeArtWeapon } from '../../assets/index';
 import { useSound } from '../../hooks/useSound';
@@ -760,6 +761,24 @@ export const InventoryOverlay = () => {
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   ⛓️ Экипировать
+                </div>
+              )}
+              {contextMenu.stacked.item.type === 'key' && (
+                <div
+                  onClick={() => {
+                    const keyItem = contextMenu.stacked.item;
+                    setContextMenu(null);
+                    useUiStore.getState().setInventoryOpen(false);
+                    useDungeonStore.getState().openFromKey(keyItem);
+                  }}
+                  style={{
+                    padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#f5c56a', fontWeight: 700,
+                    borderRadius: 3, transition: 'background 80ms',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(245,197,106,0.1)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  🗝️ Войти в данж
                 </div>
               )}
               {contextMenu.stacked.item.type === 'chest' && (

@@ -33,6 +33,8 @@ import { useExplorationStore } from './stores/explorationStore';
 import { useUiStore } from './stores/uiStore';
 import { useAuthStore } from './stores/authStore';
 import { takeVitalsCatchup } from './stores/authStore';
+import { useDungeonStore } from './stores/dungeonStore';
+import { DungeonOverlay } from './components/dungeon/DungeonOverlay';
 import { demoteModStats, healWronglyDemoted } from './utils/itemStats';
 import { useEffect, useRef } from 'react';
 import { initWaEmojiGlyphFixes } from './utils/emojiGlyphFixes';
@@ -48,6 +50,7 @@ const gatherSaveData = () => {
     player: usePlayerStore.getState(),
     inventory: useInventoryStore.getState(),
     exploration: useExplorationStore.getState(),
+    dungeon: useDungeonStore.getState(),
     ui: safeUi,
   };
 };
@@ -250,6 +253,14 @@ const AppContent = () => {
       // Don't overwrite exploration state from server — persist middleware handles it
       // and server may re-trigger stale event processing
       usePlayerStore.getState().recalcStats();
+
+      // Данж: активный забег из блоба + проверка владельца.
+      try {
+        if (data.dungeon) useDungeonStore.getState().hydrate(data.dungeon);
+        const dungeonUserId = Number(useAuthStore.getState().user?.id || 0);
+        if (dungeonUserId) useDungeonStore.getState().ensureUser(dungeonUserId);
+      } catch { /* ignore */ }
+
       // Новичкам и старым сейвам без рюкзака — бесплатный походный.
       usePlayerStore.getState().ensureBackpack();
 
@@ -336,6 +347,7 @@ const AppContent = () => {
       {equipmentOpen && <Equipment />}
       {backpackOpen && <BackpackWindow onClose={() => useUiStore.getState().setBackpackOpen(false)} />}
       {rangeOpen && <ShootingRange onClose={() => useUiStore.getState().setRangeOpen(false)} />}
+      <DungeonOverlay />
       <AnimatePresence mode="wait">
         <Routes>
           <Route element={<PageContainer />}>
