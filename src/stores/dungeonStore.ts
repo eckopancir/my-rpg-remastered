@@ -10,7 +10,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { CARDS, CARD_MAP, MAX_CARD_LEVEL, effectiveCard, type CardDef } from '../data/dungeon/cards';
 import {
-  ACT_MULT, actOfDoor, spawnEnemies, tierMult,
+  ACT_MULT, BROOD_DEF, actOfDoor, spawnEnemies, tierMult,
   type EnemyLogic, type EnemySeed,
 } from '../data/dungeon/enemies';
 import {
@@ -52,12 +52,29 @@ export interface BattleMerc extends RunMerc {
   armor: number;
   shield: number;
   alive: boolean;
+  /** Ходов осталось с −50% хила. */
+  healDown: number;
+  /** Ходов осталось с урезанным восстановлением брони. */
+  armorDown: number;
+  /** Ходов осталось с +50% получаемого урона. */
+  vuln: number;
 }
 
+export type DebuffKind = 'healDown' | 'armorDown' | 'vuln';
+
 export interface Intent {
-  type: 'attack' | 'aoe' | 'buff' | 'summon' | 'stun';
+  type: 'attack' | 'aoe' | 'buff' | 'summon' | 'stun' | 'debuff' | 'shield' | 'heal';
   value: number;
   targetUid?: string;
+  /** Сколько раз бьёт (двойной укус). */
+  hits?: number;
+  /** Вампиризм: лечит себя на половину нанесённого урона. */
+  drain?: boolean;
+  /** Дебафф, который накладывает атака/способность. */
+  debuff?: DebuffKind;
+  debuffTurns?: number;
+  /** Подпись для карточки. */
+  label?: string;
 }
 
 export interface BattleEnemy {
@@ -70,6 +87,13 @@ export interface BattleEnemy {
   logic: EnemyLogic;
   icon: string;
   color: string;
+  image: string;
+  ability: string;
+  abilityDesc: string;
+  /** Броня врага (не восстанавливается). */
+  armor: number;
+  /** Фаза босса: 1–3. */
+  phase: number;
   vuln: number;
   weak: number;
   stun: number;
@@ -98,6 +122,9 @@ export interface BattleState {
   log: string[];
   fx: Fx | null;
   source: 'battle' | 'elite' | 'boss';
+  /** Тир ключа и номер двери — нужны призывам для скейла. */
+  tier: number;
+  door: number;
 }
 
 export interface RewardState {
@@ -306,25 +333,191 @@ const pickTarget = (b: BattleState, logic: EnemyLogic): BattleMerc | null => {
   return (front.length ? front : back)[0] ?? null;
 };
 
+/** Сколько врагов максимум может быть на поле (с призывами). */
+const BROOD_CAP = 6;
+
+const bossPhaseOf = (e: BattleEnemy): number => {
+  const p = e.hp / Math.max(1, e.maxHp);
+  if (p <= 0.33) return 3;
+  if (p <= 0.66) return 2;
+  return 1;
+};
+
+const spawnBrood = (b: BattleState, count: number): number => {
+  const tier = b.tier || 1;
+  const door = b.door || 1;
+  const tm = tierMult(tier);
+  const act = ACT_MULT[actOfDoor(door)];
+  const hp = Math.max(1, Math.round(BROOD_DEF.hp * act.hp * tm.hp));
+  const atk = Math.max(1, Math.round(BROOD_DEF.atk * act.atk * tm.atk));
+  let added = 0;
+  for (let i = 0; i < count; i++) {
+    if (aliveEnemies(b).length >= BROOD_CAP) break;
+    b.enemies.push({
+      uid: `e_${uid()}`,
+      defId: BROOD_DEF.id,
+      name: BROOD_DEF.name,
+      maxHp: hp,
+      hp,
+      atk,
+      logic: 'swarm',
+      icon: BROOD_DEF.icon,
+      color: BROOD_DEF.color,
+      image: BROOD_DEF.image,
+      ability: BROOD_DEF.ability,
+      abilityDesc: BROOD_DEF.abilityDesc,
+      armor: 0,
+      phase: 0,
+      vuln: 0,
+      weak: 0,
+      stun: 0,
+      intent: null,
+      isBoss: false,
+      isElite: false,
+    });
+    added += 1;
+  }
+  return added;
+};
+
+const syncBossPhase = (b: BattleState, e: BattleEnemy): void => {
+  const ph = bossPhaseOf(e);
+  if (ph <= (e.phase || 1)) return;
+  e.phase = ph;
+  if (ph === 2) {
+    e.atk = Math.round(e.atk * 1.2);
+    spawnBrood(b, 1);
+    pushLog(b, 'Матка в ярости! Атака растёт, из брюшка вырывается выводок.');
+  } else {
+    e.atk = Math.round(e.atk * 1.25);
+    spawnBrood(b, 2);
+    pushLog(b, 'Матка в безумии! Улей обезумел.');
+  }
+  b.fx = { id: Date.now() + Math.random(), targetUid: e.uid, kind: 'buff', value: e.atk };
+};
+
+const bossIntent = (b: BattleState, e: BattleEnemy): Intent => {
+  const t = b.turn;
+  const phase = Math.max(e.phase || 1, bossPhaseOf(e));
+  const adds = aliveEnemies(b).filter((x) => x.defId === 'brood').length;
+  const bite = (drain: boolean): Intent => ({
+    type: 'attack', value: e.atk, targetUid: pickTarget(b, 'boss')?.id, label: 'пожирание', drain,
+  });
+
+  if (phase === 1) {
+    if (t % 3 === 0 && adds < 2) return { type: 'summon', value: 1, label: 'выводок' };
+    return bite(true);
+  }
+  if (phase === 2) {
+    if (t % 4 === 0 && adds < 2) return { type: 'summon', value: 2, label: 'выводок ×2' };
+    if (t % 2 === 0) return { type: 'aoe', value: Math.max(4, Math.round(e.atk * 0.6)), label: 'кислотный ливень' };
+    return bite(true);
+  }
+  if (t % 3 === 0) return { type: 'aoe', value: Math.max(4, Math.round(e.atk * 0.75)), label: 'крик улья' };
+  if (t % 2 === 1) {
+    return {
+      type: 'attack',
+      value: Math.max(1, Math.round(e.atk * 0.8)),
+      hits: 2,
+      targetUid: pickTarget(b, 'boss')?.id,
+      label: 'безумие',
+    };
+  }
+  return bite(true);
+};
+
 const intentFor = (b: BattleState, e: BattleEnemy): Intent => {
   if (e.stun > 0) return { type: 'stun', value: 0 };
-  if (e.logic === 'boss') {
-    const adds = b.enemies.filter((x) => x.hp > 0 && (x.defId === 'spiderling' || x.defId === 'worker')).length;
-    if (b.turn % 3 === 0 && adds < 2) return { type: 'summon', value: 0 };
-    if (e.hp / Math.max(1, e.maxHp) < 0.6 && b.turn % 3 === 1) {
-      return { type: 'aoe', value: Math.max(6, Math.round(e.atk * 0.55)) };
+  const t = b.turn;
+  const pack = aliveEnemies(b).length > 1;
+
+  switch (e.defId) {
+    case 'matriarch':
+      return bossIntent(b, e);
+
+    case 'spiderling':
+    case 'brood': {
+      const target = pickTarget(b, 'swarm');
+      if (pack) {
+        return {
+          type: 'attack', value: Math.max(1, Math.round(e.atk * 0.65)), hits: 2,
+          targetUid: target?.id, label: 'двойной укус',
+        };
+      }
+      return { type: 'attack', value: e.atk, targetUid: target?.id };
     }
-    const target = pickTarget(b, 'boss');
-    return { type: 'attack', value: e.atk, targetUid: target?.id };
+
+    case 'worker': {
+      const target = pickTarget(b, 'swarm');
+      if (t % 3 === 0) {
+        return {
+          type: 'attack', value: Math.round(e.atk * 1.5), targetUid: target?.id,
+          debuff: 'armorDown', debuffTurns: 2, label: 'тяжёлый удар',
+        };
+      }
+      return { type: 'attack', value: e.atk, targetUid: target?.id };
+    }
+
+    case 'hunter': {
+      const target = pickTarget(b, 'hunter');
+      if (t % 2 === 0) {
+        const low = target ? target.hp / Math.max(1, target.maxHp) < 0.5 : false;
+        return {
+          type: 'attack', value: Math.round(e.atk * (low ? 1.75 : 1.5)),
+          targetUid: target?.id, label: 'прыжок',
+        };
+      }
+      return { type: 'attack', value: e.atk, targetUid: target?.id };
+    }
+
+    case 'weaver': {
+      if (t % 5 === 0) return { type: 'buff', value: 2, label: 'клич стаи' };
+      if (t % 2 === 0) {
+        return { type: 'debuff', value: 2, debuff: 'armorDown', debuffTurns: 2, label: 'паутина' };
+      }
+      return { type: 'attack', value: e.atk, targetUid: pickTarget(b, 'tactician')?.id };
+    }
+
+    case 'guard': {
+      if (t % 3 === 0) return { type: 'shield', value: Math.round(e.maxHp * 0.22), label: 'панцирь' };
+      return { type: 'attack', value: e.atk, targetUid: pickTarget(b, 'aggressor')?.id };
+    }
+
+    case 'soldier': {
+      if (t % 4 === 0) return { type: 'buff', value: 3, label: 'клич' };
+      return {
+        type: 'attack', value: Math.round(e.atk * (pack ? 1.25 : 1)),
+        targetUid: pickTarget(b, 'aggressor')?.id,
+      };
+    }
+
+    case 'spitter': {
+      if (t % 5 === 0) {
+        return {
+          type: 'debuff', value: 10, debuff: 'healDown', debuffTurns: 10,
+          targetUid: pickTarget(b, 'hunter')?.id, label: '−50% хила',
+        };
+      }
+      if (t % 3 === 0) {
+        return { type: 'aoe', value: Math.max(1, Math.round(e.atk * 0.7)), label: 'кислота' };
+      }
+      return { type: 'attack', value: e.atk, targetUid: pickTarget(b, 'hunter')?.id };
+    }
+
+    case 'carrier': {
+      if (t % 4 === 0) return { type: 'summon', value: 1, label: 'яйцекладка' };
+      return { type: 'attack', value: e.atk, targetUid: pickTarget(b, 'swarm')?.id };
+    }
   }
-  if (e.logic === 'tactician' && b.turn % 2 === 0) {
-    return { type: 'buff', value: 2 };
-  }
-  const target = pickTarget(b, e.logic);
-  return { type: 'attack', value: e.atk, targetUid: target?.id };
+
+  if (e.logic === 'tactician' && t % 2 === 0) return { type: 'buff', value: 2 };
+  return { type: 'attack', value: e.atk, targetUid: pickTarget(b, e.logic)?.id };
 };
 
 const computeIntents = (b: BattleState): void => {
+  for (const e of b.enemies) {
+    if (e.hp > 0 && e.isBoss) syncBossPhase(b, e);
+  }
   for (const e of b.enemies) {
     if (e.hp > 0) e.intent = intentFor(b, e);
   }
@@ -344,6 +537,11 @@ const makeEnemy = (seed: EnemySeed, boost: number): BattleEnemy => {
     logic: seed.logic,
     icon: seed.icon,
     color: seed.color,
+    image: seed.image,
+    ability: seed.ability,
+    abilityDesc: seed.abilityDesc,
+    armor: 0,
+    phase: seed.isBoss ? 1 : 0,
     vuln: 0,
     weak: 0,
     stun: 0,
@@ -423,7 +621,10 @@ export const useDungeonStore = create<DungeonStore>()(
         const enemies = seeds.map((s) => makeEnemy(s, run.enemyBoost || 0));
         const mercs: BattleMerc[] = run.mercs
           .filter((m) => m.hp > 0 && m.slot)
-          .map((m) => ({ ...m, armor: m.maxArmor, shield: 0, alive: true }));
+          .map((m) => ({
+            ...m, armor: m.maxArmor, shield: 0, alive: true,
+            healDown: 0, armorDown: 0, vuln: 0,
+          }));
         const instances: CardInstance[] = run.deck.map((defId) => ({
           uid: uid(),
           defId,
@@ -442,6 +643,8 @@ export const useDungeonStore = create<DungeonStore>()(
           log: [`Дверь ${run.door}: бой начался.`],
           fx: null,
           source,
+          tier: run.keyTier,
+          door: run.door,
         };
         drawCards(battle, 5);
         computeIntents(battle);
@@ -465,32 +668,50 @@ export const useDungeonStore = create<DungeonStore>()(
       const hitEnemy = (battle: BattleState, e: BattleEnemy, amount: number): number => {
         let dmg = Math.max(0, Math.round(amount));
         if (e.vuln > 0) dmg = Math.round(dmg * 1.5);
+        // Носитель прикрывается выводком.
+        if (e.defId === 'carrier' && aliveEnemies(battle).some((x) => x.defId === 'brood' && x.uid !== e.uid)) {
+          dmg = Math.round(dmg * 0.7);
+        }
+        if (e.armor > 0) {
+          const absorbed = Math.min(e.armor, dmg);
+          e.armor -= absorbed;
+          dmg -= absorbed;
+        }
         e.hp = Math.max(0, e.hp - dmg);
-        battle.fx = { id: Date.now() + Math.random(), targetUid: e.uid, kind: 'hit', value: dmg };
-        if (e.hp <= 0) pushLog(battle, `${e.name} повержен.`);
+        battle.fx = { id: Date.now() + Math.random(), targetUid: e.uid, kind: 'hit', value: Math.max(0, Math.round(amount)) };
+        if (e.hp <= 0) {
+          pushLog(battle, `${e.name} повержен.`);
+          if (e.defId === 'carrier' && spawnBrood(battle, 1) > 0) {
+            pushLog(battle, 'Из брюшка носителя вырывается выводок!');
+          }
+        }
         return dmg;
       };
 
-      const hitMerc = (battle: BattleState, m: BattleMerc, amount: number): void => {
+      const hitMerc = (battle: BattleState, m: BattleMerc, amount: number): number => {
         let dmg = Math.max(0, Math.round(amount));
+        if (m.vuln > 0) dmg = Math.round(dmg * 1.5);
         const absorbedByShield = Math.min(m.shield, dmg);
         m.shield -= absorbedByShield;
         dmg -= absorbedByShield;
         const absorbedByArmor = Math.min(m.armor, dmg);
         m.armor -= absorbedByArmor;
         dmg -= absorbedByArmor;
+        const hpBefore = m.hp;
         if (dmg > 0) m.hp = Math.max(0, m.hp - dmg);
-        battle.fx = { id: Date.now() + Math.random(), targetUid: m.id, kind: 'hit', value: Math.round(amount) };
+        battle.fx = { id: Date.now() + Math.random(), targetUid: m.id, kind: 'hit', value: Math.max(0, Math.round(amount)) };
         if (m.hp <= 0) {
           m.alive = false;
           m.hp = 0;
           pushLog(battle, `${m.name} пал.`);
         }
+        return hpBefore - m.hp;
       };
 
       const healMerc = (battle: BattleState, m: BattleMerc, amount: number): void => {
         if (!m.alive) return;
-        const heal = Math.max(0, Math.round(amount));
+        let heal = Math.max(0, Math.round(amount));
+        if (m.healDown > 0) heal = Math.round(heal * 0.5);
         m.hp = Math.min(m.maxHp, m.hp + heal);
         battle.fx = { id: Date.now() + Math.random(), targetUid: m.id, kind: 'heal', value: heal };
       };
@@ -627,8 +848,11 @@ export const useDungeonStore = create<DungeonStore>()(
         }
         for (const m of battle.mercs) {
           if (!m.alive) continue;
-          m.armor = m.maxArmor;
+          m.armor = Math.max(0, Math.round(m.maxArmor * (m.armorDown > 0 ? 0.5 : 1)));
           m.shield = 0;
+          if (m.healDown > 0) m.healDown -= 1;
+          if (m.armorDown > 0) m.armorDown -= 1;
+          if (m.vuln > 0) m.vuln -= 1;
         }
         battle.turn += 1;
         battle.energy = 5;
@@ -657,47 +881,68 @@ export const useDungeonStore = create<DungeonStore>()(
         }
         const intent = enemy.intent;
 
+        const applyDebuff = (target: BattleMerc, kind: DebuffKind, turns: number): void => {
+          const t = Math.max(1, Math.round(turns));
+          if (kind === 'healDown') target.healDown = Math.max(target.healDown, t);
+          else if (kind === 'armorDown') target.armorDown = Math.max(target.armorDown, t);
+          else target.vuln = Math.max(target.vuln, t);
+        };
+
         if (enemy.stun > 0) {
           enemy.stun -= 1;
           pushLog(battle, `${enemy.name} оглушён и пропускает ход.`);
           battle.fx = { id: Date.now() + Math.random(), targetUid: enemy.uid, kind: 'stun', value: 1 };
         } else if (intent?.type === 'summon') {
-          const tm = tierMult(run.keyTier);
-          const act = ACT_MULT[actOfDoor(run.door)];
-          const hp = Math.max(1, Math.round(30 * act.hp * tm.hp));
-          const atk = Math.max(1, Math.round(8 * act.atk * tm.atk));
-          battle.enemies.push({
-            uid: `e_${uid()}`,
-            defId: 'spiderling',
-            name: 'Выводок',
-            maxHp: hp,
-            hp,
-            atk,
-            logic: 'swarm',
-            icon: '🕷️',
-            color: '#a3e635',
-            vuln: 0,
-            weak: 0,
-            stun: 0,
-            intent: null,
-            isBoss: false,
-            isElite: false,
-          });
-          pushLog(battle, `${enemy.name} призывает выводок.`);
+          const added = spawnBrood(battle, Math.max(1, intent.value || 1));
+          pushLog(battle, added > 0
+            ? `${enemy.name} призывает выводок (${added}).`
+            : `${enemy.name} пытается призвать выводок, но улей переполнен.`);
+          battle.fx = { id: Date.now() + Math.random(), targetUid: enemy.uid, kind: 'buff', value: added };
         } else if (intent?.type === 'buff') {
           for (const e of aliveEnemies(battle)) e.atk += intent.value;
-          pushLog(battle, `${enemy.name} усиливает стаю (+${intent.value} атаки).`);
+          pushLog(battle, `${enemy.name}${intent.label ? ` (${intent.label})` : ''} усиливает стаю (+${intent.value} атаки).`);
           battle.fx = { id: Date.now() + Math.random(), targetUid: enemy.uid, kind: 'buff', value: intent.value };
+        } else if (intent?.type === 'shield') {
+          enemy.armor += Math.max(1, intent.value);
+          pushLog(battle, `${enemy.name} наращивает панцирь (+${intent.value} брони).`);
+          battle.fx = { id: Date.now() + Math.random(), targetUid: enemy.uid, kind: 'shield', value: intent.value };
         } else if (intent?.type === 'aoe') {
           for (const m of aliveMercs(battle)) hitMerc(battle, m, intent.value);
-          pushLog(battle, `${enemy.name} бьёт по всем: ${intent.value}.`);
+          pushLog(battle, `${enemy.name}${intent.label ? ` (${intent.label})` : ''} бьёт по всем: ${intent.value}.`);
+        } else if (intent?.type === 'debuff') {
+          const kind = intent.debuff || 'armorDown';
+          const turns = intent.debuffTurns || 2;
+          if (kind === 'healDown') {
+            const target = (intent.targetUid && battle.mercs.find((m) => m.id === intent.targetUid && m.alive))
+              || pickTarget(battle, enemy.logic);
+            if (target) {
+              applyDebuff(target, 'healDown', turns);
+              pushLog(battle, `${enemy.name} плюёт едкой слизью в ${target.name}: −50% хила на ${turns} ходов.`);
+              battle.fx = { id: Date.now() + Math.random(), targetUid: target.id, kind: 'stun', value: turns };
+            }
+          } else {
+            for (const m of aliveMercs(battle)) applyDebuff(m, kind, turns);
+            pushLog(battle, `${enemy.name} опутывает всех паутиной: броня восстанавливается вдвое меньше (${turns} х.).`);
+            battle.fx = { id: Date.now() + Math.random(), targetUid: enemy.uid, kind: 'buff', value: turns };
+          }
         } else {
-          const target = (intent?.targetUid && battle.mercs.find((m) => m.id === intent.targetUid && m.alive))
-            || pickTarget(battle, enemy.logic);
-          if (target) {
+          const hits = Math.max(1, intent?.hits || 1);
+          let totalHpDmg = 0;
+          for (let i = 0; i < hits; i++) {
+            const target = (intent?.targetUid && battle.mercs.find((m) => m.id === intent.targetUid && m.alive))
+              || pickTarget(battle, enemy.logic);
+            if (!target) break;
             const dmg = Math.round((intent?.value || enemy.atk) * (enemy.weak > 0 ? 0.75 : 1));
-            hitMerc(battle, target, dmg);
-            pushLog(battle, `${enemy.name} бьёт ${target.name}: ${dmg}.`);
+            totalHpDmg += hitMerc(battle, target, dmg);
+            if (intent?.debuff) applyDebuff(target, intent.debuff, intent.debuffTurns || 2);
+            pushLog(battle, `${enemy.name}${intent?.label ? ` (${intent.label})` : ''} бьёт ${target.name}: ${dmg}.`);
+            if (aliveMercs(battle).length === 0) break;
+          }
+          if (intent?.drain && totalHpDmg > 0 && enemy.hp > 0) {
+            const heal = Math.max(1, Math.round(totalHpDmg * 0.5));
+            enemy.hp = Math.min(enemy.maxHp, enemy.hp + heal);
+            pushLog(battle, `${enemy.name} высасывает ${heal} HP.`);
+            battle.fx = { id: Date.now() + Math.random(), targetUid: enemy.uid, kind: 'heal', value: heal };
           }
         }
 

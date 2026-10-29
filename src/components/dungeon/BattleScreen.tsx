@@ -91,6 +91,8 @@ export const BattleScreen = () => {
   const mercAt = (slot: string) => aliveMercs.find((m) => m.slot === slot) ?? null;
   // Врагов обычно 1–3, но призывы могут добавить ещё — лишние переносятся на вторую строку.
   const enemySlots = Math.max(4, battle.enemies.length);
+  // Враги стоят в обратном порядке: первый в списке — крайний правый слот.
+  const enemyAt = (slot: number) => battle.enemies[enemySlots - 1 - slot] ?? null;
   const logTail = battle.log.slice(-6);
 
   return (
@@ -118,6 +120,9 @@ export const BattleScreen = () => {
                   armor={m.armor}
                   maxArmor={m.maxArmor}
                   shield={m.shield}
+                  healDown={m.healDown}
+                  armorDown={m.armorDown}
+                  vuln={m.vuln}
                   slotLabel={SLOT_LABEL[slot]}
                   targetable={needTarget === 'merc'}
                   fx={fx}
@@ -132,7 +137,7 @@ export const BattleScreen = () => {
 
         <div className={`${styles.side} ${styles.sideEnemy}`}>
           {Array.from({ length: enemySlots }).map((_, i) => {
-            const e = battle.enemies[i];
+            const e = enemyAt(i);
             return e ? (
               <div key={e.uid} className={styles.slot}>
                 <EnemyCard
@@ -143,7 +148,7 @@ export const BattleScreen = () => {
                 />
               </div>
             ) : (
-              <div key={`empty-${i}`} className={`${styles.slot} ${styles.emptySlot}`} aria-hidden="true" />
+              <div key={`empty-${i}`} className={`${styles.slot} ${styles.emptySlot} ${styles.emptySlotTall}`} aria-hidden="true" />
             );
           })}
         </div>

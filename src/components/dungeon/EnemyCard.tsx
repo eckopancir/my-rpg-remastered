@@ -8,6 +8,10 @@ const intentText = (enemy: BattleEnemy): { text: string; cls: string } | null =>
   if (intent.type === 'summon') return { text: '🕷️ призыв', cls: styles.intentSummon };
   if (intent.type === 'buff') return { text: `⬆️ +${intent.value} атаки`, cls: styles.intentBuff };
   if (intent.type === 'aoe') return { text: `☄️ ${intent.value} всем`, cls: styles.intentAoe };
+  if (intent.type === 'shield') return { text: `🛡 +${intent.value}`, cls: styles.intentShield };
+  if (intent.type === 'debuff') return { text: `☠️ ${intent.label || 'дебафф'}`, cls: styles.intentDebuff };
+  if ((intent.hits || 1) > 1) return { text: `⚔️ ${intent.value}×${intent.hits}`, cls: styles.intentAttack };
+  if (intent.drain) return { text: `🩸 ${intent.value}`, cls: styles.intentDrain };
   return { text: `⚔️ ${intent.value}`, cls: styles.intentAttack };
 };
 
@@ -28,12 +32,14 @@ export const EnemyCard = ({ enemy, targetable, fx, onClick }: Props) => {
     styles.enemyCard,
     targetable && !dead ? styles.enemyTargetable : '',
     dead ? styles.enemyDead : '',
+    enemy.isBoss ? styles.enemyBossCard : '',
     isFx && fx?.kind === 'hit' ? styles.shake : '',
   ].filter(Boolean).join(' ');
 
   return (
     <div
       className={cls}
+      style={{ ['--enemy-color' as string]: enemy.color }}
       onClick={dead ? undefined : onClick}
       data-target-kind="enemy"
       data-target-uid={enemy.uid}
@@ -42,8 +48,19 @@ export const EnemyCard = ({ enemy, targetable, fx, onClick }: Props) => {
         <span className={`${styles.intent} ${intent.cls}`}>{intent.text}</span>
       )}
 
-      <div className={styles.enemyIcon} style={{ color: enemy.color }}>{enemy.icon}</div>
+      <div className={styles.enemyArt}>
+        {enemy.image ? (
+          <img className={styles.enemyArtImg} src={enemy.image} alt="" draggable={false} />
+        ) : (
+          <div className={styles.enemyIcon} style={{ color: enemy.color }}>{enemy.icon}</div>
+        )}
+        <span className={styles.enemyArtFade} />
+        {enemy.armor > 0 && <span className={styles.enemyArmor}>🛡 {enemy.armor}</span>}
+        {enemy.isBoss && !!enemy.phase && <span className={styles.enemyPhase}>ФАЗА {enemy.phase}</span>}
+      </div>
+
       <div className={styles.enemyName}>{enemy.name}</div>
+      <div className={styles.abilityChip} title={enemy.abilityDesc}>{enemy.ability}</div>
 
       <div className={styles.statusRow}>
         {enemy.vuln > 0 && <span className={styles.statusBadge} style={{ color: '#f472b6' }}>уязв. {enemy.vuln}</span>}

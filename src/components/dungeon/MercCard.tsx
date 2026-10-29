@@ -12,7 +12,12 @@ interface Props {
   armor?: number;
   maxArmor?: number;
   shield?: number;
+  healDown?: number;
+  armorDown?: number;
+  vuln?: number;
   slotLabel?: string;
+  /** Арт наёмника (если нарисован). */
+  image?: string;
   dead?: boolean;
   selected?: boolean;
   targetable?: boolean;
@@ -21,7 +26,7 @@ interface Props {
 }
 
 export const MercCard = ({
-  id, name, role, stars, hp, maxHp, armor, maxArmor, shield, slotLabel, dead, selected, targetable, fx, onClick,
+  id, name, role, stars, hp, maxHp, armor, maxArmor, shield, healDown, armorDown, vuln, slotLabel, image, dead, selected, targetable, fx, onClick,
 }: Props) => {
   const isFx = !!fx && fx.targetUid === id;
   const hpPct = Math.max(0, Math.min(100, (hp / Math.max(1, maxHp)) * 100));
@@ -38,14 +43,21 @@ export const MercCard = ({
   return (
     <div
       className={cls}
+      style={{ ['--role-color' as string]: ROLE_COLOR[role] }}
       onClick={onClick}
       title={`${name} · ${ROLE_NAME[role]}`}
       data-target-kind="merc"
       data-target-uid={id}
     >
       {slotLabel && <span className={styles.slotTag}>{slotLabel}</span>}
+
+      <div className={styles.mercArt}>
+        {image
+          ? <img className={styles.mercArtImg} src={image} alt="" draggable={false} />
+          : <span className={styles.mercArtIcon} style={{ color: ROLE_COLOR[role] }}>{ROLE_ICON[role]}</span>}
+      </div>
+
       <div className={styles.mercHead}>
-        <span className={styles.mercIcon} style={{ color: ROLE_COLOR[role] }}>{ROLE_ICON[role]}</span>
         <div style={{ minWidth: 0 }}>
           <div className={styles.mercName}>{name}</div>
           <div className={styles.mercStars}>{starsText(stars)}</div>
@@ -71,6 +83,14 @@ export const MercCard = ({
       {!!shield && shield > 0 && (
         <div className={styles.barRow}>
           <span className={styles.shieldBadge}>✦ щит {shield}</span>
+        </div>
+      )}
+
+      {(!!healDown || !!armorDown || !!vuln) && (
+        <div className={styles.mercDebuffs}>
+          {!!healDown && <span className={styles.debuffBadge} style={{ color: '#c084fc' }} title="Хил урезан вдвое">−хил {healDown}</span>}
+          {!!armorDown && <span className={styles.debuffBadge} style={{ color: '#38bdf8' }} title="Броня восстанавливается вдвое меньше">−броня {armorDown}</span>}
+          {!!vuln && <span className={styles.debuffBadge} style={{ color: '#f472b6' }} title="Получает +50% урона">уязв. {vuln}</span>}
         </div>
       )}
 
