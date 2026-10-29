@@ -661,21 +661,28 @@ export const useExplorationStore = create<ExplorationStore>()(
         if (state.serverOutcome === 'dead') {
           // Штрафы смерти уже отзеркалены в pollServerState (первый полл с
           // исходом 'dead' принял серверный блоб: пустой рюкзак, чипы, HP 1%).
-          // Здесь только квитация: закрываем экран смерти и ставим штамп,
-          // чтобы герд в save.php пропустил дальнейшие сейвы.
+          // Квитацию (deathSettled) включаем ПОСЛЕ повторной адоптации
+          // серверного блоба: клик-сейв снимает гвард в save.php, и если
+          // локальный рюкзак ещё не вычищен гонкой (полл/лог медленнее клика),
+          // полный блоб «воскресит» потери — это и был баг неопустошаемого рюкзака.
           const flavor = DEATH_FLAVORS[Math.floor(Math.random() * DEATH_FLAVORS.length)];
+          const settledId = state.deathInfo?.explorationId ?? null;
           ps.addLog(`💀 ${flavor}`, 'danger');
-          set({
-            deathFlavor: flavor,
-            deathSettled: true,
-            deathFresh: false,
-            // Штамп привязан к конкретной смерти (id записи истории):
-            // следующая смерть (другой id) снова покажет экран и зеркало.
-            settledDeathId: state.deathInfo?.explorationId ?? null,
-          });
-          // Немедленный сейв с квитацией: save.php увидит deathSettled=true,
-          // снимет гвард-маркер и перестанет чистить рюкзак/чипы/HP.
-          syncNow();
+          void (async () => {
+            const token = getToken();
+            if (token) await refreshPlayerBlobAfterOfflineDeath(token);
+            set({
+              deathFlavor: flavor,
+              deathSettled: true,
+              deathFresh: false,
+              // Штамп привязан к конкретной смерти (id записи истории):
+              // следующая смерть (другой id) снова покажет экран и зеркало.
+              settledDeathId: settledId,
+            });
+            // Немедленный сейв с квитацией: save.php увидит deathSettled=true,
+            // снимет гвард-маркер и перестанет чистить рюкзак/чипы/HP.
+            syncNow();
+          })();
         } else if (state.isReturningHome) {
           ps.addLog(`🏁 Возвращение на базу завершено.`, 'loot');
         } else {

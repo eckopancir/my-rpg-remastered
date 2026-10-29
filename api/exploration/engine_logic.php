@@ -967,6 +967,14 @@ function handleExplorationDeath($pdo, $userId, &$exp, $deathInfo = null) {
   $sd['player']['backpackWipeAt'] = time();
   putSaveData($pdo, $userId, $sd);
 
+  // Неотправленные награды мёртвого рейда сгорают вместе с телом: клиент
+  // доставляет их в рюкзак ПОСЛЕ вайпа (квитация смерти → processPendingRewards),
+  // и добыча «воскресает». KeyDrop-ключи не трогаем — трофей переживает смерть.
+  $voidStmt = $pdo->prepare("DELETE FROM offline_rewards
+    WHERE user_id = ? AND exploration_id = ? AND claimed = 0
+      AND (reward_data NOT LIKE '%\"keyDrop\"%' OR reward_data IS NULL)");
+  $voidStmt->execute([$userId, (int)($exp['id'] ?? 0)]);
+
   // Причина смерти — последнее событие, наносившее урон.
   // Bulk-путь передаёт удар напрямую ($deathInfo), онлайн-путь — вычисляем
   // по последним событиям из базы.
@@ -1103,7 +1111,20 @@ function startExploration($pdo, $userId, $zone, $hours = 12, $useMats = 1, $cons
     $saveData['player']['stats'] = $stats;
     // Новый рейд: снимаем гвард-маркер смерти (deathSettled мог не прийти —
     // стартовый рейд сам является квитацией: играть-то начали).
-    unset($saveData['player']['backpackWipeAt']);
+    // НО незаквиченная/проигравшая гонку смерть уже вайпнула рюкзак — старт не
+    // может её «отменить»: при живом маркере принудительно держим серверное
+    // содержимое рюкзака (ключи выживают), клиентский полный блоб игнорируем.
+    if (!empty($saveData['player']['backpackWipeAt'])) {
+      $keepNow = [];
+      foreach (($saveData['player']['backpackGrid']['items'] ?? []) as $it) {
+        $d = is_array($it) ? $it : (json_decode((string)($it['data'] ?? ''), true) ?: []);
+        if (($d['type'] ?? '') === 'key') $keepNow[] = $it;
+      }
+      if (is_array($saveData['player']['backpackGrid'] ?? null)) {
+        $saveData['player']['backpackGrid']['items'] = $keepNow;
+      }
+      unset($saveData['player']['backpackWipeAt']);
+    }
     $upd = $pdo->prepare("UPDATE saves SET save_data = ?, updated_at = NOW() WHERE user_id = ?");
     $upd->execute([json_encode($saveData, JSON_UNESCAPED_UNICODE), $userId]);
 
