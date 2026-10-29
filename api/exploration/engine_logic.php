@@ -316,13 +316,6 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
 
       // Big events: идут и при активной цепочке (легендарка резолвится выше,
       // комментарий ниже исправлен — раньше без гварда цепочку забивали новой).
-      // Тест-хук (user 6): цепочки просматриваются одна за другой — без
-      // активной цепочки кулдаун степлится до 20 тиков (локхаут в это время
-      // сгорает по слотам, слоты теперь частые).
-      if ((int)$userId === 6 && empty($exp['legendary_id'])
-        && (int)$exp['event_cooldown'] > 20) {
-        $exp['event_cooldown'] = 20;
-      }
       $exp['event_cooldown'] = (int)$exp['event_cooldown'] - 1;
       if ($exp['event_cooldown'] <= 0) {
         // Локхаут после финала: 3 крупных слота без новой легендарки.
@@ -332,7 +325,7 @@ function processTicks($pdo, $userId, $maxTicks = MAX_TICKS_PER_POLL) {
         // Ролл запуска новой цепочки (кап 15%): только БЕЗ активной цепочки
         // (иначе новая цепочка молча забивала активную поверху — старый баг).
         // Выбор цепочки — ротация по очереди (все три гарантированно по кругу).
-        if (empty($exp['legendary_id']) && (int)($exp['legendary_lock'] ?? 0) <= 0 && mt_rand(1, 100) <= legRollChance($userId, $legChancePct)) {
+        if (empty($exp['legendary_id']) && (int)($exp['legendary_lock'] ?? 0) <= 0 && mt_rand(1, 100) <= $legChancePct) {
           $legEvents = getLegendaryEvents();
           $legKeys = array_keys($legEvents);
           if (!empty($legKeys)) {
@@ -580,17 +573,13 @@ function processBulkCatchup($pdo, $userId, &$exp, $expId, $playerLevel, $regenPe
 
     // Крупные в bulk: либо ролл запуска новой цепочки (3%),
     // либо обычное событие. Строк не пишем — всё уходит в сводку.
-    // Тест-хук (user 6): без активной цепочки кулдаун степлится до 20.
-    if ((int)$userId === 6 && empty($exp['legendary_id']) && $cdEvent > 20) {
-      $cdEvent = 20;
-    }
     $cdEvent--;
     if ($cdEvent <= 0) {
       // Локхаут после финала: 3 крупных слота без легендарки (как в онлайне).
       if ((int)($exp['legendary_lock'] ?? 0) > 0) $exp['legendary_lock'] = (int)$exp['legendary_lock'] - 1;
       // Новая цепочка только поверх пустого слота (гвард активной цепочки).
       // Выбор цепочки — ротация по очереди (как в онлайне).
-      if (empty($exp['legendary_id']) && (int)($exp['legendary_lock'] ?? 0) <= 0 && mt_rand(1, 100) <= legRollChance($userId, $bLegChance)) {
+      if (empty($exp['legendary_id']) && (int)($exp['legendary_lock'] ?? 0) <= 0 && mt_rand(1, 100) <= $bLegChance) {
         $legEvents = getLegendaryEvents();
         $legKeys = array_keys($legEvents);
         if (!empty($legKeys)) {
@@ -867,7 +856,6 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = [], $ca
   ];
 }
 
-/** Средняя звёздность... (см. ниже) */
 /** Выбор следующей легендарной цепочки ПО ОЧЕРЕДИ (не случайно).
  * Счётчик = число интро-событий пользователя (stage=0, result=NULL);
  * вращаемся по списку ключей циклически — все цепочки гарантированно
@@ -882,10 +870,6 @@ function nextLegendaryKeyOrdered($pdo, $userId) {
   $stmt->execute([$userId]);
   $started = (int)$stmt->fetchColumn();
   return $legKeys[$started % count($legKeys)];
-}
-/** Шанс ролла цепочки (тест-аккаунт id=6 — всегда 100%, временный хук для просмотра). */
-function legRollChance($userId, $basePct) {
-  return (int)$userId === 6 ? 100 : $basePct;
 }
 
 // ---------------------------------------------------------------------------
