@@ -1267,9 +1267,78 @@
   flex-wrap: wrap;
   gap: 8px;
   align-content: flex-start;
-  max-height: 430px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 2px;
+}
+
+/* ---------------- Фильтры конструктора ---------------- */
+
+.deckFilters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.45);
+  color: #f4e7d3;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+}
+
+.search:focus {
+  border-color: rgba(251, 191, 36, 0.55);
+}
+
+.filterChip {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(244, 231, 211, 0.7);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.filterChipOn {
+  border-color: #fbbf24;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.setChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.setChip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(244, 231, 211, 0.62);
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.setChipOn {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .forgeList {

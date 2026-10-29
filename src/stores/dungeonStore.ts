@@ -706,7 +706,9 @@ export const useDungeonStore = create<DungeonStore>()(
         syncBattleToRun(battle);
         const source = battle.source;
         const chips = doorChips(source, run.keyTier);
-        const cards = Math.random() < cardChance(source) ? rollRewardCards(3) : [];
+        const cards = Math.random() < cardChance(source)
+          ? rollRewardCards(3, { act: actOfDoor(run.door), source })
+          : [];
         patchRun({
           phase: 'reward',
           battle: { ...battle, phase: 'won' },
@@ -969,6 +971,23 @@ export const useDungeonStore = create<DungeonStore>()(
             case 'scry':
               pushLog(battle, `Просмотр ${e.v} верхних карт колоды (скоро).`);
               return;
+            case 'revive': {
+              const fallen = battle.mercs.filter((m) => !m.alive);
+              if (fallen.length === 0) {
+                pushLog(battle, 'Некого поднимать — все наёмники на ногах.');
+                return;
+              }
+              const pick = fallen[0];
+              pick.alive = true;
+              pick.hp = Math.max(1, Math.round(pick.maxHp * Math.max(0.1, Math.min(1, e.v))));
+              pick.armor = 0;
+              pick.shield = 0;
+              pick.barrier = 0;
+              pick.vuln = 0;
+              pushLog(battle, `${pick.name} возвращается в бой (${pick.hp} HP).`);
+              battle.fx = { id: Date.now() + Math.random(), targetUid: pick.id, kind: 'heal', value: pick.hp };
+              return;
+            }
             default:
               return;
           }

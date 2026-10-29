@@ -92,12 +92,64 @@ export const cardChance = (type: DoorType): number => {
 
 const rewardPool: CardDef[] = CARDS;
 
-export const rollRewardCards = (count = 3): string[] => {
+/**
+ * Веса редкостей в награде: акт I/II/III × обычная дверь / элита-босс.
+ * Легендарки не падают с обычных дверей I акта — только элита III и босс.
+ */
+const RARITY_WEIGHTS: Record<'battle' | 'elite' | 'boss', Record<number, Partial<Record<CardDef['rarity'], number>>>> = {
+  battle: {
+    0: { common: 70, uncommon: 26, rare: 4 },
+    1: { common: 45, uncommon: 38, rare: 15, epic: 2 },
+    2: { common: 22, uncommon: 40, rare: 28, epic: 9, legendary: 1 },
+  },
+  elite: {
+    0: { common: 28, uncommon: 46, rare: 23, epic: 3 },
+    1: { common: 10, uncommon: 38, rare: 40, epic: 11, legendary: 1 },
+    2: { common: 0, uncommon: 22, rare: 45, epic: 27, legendary: 6 },
+  },
+  boss: {
+    0: { common: 20, uncommon: 45, rare: 30, epic: 5 },
+    1: { common: 0, uncommon: 25, rare: 48, epic: 24, legendary: 3 },
+    2: { common: 0, uncommon: 10, rare: 40, epic: 38, legendary: 12 },
+  },
+};
+
+const pickRarity = (table: Partial<Record<CardDef['rarity'], number>>, available: Set<string>): CardDef['rarity'] | null => {
+  const entries = (Object.entries(table) as [CardDef['rarity'], number][])
+    .filter(([r, w]) => w > 0 && available.has(r));
+  if (entries.length === 0) return null;
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let roll = Math.random() * total;
+  for (const [rarity, weight] of entries) {
+    roll -= weight;
+    if (roll <= 0) return rarity;
+  }
+  return entries[entries.length - 1][0];
+};
+
+/** Награда картами: редкость тянется по весам акта, карта — случайная из этой редкости. */
+export const rollRewardCards = (
+  count = 3,
+  opts?: { act?: number; source?: 'battle' | 'elite' | 'boss' },
+): string[] => {
+  const act = Math.max(0, Math.min(2, opts?.act ?? 0));
+  const source = opts?.source === 'boss' ? 'boss' : opts?.source === 'elite' ? 'elite' : 'battle';
+  const table = RARITY_WEIGHTS[source][act] ?? RARITY_WEIGHTS.battle[0];
+  const byRarity = new Map<string, CardDef[]>();
+  for (const card of rewardPool) {
+    const list = byRarity.get(card.rarity) || [];
+    list.push(card);
+    byRarity.set(card.rarity, list);
+  }
+  const available = new Set(byRarity.keys());
   const ids = new Set<string>();
   let guard = 0;
-  while (ids.size < count && guard < 80) {
+  while (ids.size < count && guard < 120) {
     guard += 1;
-    ids.add(rewardPool[Math.floor(Math.random() * rewardPool.length)].id);
+    const rarity = pickRarity(table, available) ?? 'common';
+    const pool = byRarity.get(rarity) || [];
+    if (pool.length === 0) continue;
+    ids.add(pool[Math.floor(Math.random() * pool.length)].id);
   }
   return Array.from(ids);
 };

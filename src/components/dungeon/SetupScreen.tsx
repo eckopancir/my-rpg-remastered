@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CARD_MAP, MAX_CARD_LEVEL, MAX_DECK } from '../../data/dungeon/cards';
+import { CARD_MAP, MAX_CARD_LEVEL, MAX_DECK, SET_META, type CardSet } from '../../data/dungeon/cards';
 import { upgradeCostFor } from '../../data/dungeon/doors';
 import { ROLE_COLOR, ROLE_ICON, ROLE_NAME, SLOTS, SLOT_LABEL, mercStats, starsText, type Slot } from '../../data/dungeon/mercs';
 import { dungeonDeckCost, powerBudget, useDungeonStore } from '../../stores/dungeonStore';
@@ -21,6 +21,9 @@ export const SetupScreen = () => {
   const [moving, setMoving] = useState<string | null>(null);
   /** Карта, которую пытаемся добавить в полную колоду. */
   const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [setFilter, setSetFilter] = useState<CardSet | 'all'>('all');
+  const [onlyDeck, setOnlyDeck] = useState(false);
 
   if (!run) return null;
 
@@ -34,6 +37,14 @@ export const SetupScreen = () => {
   const deckCards = run.deck
     .map((id) => CARD_MAP[id])
     .filter(Boolean);
+
+  const needle = query.trim().toLowerCase();
+  const filteredCards = Object.values(CARD_MAP).filter((def) => {
+    if (setFilter !== 'all' && def.set !== setFilter) return false;
+    if (onlyDeck && !run.deck.includes(def.id)) return false;
+    if (needle && !def.name.toLowerCase().includes(needle)) return false;
+    return true;
+  });
 
   const slotMerc = (slot: Slot) => run.mercs.find((m) => m.slot === slot);
 
@@ -178,8 +189,47 @@ export const SetupScreen = () => {
                 </div>
                 <span>{run.deck.length} / {MAX_DECK} карт</span>
               </div>
+
+              <div className={styles.deckFilters}>
+                <input
+                  className={styles.search}
+                  type="search"
+                  placeholder="Поиск карты…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className={`${styles.filterChip} ${onlyDeck ? styles.filterChipOn : ''}`}
+                  onClick={() => setOnlyDeck((v) => !v)}
+                >
+                  в колоде {run.deck.length}
+                </button>
+              </div>
+
+              <div className={styles.setChips}>
+                <button
+                  type="button"
+                  className={`${styles.setChip} ${setFilter === 'all' ? styles.setChipOn : ''}`}
+                  onClick={() => setSetFilter('all')}
+                >
+                  все
+                </button>
+                {(Object.keys(SET_META) as (keyof typeof SET_META)[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`${styles.setChip} ${setFilter === key ? styles.setChipOn : ''}`}
+                    style={setFilter === key ? { borderColor: SET_META[key].color, color: SET_META[key].color } : undefined}
+                    onClick={() => setSetFilter(setFilter === key ? 'all' : key)}
+                  >
+                    {SET_META[key].icon} {SET_META[key].label}
+                  </button>
+                ))}
+              </div>
+
               <div className={styles.cardGrid}>
-                {Object.values(CARD_MAP).map((def) => {
+                {filteredCards.map((def) => {
                   const inDeck = run.deck.includes(def.id);
                   return (
                     <CardView
@@ -191,6 +241,9 @@ export const SetupScreen = () => {
                     />
                   );
                 })}
+                {filteredCards.length === 0 && (
+                  <p className={styles.sub} style={{ margin: 8 }}>Ничего не нашлось.</p>
+                )}
               </div>
             </>
           ) : (
