@@ -1,4 +1,4 @@
-import { CARD_MAP, cardText, effectiveCard, powerColor, type CardDef } from '../../data/dungeon/cards';
+import { CARD_MAP, RARITY_META, SET_META, cardText, effectiveCard, powerColor, type CardDef } from '../../data/dungeon/cards';
 import styles from './dungeon.module.css';
 
 const KIND_LABEL: Record<string, string> = {
@@ -7,13 +7,15 @@ const KIND_LABEL: Record<string, string> = {
   heal: 'лечение',
   shield: 'защита',
   debuff: 'ослабление',
+  buff: 'усиление',
+  control: 'контроль',
   utility: 'утилита',
 };
 
 interface Props {
   defId: string;
   level?: number;
-  /** В руке — карта чуть мельче и с наездом. */
+  /** В руке — карта чуть мельче. */
   hand?: boolean;
   selected?: boolean;
   disabled?: boolean;
@@ -28,6 +30,8 @@ export const CardView = ({ defId, level = 1, hand, selected, disabled, uid, dela
   const def: CardDef | undefined = CARD_MAP[defId];
   if (!def) return null;
   const eff = effectiveCard(def, level);
+  const rarity = RARITY_META[def.rarity] || RARITY_META.common;
+  const set = SET_META[def.set] || SET_META.tactics;
   const cls = [
     styles.card,
     hand ? styles.cardHand : '',
@@ -35,15 +39,18 @@ export const CardView = ({ defId, level = 1, hand, selected, disabled, uid, dela
     disabled ? styles.cardDisabled : '',
   ].filter(Boolean).join(' ');
 
+  const style: Record<string, string> = { ['--rarity']: rarity.color };
+  if (hand && delay) style.animationDelay = `${delay}ms`;
+
   return (
     <button
       type="button"
       className={cls}
       onClick={onClick}
       disabled={disabled}
-      title={cardText(def, level)}
+      title={`${def.name} · ${rarity.label} · ${set.label}\n${cardText(def, level)}`}
       data-card-uid={uid}
-      style={hand && delay ? { animationDelay: `${delay}ms` } : undefined}
+      style={style}
     >
       <div className={styles.cardTop}>
         <span className={styles.cost}>{eff.cost}</span>
@@ -53,9 +60,17 @@ export const CardView = ({ defId, level = 1, hand, selected, disabled, uid, dela
       </div>
       <div className={styles.cardIcon}>{def.icon}</div>
       <div className={styles.cardName}>{def.name}</div>
-      <div className={styles.cardText}>{cardText(def, level)}</div>
+      <div className={styles.cardText}>{cardText(def, level, true)}</div>
+
+      {(eff.critChance || eff.rageChance) ? (
+        <div className={styles.cardBadges}>
+          {eff.critChance ? <span className={styles.badgeCrit}>крит {eff.critChance}%</span> : null}
+          {eff.rageChance ? <span className={styles.badgeRage}>ярость {eff.rageChance}%</span> : null}
+        </div>
+      ) : null}
+
       <div className={styles.cardFoot}>
-        <span className={styles.cardKind}>{KIND_LABEL[def.kind] || def.kind}</span>
+        <span className={styles.cardKind}>{set.icon} {KIND_LABEL[def.kind] || def.kind}</span>
         <span className={styles.level}>ур. {Math.max(1, Math.min(7, level))}</span>
       </div>
     </button>

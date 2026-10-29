@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { CARD_MAP, MAX_CARD_LEVEL } from '../../data/dungeon/cards';
+import { CARD_MAP, MAX_CARD_LEVEL, MAX_DECK } from '../../data/dungeon/cards';
 import { upgradeCostFor } from '../../data/dungeon/doors';
 import { ROLE_COLOR, ROLE_ICON, ROLE_NAME, SLOTS, SLOT_LABEL, mercStats, starsText, type Slot } from '../../data/dungeon/mercs';
-import { usePlayerStore } from '../../stores/playerStore';
-import { dungeonDeckCost, useDungeonStore } from '../../stores/dungeonStore';
+import { dungeonDeckCost, powerBudget, useDungeonStore } from '../../stores/dungeonStore';
 import { CardView } from './CardView';
 import styles from './dungeon.module.css';
 
@@ -17,17 +16,18 @@ export const SetupScreen = () => {
   const toggleDeckCard = useDungeonStore((s) => s.toggleDeckCard);
   const startRun = useDungeonStore((s) => s.startRun);
   const upgradeCard = useDungeonStore((s) => s.upgradeCard);
-  const power = usePlayerStore((s) => s.stats.power);
 
   const [tab, setTab] = useState<Tab>('deck');
   const [moving, setMoving] = useState<string | null>(null);
+  /** Карта, которую пытаемся добавить в полную колоду. */
+  const [pendingAdd, setPendingAdd] = useState<string | null>(null);
 
   if (!run) return null;
 
-  const budget = Math.max(600, Math.round(power || 0));
+  const budget = powerBudget();
   const cost = dungeonDeckCost(run.deck);
   const overBudget = cost > budget;
-  const deckOk = run.deck.length >= 5 && run.deck.length <= 10 && !overBudget;
+  const deckOk = run.deck.length >= 5 && run.deck.length <= MAX_DECK && !overBudget;
   const mercsOk = run.mercs.length >= 1;
   const canStart = deckOk && mercsOk;
 
@@ -36,6 +36,25 @@ export const SetupScreen = () => {
     .filter(Boolean);
 
   const slotMerc = (slot: Slot) => run.mercs.find((m) => m.slot === slot);
+
+  const addCard = (id: string) => {
+    if (run.deck.includes(id)) {
+      toggleDeckCard(id);
+      return;
+    }
+    if (run.deck.length >= MAX_DECK) {
+      setPendingAdd(id);
+      return;
+    }
+    toggleDeckCard(id);
+  };
+
+  const swapCard = (removeId: string) => {
+    if (!pendingAdd) return;
+    toggleDeckCard(removeId);
+    toggleDeckCard(pendingAdd);
+    setPendingAdd(null);
+  };
 
   return (
     <div className={styles.setup}>
@@ -157,7 +176,7 @@ export const SetupScreen = () => {
                     style={{ width: `${Math.min(100, (cost / budget) * 100)}%` }}
                   />
                 </div>
-                <span>{run.deck.length} / 10 карт</span>
+                <span>{run.deck.length} / {MAX_DECK} карт</span>
               </div>
               <div className={styles.cardGrid}>
                 {Object.values(CARD_MAP).map((def) => {
@@ -168,8 +187,7 @@ export const SetupScreen = () => {
                       defId={def.id}
                       level={levels[def.id] || 1}
                       selected={inDeck}
-                      disabled={!inDeck && run.deck.length >= 10}
-                      onClick={() => toggleDeckCard(def.id)}
+                      onClick={() => addCard(def.id)}
                     />
                   );
                 })}
@@ -216,12 +234,45 @@ export const SetupScreen = () => {
           {!mercsOk ? 'Нужен хотя бы один наёмник. ' : ''}
           {run.deck.length < 5 ? 'В колоде минимум 5 карт. ' : ''}
           {overBudget ? 'Колода дороже мощности. ' : ''}
-          {run.deck.length > 10 ? 'В стартовой колоде максимум 10 карт.' : ''}
         </span>
         <button type="button" className={styles.btn} disabled={!canStart} onClick={startRun}>
           Войти в данж
         </button>
       </div>
+
+      {pendingAdd && (
+        <div className={styles.modalBackdrop} onClick={() => setPendingAdd(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.title} style={{ fontSize: 18 }}>Колода заполнена</h3>
+            <p className={styles.sub} style={{ marginTop: 0 }}>
+              В колоде уже {MAX_DECK} карт. Выберите карту, которую заменить на
+              {' '}<b style={{ color: '#fbbf24' }}>{CARD_MAP[pendingAdd]?.name}</b>.
+            </p>
+            <div className={styles.modalList}>
+              {run.deck.map((id, i) => {
+                const def = CARD_MAP[id];
+                if (!def) return null;
+                return (
+                  <button
+                    key={`${id}-${i}`}
+                    type="button"
+                    className={styles.modalItem}
+                    onClick={() => swapCard(id)}
+                  >
+                    <span>{def.icon} {def.name}</span>
+                    <span className={styles.modalMeta}>{def.cost}⚡ · {def.power}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className={styles.row} style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+              <button type="button" className={styles.btnGhost} onClick={() => setPendingAdd(null)}>
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

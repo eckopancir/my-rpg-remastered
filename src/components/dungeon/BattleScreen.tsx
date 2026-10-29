@@ -93,7 +93,7 @@ export const BattleScreen = () => {
   const enemySlots = Math.max(4, battle.enemies.length);
   // Враги стоят в обратном порядке: первый в списке — крайний правый слот.
   const enemyAt = (slot: number) => battle.enemies[enemySlots - 1 - slot] ?? null;
-  const logTail = battle.log.slice(-6);
+  const logTail = battle.log.slice(-5);
 
   return (
     <div className={styles.battle}>
@@ -123,6 +123,11 @@ export const BattleScreen = () => {
                   healDown={m.healDown}
                   armorDown={m.armorDown}
                   vuln={m.vuln}
+                  barrier={m.barrier}
+                  regen={m.regen}
+                  thorns={m.thorns}
+                  taunt={m.taunt}
+                  dodge={m.dodge}
                   slotLabel={SLOT_LABEL[slot]}
                   targetable={needTarget === 'merc'}
                   fx={fx}
@@ -190,6 +195,12 @@ export const BattleScreen = () => {
           </div>
           <b style={{ color: '#fbbf24' }}>{battle.energy}</b>
         </div>
+
+        {(battle.rage ?? 0) > 0 && (
+          <span className={styles.pill} style={{ color: '#fb923c', borderColor: 'rgba(251,146,60,0.55)' }} title="Урон наёмников увеличен до конца боя">
+            🔥 ЯРОСТЬ +{Math.round(battle.rage * 100)}%
+          </span>
+        )}
 
         {needTarget && (
           <span className={styles.pill} style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.5)' }}>

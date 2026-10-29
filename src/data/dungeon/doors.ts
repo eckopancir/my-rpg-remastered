@@ -106,7 +106,8 @@ export const rollRewardCards = (count = 3): string[] => {
 export const upgradeCost = (power: number, targetLevel: number): number => {
   const table = [0, 0, 200, 500, 1000, 2000, 4000, 8000];
   const base = table[Math.max(0, Math.min(7, targetLevel))] || 0;
-  return Math.round(base * (power / 100));
+  // Мягкий множитель: дорогие карты не улетают в космос по цене.
+  return Math.round(base * (0.5 + power / 200));
 };
 
 export const upgradeCostFor = (card: CardDef, currentLevel: number): number =>

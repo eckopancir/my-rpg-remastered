@@ -15,6 +15,11 @@ interface Props {
   healDown?: number;
   armorDown?: number;
   vuln?: number;
+  barrier?: number;
+  regen?: number;
+  thorns?: number;
+  taunt?: number;
+  dodge?: number;
   slotLabel?: string;
   /** Арт наёмника (если нарисован). */
   image?: string;
@@ -26,7 +31,8 @@ interface Props {
 }
 
 export const MercCard = ({
-  id, name, role, stars, hp, maxHp, armor, maxArmor, shield, healDown, armorDown, vuln, slotLabel, image, dead, selected, targetable, fx, onClick,
+  id, name, role, stars, hp, maxHp, armor, maxArmor, shield, healDown, armorDown, vuln,
+  barrier, regen, thorns, taunt, dodge, slotLabel, image, dead, selected, targetable, fx, onClick,
 }: Props) => {
   const isFx = !!fx && fx.targetUid === id;
   const hpPct = Math.max(0, Math.min(100, (hp / Math.max(1, maxHp)) * 100));
@@ -83,6 +89,16 @@ export const MercCard = ({
       {!!shield && shield > 0 && (
         <div className={styles.barRow}>
           <span className={styles.shieldBadge}>✦ щит {shield}</span>
+        </div>
+      )}
+
+      {(!!barrier || !!regen || !!thorns || !!taunt || !!dodge) && (
+        <div className={styles.mercDebuffs}>
+          {!!barrier && <span className={styles.debuffBadge} style={{ color: '#7dd3fc' }} title="Поглощает урон, не сгорает в конце хода">барьер {barrier}</span>}
+          {!!regen && <span className={styles.debuffBadge} style={{ color: '#4ade80' }} title="Лечит каждый ход">реген {regen}</span>}
+          {!!thorns && <span className={styles.debuffBadge} style={{ color: '#fb923c' }} title="Наносит урон атакующему">шипы {thorns}</span>}
+          {!!taunt && <span className={styles.debuffBadge} style={{ color: '#fbbf24' }} title="Враги бьют только его">провок. {taunt}</span>}
+          {!!dodge && <span className={styles.debuffBadge} style={{ color: '#a3e635' }} title="Шанс уклониться">уклон. {dodge}%</span>}
         </div>
       )}
 

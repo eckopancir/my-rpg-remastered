@@ -66,6 +66,11 @@ export const EnemyCard = ({ enemy, targetable, fx, onClick }: Props) => {
         {enemy.vuln > 0 && <span className={styles.statusBadge} style={{ color: '#f472b6' }}>уязв. {enemy.vuln}</span>}
         {enemy.weak > 0 && <span className={styles.statusBadge} style={{ color: '#a3a3a3' }}>слаб. {enemy.weak}</span>}
         {enemy.stun > 0 && <span className={styles.statusBadge} style={{ color: '#94a3b8' }}>оглуш. {enemy.stun}</span>}
+        {(enemy.burn ?? 0) > 0 && <span className={styles.statusBadge} style={{ color: '#fb923c' }}>🔥 {enemy.burn}</span>}
+        {(enemy.poison ?? 0) > 0 && <span className={styles.statusBadge} style={{ color: '#a3e635' }}>☠ {enemy.poison}</span>}
+        {(enemy.bleed ?? 0) > 0 && <span className={styles.statusBadge} style={{ color: '#ef4444' }}>🩸 {enemy.bleed}</span>}
+        {(enemy.armorBreak ?? 0) > 0 && <span className={styles.statusBadge} style={{ color: '#fbbf24' }}>пробой {enemy.armorBreak}</span>}
+        {(enemy.web ?? 0) > 0 && <span className={styles.statusBadge} style={{ color: '#c084fc' }}>паутина {enemy.web}</span>}
         {enemy.isElite && <span className={styles.statusBadge} style={{ color: '#c084fc' }}>элита</span>}
         {enemy.isBoss && <span className={styles.statusBadge} style={{ color: '#ef4444' }}>босс</span>}
       </div>

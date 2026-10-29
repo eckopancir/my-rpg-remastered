@@ -197,6 +197,7 @@
   flex: 0 0 auto;
   border-radius: 10px;
   border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-color: color-mix(in srgb, var(--rarity, #9ca3af) 50%, rgba(255, 255, 255, 0.18));
   background:
     radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.08), transparent 55%),
     linear-gradient(180deg, #2a1a1c 0%, #1a1012 55%, #100a0c 100%);
@@ -218,8 +219,8 @@
 }
 
 .cardHand {
-  width: 124px;
-  height: 176px;
+  width: 128px;
+  height: 192px;
   margin: 0 3px;
   animation: cardDeal 300ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
 }
@@ -297,6 +298,33 @@
   color: rgba(244, 231, 211, 0.82);
   flex: 1;
   overflow: hidden;
+}
+
+.cardBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.badgeCrit,
+.badgeRage {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.badgeCrit {
+  color: #fca5a5;
+}
+
+.badgeRage {
+  color: #fb923c;
 }
 
 .cardFoot {
@@ -996,11 +1024,72 @@
 /* ---------------- Сетап ---------------- */
 
 .setup {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
   flex: 1;
   min-height: 0;
+}
+
+/* Модалка «колода заполнена» */
+.modalBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgba(4, 2, 3, 0.78);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.modalBox {
+  width: min(540px, 94vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: linear-gradient(180deg, #241417, #120b0d);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+  padding: 18px;
+}
+
+.modalList {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.modalItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
+  color: #f4e7d3;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.modalItem:hover {
+  border-color: rgba(251, 191, 36, 0.6);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.modalMeta {
+  color: rgba(244, 231, 211, 0.55);
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
 }
 
 .tabs {
@@ -1385,12 +1474,20 @@
     max-width: 100%;
   }
   .card {
-    width: 116px;
-    height: 164px;
+    width: 114px;
+    height: 172px;
   }
   .cardHand {
     width: 108px;
-    height: 154px;
-    margin: 0 -18px;
+    height: 164px;
+    margin: 0 2px;
+  }
+  .cardText {
+    font-size: 9.5px;
+    line-height: 1.3;
+  }
+  .cardName {
+    font-size: 11px;
+    min-height: 26px;
   }
 }
