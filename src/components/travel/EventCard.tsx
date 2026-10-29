@@ -11,9 +11,10 @@ export interface EventCardProps {
 }
 
 const legendaryResultLabel = (r: string | null): { text: string; cls: string } => {
-  if (r === 'complete') return { text: '✓ ЗАВЕРШЕНО', cls: styles.legendaryOk };
+  if (r === 'final' || r === 'complete') return { text: '✓ ФИНАЛ', cls: styles.legendaryOk };
   if (r === 'stage') return { text: '→ ДАЛЕЕ', cls: styles.legendaryStage };
-  if (r === 'fail') return { text: '✗ ПРОВАЛ', cls: styles.legendaryFail };
+  if (r === 'stuck') return { text: '⤾ НЕ ПРОШЛИ', cls: styles.legendaryFail };
+  if (r === 'fail') return { text: '✗ ОБОРВАЛАСЬ', cls: styles.legendaryFail };
   return { text: 'НАЧАЛО ЦЕПОЧКИ', cls: styles.legendaryStage };
 };
 
@@ -35,13 +36,14 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
     styles.card,
     event.micro ? styles.cardMicro : '',
     event.legendary ? styles.cardLegendary : '',
+    event.legendary?.result === 'final' ? styles.cardLegendaryFinal : '',
     event.kind === 'brutal' ? styles.cardBrutal : '',
   ].filter(Boolean).join(' ');
 
   return (
     <div className={cls} style={{ ['--cardColor' as any]: meta.color }}>
       <div className={styles.cardTime}>{event.time}</div>
-      {event.art ? (
+      {(event.art ? eventArtStyle(event.art) : null) ? (
         <div className={styles.cardArt} style={eventArtStyle(event.art) ?? undefined} aria-hidden />
       ) : null}
       <div className={styles.cardBody}>
@@ -54,6 +56,10 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
 
         {event.kind === 'brutal' && (
           <div className={styles.brutalTitle}>💀 ЖЕСТОКОЕ</div>
+        )}
+
+        {event.legendary?.result === 'final' && (
+          <div className={styles.legendaryFinalTitle}>⚜ ЛЕГЕНДАРНЫЙ ФИНАЛ</div>
         )}
 
         <div className={styles.cardText}>{event.text}</div>
@@ -92,11 +98,17 @@ export const EventCard = ({ event, onItemHover, onItemMove, onItemLeave }: Event
             {r.flatHeal > 0 && (
               <span className={`${styles.badge} ${styles.badgeHeal}`}>❤ +{Math.round(r.flatHeal)}</span>
             )}
-            {r.damagePercent > 0 && (
-              <span className={`${styles.badge} ${styles.badgeDmg}`}>💥 −{Math.round(r.damagePercent * 100)}%</span>
-            )}
-            {r.damage > 0 && (
+            {r.damagePercent > 0 ? (
+              <span className={`${styles.badge} ${styles.badgeDmg}`}>
+                💥 −{Math.round(r.damagePercent * 100)}%{r.damage > 0 ? ` (${r.damage} HP)` : ''}
+              </span>
+            ) : r.damage > 0 && (
               <span className={`${styles.badge} ${styles.badgeDmg}`}>💥 −{r.damage} HP</span>
+            )}
+            {r.keyTier > 0 && (
+              <span className={`${styles.badge} ${styles.badgeKey}`}>
+                🗝 Ключ: {r.keyName || 'Обычный'} ({r.keyTier}★)
+              </span>
             )}
             {r.items.length > 0
               ? r.items.map((it, i) => (

@@ -124,4 +124,11 @@ foreach ($histUsers as $histUser) {
   if ($histCutId) $histCutDel->execute([$histUser, (int)$histCutId]);
 }
 
+// Локхаут легендарки: после финала N крупных слотов без новой цепочки.
+// Миграция: колонка legendary_lock в explorations.
+$lockCol = $pdo->query("SHOW COLUMNS FROM explorations LIKE 'legendary_lock'")->fetchAll();
+if (!count($lockCol)) {
+  $pdo->exec("ALTER TABLE explorations ADD COLUMN legendary_lock INT NOT NULL DEFAULT 0 AFTER legendary_auto_resolve");
+}
+
 echo json_encode(['ok' => true]);

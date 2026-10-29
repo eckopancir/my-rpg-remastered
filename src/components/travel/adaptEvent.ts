@@ -83,6 +83,8 @@ const EMPTY_REWARDS: TravelRewards = {
   flatHeal: 0,
   heal: 0,
   damage: 0,
+  keyTier: 0,
+  keyName: null,
   itemCount: 0,
   items: [],
 };
@@ -119,6 +121,9 @@ export const adaptEvent = (
     damagePercent: typeof eff.damagePercent === 'number' ? eff.damagePercent : 0,
     flatHeal: typeof eff.flatHeal === 'number' ? eff.flatHeal : 0,
     heal: typeof eff.heal === 'number' ? eff.heal : 0,
+    // Ключ легендарки (редкость 1..7 + название) — только в финальном событии.
+    keyTier: typeof eff.keyTier === 'number' ? eff.keyTier : 0,
+    keyName: typeof eff.keyName === 'string' && eff.keyName ? eff.keyName : null,
     damage: typeof eff.damage === 'number' ? eff.damage : 0,
     // Если находка не влезла в рюкзак — не показываем обезличенное «+1»,
     // вместо него будет плашка с названием предмета и пометкой «не влезло».
@@ -164,6 +169,7 @@ export const hasRewards = (r: TravelRewards): boolean =>
   r.flatHeal > 0 ||
   r.heal > 0 ||
   r.damage > 0 ||
+  r.keyTier > 0 ||
   r.itemCount > 0 ||
   r.items.length > 0 ||
   (r.droppedItems?.length ?? 0) > 0;

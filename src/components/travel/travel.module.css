@@ -560,6 +560,25 @@
   margin-bottom: 2px;
 }
 
+/* Легендарный финал: двойное золотое свечение (стиль «опасного», но золото). */
+.cardLegendaryFinal {
+  background: linear-gradient(120deg, rgba(251, 191, 36, 0.16), rgba(245, 158, 11, 0.05));
+  border-color: rgba(251, 191, 36, 0.55);
+  box-shadow: 0 0 26px rgba(251, 191, 36, 0.28);
+}
+
+.legendaryFinalTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fbbf24;
+  margin-bottom: 2px;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
 .cardTime {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -713,6 +732,13 @@
 .legendaryFail {
   background: rgba(248, 113, 113, 0.16);
   color: #f87171;
+}
+
+/* Бейдж ключа легендарки (финал цепочки). */
+.badgeKey {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fde68a;
+  border: 1px solid rgba(251, 191, 36, 0.35);
 }
 
 /* ---------- Выбор ветки ---------- */

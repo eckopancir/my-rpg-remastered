@@ -47,6 +47,10 @@ export interface TravelRewards {
   heal: number;
   /** Числовой урон (в HP) — новые рейды. */
   damage: number;
+  /** Редкость ключа легендарки (1..7) — только в финальном событии. */
+  keyTier: number;
+  /** Русское название редкости ключа («Эпический»). */
+  keyName?: string | null;
   /** Сколько предметов выпало (сервер посчитал). */
   itemCount: number;
   /** Конкретные предметы (клиент уже сгенерировал их). */
@@ -60,7 +64,8 @@ export interface TravelLegendary {
   /** Русское название цепочки (например «Бункер Заря»). */
   title: string;
   stage: number | null;
-  result: 'stage' | 'complete' | 'fail' | null;
+  /** stage — переход; stuck — застряли (остались на этапе); final — финал с ключом. */
+  result: 'stage' | 'stuck' | 'final' | 'complete' | 'fail' | null;
 }
 
 export interface TravelEvent {
