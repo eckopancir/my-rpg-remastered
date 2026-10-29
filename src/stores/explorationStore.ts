@@ -792,16 +792,37 @@ export const useExplorationStore = create<ExplorationStore>()(
             let itemPool: string | null = null;
             let chestSpec: { quality?: string; level?: number } | null = null;
             let profile: TravelRewardProfile | null = null;
+            let keyDrop: { slug: string; tier: number; title: string; quality: string; color: string } | null = null;
             if (reward.reward_data) {
               try {
                 const rd = typeof reward.reward_data === 'string' ? JSON.parse(reward.reward_data) : reward.reward_data;
                 itemPool = rd?.itemPool || null;
                 chestSpec = rd?.chest || null;
                 profile = rd?.profile || null;
+                keyDrop = rd?.keyDrop || null;
               } catch (_) {}
             }
             const items: GeneratedItem[] = [];
-            if (chestSpec) {
+            if (keyDrop) {
+              // Легендарный ключ: предмет с фиксированной редкостью (решил сервер).
+              const tier = Math.max(1, Math.min(7, keyDrop.tier || 1));
+              items.push({
+                id: `key_${keyDrop.slug}_${tier}_${Math.random().toString(16).slice(2, 8)}`,
+                name: `legendary_key_${keyDrop.slug}`,
+                displayName: `Ключ: ${keyDrop.title || keyDrop.slug}`,
+                type: 'key',
+                slot: 'key',
+                rarity: 'common',
+                level: rewardPlayerLevel,
+                quality: keyDrop.quality || 'Обычный',
+                qualityColor: keyDrop.color || 'white',
+                image: `/art/keys/key-${tier}.png`,
+                stats: {},
+                quantity: 1,
+                stackable: false,
+                description: 'Трофей легендарной цепочки рейда. Валюта подземелий.',
+              } as unknown as GeneratedItem);
+            } else if (chestSpec) {
               // Награда-сундук с легендарки: качество и уровень зафиксированы сервером.
               const chest = createChest(chestSpec.quality || 'Обычный', chestSpec.level || rewardPlayerLevel);
               items.push(chest as unknown as GeneratedItem);

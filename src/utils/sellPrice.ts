@@ -8,6 +8,8 @@ export const CRAFT_MAT_SELL_PRICE: Record<string, number> = {
 };
 
 export const getSellPrice = (item: { price?: number; level?: number; quality?: string; quantity?: number; name?: string; type?: string }, rate = 0.4): number => {
+  // Легендарные ключи — валюта подземелий: продать нельзя.
+  if ((item as any).type === 'key') return 0;
   // Ресурсы крафта — фикс за штуку (иначе формула давала 8+ за единицу).
   if ((item as any).type === 'material' && item.name && CRAFT_MAT_SELL_PRICE[item.name] != null) {
     return CRAFT_MAT_SELL_PRICE[item.name] * (item.quantity || 1);

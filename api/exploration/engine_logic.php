@@ -119,7 +119,7 @@ function travelRewardProfile($playerLevel, $zoneDifficulty, $itemPool = null, $q
   ];
 }
 
-function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr, $itemPool = null, $chest = null, $profile = null) {
+function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $eventType, $itemCount, $playerLevel, $effectsArr, $itemPool = null, $chest = null, $profile = null, $keyDrop = null) {
   if ($itemCount <= 0) return;
   // Крупные суммы (например, bulk-сводка за сутки) режем на чанки, иначе
   // клиент попытается сгенерировать и POST'нуть сотни предметов одним
@@ -136,6 +136,7 @@ function createOfflineReward($pdo, $userId, $expId, $eventId, $eventText, $event
     'itemPool' => $itemPool,
     'chest' => $chest,
     'profile' => $profile,
+    'keyDrop' => $keyDrop,
   ], JSON_UNESCAPED_UNICODE);
   $stmt = $pdo->prepare("INSERT INTO offline_rewards (user_id, exploration_id, event_id, event_text, item_count, player_level, generation_version, reward_data)
     VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
@@ -785,7 +786,9 @@ function resolveLegendaryStage($pdo, $userId, &$exp, $zoneDesc, $buffs = [], $ca
     $applyResult = applyEffects($pdo, $userId, $fr, $buffs, $capDamage);
     $exp['total_exp'] = (int)$exp['total_exp'] + $applyResult['appliedExp'];
     // Ключ: редкость от экипировки; пишем один раз, храним максимум.
-    $keyTier = grantLegendaryKey($pdo, $userId, $legKey);
+    // При улучшении результата ключ-предмет уйдёт клиенту pending reward'ом.
+    $keyInfo = grantLegendaryKey($pdo, $userId, $legKey, (string)($leg['title'] ?? $legKey), (int)($exp['id'] ?? 0));
+    $keyTier = $keyInfo['tier'];
     // Локхаут: 3 крупных слота без новой легендарки после финала.
     $exp['legendary_lock'] = 3;
     $exp['legendary_id'] = null;
@@ -873,8 +876,13 @@ function equippedAvgStars($pdo, $userId) {
   return $n > 0 ? $sum / $n : 0.0;
 }
 
-/** Выдать ключ за цепочку: редкость floor(среднего) + дробь как % шанса +1. */
-function grantLegendaryKey($pdo, $userId, $legKey) {
+/**
+ * Выдать ключ за цепочку: редкость floor(среднего) + дробь как % шанса +1.
+ * Seйв (legendaryKeys) хранит максимум достигнутого; при ЛУЧШЕМ результате
+ * ключ-предмет доставляется клиенту через pending rewards (регистрируется
+ * в reward_data.keyDrop, клиент кладёт его в рюкзак/склад).
+ */
+function grantLegendaryKey($pdo, $userId, $legKey, $legTitle = '', $expId = 0) {
   $avg = equippedAvgStars($pdo, $userId);
   $base = (int)floor($avg);
   $tier = max(1, min(7, $base));
@@ -888,7 +896,17 @@ function grantLegendaryKey($pdo, $userId, $legKey) {
   $prev = (int)($sd['player']['legendaryKeys'][$legKey] ?? 0);
   $sd['player']['legendaryKeys'][$legKey] = max($prev, $tier); // максимальный достигнутый
   putSaveData($pdo, $userId, $sd);
-  return $tier;
+  if ($prev < $tier && $expId > 0) {
+    $tierName = (defined('LEGENDARY_KEY_TIERS') && isset(LEGENDARY_KEY_TIERS[$tier - 1]))
+      ? LEGENDARY_KEY_TIERS[$tier - 1] : 'Обычный';
+    $tierColor = ['white', 'lime', 'deepskyblue', 'mediumpurple', 'red', 'gold', 'cyan'][$tier - 1] ?? 'white';
+    // Предмет-ключ положит клиент (рюкзак/склад); редкость зафиксирована здесь.
+    createOfflineReward($pdo, $userId, (int)$expId, 2000000000 + mt_rand(0, 999999999),
+      'Ключ: ' . $legTitle, 'legendary', 1, (int)getPlayerLevel($pdo, $userId), [], null, null, null,
+      ['slug' => $legKey, 'tier' => $tier, 'title' => $legTitle, 'quality' => $tierName, 'color' => $tierColor]);
+    return ['tier' => $tier, 'improved' => true];
+  }
+  return ['tier' => $tier, 'improved' => $prev < $tier];
 }
 
 // ---------------------------------------------------------------------------
@@ -910,11 +928,19 @@ function handleExplorationDeath($pdo, $userId, &$exp, $deathInfo = null) {
   if ($lostChips > 0) {
     $sd['player']['dataChips'] = max(0, ($sd['player']['dataChips'] ?? 0) - $lostChips);
   }
-  // Личный рюкзак — обнуляется (как и добыча рейда).
+  // Личный рюкзак — обнуляется (как и добыча рейда), НО легендарные ключи
+  // не сгорают: это валюта будущих подземелий, трофей должен выживать смерть.
   $bagItems = $sd['player']['backpackGrid']['items'] ?? [];
-  $lostItems = count($sessionIds) + (is_array($bagItems) ? count($bagItems) : 0);
+  $keepKeys = [];
+  if (is_array($bagItems)) {
+    foreach ($bagItems as $it) {
+      $d = is_array($it) ? $it : (json_decode((string)($it['data'] ?? ''), true) ?: []);
+      if (($d['type'] ?? '') === 'key') $keepKeys[] = $it;
+    }
+  }
+  $lostItems = count($sessionIds) + (is_array($bagItems) ? count($bagItems) : 0) - count($keepKeys);
   if (is_array($sd['player']['backpackGrid'] ?? null)) {
-    $sd['player']['backpackGrid']['items'] = [];
+    $sd['player']['backpackGrid']['items'] = $keepKeys;
   }
   $sd['player']['stats']['currentHp'] = max(1, (int)floor(($sd['player']['stats']['maxHp'] ?? 100) * 0.01));
   // Гвард-маркер для save.php: пока клиент не квитировал смерть

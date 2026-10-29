@@ -46,6 +46,7 @@ const SLOT_LABELS: Record<string, string> = {
   shield: 'Щит',
   ammo: '(снято с игры)', bullet: 'Патроны',
   any: 'Универсально',
+  key: 'Ключ',
   mod_scope: 'Прицел', mod_barrel: 'Ствол', mod_receiver: 'Ресивер',
   mod_muzzle: 'Дуло', mod_magazine: 'Магазин', mod_stock: 'Приклад',
   mod_blade: 'Лезвие', mod_handle: 'Рукоять', mod_pommel: 'Обух', mod_harness: 'Крепление',
@@ -225,10 +226,12 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
               ))}
             </span>
           ) : <span />}
-          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.22)', borderRadius: 4, padding: '3px 6px', minWidth: 52 }}>
-            <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>⚡ {itemPower}</span>
-            <span style={{ fontSize: 6, fontWeight: 600, letterSpacing: 0.5, color: 'rgba(251,191,36,0.75)', marginTop: 1, textTransform: 'uppercase' }}>мощность</span>
-          </span>
+          {!((item as any).type === 'key') && (
+            <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.22)', borderRadius: 4, padding: '3px 6px', minWidth: 52 }}>
+              <span style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>⚡ {itemPower}</span>
+              <span style={{ fontSize: 6, fontWeight: 600, letterSpacing: 0.5, color: 'rgba(251,191,36,0.75)', marginTop: 1, textTransform: 'uppercase' }}>мощность</span>
+            </span>
+          )}
         </div>
       {(imgUrl || foodIcon || shieldIcon) && (
         <div style={{ textAlign: 'center', padding: ['head', 'armor', 'pants', 'gloves', 'boots'].includes(item.slot || '') ? '25px 14px' : '4px 14px 0', position: 'relative' }}>
@@ -278,6 +281,21 @@ export const ItemTooltip = ({ item, x, y, nested, pinMode }: ItemTooltipProps) =
       </div>
       </div>
       <div style={{ padding: '0 14px 12px', maxWidth: 350 }}>
+      {item.type === 'key' && (() => (
+        <div style={{
+          background: `linear-gradient(120deg, ${hex}14 0%, ${hex}05 100%)`,
+          border: `1px solid ${hex}55`,
+          borderRadius: 6, padding: '7px 9px', marginBottom: 8,
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: hex, letterSpacing: 0.4 }}>
+            🗝 Ключ легендарной цепочки
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.45 }}>
+            Трофей рейда, пойманный на звёздности экипировки.<br />
+            Валюта подземелий — откроется в скором обновлении.
+          </div>
+        </div>
+      ))()}
       {item.type === 'blueprint' && (() => {
         const stat = (item as any).blueprintStat || 'damage';
         const isFlat = SCHEME_FLAT_STATS.has(stat);

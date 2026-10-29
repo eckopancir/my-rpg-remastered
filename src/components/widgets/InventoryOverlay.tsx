@@ -42,6 +42,7 @@ const SLOT_FILTERS = [
   { value: 'backpack', label: '— Рюкзаки' },
   { value: 'bullet', label: '— Патроны' },
   { value: 'blueprint', label: '— Сферы' },
+  { value: 'key', label: '— Ключи' },
 ];
 
 const getItemTimestamp = (item: Item): number => {
@@ -132,6 +133,7 @@ const slotFilterKey = (item: Item): string => {  if (item.type === 'mod') return
   if (item.type === 'backpack') return 'backpack';
   if (item.type === 'bullet') return 'bullet';
   if (item.type === 'blueprint') return 'blueprint';
+  if (item.type === 'key') return 'key';
   if (item.slot === 'ammo') return 'ammo';
   // Огнестрел раскладывается по классовым фильтрам.
   if (item.slot === 'weapon2') return gunSlotForWeapon(item);
@@ -148,6 +150,7 @@ const tabRepFor = (value: string): { img?: string; emoji?: string } => {
   if (value === 'consumable') return { emoji: '🧪' }; // у расходников арта нет — как в ячейках
   if (value === 'mod') return { img: getItemImage('Прицел', undefined, 'mod_scope', 'mod'), emoji: '🔧' };
   if (value === 'chest') return { img: chestImageFor('Обычный') };
+  if (value === 'key') return { img: '/art/keys/key-6.png' };
   const rep: any = (GAME_ITEMS as any[]).find((d) => { try { return slotFilterKey(d as Item) === value; } catch { return false; } });
   if (!rep) return { emoji: '❔' };
   const url = getItemImage(rep.name, rep.displayName, rep.slot, rep.type);

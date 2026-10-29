@@ -50,8 +50,18 @@ const SHEETS: SheetDef[] = [
   // Brutal events (164-193): ONE sheet pack-8, 6 columns x 5 rows = 30 cells,
   // row-major order (art 164 = r1c1 ... 193 = r5c6). Geometry measured on the
   // final sheet 2026-10-28.
-  { file: 8, from: 164, to: 193, cols: 6,
+  { file: 8, from: 164, to: 193, cols: 5,
     xs: [25, 253, 482, 707, 934, 1162], ys: [24, 173, 321, 469, 618], w: 222, h: 142, W: 1408, H: 768 },
+  // Legendary chains (194-203 / 204-213 / 214-223): sheets pack-9/10/11,
+  // 5 columns x 2 rows = 10 cells, row-major (intro, suc/fail per stage, finale).
+  // Geometry measured 2026-10-29 (black gutters between cells; sheets are
+  // 1380x752, cell windows are centered inside measured light intervals).
+  { file: 9, from: 194, to: 203,
+    xs: [6, 285, 564, 844, 1119], ys: [0, 379], w: 260, h: 372, W: 1380, H: 752 },
+  { file: 10, from: 204, to: 213,
+    xs: [11, 293, 573, 854, 1125], ys: [0, 379], w: 254, h: 373, W: 1380, H: 752 },
+  { file: 11, from: 214, to: 223,
+    xs: [9, 291, 570, 850, 1121], ys: [0, 379], w: 258, h: 372, W: 1380, H: 752 },
 ];
 
 /** Р›РёСЃС‚ СЃР»РѕР¶РЅРѕСЃС‚Рё (public/art/diffs/diff-sheet.jpg): 5 РєРІР°РґСЂР°С‚РѕРІ РІ СЂСЏРґ. */
