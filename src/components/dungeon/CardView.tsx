@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { CARD_MAP, RARITY_META, SET_META, cardText, effectiveCard, powerColor, type CardDef } from '../../data/dungeon/cards';
+import { CARD_ART } from '../../data/dungeon/cardArt';
 import styles from './dungeon.module.css';
 
 const KIND_LABEL: Record<string, string> = {
@@ -27,8 +29,10 @@ interface Props {
 }
 
 export const CardView = ({ defId, level = 1, hand, selected, disabled, uid, delay, onClick }: Props) => {
+  const [artFailed, setArtFailed] = useState(false);
   const def: CardDef | undefined = CARD_MAP[defId];
   if (!def) return null;
+  const artId = CARD_ART[defId];
   const eff = effectiveCard(def, level);
   const rarity = RARITY_META[def.rarity] || RARITY_META.common;
   const set = SET_META[def.set] || SET_META.tactics;
@@ -58,7 +62,19 @@ export const CardView = ({ defId, level = 1, hand, selected, disabled, uid, dela
           {def.power}
         </span>
       </div>
-      <div className={styles.cardIcon}>{def.icon}</div>
+      <div className={styles.cardIcon}>
+        {artId && !artFailed ? (
+          <img
+            className={styles.cardArt}
+            src={`/art/dungeon/cards/${artId}.png`}
+            alt=""
+            loading="lazy"
+            onError={() => setArtFailed(true)}
+          />
+        ) : (
+          def.icon
+        )}
+      </div>
       <div className={styles.cardName}>{def.name}</div>
       <div className={styles.cardText}>{cardText(def, level, true)}</div>
 

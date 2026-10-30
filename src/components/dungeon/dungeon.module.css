@@ -282,6 +282,15 @@
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 
+.cardArt {
+  display: block;
+  width: 100%;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
 .cardName {
   margin-top: 4px;
   font-size: 12px;
