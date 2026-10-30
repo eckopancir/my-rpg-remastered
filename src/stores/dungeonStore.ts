@@ -28,6 +28,10 @@ import { usePlayerStore } from './playerStore';
 import { useInventoryStore } from './inventoryStore';
 import { useAuthStore } from './authStore';
 import { syncNow } from '../utils/serverSync';
+import {
+  playBattleStartSfx, playCardSfx, playDodgeSfx, playEnemyDeathSfx,
+  playMercDeathSfx, playRewardSfx, playUpgradeSfx, preloadDungeonSfx,
+} from '../data/dungeon/sfx';
 import { removeItemFromGrid } from '../data/backpacks';
 
 // ---------------------------------------------------------------------------
@@ -154,6 +158,12 @@ export interface BattleState {
   door: number;
   /** Ярость: прибавка к урону наёмников до конца боя (0.1 = +10%). */
   rage: number;
+  /** Сколько карт сыграно в этот ход (для combo). */
+  playedThisTurn: number;
+  /** Счётчик применений overheat-карт: defId → сколько раз играли. */
+  overheat: Record<string, number>;
+  /** Карты «один раз за бой»: defId, которые уже сыграны. */
+  usedOnce: string[];
 }
 
 export interface RewardState {
@@ -317,7 +327,24 @@ const cloneBattle = (b: BattleState): BattleState => ({
   discardPile: [...b.discardPile],
   enemyQueue: [...b.enemyQueue],
   log: [...b.log],
+  overheat: { ...(b.overheat || {}) },
+  usedOnce: [...(b.usedOnce || [])],
 });
+
+/** xcost: числа эффектов умножаются на потраченную энергию. */
+const scaleForX = (e: Effect, mult: number): Effect => {
+  switch (e.t) {
+    case 'damage':
+    case 'heal':
+    case 'shield':
+    case 'maxArmor':
+      return { ...e, v: Math.max(1, Math.round(e.v * mult)) };
+    case 'status':
+      return { ...e, v: e.v ? Math.max(1, Math.round(e.v * mult)) : e.v };
+    default:
+      return { ...e };
+  }
+};
 
 const pushLog = (b: BattleState, text: string): void => {
   b.log.push(text);
@@ -688,6 +715,9 @@ export const useDungeonStore = create<DungeonStore>()(
           tier: run.keyTier,
           door: run.door,
           rage: 0,
+          playedThisTurn: 0,
+          overheat: {},
+          usedOnce: [],
         };
         // innate-карты всегда в стартовой руке: кладём их в конец колоды (берём сверху).
         const innate = battle.drawPile.filter((c) => CARD_MAP[c.defId]?.keywords?.includes('innate'));
@@ -698,6 +728,8 @@ export const useDungeonStore = create<DungeonStore>()(
         drawCards(battle, 5);
         computeIntents(battle);
         patchRun({ phase: 'battle', battle });
+        preloadDungeonSfx();
+        playBattleStartSfx();
       };
 
       const winBattle = (battle: BattleState): void => {
@@ -743,6 +775,7 @@ export const useDungeonStore = create<DungeonStore>()(
         };
         if (e.hp <= 0) {
           pushLog(battle, `${e.name} повержен.`);
+          playEnemyDeathSfx();
           if (e.defId === 'carrier' && spawnBrood(battle, 1) > 0) {
             pushLog(battle, 'Из брюшка носителя вырывается выводок!');
           }
@@ -753,6 +786,7 @@ export const useDungeonStore = create<DungeonStore>()(
       const hitMerc = (battle: BattleState, m: BattleMerc, amount: number, attacker?: BattleEnemy): number => {
         if ((m.dodge ?? 0) > 0 && Math.random() * 100 < m.dodge) {
           pushLog(battle, `${m.name} уклоняется от удара.`);
+          playDodgeSfx();
           battle.fx = { id: Date.now() + Math.random(), targetUid: m.id, kind: 'buff', value: 0 };
           return 0;
         }
@@ -783,6 +817,7 @@ export const useDungeonStore = create<DungeonStore>()(
           m.alive = false;
           m.hp = 0;
           pushLog(battle, `${m.name} пал.`);
+          playMercDeathSfx();
         }
         return hpBefore - m.hp;
       };
@@ -812,7 +847,21 @@ export const useDungeonStore = create<DungeonStore>()(
         const def = CARD_MAP[inst.defId];
         if (!def) return;
         const eff = effectiveCard(def, inst.level);
-        if (battle.energy < eff.cost) return;
+        const isX = !!def.xcost;
+        if (isX) {
+          if (battle.energy < 1) return;
+        } else if (battle.energy < eff.cost) return;
+        const cost = isX ? battle.energy : eff.cost;
+
+        // «Один раз за бой»: повторно не играется даже при копиях в колоде.
+        if (def.once && (battle.usedOnce || []).includes(def.id)) {
+          pushLog(battle, `${def.name}: уже использована в этом бою.`);
+          battle.hand = battle.hand.filter((c) => c.defId !== def.id);
+          battle.drawPile = battle.drawPile.filter((c) => c.defId !== def.id);
+          battle.discardPile = battle.discardPile.filter((c) => c.defId !== def.id);
+          patchRun({ battle });
+          return;
+        }
 
         const targetEnemy = targetUid ? battle.enemies.find((e) => e.uid === targetUid && e.hp > 0) : undefined;
         const targetMerc = targetUid ? battle.mercs.find((m) => m.id === targetUid && m.alive) : undefined;
@@ -835,6 +884,23 @@ export const useDungeonStore = create<DungeonStore>()(
         // Крит: один бросок на карту, весь её урон ×critMult.
         const crit = !!eff.critChance && Math.random() * 100 < eff.critChance;
         if (crit) pushLog(battle, `КРИТ! ${def.name} бьёт вдвое сильнее.`);
+
+        playCardSfx(def, { crit, rage: rageProc });
+
+        // Итоговый список эффектов: xcost → combo → overheat.
+        let effects: Effect[] = eff.effects.map((e) => ({ ...e }));
+        if (isX) {
+          const mult = Math.max(1, battle.energy);
+          effects = effects.map((e) => scaleForX(e, mult));
+          pushLog(battle, `${def.name}: потрачено ${mult} энергии.`);
+        }
+        const comboActive = !!eff.combo && (battle.playedThisTurn || 0) > 0;
+        if (comboActive && eff.combo) effects = [...effects, ...eff.combo.map((e) => ({ ...e }))];
+        if (def.overheat) {
+          const stacks = battle.overheat?.[def.id] || 0;
+          const bonus = stacks * def.overheat;
+          if (bonus > 0) effects = effects.map((e) => (e.t === 'damage' ? { ...e, v: e.v + bonus } : e));
+        }
 
         const damageOne = (e: BattleEnemy, base: number, pierce?: boolean): void => {
           let dmg = base;
@@ -968,9 +1034,35 @@ export const useDungeonStore = create<DungeonStore>()(
               }
               return;
             }
-            case 'scry':
-              pushLog(battle, `Просмотр ${e.v} верхних карт колоды (скоро).`);
+            case 'scry': {
+              const n = Math.max(1, Math.round(e.v));
+              if (battle.drawPile.length === 0) return;
+              const start = Math.max(0, battle.drawPile.length - n);
+              const top = battle.drawPile.slice(start);
+              const rest = battle.drawPile.slice(0, start);
+              const power = (c: CardInstance): number => CARD_MAP[c.defId]?.power || 0;
+              const best = top.reduce((a, b) => (power(b) > power(a) ? b : a), top[0]);
+              battle.drawPile = [...rest, ...top.filter((c) => c.uid !== best.uid)];
+              battle.hand.push(best);
+              pushLog(battle, `Просмотр ${n}: в руку идёт ${CARD_MAP[best.defId]?.name || 'карта'}.`);
               return;
+            }
+            case 'transform': {
+              let left = Math.max(0, Math.round(e.v));
+              while (left > 0) {
+                const pool = battle.hand.filter((c) => c.uid !== inst.uid);
+                if (pool.length === 0) break;
+                const old = pool[Math.floor(Math.random() * pool.length)];
+                battle.hand = battle.hand.filter((c) => c.uid !== old.uid);
+                const candidates = CARDS.filter((c) => c.id !== old.defId);
+                if (candidates.length === 0) break;
+                const next = candidates[Math.floor(Math.random() * candidates.length)];
+                battle.hand.push({ uid: uid(), defId: next.id, level: get().levels[next.id] || 1 });
+                pushLog(battle, `${CARD_MAP[old.defId]?.name || 'Карта'} превращается в ${next.name}.`);
+                left -= 1;
+              }
+              return;
+            }
             case 'revive': {
               const fallen = battle.mercs.filter((m) => !m.alive);
               if (fallen.length === 0) {
@@ -993,11 +1085,24 @@ export const useDungeonStore = create<DungeonStore>()(
           }
         };
 
-        for (const effect of eff.effects) applyEffect(effect);
+        const passes = (def.keywords || []).includes('echo') ? 2 : 1;
+        for (let pass = 0; pass < passes; pass++) {
+          for (const effect of effects) applyEffect(effect);
+        }
 
         battle.hand.splice(idx, 1);
         if (!eff.exhaust) battle.discardPile.push(inst);
-        battle.energy = Math.max(0, battle.energy - eff.cost);
+        if (def.once) {
+          battle.usedOnce = [...(battle.usedOnce || []), def.id];
+          battle.hand = battle.hand.filter((c) => c.defId !== def.id);
+          battle.drawPile = battle.drawPile.filter((c) => c.defId !== def.id);
+          battle.discardPile = battle.discardPile.filter((c) => c.defId !== def.id);
+        }
+        battle.energy = Math.max(0, battle.energy - cost);
+        battle.playedThisTurn = (battle.playedThisTurn || 0) + 1;
+        if (def.overheat) {
+          battle.overheat = { ...(battle.overheat || {}), [def.id]: (battle.overheat?.[def.id] || 0) + 1 };
+        }
 
         if (aliveEnemies(battle).length === 0) {
           winBattle(battle);
@@ -1060,6 +1165,7 @@ export const useDungeonStore = create<DungeonStore>()(
         battle.energy = 5;
         battle.phase = 'player';
         battle.enemyQueue = [];
+        battle.playedThisTurn = 0;
         drawCards(battle, 5);
         computeIntents(battle);
         pushLog(battle, `Ход ${battle.turn}. Энергия восстановлена.`);
@@ -1348,6 +1454,7 @@ export const useDungeonStore = create<DungeonStore>()(
             return { ...m, hp: Math.min(m.maxHp, m.hp + heal) };
           });
           patchRun({ chips, deck, mercs });
+          playRewardSfx();
           if (run.door >= 30) {
             winRun();
             return;
@@ -1367,6 +1474,7 @@ export const useDungeonStore = create<DungeonStore>()(
             levels: { ...get().levels, [cardId]: level + 1 },
             run: { ...run, chips: run.chips - cost, updatedAt: Date.now() },
           });
+          playUpgradeSfx();
           syncNow();
         },
 

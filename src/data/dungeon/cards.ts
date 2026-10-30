@@ -20,7 +20,7 @@ export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 /** Ключевые слова карт. */
 export type Keyword =
   | 'retain' | 'ethereal' | 'innate' | 'combo' | 'xcost'
-  | 'echo' | 'revive' | 'transform' | 'overheat';
+  | 'echo' | 'revive' | 'transform' | 'overheat' | 'once';
 
 /** Статусы на врагах и наёмниках. */
 export type StatusId =
@@ -55,7 +55,9 @@ export type Effect =
   | { t: 'discard'; v: number }
   | { t: 'scry'; v: number }
   /** Поднимает павшего наёмника с долей HP `v` (0.5 = 50%). */
-  | { t: 'revive'; v: number };
+  | { t: 'revive'; v: number }
+  /** Превращает `v` случайных карт в руке в другие карты. */
+  | { t: 'transform'; v: number };
 
 /** Патч карты на 4-м / 7-м уровне. */
 export interface LevelPatch extends Partial<Omit<CardDef, 'effects' | 'l4' | 'l7'>> {
@@ -92,6 +94,14 @@ export interface CardDef {
   /** Шанс ярости, % — +rageMult к урону наёмников до конца боя. */
   rageChance?: number;
   rageMult?: number;
+  /** Доп. эффекты, если в этот ход уже сыграна карта. */
+  combo?: Effect[];
+  /** Тратит всю энергию; числа эффектов умножаются на потраченную энергию. */
+  xcost?: boolean;
+  /** +N урона за каждое предыдущее применение в этом бою. */
+  overheat?: number;
+  /** Можно сыграть только один раз за бой: после игры все копии изгоняются. */
+  once?: boolean;
   /** Изгоняется после игры. */
   exhaust?: boolean;
   /** Ручной оверрайд текста (иначе собирается из effects). */
@@ -355,6 +365,8 @@ const CARD_LIST: CardDef[] = [
       { t: 'shield', v: 18, target: 'merc' },
       { t: 'maxArmor', v: 3, target: 'merc' },
     ],
+    once: true,
+    keywords: ['once'],
   },
   {
     id: 'capacitor', name: 'Конденсатор', set: 'engineering', rarity: 'common', kind: 'utility',
@@ -396,6 +408,8 @@ const CARD_LIST: CardDef[] = [
       { t: 'shield', v: 15, target: 'merc' },
       { t: 'status', on: 'merc', id: 'thorns', v: 6 },
     ],
+    once: true,
+    keywords: ['once'],
   },
   {
     id: 'drone', name: 'Дрон-разведчик', set: 'engineering', rarity: 'uncommon', kind: 'utility',
@@ -424,6 +438,8 @@ const CARD_LIST: CardDef[] = [
       { t: 'shield', v: 35, target: 'allMercs' },
       { t: 'maxArmor', v: 5, target: 'allMercs' },
     ],
+    once: true,
+    keywords: ['once'],
   },
   {
     id: 'scrapNova', name: 'Шквал шрапнели', set: 'engineering', rarity: 'epic', kind: 'aoe',
@@ -623,6 +639,8 @@ const CARD_LIST: CardDef[] = [
     power: 85, cost: 1, target: 'merc', icon: '🪲',
     effects: [{ t: 'maxArmor', v: 8, target: 'merc' }],
     l7: { add: [{ t: 'shield', v: 10, target: 'merc' }] },
+    once: true,
+    keywords: ['once'],
   },
   {
     id: 'venomBite', name: 'Укус', set: 'web', rarity: 'common', kind: 'attack',
@@ -715,6 +733,8 @@ const CARD_LIST: CardDef[] = [
       { t: 'status', on: 'allMercs', id: 'thorns', v: 8 },
       { t: 'maxArmor', v: 8, target: 'allMercs' },
     ],
+    once: true,
+    keywords: ['once'],
   },
 
   // -------------------------------------------------------------------------
@@ -741,6 +761,8 @@ const CARD_LIST: CardDef[] = [
       { t: 'maxArmor', v: 4, target: 'allMercs' },
       { t: 'heal', v: 8, target: 'allMercs' },
     ],
+    once: true,
+    keywords: ['once'],
   },
   {
     id: 'retreat', name: 'Отход', set: 'tactics', rarity: 'uncommon', kind: 'utility',
@@ -774,6 +796,8 @@ const CARD_LIST: CardDef[] = [
       { t: 'shield', v: 26, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'thorns', v: 4 },
     ],
+    once: true,
+    keywords: ['once'],
   },
   {
     id: 'commander', name: 'Командир', set: 'tactics', rarity: 'epic', kind: 'buff',
@@ -784,6 +808,8 @@ const CARD_LIST: CardDef[] = [
       { t: 'maxArmor', v: 4, target: 'allMercs' },
     ],
     exhaust: true,
+    once: true,
+    keywords: ['once'],
   },
 
   // -------------------------------------------------------------------------
@@ -822,6 +848,8 @@ const CARD_LIST: CardDef[] = [
     power: 85, cost: 1, target: 'allMercs', icon: '🗿',
     effects: [{ t: 'status', on: 'allMercs', id: 'thorns', v: 4 }],
     l7: { add: [{ t: 'status', on: 'allMercs', id: 'thorns', v: 3 }] },
+    once: true,
+    keywords: ['once'],
   },
   {
     id: 'echoChamber', name: 'Эхо-камера', set: 'relics', rarity: 'uncommon', kind: 'aoe',
@@ -851,6 +879,8 @@ const CARD_LIST: CardDef[] = [
       { t: 'maxArmor', v: 10, target: 'merc' },
       { t: 'shield', v: 20, target: 'merc' },
     ],
+    once: true,
+    keywords: ['once'],
   },
   {
     id: 'relicFang', name: 'Реликтовый клык', set: 'relics', rarity: 'rare', kind: 'attack',
@@ -900,6 +930,1471 @@ const CARD_LIST: CardDef[] = [
       { t: 'heal', v: 15, target: 'allMercs' },
     ],
     exhaust: true,
+  },
+
+  // =========================================================================
+  // Пул III: карты на combo / xcost / echo / overheat / transform.
+  // =========================================================================
+
+  {
+    id: 'doubleTap', name: 'Двойной выстрел', set: 'ballistics', rarity: 'uncommon', kind: 'attack',
+    power: 110, cost: 1, target: 'enemy', icon: '🔫',
+    effects: [{ t: 'damage', v: 9 }],
+    combo: [{ t: 'damage', v: 9 }],
+    keywords: ['combo'],
+  },
+  {
+    id: 'hailOfLead', name: 'Свинцовый град', set: 'ballistics', rarity: 'rare', kind: 'aoe',
+    power: 170, cost: 0, target: 'allEnemies', icon: '🌪️',
+    effects: [{ t: 'damage', v: 4, target: 'allEnemies' }],
+    xcost: true,
+    keywords: ['xcost'],
+  },
+  {
+    id: 'lastRound', name: 'Последний патрон', set: 'ballistics', rarity: 'rare', kind: 'attack',
+    power: 150, cost: 1, target: 'enemy', icon: '🪙',
+    effects: [{ t: 'damage', v: 10 }],
+    overheat: 4,
+    keywords: ['overheat'],
+  },
+  {
+    id: 'feedbackLoop', name: 'Петля обратной связи', set: 'engineering', rarity: 'rare', kind: 'shield',
+    power: 160, cost: 1, target: 'allMercs', icon: '🔁',
+    effects: [{ t: 'shield', v: 14, target: 'allMercs' }],
+    keywords: ['echo'],
+  },
+  {
+    id: 'naniteSwarm', name: 'Рой нанитов', set: 'engineering', rarity: 'rare', kind: 'heal',
+    power: 155, cost: 1, target: 'allMercs', icon: '🦠',
+    effects: [{ t: 'heal', v: 10, target: 'allMercs' }],
+    overheat: 3,
+    keywords: ['overheat'],
+  },
+  {
+    id: 'volatileChain', name: 'Цепная реакция', set: 'chemistry', rarity: 'rare', kind: 'debuff',
+    power: 165, cost: 1, target: 'allEnemies', icon: '⛓️',
+    effects: [{ t: 'status', on: 'allEnemies', id: 'poison', v: 3 }],
+    keywords: ['echo'],
+  },
+  {
+    id: 'silkWeave', name: 'Плетение', set: 'web', rarity: 'rare', kind: 'utility',
+    power: 140, cost: 0, target: 'none', icon: '🧵',
+    effects: [{ t: 'transform', v: 1 }, { t: 'draw', v: 2 }],
+    keywords: ['transform'],
+  },
+  {
+    id: 'endlessWeb', name: 'Бесконечная сеть', set: 'web', rarity: 'uncommon', kind: 'control',
+    power: 130, cost: 1, target: 'enemy', icon: '🕸️',
+    effects: [{ t: 'status', on: 'enemy', id: 'web', turns: 1 }],
+    overheat: 1,
+    keywords: ['overheat'],
+  },
+  {
+    id: 'charge', name: 'Натиск', set: 'tactics', rarity: 'uncommon', kind: 'attack',
+    power: 120, cost: 1, target: 'enemy', icon: '🐗',
+    effects: [{ t: 'damage', v: 11 }],
+    combo: [{ t: 'damage', v: 8 }, { t: 'shield', v: 8, target: 'front' }],
+    keywords: ['combo'],
+  },
+  {
+    id: 'allIn', name: 'Ва-банк', set: 'tactics', rarity: 'rare', kind: 'attack',
+    power: 175, cost: 0, target: 'enemy', icon: '🎲',
+    effects: [{ t: 'damage', v: 6 }],
+    xcost: true,
+    keywords: ['xcost'],
+  },
+  {
+    id: 'echoRelic', name: 'Эхо реликвии', set: 'relics', rarity: 'uncommon', kind: 'attack',
+    power: 130, cost: 1, target: 'enemy', icon: '📯',
+    effects: [{ t: 'damage', v: 8 }],
+    keywords: ['echo'],
+  },
+  {
+    id: 'moltCycle', name: 'Круговорот', set: 'relics', rarity: 'rare', kind: 'utility',
+    power: 150, cost: 1, target: 'none', icon: '♻️',
+    effects: [{ t: 'transform', v: 2 }, { t: 'draw', v: 1 }],
+    keywords: ['transform'],
+  },
+
+  // =========================================================================
+  // Пул IV: 108 карт (Баллистика, Инженерия, Медицина, Химия).
+  // id с префиксом b2_/e2_/m2_/c2_ — гарантированно не пересекаются со старыми.
+  // =========================================================================
+
+  // -------------------------------------------------------------------------
+  // Баллистика II
+  // -------------------------------------------------------------------------
+  {
+    id: 'b2_snapShot', name: 'Быстрый выстрел', set: 'ballistics', rarity: 'common', kind: 'attack',
+    power: 50, cost: 1, target: 'enemy', icon: '🔫',
+    effects: [{ t: 'damage', v: 7 }],
+  },
+  {
+    id: 'b2_coverFire', name: 'Огонь на подавление', set: 'ballistics', rarity: 'common', kind: 'debuff',
+    power: 85, cost: 1, target: 'allEnemies', icon: '🔻',
+    effects: [
+      { t: 'damage', v: 4, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'weak', turns: 1 },
+    ],
+  },
+  {
+    id: 'b2_magSwap', name: 'Смена магазина', set: 'ballistics', rarity: 'common', kind: 'utility',
+    power: 55, cost: 0, target: 'none', icon: '🔄',
+    effects: [{ t: 'draw', v: 2 }],
+    exhaust: true,
+  },
+  {
+    id: 'b2_hollowPoint', name: 'Экспансивная', set: 'ballistics', rarity: 'common', kind: 'attack',
+    power: 85, cost: 1, target: 'enemy', icon: '🩸',
+    effects: [
+      { t: 'damage', v: 9 },
+      { t: 'status', on: 'enemy', id: 'bleed', v: 2 },
+    ],
+  },
+  {
+    id: 'b2_quickDraw', name: 'Навскидку', set: 'ballistics', rarity: 'common', kind: 'attack',
+    power: 70, cost: 1, target: 'enemy', icon: '⚡',
+    effects: [{ t: 'damage', v: 6 }, { t: 'draw', v: 1 }],
+  },
+  {
+    id: 'b2_tracerBurst', name: 'Трассерная очередь', set: 'ballistics', rarity: 'common', kind: 'attack',
+    power: 80, cost: 1, target: 'enemy', icon: '✨',
+    effects: [{ t: 'damage', v: 3, hits: 3 }],
+  },
+  {
+    id: 'b2_smokeRound', name: 'Дымовой патрон', set: 'ballistics', rarity: 'common', kind: 'control',
+    power: 80, cost: 1, target: 'enemy', icon: '💨',
+    effects: [
+      { t: 'damage', v: 5 },
+      { t: 'status', on: 'enemy', id: 'web', turns: 1 },
+    ],
+  },
+  {
+    id: 'b2_scopeIn', name: 'Прицеливание', set: 'ballistics', rarity: 'common', kind: 'buff',
+    power: 70, cost: 1, target: 'enemy', icon: '🔭',
+    effects: [{ t: 'status', on: 'enemy', id: 'vuln', turns: 2 }],
+  },
+  {
+    id: 'b2_incendiary', name: 'Зажигательный', set: 'ballistics', rarity: 'common', kind: 'attack',
+    power: 90, cost: 1, target: 'enemy', icon: '🔥',
+    effects: [
+      { t: 'damage', v: 7 },
+      { t: 'status', on: 'enemy', id: 'burn', v: 3 },
+    ],
+  },
+  {
+    id: 'b2_suppressFire', name: 'Подавить огнём', set: 'ballistics', rarity: 'common', kind: 'debuff',
+    power: 80, cost: 1, target: 'allEnemies', icon: '🔇',
+    effects: [{ t: 'status', on: 'allEnemies', id: 'weak', turns: 2 }],
+  },
+  {
+    id: 'b2_buckShot', name: 'Картечь', set: 'ballistics', rarity: 'common', kind: 'aoe',
+    power: 90, cost: 2, target: 'allEnemies', icon: '💥',
+    effects: [{ t: 'damage', v: 6, target: 'allEnemies' }],
+  },
+  {
+    id: 'b2_doubleFeed', name: 'Двойная подача', set: 'ballistics', rarity: 'uncommon', kind: 'attack',
+    power: 115, cost: 1, target: 'enemy', icon: '🔁',
+    effects: [{ t: 'damage', v: 8 }],
+    combo: [{ t: 'damage', v: 8 }],
+    keywords: ['combo'],
+  },
+  {
+    id: 'b2_apBurst', name: 'Бронебойная очередь', set: 'ballistics', rarity: 'uncommon', kind: 'attack',
+    power: 125, cost: 2, target: 'enemy', icon: '🎯',
+    effects: [{ t: 'damage', v: 5, hits: 3, pierce: true }],
+  },
+  {
+    id: 'b2_markedTarget', name: 'Отмеченная цель', set: 'ballistics', rarity: 'uncommon', kind: 'debuff',
+    power: 120, cost: 1, target: 'enemy', icon: '🚩',
+    effects: [
+      { t: 'status', on: 'enemy', id: 'vuln', turns: 3 },
+      { t: 'status', on: 'enemy', id: 'armorBreak', turns: 2 },
+    ],
+  },
+  {
+    id: 'b2_chainShot', name: 'Цепной выстрел', set: 'ballistics', rarity: 'uncommon', kind: 'attack',
+    power: 120, cost: 1, target: 'enemy', icon: '↩️',
+    effects: [
+      { t: 'damage', v: 10 },
+      { t: 'damage', v: 5, target: 'randomEnemy' },
+    ],
+  },
+  {
+    id: 'b2_overwatch', name: 'Наблюдение', set: 'ballistics', rarity: 'uncommon', kind: 'utility',
+    power: 115, cost: 1, target: 'none', icon: '👁️',
+    effects: [{ t: 'draw', v: 2 }, { t: 'energy', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 'b2_railPierce', name: 'Рельсовый залп', set: 'ballistics', rarity: 'uncommon', kind: 'attack',
+    power: 130, cost: 2, target: 'enemy', icon: '🛤️',
+    effects: [{ t: 'damage', v: 16, pierce: true }],
+  },
+  {
+    id: 'b2_drumMag', name: 'Барабанный магазин', set: 'ballistics', rarity: 'uncommon', kind: 'utility',
+    power: 120, cost: 1, target: 'none', icon: '🥁',
+    effects: [{ t: 'draw', v: 3 }],
+    exhaust: true,
+  },
+  {
+    id: 'b2_fireDiscipline', name: 'Огневая дисциплина', set: 'ballistics', rarity: 'uncommon', kind: 'attack',
+    power: 130, cost: 1, target: 'enemy', icon: '🎖️',
+    effects: [{ t: 'damage', v: 8 }],
+    rageChance: 20,
+    rageMult: 0.1,
+  },
+  {
+    id: 'b2_ricochetVolley', name: 'Рикошетный залп', set: 'ballistics', rarity: 'rare', kind: 'aoe',
+    power: 165, cost: 2, target: 'allEnemies', icon: '🪃',
+    effects: [
+      { t: 'damage', v: 8, target: 'allEnemies' },
+      { t: 'damage', v: 6, target: 'randomEnemy' },
+    ],
+  },
+  {
+    id: 'b2_killZone', name: 'Зона поражения', set: 'ballistics', rarity: 'rare', kind: 'aoe',
+    power: 170, cost: 2, target: 'allEnemies', icon: '🎯',
+    effects: [
+      { t: 'damage', v: 6, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'bleed', v: 3 },
+    ],
+  },
+  {
+    id: 'b2_steadyAim', name: 'Точный выстрел', set: 'ballistics', rarity: 'rare', kind: 'attack',
+    power: 175, cost: 2, target: 'enemy', icon: '🎯',
+    effects: [{ t: 'damage', v: 22 }],
+    critChance: 20,
+    critMult: 2,
+  },
+  {
+    id: 'b2_ammoBelt', name: 'Патронная лента', set: 'ballistics', rarity: 'rare', kind: 'utility',
+    power: 160, cost: 1, target: 'none', icon: '🧵',
+    effects: [{ t: 'energy', v: 2 }, { t: 'draw', v: 2 }],
+    exhaust: true,
+  },
+  {
+    id: 'b2_headhunter', name: 'Охотник за головами', set: 'ballistics', rarity: 'rare', kind: 'attack',
+    power: 180, cost: 2, target: 'enemy', icon: '💀',
+    effects: [{ t: 'damage', v: 14 }],
+    exec: 0.25,
+    execMult: 2,
+  },
+  {
+    id: 'b2_barrage', name: 'Шквальный огонь', set: 'ballistics', rarity: 'epic', kind: 'aoe',
+    power: 185, cost: 3, target: 'allEnemies', icon: '🌪️',
+    effects: [{ t: 'damage', v: 5, hits: 4, target: 'allEnemies' }],
+  },
+  {
+    id: 'b2_deadeye', name: 'Мёртвый глаз', set: 'ballistics', rarity: 'epic', kind: 'attack',
+    power: 210, cost: 3, target: 'enemy', icon: '👁️',
+    effects: [{ t: 'damage', v: 28, pierce: true }],
+    critChance: 25,
+    critMult: 2,
+  },
+  {
+    id: 'b2_lastStand', name: 'Последний рубеж', set: 'ballistics', rarity: 'legendary', kind: 'attack',
+    power: 250, cost: 3, target: 'enemy', icon: '🏁',
+    effects: [{ t: 'damage', v: 30 }],
+    bonusLow: 15,
+    once: true,
+    keywords: ['once'],
+  },
+
+  // -------------------------------------------------------------------------
+  // Инженерия II
+  // -------------------------------------------------------------------------
+  {
+    id: 'e2_fieldRepair', name: 'Полевой ремонт', set: 'engineering', rarity: 'common', kind: 'heal',
+    power: 60, cost: 1, target: 'merc', icon: '🔧',
+    effects: [{ t: 'heal', v: 12, target: 'merc' }],
+  },
+  {
+    id: 'e2_boltTrap', name: 'Болт-ловушка', set: 'engineering', rarity: 'common', kind: 'attack',
+    power: 80, cost: 1, target: 'enemy', icon: '🔩',
+    effects: [
+      { t: 'damage', v: 9 },
+      { t: 'status', on: 'enemy', id: 'web', turns: 1 },
+    ],
+  },
+  {
+    id: 'e2_insulation', name: 'Изоляция', set: 'engineering', rarity: 'common', kind: 'shield',
+    power: 70, cost: 1, target: 'merc', icon: '🧤',
+    effects: [{ t: 'shield', v: 14, target: 'merc' }],
+  },
+  {
+    id: 'e2_powerCell', name: 'Энергоячейка', set: 'engineering', rarity: 'common', kind: 'utility',
+    power: 50, cost: 0, target: 'none', icon: '🔋',
+    effects: [{ t: 'energy', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 'e2_wrench', name: 'Гаечный ключ', set: 'engineering', rarity: 'common', kind: 'attack',
+    power: 75, cost: 1, target: 'enemy', icon: '🔧',
+    effects: [
+      { t: 'damage', v: 8 },
+      { t: 'status', on: 'enemy', id: 'armorBreak', turns: 1 },
+    ],
+  },
+  {
+    id: 'e2_plating', name: 'Наплавка', set: 'engineering', rarity: 'common', kind: 'shield',
+    power: 80, cost: 1, target: 'merc', icon: '🛡️',
+    effects: [{ t: 'maxArmor', v: 4, target: 'merc' }],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'e2_coolant', name: 'Хладагент', set: 'engineering', rarity: 'common', kind: 'utility',
+    power: 85, cost: 1, target: 'allMercs', icon: '❄️',
+    effects: [
+      { t: 'status', on: 'allMercs', id: 'cleanse' },
+      { t: 'shield', v: 8, target: 'allMercs' },
+    ],
+  },
+  {
+    id: 'e2_calibrate', name: 'Калибровка', set: 'engineering', rarity: 'common', kind: 'utility',
+    power: 65, cost: 0, target: 'none', icon: '📐',
+    effects: [{ t: 'draw', v: 1 }, { t: 'energy', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 'e2_shockProd', name: 'Электрошок', set: 'engineering', rarity: 'common', kind: 'control',
+    power: 85, cost: 1, target: 'enemy', icon: '⚡',
+    effects: [
+      { t: 'damage', v: 4 },
+      { t: 'status', on: 'enemy', id: 'stun', turns: 1 },
+    ],
+  },
+  {
+    id: 'e2_magnet', name: 'Магнит', set: 'engineering', rarity: 'common', kind: 'utility',
+    power: 75, cost: 0, target: 'none', icon: '🧲',
+    effects: [{ t: 'scry', v: 2 }, { t: 'draw', v: 1 }],
+  },
+  {
+    id: 'e2_reinforce', name: 'Укрепление', set: 'engineering', rarity: 'common', kind: 'shield',
+    power: 85, cost: 1, target: 'allMercs', icon: '🧱',
+    effects: [{ t: 'shield', v: 10, target: 'allMercs' }],
+  },
+  {
+    id: 'e2_droneStrike', name: 'Удар дрона', set: 'engineering', rarity: 'uncommon', kind: 'attack',
+    power: 115, cost: 1, target: 'enemy', icon: '🛸',
+    effects: [
+      { t: 'damage', v: 6, hits: 2 },
+      { t: 'status', on: 'enemy', id: 'armorBreak', turns: 1 },
+    ],
+  },
+  {
+    id: 'e2_autoTurret', name: 'Автотурель', set: 'engineering', rarity: 'uncommon', kind: 'attack',
+    power: 125, cost: 2, target: 'enemy', icon: '🔫',
+    effects: [{ t: 'damage', v: 5, hits: 4 }],
+  },
+  {
+    id: 'e2_shieldGen', name: 'Генератор щита', set: 'engineering', rarity: 'uncommon', kind: 'shield',
+    power: 125, cost: 1, target: 'merc', icon: '🔵',
+    effects: [
+      { t: 'shield', v: 22, target: 'merc' },
+      { t: 'status', on: 'merc', id: 'barrier', v: 8 },
+    ],
+  },
+  {
+    id: 'e2_arcNet', name: 'Дуговая сеть', set: 'engineering', rarity: 'uncommon', kind: 'aoe',
+    power: 130, cost: 2, target: 'allEnemies', icon: '🌐',
+    effects: [
+      { t: 'damage', v: 7, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'web', turns: 1 },
+    ],
+  },
+  {
+    id: 'e2_nanoPatch', name: 'Нано-заплатка', set: 'engineering', rarity: 'uncommon', kind: 'heal',
+    power: 130, cost: 1, target: 'merc', icon: '🦠',
+    effects: [
+      { t: 'heal', v: 20, target: 'merc' },
+      { t: 'status', on: 'merc', id: 'regen', v: 5, turns: 2 },
+    ],
+  },
+  {
+    id: 'e2_overdrive', name: 'Форсаж', set: 'engineering', rarity: 'uncommon', kind: 'utility',
+    power: 120, cost: 0, target: 'none', icon: '⚙️',
+    effects: [{ t: 'energy', v: 2 }, { t: 'draw', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 'e2_hardpoint', name: 'Твердая точка', set: 'engineering', rarity: 'uncommon', kind: 'shield',
+    power: 125, cost: 1, target: 'merc', icon: '🔩',
+    effects: [
+      { t: 'maxArmor', v: 6, target: 'merc' },
+      { t: 'shield', v: 12, target: 'merc' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'e2_empBlast', name: 'ЭМИ-удар', set: 'engineering', rarity: 'uncommon', kind: 'aoe',
+    power: 135, cost: 2, target: 'allEnemies', icon: '💥',
+    effects: [
+      { t: 'damage', v: 9, target: 'allEnemies' },
+      { t: 'status', on: 'randomEnemy', id: 'stun', turns: 1 },
+    ],
+  },
+  {
+    id: 'e2_siegeMode', name: 'Осадный режим', set: 'engineering', rarity: 'rare', kind: 'attack',
+    power: 170, cost: 3, target: 'enemy', icon: '🏰',
+    effects: [
+      { t: 'damage', v: 10, hits: 3 },
+      { t: 'status', on: 'enemy', id: 'armorBreak', turns: 2 },
+    ],
+  },
+  {
+    id: 'e2_bastion', name: 'Опорный пункт', set: 'engineering', rarity: 'rare', kind: 'shield',
+    power: 175, cost: 2, target: 'allMercs', icon: '🧱',
+    effects: [
+      { t: 'shield', v: 30, target: 'allMercs' },
+      { t: 'maxArmor', v: 4, target: 'allMercs' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'e2_reactor', name: 'Реактор', set: 'engineering', rarity: 'rare', kind: 'utility',
+    power: 155, cost: 0, target: 'none', icon: '☢️',
+    effects: [{ t: 'energy', v: 3 }],
+    exhaust: true,
+  },
+  {
+    id: 'e2_repairDrone', name: 'Ремонтный дрон', set: 'engineering', rarity: 'rare', kind: 'heal',
+    power: 165, cost: 2, target: 'allMercs', icon: '🤖',
+    effects: [{ t: 'heal', v: 30, target: 'allMercs' }],
+  },
+  {
+    id: 'e2_teslaGrid', name: 'Сетка Теслы', set: 'engineering', rarity: 'epic', kind: 'aoe',
+    power: 180, cost: 2, target: 'allEnemies', icon: '🌩️',
+    effects: [{ t: 'damage', v: 10, target: 'allEnemies' }],
+    keywords: ['echo'],
+  },
+  {
+    id: 'e2_railTurret', name: 'Рельсовая турель', set: 'engineering', rarity: 'epic', kind: 'attack',
+    power: 175, cost: 3, target: 'enemy', icon: '🛤️',
+    effects: [{ t: 'damage', v: 24, pierce: true }],
+  },
+  {
+    id: 'e2_fortress', name: 'Крепость', set: 'engineering', rarity: 'epic', kind: 'shield',
+    power: 215, cost: 3, target: 'allMercs', icon: '🏯',
+    effects: [
+      { t: 'shield', v: 40, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'barrier', v: 15 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'e2_omniForge', name: 'Универсальный горн', set: 'engineering', rarity: 'legendary', kind: 'utility',
+    power: 260, cost: 3, target: 'allMercs', icon: '🔥',
+    effects: [
+      { t: 'heal', v: 25, target: 'allMercs' },
+      { t: 'energy', v: 2 },
+      { t: 'draw', v: 2 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+
+  // -------------------------------------------------------------------------
+  // Медицина II
+  // -------------------------------------------------------------------------
+  {
+    id: 'm2_bandage', name: 'Бинт', set: 'medicine', rarity: 'common', kind: 'heal',
+    power: 45, cost: 0, target: 'merc', icon: '🩹',
+    effects: [{ t: 'heal', v: 10, target: 'merc' }],
+  },
+  {
+    id: 'm2_stim', name: 'Стимулятор', set: 'medicine', rarity: 'common', kind: 'buff',
+    power: 60, cost: 0, target: 'none', icon: '💉',
+    effects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 'm2_antiseptic', name: 'Антисептик', set: 'medicine', rarity: 'common', kind: 'utility',
+    power: 55, cost: 0, target: 'merc', icon: '🧴',
+    effects: [{ t: 'status', on: 'merc', id: 'cleanse' }],
+  },
+  {
+    id: 'm2_suture', name: 'Шов', set: 'medicine', rarity: 'common', kind: 'heal',
+    power: 70, cost: 1, target: 'merc', icon: '🪡',
+    effects: [{ t: 'heal', v: 14, target: 'merc' }],
+  },
+  {
+    id: 'm2_bloodBag', name: 'Пакет крови', set: 'medicine', rarity: 'common', kind: 'heal',
+    power: 75, cost: 1, target: 'allMercs', icon: '🩸',
+    effects: [{ t: 'heal', v: 8, target: 'allMercs' }],
+  },
+  {
+    id: 'm2_analgesic', name: 'Анальгетик', set: 'medicine', rarity: 'common', kind: 'buff',
+    power: 60, cost: 0, target: 'merc', icon: '💊',
+    effects: [{ t: 'status', on: 'merc', id: 'barrier', v: 10 }],
+  },
+  {
+    id: 'm2_vitamins', name: 'Витамины', set: 'medicine', rarity: 'common', kind: 'buff',
+    power: 70, cost: 1, target: 'merc', icon: '🍊',
+    effects: [{ t: 'status', on: 'merc', id: 'regen', v: 4, turns: 2 }],
+  },
+  {
+    id: 'm2_tourniquet', name: 'Жгут', set: 'medicine', rarity: 'common', kind: 'heal',
+    power: 80, cost: 1, target: 'merc', icon: '🩹',
+    effects: [
+      { t: 'heal', v: 12, target: 'merc' },
+      { t: 'status', on: 'merc', id: 'cleanse' },
+    ],
+  },
+  {
+    id: 'm2_plasma', name: 'Плазма', set: 'medicine', rarity: 'common', kind: 'heal',
+    power: 85, cost: 1, target: 'merc', icon: '🩸',
+    effects: [{ t: 'heal', v: 18, target: 'merc' }],
+  },
+  {
+    id: 'm2_triage2', name: 'Быстрая сортировка', set: 'medicine', rarity: 'common', kind: 'heal',
+    power: 80, cost: 1, target: 'allMercs', icon: '🏷️',
+    effects: [
+      { t: 'heal', v: 6, target: 'allMercs' },
+      { t: 'draw', v: 1 },
+    ],
+  },
+  {
+    id: 'm2_immunity', name: 'Иммунитет', set: 'medicine', rarity: 'common', kind: 'utility',
+    power: 85, cost: 1, target: 'allMercs', icon: '🛡️',
+    effects: [{ t: 'status', on: 'allMercs', id: 'cleanse' }],
+    exhaust: true,
+  },
+  {
+    id: 'm2_nanoSuture', name: 'Нано-шов', set: 'medicine', rarity: 'uncommon', kind: 'heal',
+    power: 120, cost: 1, target: 'merc', icon: '🪡',
+    effects: [
+      { t: 'heal', v: 22, target: 'merc' },
+      { t: 'status', on: 'merc', id: 'regen', v: 6, turns: 2 },
+    ],
+  },
+  {
+    id: 'm2_adrenalShot', name: 'Адреналиновый укол', set: 'medicine', rarity: 'uncommon', kind: 'buff',
+    power: 125, cost: 0, target: 'merc', icon: '💉',
+    effects: [
+      { t: 'heal', v: 10, target: 'merc' },
+      { t: 'energy', v: 2 },
+    ],
+    exhaust: true,
+  },
+  {
+    id: 'm2_fieldDressing', name: 'Полевая перевязка', set: 'medicine', rarity: 'uncommon', kind: 'heal',
+    power: 130, cost: 2, target: 'allMercs', icon: '🧰',
+    effects: [{ t: 'heal', v: 18, target: 'allMercs' }],
+  },
+  {
+    id: 'm2_painBlock', name: 'Блокада боли', set: 'medicine', rarity: 'uncommon', kind: 'buff',
+    power: 125, cost: 1, target: 'merc', icon: '🛡️',
+    effects: [
+      { t: 'status', on: 'merc', id: 'barrier', v: 25 },
+      { t: 'status', on: 'merc', id: 'taunt', turns: 2 },
+    ],
+  },
+  {
+    id: 'm2_regenPod', name: 'Реген-капсула', set: 'medicine', rarity: 'uncommon', kind: 'buff',
+    power: 135, cost: 2, target: 'allMercs', icon: '🧬',
+    effects: [{ t: 'status', on: 'allMercs', id: 'regen', v: 8, turns: 3 }],
+  },
+  {
+    id: 'm2_defib', name: 'Дефибриллятор', set: 'medicine', rarity: 'uncommon', kind: 'heal',
+    power: 140, cost: 2, target: 'allMercs', icon: '⚡',
+    effects: [{ t: 'revive', v: 0.3 }],
+    exhaust: true,
+  },
+  {
+    id: 'm2_serum', name: 'Сыворотка', set: 'medicine', rarity: 'uncommon', kind: 'buff',
+    power: 130, cost: 1, target: 'allMercs', icon: '🧪',
+    effects: [{ t: 'status', on: 'allMercs', id: 'thorns', v: 5 }],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'm2_bloodPact', name: 'Кровный договор', set: 'medicine', rarity: 'uncommon', kind: 'heal',
+    power: 120, cost: 1, target: 'merc', icon: '🩸',
+    effects: [{ t: 'heal', v: 25, target: 'merc' }],
+  },
+  {
+    id: 'm2_massTransfusion', name: 'Массовое переливание', set: 'medicine', rarity: 'rare', kind: 'heal',
+    power: 170, cost: 2, target: 'allMercs', icon: '🩸',
+    effects: [{ t: 'heal', v: 30, target: 'allMercs' }],
+  },
+  {
+    id: 'm2_emergencyWard', name: 'Экстренный блок', set: 'medicine', rarity: 'rare', kind: 'shield',
+    power: 175, cost: 2, target: 'allMercs', icon: '🏥',
+    effects: [
+      { t: 'shield', v: 28, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'cleanse' },
+    ],
+  },
+  {
+    id: 'm2_medBay', name: 'Медотсек', set: 'medicine', rarity: 'rare', kind: 'heal',
+    power: 180, cost: 3, target: 'allMercs', icon: '🏥',
+    effects: [
+      { t: 'heal', v: 20, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'regen', v: 6, turns: 3 },
+    ],
+  },
+  {
+    id: 'm2_resuscitate', name: 'Реанимация', set: 'medicine', rarity: 'rare', kind: 'heal',
+    power: 185, cost: 2, target: 'allMercs', icon: '💓',
+    effects: [{ t: 'revive', v: 0.5 }],
+    exhaust: true,
+  },
+  {
+    id: 'm2_combatStim', name: 'Боевой стимулятор', set: 'medicine', rarity: 'rare', kind: 'buff',
+    power: 180, cost: 1, target: 'allMercs', icon: '💉',
+    effects: [
+      { t: 'energy', v: 2 },
+      { t: 'draw', v: 2 },
+      { t: 'heal', v: 10, target: 'allMercs' },
+    ],
+    exhaust: true,
+  },
+  {
+    id: 'm2_steroidCycle', name: 'Курс стероидов', set: 'medicine', rarity: 'rare', kind: 'buff',
+    power: 175, cost: 2, target: 'allMercs', icon: '💪',
+    effects: [
+      { t: 'maxArmor', v: 6, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 4 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'm2_phoenixProtocol', name: 'Протокол «Феникс»', set: 'medicine', rarity: 'epic', kind: 'heal',
+    power: 220, cost: 3, target: 'allMercs', icon: '🔥',
+    effects: [
+      { t: 'revive', v: 0.6 },
+      { t: 'heal', v: 20, target: 'allMercs' },
+    ],
+    exhaust: true,
+  },
+  {
+    id: 'm2_eternalLife', name: 'Вечная жизнь', set: 'medicine', rarity: 'legendary', kind: 'heal',
+    power: 265, cost: 3, target: 'allMercs', icon: '♾️',
+    effects: [
+      { t: 'revive', v: 1 },
+      { t: 'heal', v: 30, target: 'allMercs' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+
+  // -------------------------------------------------------------------------
+  // Химия II
+  // -------------------------------------------------------------------------
+  {
+    id: 'c2_acidSpray', name: 'Кислотный спрей', set: 'chemistry', rarity: 'common', kind: 'attack',
+    power: 75, cost: 1, target: 'enemy', icon: '🧫',
+    effects: [
+      { t: 'damage', v: 6 },
+      { t: 'status', on: 'enemy', id: 'poison', v: 2 },
+    ],
+  },
+  {
+    id: 'c2_toxinDart', name: 'Токсин-дротик', set: 'chemistry', rarity: 'common', kind: 'attack',
+    power: 80, cost: 1, target: 'enemy', icon: '🎯',
+    effects: [
+      { t: 'damage', v: 5 },
+      { t: 'status', on: 'enemy', id: 'poison', v: 4 },
+    ],
+  },
+  {
+    id: 'c2_fireBomb', name: 'Зажигательная бомба', set: 'chemistry', rarity: 'common', kind: 'aoe',
+    power: 85, cost: 2, target: 'allEnemies', icon: '💣',
+    effects: [
+      { t: 'damage', v: 5, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'burn', v: 2 },
+    ],
+  },
+  {
+    id: 'c2_bleedVial', name: 'Флакон кровопуска', set: 'chemistry', rarity: 'common', kind: 'debuff',
+    power: 65, cost: 1, target: 'enemy', icon: '🩸',
+    effects: [{ t: 'status', on: 'enemy', id: 'bleed', v: 4 }],
+  },
+  {
+    id: 'c2_solventSpray', name: 'Растворитель-спрей', set: 'chemistry', rarity: 'common', kind: 'debuff',
+    power: 80, cost: 1, target: 'allEnemies', icon: '🫗',
+    effects: [{ t: 'status', on: 'allEnemies', id: 'armorBreak', turns: 2 }],
+  },
+  {
+    id: 'c2_smokeFlask', name: 'Дымовая колба', set: 'chemistry', rarity: 'common', kind: 'control',
+    power: 75, cost: 1, target: 'allEnemies', icon: '💨',
+    effects: [{ t: 'status', on: 'allEnemies', id: 'web', turns: 1 }],
+  },
+  {
+    id: 'c2_stimVial', name: 'Колба бодрости', set: 'chemistry', rarity: 'common', kind: 'buff',
+    power: 55, cost: 0, target: 'none', icon: '🧪',
+    effects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 'c2_acidBath', name: 'Кислотная ванна', set: 'chemistry', rarity: 'common', kind: 'attack',
+    power: 85, cost: 1, target: 'enemy', icon: '🛁',
+    effects: [
+      { t: 'damage', v: 7 },
+      { t: 'status', on: 'enemy', id: 'armorBreak', turns: 2 },
+    ],
+  },
+  {
+    id: 'c2_nerveGas', name: 'Нервный газ', set: 'chemistry', rarity: 'common', kind: 'debuff',
+    power: 85, cost: 1, target: 'enemy', icon: '☠️',
+    effects: [
+      { t: 'status', on: 'enemy', id: 'weak', turns: 2 },
+      { t: 'status', on: 'enemy', id: 'poison', v: 2 },
+    ],
+  },
+  {
+    id: 'c2_napalmFlask', name: 'Напалмовая колба', set: 'chemistry', rarity: 'common', kind: 'aoe',
+    power: 90, cost: 2, target: 'allEnemies', icon: '🔥',
+    effects: [
+      { t: 'damage', v: 4, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'burn', v: 3 },
+    ],
+  },
+  {
+    id: 'c2_antitoxin', name: 'Антитоксин', set: 'chemistry', rarity: 'common', kind: 'utility',
+    power: 80, cost: 1, target: 'allMercs', icon: '🧪',
+    effects: [
+      { t: 'status', on: 'allMercs', id: 'cleanse' },
+      { t: 'heal', v: 6, target: 'allMercs' },
+    ],
+  },
+  {
+    id: 'c2_venomCoat', name: 'Ядовитое покрытие', set: 'chemistry', rarity: 'uncommon', kind: 'buff',
+    power: 115, cost: 1, target: 'merc', icon: '🟢',
+    effects: [{ t: 'status', on: 'merc', id: 'thorns', v: 6 }],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'c2_corrosive', name: 'Коррозийный состав', set: 'chemistry', rarity: 'uncommon', kind: 'debuff',
+    power: 120, cost: 1, target: 'enemy', icon: '🧪',
+    effects: [
+      { t: 'status', on: 'enemy', id: 'armorBreak', turns: 3 },
+      { t: 'status', on: 'enemy', id: 'vuln', turns: 2 },
+    ],
+  },
+  {
+    id: 'c2_toxicBurst', name: 'Токсичный разрыв', set: 'chemistry', rarity: 'uncommon', kind: 'aoe',
+    power: 125, cost: 2, target: 'allEnemies', icon: '☣️',
+    effects: [{ t: 'status', on: 'allEnemies', id: 'poison', v: 5 }],
+  },
+  {
+    id: 'c2_plagueBomb', name: 'Чумная бомба', set: 'chemistry', rarity: 'uncommon', kind: 'aoe',
+    power: 130, cost: 2, target: 'allEnemies', icon: '💣',
+    effects: [
+      { t: 'damage', v: 6, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'poison', v: 3 },
+    ],
+  },
+  {
+    id: 'c2_chemBurn', name: 'Химический ожог', set: 'chemistry', rarity: 'uncommon', kind: 'attack',
+    power: 125, cost: 2, target: 'enemy', icon: '🔥',
+    effects: [
+      { t: 'damage', v: 12 },
+      { t: 'status', on: 'enemy', id: 'burn', v: 6 },
+    ],
+  },
+  {
+    id: 'c2_volatileFlask', name: 'Летучая колба', set: 'chemistry', rarity: 'uncommon', kind: 'attack',
+    power: 125, cost: 1, target: 'enemy', icon: '🧨',
+    effects: [
+      { t: 'damage', v: 10 },
+      { t: 'damage', v: 8, target: 'randomEnemy' },
+    ],
+  },
+  {
+    id: 'c2_reagent', name: 'Реагент', set: 'chemistry', rarity: 'uncommon', kind: 'utility',
+    power: 115, cost: 0, target: 'none', icon: '⚗️',
+    effects: [{ t: 'draw', v: 2 }, { t: 'scry', v: 2 }],
+  },
+  {
+    id: 'c2_acidRain', name: 'Кислотный дождь', set: 'chemistry', rarity: 'uncommon', kind: 'aoe',
+    power: 130, cost: 2, target: 'allEnemies', icon: '🌧️',
+    effects: [
+      { t: 'damage', v: 7, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'armorBreak', turns: 1 },
+    ],
+  },
+  {
+    id: 'c2_inferno', name: 'Инферно', set: 'chemistry', rarity: 'rare', kind: 'aoe',
+    power: 170, cost: 2, target: 'allEnemies', icon: '🔥',
+    effects: [
+      { t: 'damage', v: 8, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'burn', v: 5 },
+    ],
+  },
+  {
+    id: 'c2_toxinStorm', name: 'Токсичный шторм', set: 'chemistry', rarity: 'epic', kind: 'aoe',
+    power: 175, cost: 3, target: 'allEnemies', icon: '☣️',
+    effects: [
+      { t: 'damage', v: 4, hits: 2, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'poison', v: 4 },
+    ],
+  },
+  {
+    id: 'c2_meltdown', name: 'Расплав', set: 'chemistry', rarity: 'rare', kind: 'debuff',
+    power: 165, cost: 2, target: 'enemy', icon: '🫠',
+    effects: [
+      { t: 'status', on: 'enemy', id: 'armorBreak', turns: 4 },
+      { t: 'status', on: 'enemy', id: 'vuln', turns: 3 },
+      { t: 'status', on: 'enemy', id: 'web', turns: 2 },
+    ],
+  },
+  {
+    id: 'c2_gasChamber', name: 'Газовая камера', set: 'chemistry', rarity: 'epic', kind: 'aoe',
+    power: 175, cost: 3, target: 'allEnemies', icon: '💨',
+    effects: [
+      { t: 'status', on: 'allEnemies', id: 'poison', v: 7 },
+      { t: 'status', on: 'allEnemies', id: 'weak', turns: 2 },
+    ],
+  },
+  {
+    id: 'c2_acidEngine', name: 'Кислотный движок', set: 'chemistry', rarity: 'rare', kind: 'attack',
+    power: 170, cost: 2, target: 'enemy', icon: '⚙️',
+    effects: [
+      { t: 'damage', v: 20, pierce: true },
+      { t: 'status', on: 'enemy', id: 'armorBreak', turns: 3 },
+    ],
+  },
+  {
+    id: 'c2_bioWeapon', name: 'Биооружие', set: 'chemistry', rarity: 'rare', kind: 'buff',
+    power: 180, cost: 2, target: 'allMercs', icon: '☣️',
+    effects: [
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 8 },
+      { t: 'maxArmor', v: 4, target: 'allMercs' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'c2_plague', name: 'Чума', set: 'chemistry', rarity: 'epic', kind: 'aoe',
+    power: 215, cost: 3, target: 'allEnemies', icon: '🦠',
+    effects: [{ t: 'status', on: 'allEnemies', id: 'poison', v: 9 }],
+    keywords: ['echo'],
+  },
+  {
+    id: 'c2_catalystPrime', name: 'Первичный катализатор', set: 'chemistry', rarity: 'legendary', kind: 'aoe',
+    power: 260, cost: 3, target: 'allEnemies', icon: '⚗️',
+    effects: [
+      { t: 'damage', v: 14, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'burn', v: 8 },
+      { t: 'status', on: 'allEnemies', id: 'poison', v: 8 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+
+  // =========================================================================
+  // Пул V: 80 карт (Паутина, Тактика, Реликвии улья).
+  // =========================================================================
+
+  // -------------------------------------------------------------------------
+  // Паутина II
+  // -------------------------------------------------------------------------
+  {
+    id: 'w2_webSpit', name: 'Плевок паутиной', set: 'web', rarity: 'common', kind: 'control',
+    power: 60, cost: 1, target: 'enemy', icon: '🕸️',
+    effects: [{ t: 'status', on: 'enemy', id: 'web', turns: 2 }],
+  },
+  {
+    id: 'w2_chitinShard', name: 'Хитиновый осколок', set: 'web', rarity: 'common', kind: 'attack',
+    power: 60, cost: 1, target: 'enemy', icon: '🪲',
+    effects: [{ t: 'damage', v: 8 }],
+  },
+  {
+    id: 'w2_silkThread', name: 'Шёлковая нить', set: 'web', rarity: 'common', kind: 'utility',
+    power: 55, cost: 0, target: 'none', icon: '🧵',
+    effects: [{ t: 'draw', v: 2 }],
+    exhaust: true,
+  },
+  {
+    id: 'w2_broodling', name: 'Выводок', set: 'web', rarity: 'common', kind: 'attack',
+    power: 75, cost: 1, target: 'enemy', icon: '🕷️',
+    effects: [
+      { t: 'damage', v: 6 },
+      { t: 'status', on: 'enemy', id: 'poison', v: 2 },
+    ],
+  },
+  {
+    id: 'w2_nestGuard', name: 'Страж гнезда', set: 'web', rarity: 'common', kind: 'shield',
+    power: 80, cost: 1, target: 'merc', icon: '🪲',
+    effects: [
+      { t: 'shield', v: 12, target: 'merc' },
+      { t: 'maxArmor', v: 2, target: 'merc' },
+    ],
+  },
+  {
+    id: 'w2_venomSac', name: 'Ядовитый мешок', set: 'web', rarity: 'common', kind: 'debuff',
+    power: 65, cost: 1, target: 'enemy', icon: '☠️',
+    effects: [{ t: 'status', on: 'enemy', id: 'poison', v: 4 }],
+  },
+  {
+    id: 'w2_skitter', name: 'Скольжение', set: 'web', rarity: 'common', kind: 'buff',
+    power: 70, cost: 1, target: 'merc', icon: '👣',
+    effects: [{ t: 'status', on: 'merc', id: 'dodge', v: 20, turns: 1 }],
+  },
+  {
+    id: 'w2_webTrap', name: 'Паутинная ловушка', set: 'web', rarity: 'common', kind: 'control',
+    power: 80, cost: 1, target: 'enemy', icon: '🪤',
+    effects: [
+      { t: 'damage', v: 4 },
+      { t: 'status', on: 'enemy', id: 'web', turns: 2 },
+    ],
+  },
+  {
+    id: 'w2_carapace', name: 'Панцирь', set: 'web', rarity: 'common', kind: 'shield',
+    power: 80, cost: 1, target: 'merc', icon: '🛡️',
+    effects: [{ t: 'maxArmor', v: 6, target: 'merc' }],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'w2_eggCluster', name: 'Кладка', set: 'web', rarity: 'common', kind: 'heal',
+    power: 75, cost: 1, target: 'allMercs', icon: '🥚',
+    effects: [{ t: 'heal', v: 8, target: 'allMercs' }],
+  },
+  {
+    id: 'w2_silkBind', name: 'Шёлковые путы', set: 'web', rarity: 'common', kind: 'control',
+    power: 85, cost: 1, target: 'enemy', icon: '🧶',
+    effects: [{ t: 'status', on: 'enemy', id: 'stun', turns: 1 }],
+  },
+  {
+    id: 'w2_broodRush', name: 'Набег выводка', set: 'web', rarity: 'uncommon', kind: 'attack',
+    power: 115, cost: 1, target: 'enemy', icon: '🕷️',
+    effects: [{ t: 'damage', v: 7, hits: 2 }],
+  },
+  {
+    id: 'w2_webCocoon', name: 'Опутывание', set: 'web', rarity: 'uncommon', kind: 'control',
+    power: 120, cost: 2, target: 'enemy', icon: '🪤',
+    effects: [
+      { t: 'status', on: 'enemy', id: 'stun', turns: 1 },
+      { t: 'status', on: 'enemy', id: 'web', turns: 2 },
+    ],
+  },
+  {
+    id: 'w2_venomFang', name: 'Ядовитый клык', set: 'web', rarity: 'uncommon', kind: 'attack',
+    power: 125, cost: 1, target: 'enemy', icon: '🦷',
+    effects: [
+      { t: 'damage', v: 12 },
+      { t: 'status', on: 'enemy', id: 'poison', v: 5 },
+    ],
+  },
+  {
+    id: 'w2_hiveGuard', name: 'Стража улья', set: 'web', rarity: 'uncommon', kind: 'shield',
+    power: 125, cost: 2, target: 'allMercs', icon: '🛡️',
+    effects: [
+      { t: 'shield', v: 20, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'taunt', turns: 1 },
+    ],
+  },
+  {
+    id: 'w2_silkArmor', name: 'Шёлковая броня', set: 'web', rarity: 'uncommon', kind: 'shield',
+    power: 120, cost: 1, target: 'merc', icon: '🧵',
+    effects: [
+      { t: 'maxArmor', v: 8, target: 'merc' },
+      { t: 'shield', v: 12, target: 'merc' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'w2_spiderling', name: 'Паучок-носильщик', set: 'web', rarity: 'uncommon', kind: 'utility',
+    power: 115, cost: 1, target: 'none', icon: '🕷️',
+    effects: [{ t: 'draw', v: 2 }, { t: 'energy', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 'w2_webNova', name: 'Паутинная нова', set: 'web', rarity: 'uncommon', kind: 'aoe',
+    power: 130, cost: 2, target: 'allEnemies', icon: '🕸️',
+    effects: [
+      { t: 'damage', v: 6, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'web', turns: 1 },
+    ],
+  },
+  {
+    id: 'w2_queensMark', name: 'Метка матки', set: 'web', rarity: 'uncommon', kind: 'debuff',
+    power: 125, cost: 1, target: 'enemy', icon: '👑',
+    effects: [
+      { t: 'status', on: 'enemy', id: 'vuln', turns: 3 },
+      { t: 'status', on: 'enemy', id: 'web', turns: 2 },
+    ],
+  },
+  {
+    id: 'w2_broodMother', name: 'Матка', set: 'web', rarity: 'rare', kind: 'heal',
+    power: 165, cost: 2, target: 'allMercs', icon: '🕷️',
+    effects: [
+      { t: 'heal', v: 18, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'regen', v: 6, turns: 2 },
+    ],
+  },
+  {
+    id: 'w2_webFortress', name: 'Паутинная крепость', set: 'web', rarity: 'rare', kind: 'shield',
+    power: 175, cost: 2, target: 'allMercs', icon: '🏯',
+    effects: [
+      { t: 'shield', v: 28, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 4 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'w2_venomFlood', name: 'Ядовитый потоп', set: 'web', rarity: 'rare', kind: 'aoe',
+    power: 170, cost: 2, target: 'allEnemies', icon: '☠️',
+    effects: [
+      { t: 'status', on: 'allEnemies', id: 'poison', v: 6 },
+      { t: 'status', on: 'allEnemies', id: 'weak', turns: 1 },
+    ],
+  },
+  {
+    id: 'w2_silkStorm', name: 'Шёлковый шторм', set: 'web', rarity: 'epic', kind: 'aoe',
+    power: 175, cost: 3, target: 'allEnemies', icon: '🌪️',
+    effects: [
+      { t: 'damage', v: 9, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'web', turns: 2 },
+    ],
+  },
+  {
+    id: 'w2_chitinWall', name: 'Хитиновая стена', set: 'web', rarity: 'epic', kind: 'shield',
+    power: 175, cost: 3, target: 'allMercs', icon: '🧱',
+    effects: [
+      { t: 'shield', v: 24, target: 'allMercs' },
+      { t: 'maxArmor', v: 5, target: 'allMercs' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'w2_spiderQueen', name: 'Королева пауков', set: 'web', rarity: 'epic', kind: 'buff',
+    power: 180, cost: 2, target: 'allMercs', icon: '👑',
+    effects: [
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 7 },
+      { t: 'status', on: 'allMercs', id: 'dodge', v: 20, turns: 2 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'w2_broodTide', name: 'Волна выводка', set: 'web', rarity: 'epic', kind: 'aoe',
+    power: 215, cost: 3, target: 'allEnemies', icon: '🕷️',
+    effects: [
+      { t: 'damage', v: 12, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'web', turns: 2 },
+    ],
+  },
+  {
+    id: 'w2_queenAscend', name: 'Возвышение матки', set: 'web', rarity: 'legendary', kind: 'buff',
+    power: 265, cost: 3, target: 'allMercs', icon: '👑',
+    effects: [
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 10 },
+      { t: 'maxArmor', v: 10, target: 'allMercs' },
+      { t: 'heal', v: 25, target: 'allMercs' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+
+  // -------------------------------------------------------------------------
+  // Тактика II
+  // -------------------------------------------------------------------------
+  {
+    id: 't2_quickStep', name: 'Быстрый шаг', set: 'tactics', rarity: 'common', kind: 'attack',
+    power: 70, cost: 1, target: 'enemy', icon: '👟',
+    effects: [{ t: 'damage', v: 7 }, { t: 'draw', v: 1 }],
+  },
+  {
+    id: 't2_guardStance', name: 'Стойка охраны', set: 'tactics', rarity: 'common', kind: 'shield',
+    power: 75, cost: 1, target: 'merc', icon: '🛡️',
+    effects: [
+      { t: 'shield', v: 12, target: 'merc' },
+      { t: 'maxArmor', v: 2, target: 'merc' },
+    ],
+  },
+  {
+    id: 't2_battlePlan', name: 'План боя', set: 'tactics', rarity: 'common', kind: 'utility',
+    power: 60, cost: 0, target: 'none', icon: '📝',
+    effects: [{ t: 'draw', v: 1 }, { t: 'energy', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 't2_probe', name: 'Разведка боем', set: 'tactics', rarity: 'common', kind: 'debuff',
+    power: 60, cost: 1, target: 'enemy', icon: '🔍',
+    effects: [{ t: 'status', on: 'enemy', id: 'vuln', turns: 2 }],
+  },
+  {
+    id: 't2_feint', name: 'Финт', set: 'tactics', rarity: 'common', kind: 'attack',
+    power: 75, cost: 1, target: 'enemy', icon: '🌀',
+    effects: [
+      { t: 'damage', v: 6 },
+      { t: 'status', on: 'enemy', id: 'weak', turns: 1 },
+    ],
+  },
+  {
+    id: 't2_rallyCry', name: 'Ободряющий клич', set: 'tactics', rarity: 'common', kind: 'buff',
+    power: 65, cost: 1, target: 'allMercs', icon: '📢',
+    effects: [{ t: 'heal', v: 6, target: 'allMercs' }],
+  },
+  {
+    id: 't2_holdLine', name: 'Держать строй', set: 'tactics', rarity: 'common', kind: 'shield',
+    power: 85, cost: 1, target: 'allMercs', icon: '🧱',
+    effects: [{ t: 'shield', v: 10, target: 'allMercs' }],
+  },
+  {
+    id: 't2_flankShot', name: 'Выстрел во фланг', set: 'tactics', rarity: 'common', kind: 'attack',
+    power: 85, cost: 1, target: 'enemy', icon: '🎯',
+    effects: [{ t: 'damage', v: 9 }],
+    combo: [{ t: 'damage', v: 6 }],
+    keywords: ['combo'],
+  },
+  {
+    id: 't2_smokeStep', name: 'Дымный шаг', set: 'tactics', rarity: 'common', kind: 'buff',
+    power: 70, cost: 0, target: 'merc', icon: '💨',
+    effects: [{ t: 'status', on: 'merc', id: 'dodge', v: 25, turns: 1 }],
+  },
+  {
+    id: 't2_supplyDrop', name: 'Сброс припасов', set: 'tactics', rarity: 'common', kind: 'utility',
+    power: 55, cost: 0, target: 'none', icon: '📦',
+    effects: [{ t: 'draw', v: 2 }],
+    exhaust: true,
+  },
+  {
+    id: 't2_pressOn', name: 'Не сбавлять темп', set: 'tactics', rarity: 'common', kind: 'utility',
+    power: 70, cost: 0, target: 'none', icon: '🏃',
+    effects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 't2_pincer', name: 'Клещи', set: 'tactics', rarity: 'uncommon', kind: 'attack',
+    power: 120, cost: 1, target: 'enemy', icon: '🦀',
+    effects: [{ t: 'damage', v: 8, hits: 2 }],
+    combo: [{ t: 'damage', v: 8 }],
+    keywords: ['combo'],
+  },
+  {
+    id: 't2_shieldWall', name: 'Стена щитов', set: 'tactics', rarity: 'uncommon', kind: 'shield',
+    power: 125, cost: 2, target: 'allMercs', icon: '🛡️',
+    effects: [
+      { t: 'shield', v: 18, target: 'allMercs' },
+      { t: 'maxArmor', v: 3, target: 'allMercs' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 't2_counterStrike', name: 'Контрудар', set: 'tactics', rarity: 'uncommon', kind: 'buff',
+    power: 120, cost: 1, target: 'allMercs', icon: '↩️',
+    effects: [{ t: 'status', on: 'allMercs', id: 'thorns', v: 6 }],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 't2_warDrums', name: 'Боевые барабаны', set: 'tactics', rarity: 'uncommon', kind: 'attack',
+    power: 130, cost: 1, target: 'enemy', icon: '🥁',
+    effects: [{ t: 'damage', v: 10 }],
+    rageChance: 25,
+    rageMult: 0.1,
+  },
+  {
+    id: 't2_ambush2', name: 'Внезапный удар', set: 'tactics', rarity: 'uncommon', kind: 'attack',
+    power: 125, cost: 2, target: 'enemy', icon: '🌑',
+    effects: [{ t: 'damage', v: 14 }],
+    critChance: 20,
+    critMult: 2,
+  },
+  {
+    id: 't2_tacticalRetreat', name: 'Тактический отход', set: 'tactics', rarity: 'uncommon', kind: 'shield',
+    power: 120, cost: 1, target: 'allMercs', icon: '🏃',
+    effects: [
+      { t: 'shield', v: 16, target: 'allMercs' },
+      { t: 'draw', v: 1 },
+    ],
+  },
+  {
+    id: 't2_commandSquad', name: 'Командир отряда', set: 'tactics', rarity: 'uncommon', kind: 'buff',
+    power: 125, cost: 1, target: 'allMercs', icon: '🎖️',
+    effects: [
+      { t: 'energy', v: 1 },
+      { t: 'maxArmor', v: 3, target: 'allMercs' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 't2_executioner', name: 'Палач', set: 'tactics', rarity: 'uncommon', kind: 'attack',
+    power: 130, cost: 2, target: 'enemy', icon: '🪓',
+    effects: [{ t: 'damage', v: 16 }],
+    exec: 0.3,
+    execMult: 2,
+  },
+  {
+    id: 't2_blitz', name: 'Блиц', set: 'tactics', rarity: 'rare', kind: 'attack',
+    power: 175, cost: 2, target: 'enemy', icon: '⚡',
+    effects: [{ t: 'damage', v: 6, hits: 4 }],
+    combo: [{ t: 'damage', v: 3, hits: 4 }],
+    keywords: ['combo'],
+  },
+  {
+    id: 't2_lastOrder', name: 'Последний приказ', set: 'tactics', rarity: 'epic', kind: 'buff',
+    power: 180, cost: 2, target: 'allMercs', icon: '📜',
+    effects: [
+      { t: 'energy', v: 2 },
+      { t: 'draw', v: 2 },
+      { t: 'heal', v: 12, target: 'allMercs' },
+    ],
+    exhaust: true,
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 't2_ironDiscipline', name: 'Железная дисциплина', set: 'tactics', rarity: 'rare', kind: 'shield',
+    power: 170, cost: 2, target: 'allMercs', icon: '🛡️',
+    effects: [
+      { t: 'shield', v: 26, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'cleanse' },
+    ],
+  },
+  {
+    id: 't2_overrun', name: 'Прорыв', set: 'tactics', rarity: 'epic', kind: 'attack',
+    power: 175, cost: 2, target: 'enemy', icon: '🏇',
+    effects: [
+      { t: 'damage', v: 22 },
+      { t: 'status', on: 'enemy', id: 'vuln', turns: 2 },
+    ],
+  },
+  {
+    id: 't2_battleTrance', name: 'Боевой транс', set: 'tactics', rarity: 'epic', kind: 'attack',
+    power: 180, cost: 2, target: 'enemy', icon: '🌀',
+    effects: [
+      { t: 'damage', v: 8 },
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 6 },
+    ],
+    rageChance: 30,
+    rageMult: 0.1,
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 't2_grandStrategy', name: 'Великая стратегия', set: 'tactics', rarity: 'rare', kind: 'utility',
+    power: 170, cost: 1, target: 'none', icon: '🧠',
+    effects: [
+      { t: 'draw', v: 3 },
+      { t: 'energy', v: 1 },
+      { t: 'scry', v: 3 },
+    ],
+  },
+  {
+    id: 't2_warlord', name: 'Военачальник', set: 'tactics', rarity: 'epic', kind: 'buff',
+    power: 220, cost: 2, target: 'allMercs', icon: '🎖️',
+    effects: [
+      { t: 'energy', v: 2 },
+      { t: 'maxArmor', v: 6, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 5 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 't2_apexPredator', name: 'Высший хищник', set: 'tactics', rarity: 'legendary', kind: 'attack',
+    power: 265, cost: 3, target: 'enemy', icon: '🦁',
+    effects: [{ t: 'damage', v: 34 }],
+    exec: 0.4,
+    execMult: 2,
+    critChance: 30,
+    critMult: 2,
+    once: true,
+    keywords: ['once'],
+  },
+
+  // -------------------------------------------------------------------------
+  // Реликвии улья II
+  // -------------------------------------------------------------------------
+  {
+    id: 'r2_amberBead', name: 'Янтарная бусина', set: 'relics', rarity: 'common', kind: 'utility',
+    power: 45, cost: 0, target: 'none', icon: '🟠',
+    effects: [{ t: 'draw', v: 1 }],
+  },
+  {
+    id: 'r2_waxSeal', name: 'Восковая печать', set: 'relics', rarity: 'common', kind: 'shield',
+    power: 60, cost: 1, target: 'merc', icon: '🕯️',
+    effects: [{ t: 'shield', v: 10, target: 'merc' }],
+  },
+  {
+    id: 'r2_hiveSigil', name: 'Знак улья', set: 'relics', rarity: 'common', kind: 'debuff',
+    power: 60, cost: 1, target: 'enemy', icon: '🕸️',
+    effects: [{ t: 'status', on: 'enemy', id: 'web', turns: 2 }],
+  },
+  {
+    id: 'r2_chitinCoin', name: 'Хитиновая монета', set: 'relics', rarity: 'common', kind: 'utility',
+    power: 50, cost: 0, target: 'none', icon: '🪙',
+    effects: [{ t: 'energy', v: 1 }],
+    exhaust: true,
+  },
+  {
+    id: 'r2_resinDrop', name: 'Капля смолы', set: 'relics', rarity: 'common', kind: 'heal',
+    power: 55, cost: 0, target: 'merc', icon: '🟤',
+    effects: [{ t: 'heal', v: 10, target: 'merc' }],
+  },
+  {
+    id: 'r2_silkCharm', name: 'Шёлковый оберег', set: 'relics', rarity: 'common', kind: 'buff',
+    power: 65, cost: 0, target: 'merc', icon: '🧿',
+    effects: [{ t: 'status', on: 'merc', id: 'dodge', v: 15, turns: 1 }],
+  },
+  {
+    id: 'r2_boneTotem', name: 'Костяной тотем', set: 'relics', rarity: 'common', kind: 'buff',
+    power: 75, cost: 1, target: 'merc', icon: '🦴',
+    effects: [{ t: 'status', on: 'merc', id: 'thorns', v: 4 }],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'r2_eggShard', name: 'Осколок яйца', set: 'relics', rarity: 'common', kind: 'attack',
+    power: 75, cost: 1, target: 'enemy', icon: '🥚',
+    effects: [
+      { t: 'damage', v: 7 },
+      { t: 'status', on: 'enemy', id: 'poison', v: 2 },
+    ],
+  },
+  {
+    id: 'r2_pheromoneVial', name: 'Флакон феромона', set: 'relics', rarity: 'common', kind: 'buff',
+    power: 75, cost: 1, target: 'allMercs', icon: '🟡',
+    effects: [
+      { t: 'status', on: 'allMercs', id: 'taunt', turns: 2 },
+      { t: 'shield', v: 8, target: 'allMercs' },
+    ],
+  },
+  {
+    id: 'r2_relicDust', name: 'Реликтовая пыль', set: 'relics', rarity: 'common', kind: 'debuff',
+    power: 80, cost: 1, target: 'enemy', icon: '✨',
+    effects: [
+      { t: 'status', on: 'enemy', id: 'weak', turns: 2 },
+      { t: 'status', on: 'enemy', id: 'vuln', turns: 1 },
+    ],
+  },
+  {
+    id: 'r2_ancientCoin', name: 'Древняя монета', set: 'relics', rarity: 'common', kind: 'utility',
+    power: 70, cost: 0, target: 'none', icon: '🪙',
+    effects: [{ t: 'scry', v: 2 }, { t: 'draw', v: 1 }],
+  },
+  {
+    id: 'r2_echoStone', name: 'Эхо-камень', set: 'relics', rarity: 'uncommon', kind: 'attack',
+    power: 115, cost: 1, target: 'enemy', icon: '📯',
+    effects: [{ t: 'damage', v: 7 }],
+    keywords: ['echo'],
+  },
+  {
+    id: 'r2_silkIdol', name: 'Шёлковый идол', set: 'relics', rarity: 'uncommon', kind: 'buff',
+    power: 120, cost: 1, target: 'allMercs', icon: '🗿',
+    effects: [{ t: 'status', on: 'allMercs', id: 'thorns', v: 5 }],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'r2_hiveLens', name: 'Линза улья', set: 'relics', rarity: 'uncommon', kind: 'utility',
+    power: 115, cost: 0, target: 'none', icon: '🔍',
+    effects: [{ t: 'draw', v: 2 }, { t: 'scry', v: 2 }],
+  },
+  {
+    id: 'r2_relicBlade', name: 'Реликтовый клинок', set: 'relics', rarity: 'uncommon', kind: 'attack',
+    power: 125, cost: 1, target: 'enemy', icon: '🗡️',
+    effects: [{ t: 'damage', v: 13, pierce: true }],
+  },
+  {
+    id: 'r2_amberWard', name: 'Янтарный оберег', set: 'relics', rarity: 'uncommon', kind: 'shield',
+    power: 125, cost: 1, target: 'merc', icon: '🟠',
+    effects: [
+      { t: 'shield', v: 20, target: 'merc' },
+      { t: 'status', on: 'merc', id: 'barrier', v: 10 },
+    ],
+  },
+  {
+    id: 'r2_broodCharm', name: 'Оберег выводка', set: 'relics', rarity: 'uncommon', kind: 'heal',
+    power: 130, cost: 2, target: 'allMercs', icon: '❤️',
+    effects: [
+      { t: 'heal', v: 16, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'cleanse' },
+    ],
+  },
+  {
+    id: 'r2_queenSigil', name: 'Печать матки', set: 'relics', rarity: 'uncommon', kind: 'buff',
+    power: 120, cost: 1, target: 'allMercs', icon: '👑',
+    effects: [{ t: 'maxArmor', v: 5, target: 'allMercs' }],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'r2_echoPulse', name: 'Эхо-импульс', set: 'relics', rarity: 'uncommon', kind: 'aoe',
+    power: 130, cost: 1, target: 'allEnemies', icon: '📡',
+    effects: [{ t: 'damage', v: 6, target: 'allEnemies' }],
+    keywords: ['echo'],
+  },
+  {
+    id: 'r2_relicArmor', name: 'Реликтовая броня', set: 'relics', rarity: 'rare', kind: 'shield',
+    power: 170, cost: 2, target: 'merc', icon: '🔰',
+    effects: [
+      { t: 'maxArmor', v: 10, target: 'merc' },
+      { t: 'shield', v: 22, target: 'merc' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'r2_hiveBanner', name: 'Знамя улья', set: 'relics', rarity: 'rare', kind: 'buff',
+    power: 165, cost: 1, target: 'allMercs', icon: '🚩',
+    effects: [
+      { t: 'energy', v: 1 },
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 6 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'r2_amberHeart', name: 'Янтарное сердце', set: 'relics', rarity: 'rare', kind: 'heal',
+    power: 170, cost: 2, target: 'allMercs', icon: '🟠',
+    effects: [{ t: 'heal', v: 30, target: 'allMercs' }],
+  },
+  {
+    id: 'r2_silkCrown', name: 'Шёлковая корона', set: 'relics', rarity: 'rare', kind: 'buff',
+    power: 175, cost: 2, target: 'allMercs', icon: '👑',
+    effects: [
+      { t: 'status', on: 'allMercs', id: 'dodge', v: 25, turns: 2 },
+      { t: 'shield', v: 20, target: 'allMercs' },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'r2_relicStorm', name: 'Реликтовый шторм', set: 'relics', rarity: 'rare', kind: 'aoe',
+    power: 175, cost: 3, target: 'allEnemies', icon: '🌪️',
+    effects: [
+      { t: 'damage', v: 11, target: 'allEnemies' },
+      { t: 'status', on: 'allEnemies', id: 'web', turns: 1 },
+    ],
+  },
+  {
+    id: 'r2_ancientIdol', name: 'Древний идол', set: 'relics', rarity: 'epic', kind: 'buff',
+    power: 215, cost: 3, target: 'allMercs', icon: '🗿',
+    effects: [
+      { t: 'maxArmor', v: 8, target: 'allMercs' },
+      { t: 'status', on: 'allMercs', id: 'thorns', v: 7 },
+    ],
+    once: true,
+    keywords: ['once'],
+  },
+  {
+    id: 'r2_hiveAscendant', name: 'Улей возвышенный', set: 'relics', rarity: 'legendary', kind: 'heal',
+    power: 265, cost: 3, target: 'allMercs', icon: '🐝',
+    effects: [
+      { t: 'heal', v: 40, target: 'allMercs' },
+      { t: 'revive', v: 0.5 },
+      { t: 'energy', v: 2 },
+    ],
+    once: true,
+    keywords: ['once'],
   },
 ];
 
@@ -1060,6 +2555,8 @@ const effectText = (e: Effect, def: CardDef, firstDamage: boolean): string => {
       return `Смотрит ${e.v} верхних карт колоды.`;
     case 'revive':
       return `Поднимает павшего наёмника с ${Math.round(e.v * 100)}% HP.`;
+    case 'transform':
+      return `Превращает ${e.v} ${plural(e.v, 'карту', 'карты', 'карт')} в руке в другие.`;
     default:
       return '';
   }
@@ -1075,6 +2572,7 @@ const KEYWORD_TEXT: Partial<Record<Keyword, string>> = {
   revive: 'Поднимает павшего наёмника.',
   transform: 'Превращает карту в руке в другую.',
   overheat: 'Усиливается каждый раз при игре в этом бою.',
+  once: 'Один раз за бой.',
 };
 
 /**
@@ -1109,7 +2607,15 @@ export const cardText = (def: CardDef, level: number, compact = false): string =
   if (level >= 7 && def.add7) extras.push(def.add7);
   if (!compact && c.critChance) extras.push(`${c.critChance}% шанс крита ×${c.critMult || 2}.`);
   if (!compact && c.rageChance) extras.push(`${c.rageChance}% шанс ярости: +${Math.round((c.rageMult ?? 0.1) * 100)}% урона до конца боя.`);
+  if (c.xcost) extras.push('Тратит всю энергию: сила эффекта × потраченная энергия.');
+  if (c.overheat) extras.push(`+${c.overheat} урона за каждое применение в этом бою.`);
+  if (c.combo) {
+    const comboText = c.combo.map((e) => effectText(e, c, false)).join(' ');
+    if (comboText) extras.push(`Комбо: ${comboText}`);
+  }
+  if (c.once) extras.push('Один раз за бой.');
   for (const k of c.keywords || []) {
+    if ((k === 'combo' && c.combo) || (k === 'xcost' && c.xcost) || (k === 'overheat' && c.overheat) || (k === 'once' && c.once)) continue;
     const kw = KEYWORD_TEXT[k];
     if (kw) extras.push(kw);
   }

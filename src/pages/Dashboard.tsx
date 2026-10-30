@@ -9,6 +9,7 @@ import { useMapEditorStore } from '../stores/mapEditorStore';
 import { useUiStore } from '../stores/uiStore';
 import { useInventoryStore } from '../stores/inventoryStore';
 import { useExplorationStore } from '../stores/explorationStore';
+import { useDungeonStore } from '../stores/dungeonStore';
 import { useSound } from '../hooks/useSound';
 import { WapPanel } from '../components/ui/WapPanel';
 import { WapFrame } from '../components/ui/WapFrame';
@@ -32,6 +33,19 @@ const debugAddBullets = () => {
 // DEBUG: легендарные ключи. Тир 1-7, имя/картинка как у дропа из экспедиции.
 const KEY_TIER_NAMES = ['Обычный', 'Редкий', 'Раритетный', 'Эпический', 'Смертоносный', 'Легендарный', 'Божественный'];
 const KEY_TIER_COLORS = ['white', 'lime', 'deepskyblue', 'mediumpurple', 'red', 'gold', 'cyan'];
+
+/** Подписи фаз забега для плитки данжа на дашборде. */
+const DUNGEON_PHASE_LABEL: Record<string, string> = {
+  setup: 'Сборка колоды',
+  doors: 'Выбор двери',
+  battle: 'Бой',
+  reward: 'Награда',
+  forge: 'Кузница',
+  rest: 'Привал',
+  event: 'Событие',
+  dead: 'Забег окончен',
+  won: 'Данж пройден',
+};
 
 const debugAddKey = (tier: number, slug = 'spider_hive', title = 'Логово паука-ткача') => {
   const addItem = useInventoryStore.getState().addItem;
@@ -301,6 +315,8 @@ export const Dashboard = () => {
   const forceDay = useUiStore((s) => s.forceDay);
   const setForceDay = useUiStore((s) => s.setForceDay);
   const powerBreakdown = usePlayerStore((s) => s.powerBreakdown);
+  const dungeonRun = useDungeonStore((s) => s.run);
+  const openDungeon = useDungeonStore((s) => s.openOverlay);
   const { playClick } = useSound();
 
   useEffect(() => {
@@ -384,7 +400,7 @@ export const Dashboard = () => {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: '100%' }}
     >
 
       {/* Character panel */}
@@ -491,6 +507,34 @@ export const Dashboard = () => {
           <Button size="sm" variant="secondary" onClick={() => { playClick(); if (useCombatGridStore.getState().isActive) { usePlayerStore.getState().addLog('⚔️ В бою инвентарь недоступен — только рюкзак (B)', 'warning'); return; } if (isExpeditionRunning()) { usePlayerStore.getState().addLog('🎒 В рейде инвентарь недоступен — только рюкзак (B)', 'warning'); return; } toggleInventory(); }} style={{ flex: 1, fontSize: 10 }}>🎒 Инвентарь</Button>
           <Button size="sm" variant="secondary" onClick={() => { playClick(); toggleEquipment(); }} style={{ flex: 1, fontSize: 10 }}>⚔️ Экипировка</Button>
           <Button size="sm" variant="secondary" onClick={() => { playClick(); if (combat.isFighting || travel.isTraveling) { useUiStore.getState().addToast('Нельзя отдыхать в бою или пути!', 'warning'); return; } setIsResting(true); usePlayerStore.getState().rest(); }} style={{ flex: 1, fontSize: 10 }}>🛌 Отдых</Button>
+        </div>
+      </WapPanel>
+
+      {/* Карточный данж */}
+      <WapPanel variant="metal" glow="amber">
+        <WapHeader title="КАРТОЧНЫЙ ДАНЖ" glow="amber" />
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ fontSize: 30, lineHeight: 1, filter: 'drop-shadow(0 0 6px rgba(245,197,106,0.45))' }}>🗝️</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--wa-font-hud)', fontSize: 12, color: 'var(--text-primary)', fontWeight: 700 }}>
+              {dungeonRun
+                ? `${DUNGEON_PHASE_LABEL[dungeonRun.phase] ?? 'Забег'} · дверь ${dungeonRun.door}/30`
+                : 'Логово пауков · 30 дверей'}
+            </div>
+            <div style={{ fontFamily: 'var(--wa-font-terminal)', fontSize: 11, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {dungeonRun
+                ? `Колода ${dungeonRun.deck.length}/25 · наёмники ${dungeonRun.mercs.length}/4 · ⬢ ${dungeonRun.chips}`
+                : 'Боссы на 10 / 20 / 30 · ключ сгорает при входе'}
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => { playClick(); openDungeon(); }}
+            style={{ fontSize: 10, whiteSpace: 'nowrap' }}
+          >
+            {dungeonRun ? 'Продолжить' : 'Войти в данж'}
+          </Button>
         </div>
       </WapPanel>
 
