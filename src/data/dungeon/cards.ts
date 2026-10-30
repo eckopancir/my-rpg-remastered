@@ -104,6 +104,8 @@ export interface CardDef {
   once?: boolean;
   /** Изгоняется после игры. */
   exhaust?: boolean;
+  /** Штраф: после игры вы пропускаете N ходов (враги бьют без вашего хода). */
+  skipTurns?: number;
   /** Ручной оверрайд текста (иначе собирается из effects). */
   text?: string;
   add4?: string;
@@ -117,6 +119,30 @@ export interface CardDef {
 export const MAX_CARD_LEVEL = 7;
 /** Лимит колоды: при переполнении предлагаем заменить карту. */
 export const MAX_DECK = 25;
+
+/**
+ * Базовый набор для стартовой покупки в конструкторе колоды.
+ * Только простые карты (обычный урон, хил, простые бафы) — 30 штук.
+ * Остальные 270 карт выпадают наградами в данже.
+ */
+export const BASE_CARD_IDS: string[] = [
+  // Баллистика
+  'shot', 'b2_snapShot', 'b2_quickDraw', 'b2_tracerBurst',
+  // Инженерия
+  'repair', 'e2_fieldRepair', 'e2_insulation', 'e2_powerCell',
+  // Медицина
+  'm2_bandage', 'm2_suture', 'm2_tourniquet', 'm2_analgesic', 'm2_vitamins',
+  // Химия
+  'acidFlask', 'burnMix', 'smoke', 'c2_acidSpray',
+  // Паутина
+  'webShot', 'venomBite', 'chitinPlate', 'w2_chitinShard',
+  // Тактика
+  'dash', 'cover', 'mark', 'warCry', 't2_guardStance',
+  // Реликвии
+  'amberShard', 'waxCandle', 'r2_amberBead', 'r2_resinDrop',
+];
+
+export const BASE_CARD_SET: ReadonlySet<string> = new Set(BASE_CARD_IDS);
 
 export const RARITY_META: Record<Rarity, { label: string; color: string }> = {
   common: { label: 'Обычная', color: '#9ca3af' },
@@ -229,7 +255,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'mark', name: 'Метка снайпера', set: 'tactics', rarity: 'common', kind: 'debuff',
-    power: 50, cost: 0, target: 'enemy', icon: '🔻',
+    power: 70, cost: 0, target: 'enemy', icon: '🔻',
     effects: [{ t: 'status', on: 'enemy', id: 'vuln', turns: 2 }],
     l4: { replaceEffects: [{ t: 'status', on: 'enemy', id: 'vuln', turns: 3 }] },
     l7: { add: [{ t: 'draw', v: 1 }] },
@@ -248,13 +274,13 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'lastStand', name: 'Последний рубеж', set: 'tactics', rarity: 'rare', kind: 'shield',
-    power: 150, cost: 2, target: 'merc', icon: '🪨',
+    power: 180, cost: 3, target: 'merc', icon: '🪨',
     effects: [{ t: 'shield', v: 50, target: 'merc', woundedBonus: 25 }],
     l7: { add: [{ t: 'maxArmor', v: 5, target: 'merc' }] },
   },
   {
     id: 'order', name: 'Тактический приказ', set: 'tactics', rarity: 'rare', kind: 'utility',
-    power: 100, cost: 0, target: 'none', icon: '📢',
+    power: 130, cost: 1, target: 'none', icon: '📢',
     effects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 1 }],
     l4: { replaceEffects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 2 }] },
     l7: { replaceEffects: [{ t: 'energy', v: 2 }, { t: 'draw', v: 2 }] },
@@ -304,7 +330,7 @@ const CARD_LIST: CardDef[] = [
   // -------------------------------------------------------------------------
   {
     id: 'suppressive', name: 'Подавление', set: 'ballistics', rarity: 'common', kind: 'debuff',
-    power: 90, cost: 1, target: 'allEnemies', icon: '🔻',
+    power: 100, cost: 1, target: 'allEnemies', icon: '🔻',
     effects: [
       { t: 'damage', v: 5, target: 'allEnemies' },
       { t: 'status', on: 'allEnemies', id: 'weak', turns: 2 },
@@ -338,7 +364,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'gunnerTrance', name: 'Транс стрелка', set: 'ballistics', rarity: 'uncommon', kind: 'buff',
-    power: 110, cost: 1, target: 'allEnemies', icon: '🌀',
+    power: 125, cost: 1, target: 'allEnemies', icon: '🌀',
     effects: [
       { t: 'status', on: 'allEnemies', id: 'vuln', turns: 2 },
       { t: 'draw', v: 1 },
@@ -370,14 +396,14 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'capacitor', name: 'Конденсатор', set: 'engineering', rarity: 'common', kind: 'utility',
-    power: 50, cost: 0, target: 'none', icon: '🔋',
+    power: 65, cost: 0, target: 'none', icon: '🔋',
     effects: [{ t: 'energy', v: 1 }],
     exhaust: true,
     l7: { add: [{ t: 'draw', v: 1 }] },
   },
   {
     id: 'reroute', name: 'Перекоммутация', set: 'engineering', rarity: 'common', kind: 'utility',
-    power: 75, cost: 0, target: 'none', icon: '🔌',
+    power: 95, cost: 0, target: 'none', icon: '🔌',
     effects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 1 }],
     exhaust: true,
   },
@@ -419,7 +445,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'aegisField', name: 'Поле «Эгида»', set: 'engineering', rarity: 'rare', kind: 'shield',
-    power: 160, cost: 2, target: 'allMercs', icon: '🔵',
+    power: 200, cost: 3, target: 'allMercs', icon: '🔵',
     effects: [{ t: 'shield', v: 30, target: 'allMercs' }],
     l7: { add: [{ t: 'status', on: 'allMercs', id: 'barrier', v: 10 }] },
   },
@@ -433,7 +459,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'bulwark', name: 'Бастион', set: 'engineering', rarity: 'rare', kind: 'shield',
-    power: 180, cost: 3, target: 'allMercs', icon: '🧱',
+    power: 240, cost: 4, target: 'allMercs', icon: '🧱',
     effects: [
       { t: 'shield', v: 35, target: 'allMercs' },
       { t: 'maxArmor', v: 5, target: 'allMercs' },
@@ -453,25 +479,25 @@ const CARD_LIST: CardDef[] = [
   // -------------------------------------------------------------------------
   {
     id: 'triage', name: 'Сортировка', set: 'medicine', rarity: 'common', kind: 'heal',
-    power: 80, cost: 0, target: 'allMercs', icon: '🏷️',
+    power: 100, cost: 1, target: 'allMercs', icon: '🏷️',
     effects: [{ t: 'heal', v: 10, target: 'allMercs' }],
     l7: { add: [{ t: 'status', on: 'allMercs', id: 'cleanse' }] },
   },
   {
     id: 'painkiller', name: 'Обезболивающее', set: 'medicine', rarity: 'common', kind: 'buff',
-    power: 60, cost: 0, target: 'merc', icon: '💊',
+    power: 80, cost: 0, target: 'merc', icon: '💊',
     effects: [{ t: 'status', on: 'merc', id: 'barrier', v: 12 }],
     l7: { add: [{ t: 'status', on: 'merc', id: 'cleanse' }] },
   },
   {
     id: 'antidote', name: 'Противоядие', set: 'medicine', rarity: 'common', kind: 'utility',
-    power: 55, cost: 0, target: 'allMercs', icon: '🧪',
+    power: 75, cost: 0, target: 'allMercs', icon: '🧪',
     effects: [{ t: 'status', on: 'allMercs', id: 'cleanse' }],
     exhaust: true,
   },
   {
     id: 'sterileField', name: 'Стерильное поле', set: 'medicine', rarity: 'common', kind: 'shield',
-    power: 90, cost: 1, target: 'allMercs', icon: '🟢',
+    power: 120, cost: 2, target: 'allMercs', icon: '🟢',
     effects: [
       { t: 'shield', v: 12, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'cleanse' },
@@ -520,7 +546,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'vitaChamber', name: 'Вита-камера', set: 'medicine', rarity: 'legendary', kind: 'heal',
-    power: 250, cost: 3, target: 'allMercs', icon: '🛏️',
+    power: 280, cost: 3, target: 'allMercs', icon: '🛏️',
     effects: [
       { t: 'revive', v: 0.5 },
       { t: 'heal', v: 25, target: 'allMercs' },
@@ -550,7 +576,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'solvent', name: 'Растворитель', set: 'chemistry', rarity: 'common', kind: 'utility',
-    power: 75, cost: 0, target: 'allEnemies', icon: '🫗',
+    power: 95, cost: 0, target: 'allEnemies', icon: '🫗',
     effects: [{ t: 'status', on: 'allEnemies', id: 'web', turns: 2 }],
     l7: { add: [{ t: 'draw', v: 1 }] },
   },
@@ -592,7 +618,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'catalyst', name: 'Катализатор', set: 'chemistry', rarity: 'rare', kind: 'buff',
-    power: 135, cost: 0, target: 'allEnemies', icon: '⚗️',
+    power: 160, cost: 0, target: 'allEnemies', icon: '⚗️',
     effects: [
       { t: 'status', on: 'allEnemies', id: 'poison', v: 3 },
       { t: 'draw', v: 1 },
@@ -658,7 +684,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'eggSac', name: 'Кокон с яйцами', set: 'web', rarity: 'common', kind: 'utility',
-    power: 90, cost: 1, target: 'allMercs', icon: '🥚',
+    power: 105, cost: 1, target: 'allMercs', icon: '🥚',
     effects: [
       { t: 'heal', v: 10, target: 'allMercs' },
       { t: 'draw', v: 1 },
@@ -674,7 +700,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'molt', name: 'Линька', set: 'web', rarity: 'uncommon', kind: 'utility',
-    power: 115, cost: 1, target: 'allMercs', icon: '🐚',
+    power: 150, cost: 2, target: 'allMercs', icon: '🐚',
     effects: [
       { t: 'status', on: 'allMercs', id: 'cleanse' },
       { t: 'shield', v: 14, target: 'allMercs' },
@@ -697,7 +723,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'webWall', name: 'Паутинная стена', set: 'web', rarity: 'rare', kind: 'control',
-    power: 160, cost: 2, target: 'allEnemies', icon: '🧱',
+    power: 200, cost: 3, target: 'allEnemies', icon: '🧱',
     effects: [
       { t: 'shield', v: 24, target: 'allMercs' },
       { t: 'status', on: 'allEnemies', id: 'web', turns: 1 },
@@ -742,7 +768,7 @@ const CARD_LIST: CardDef[] = [
   // -------------------------------------------------------------------------
   {
     id: 'warCry', name: 'Боевой клич', set: 'tactics', rarity: 'common', kind: 'buff',
-    power: 70, cost: 0, target: 'allEnemies', icon: '📢',
+    power: 90, cost: 0, target: 'allEnemies', icon: '📢',
     effects: [{ t: 'status', on: 'allEnemies', id: 'weak', turns: 1 }],
     l7: { add: [{ t: 'status', on: 'allEnemies', id: 'weak', turns: 1 }] },
   },
@@ -756,7 +782,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'rally', name: 'Перегруппировка', set: 'tactics', rarity: 'common', kind: 'buff',
-    power: 90, cost: 1, target: 'allMercs', icon: '🚩',
+    power: 100, cost: 1, target: 'allMercs', icon: '🚩',
     effects: [
       { t: 'maxArmor', v: 4, target: 'allMercs' },
       { t: 'heal', v: 8, target: 'allMercs' },
@@ -766,7 +792,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'retreat', name: 'Отход', set: 'tactics', rarity: 'uncommon', kind: 'utility',
-    power: 110, cost: 1, target: 'allMercs', icon: '🏃',
+    power: 140, cost: 2, target: 'allMercs', icon: '🏃',
     effects: [
       { t: 'shield', v: 18, target: 'allMercs' },
       { t: 'draw', v: 1 },
@@ -791,7 +817,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'phalanx', name: 'Фаланга', set: 'tactics', rarity: 'epic', kind: 'shield',
-    power: 195, cost: 2, target: 'allMercs', icon: '🛡️',
+    power: 250, cost: 3, target: 'allMercs', icon: '🛡️',
     effects: [
       { t: 'shield', v: 26, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'thorns', v: 4 },
@@ -823,7 +849,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'waxCandle', name: 'Восковая свеча', set: 'relics', rarity: 'common', kind: 'buff',
-    power: 65, cost: 0, target: 'allMercs', icon: '🕯️',
+    power: 85, cost: 0, target: 'allMercs', icon: '🕯️',
     effects: [{ t: 'heal', v: 8, target: 'allMercs' }],
     exhaust: true,
   },
@@ -837,7 +863,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'pheromone', name: 'Феромон', set: 'relics', rarity: 'common', kind: 'buff',
-    power: 95, cost: 1, target: 'allMercs', icon: '🟡',
+    power: 130, cost: 2, target: 'allMercs', icon: '🟡',
     effects: [
       { t: 'status', on: 'allMercs', id: 'taunt', turns: 2 },
       { t: 'shield', v: 10, target: 'allMercs' },
@@ -915,7 +941,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'queensTear', name: 'Слеза матки', set: 'relics', rarity: 'legendary', kind: 'heal',
-    power: 250, cost: 2, target: 'allMercs', icon: '💧',
+    power: 320, cost: 3, target: 'allMercs', icon: '💧',
+    skipTurns: 1,
     effects: [
       { t: 'heal', v: 45, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'cleanse' },
@@ -924,7 +951,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'rebirth', name: 'Перерождение', set: 'relics', rarity: 'legendary', kind: 'utility',
-    power: 250, cost: 3, target: 'allMercs', icon: '🦋',
+    power: 280, cost: 3, target: 'allMercs', icon: '🦋',
     effects: [
       { t: 'revive', v: 0.5 },
       { t: 'heal', v: 15, target: 'allMercs' },
@@ -959,7 +986,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'feedbackLoop', name: 'Петля обратной связи', set: 'engineering', rarity: 'rare', kind: 'shield',
-    power: 160, cost: 1, target: 'allMercs', icon: '🔁',
+    power: 220, cost: 2, target: 'allMercs', icon: '🔁',
     effects: [{ t: 'shield', v: 14, target: 'allMercs' }],
     keywords: ['echo'],
   },
@@ -978,7 +1005,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'silkWeave', name: 'Плетение', set: 'web', rarity: 'rare', kind: 'utility',
-    power: 140, cost: 0, target: 'none', icon: '🧵',
+    power: 160, cost: 0, target: 'none', icon: '🧵',
     effects: [{ t: 'transform', v: 1 }, { t: 'draw', v: 2 }],
     keywords: ['transform'],
   },
@@ -1224,7 +1251,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'e2_powerCell', name: 'Энергоячейка', set: 'engineering', rarity: 'common', kind: 'utility',
-    power: 50, cost: 0, target: 'none', icon: '🔋',
+    power: 65, cost: 0, target: 'none', icon: '🔋',
     effects: [{ t: 'energy', v: 1 }],
     exhaust: true,
   },
@@ -1245,7 +1272,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'e2_coolant', name: 'Хладагент', set: 'engineering', rarity: 'common', kind: 'utility',
-    power: 85, cost: 1, target: 'allMercs', icon: '❄️',
+    power: 120, cost: 2, target: 'allMercs', icon: '❄️',
     effects: [
       { t: 'status', on: 'allMercs', id: 'cleanse' },
       { t: 'shield', v: 8, target: 'allMercs' },
@@ -1253,7 +1280,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'e2_calibrate', name: 'Калибровка', set: 'engineering', rarity: 'common', kind: 'utility',
-    power: 65, cost: 0, target: 'none', icon: '📐',
+    power: 85, cost: 0, target: 'none', icon: '📐',
     effects: [{ t: 'draw', v: 1 }, { t: 'energy', v: 1 }],
     exhaust: true,
   },
@@ -1314,7 +1341,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'e2_overdrive', name: 'Форсаж', set: 'engineering', rarity: 'uncommon', kind: 'utility',
-    power: 120, cost: 0, target: 'none', icon: '⚙️',
+    power: 150, cost: 0, target: 'none', icon: '⚙️',
     effects: [{ t: 'energy', v: 2 }, { t: 'draw', v: 1 }],
     exhaust: true,
   },
@@ -1346,7 +1373,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'e2_bastion', name: 'Опорный пункт', set: 'engineering', rarity: 'rare', kind: 'shield',
-    power: 175, cost: 2, target: 'allMercs', icon: '🧱',
+    power: 230, cost: 3, target: 'allMercs', icon: '🧱',
     effects: [
       { t: 'shield', v: 30, target: 'allMercs' },
       { t: 'maxArmor', v: 4, target: 'allMercs' },
@@ -1356,13 +1383,13 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'e2_reactor', name: 'Реактор', set: 'engineering', rarity: 'rare', kind: 'utility',
-    power: 155, cost: 0, target: 'none', icon: '☢️',
+    power: 190, cost: 0, target: 'none', icon: '☢️',
     effects: [{ t: 'energy', v: 3 }],
     exhaust: true,
   },
   {
     id: 'e2_repairDrone', name: 'Ремонтный дрон', set: 'engineering', rarity: 'rare', kind: 'heal',
-    power: 165, cost: 2, target: 'allMercs', icon: '🤖',
+    power: 200, cost: 3, target: 'allMercs', icon: '🤖',
     effects: [{ t: 'heal', v: 30, target: 'allMercs' }],
   },
   {
@@ -1378,7 +1405,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'e2_fortress', name: 'Крепость', set: 'engineering', rarity: 'epic', kind: 'shield',
-    power: 215, cost: 3, target: 'allMercs', icon: '🏯',
+    power: 300, cost: 4, target: 'allMercs', icon: '🏯',
+    skipTurns: 2,
     effects: [
       { t: 'shield', v: 40, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'barrier', v: 15 },
@@ -1388,7 +1416,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'e2_omniForge', name: 'Универсальный горн', set: 'engineering', rarity: 'legendary', kind: 'utility',
-    power: 260, cost: 3, target: 'allMercs', icon: '🔥',
+    power: 300, cost: 4, target: 'allMercs', icon: '🔥',
     effects: [
       { t: 'heal', v: 25, target: 'allMercs' },
       { t: 'energy', v: 2 },
@@ -1408,7 +1436,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_stim', name: 'Стимулятор', set: 'medicine', rarity: 'common', kind: 'buff',
-    power: 60, cost: 0, target: 'none', icon: '💉',
+    power: 80, cost: 0, target: 'none', icon: '💉',
     effects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 1 }],
     exhaust: true,
   },
@@ -1474,7 +1502,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_adrenalShot', name: 'Адреналиновый укол', set: 'medicine', rarity: 'uncommon', kind: 'buff',
-    power: 125, cost: 0, target: 'merc', icon: '💉',
+    power: 150, cost: 0, target: 'merc', icon: '💉',
     effects: [
       { t: 'heal', v: 10, target: 'merc' },
       { t: 'energy', v: 2 },
@@ -1488,7 +1516,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_painBlock', name: 'Блокада боли', set: 'medicine', rarity: 'uncommon', kind: 'buff',
-    power: 125, cost: 1, target: 'merc', icon: '🛡️',
+    power: 150, cost: 2, target: 'merc', icon: '🛡️',
     effects: [
       { t: 'status', on: 'merc', id: 'barrier', v: 25 },
       { t: 'status', on: 'merc', id: 'taunt', turns: 2 },
@@ -1501,7 +1529,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_defib', name: 'Дефибриллятор', set: 'medicine', rarity: 'uncommon', kind: 'heal',
-    power: 140, cost: 2, target: 'allMercs', icon: '⚡',
+    power: 160, cost: 2, target: 'allMercs', icon: '⚡',
     effects: [{ t: 'revive', v: 0.3 }],
     exhaust: true,
   },
@@ -1519,12 +1547,12 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_massTransfusion', name: 'Массовое переливание', set: 'medicine', rarity: 'rare', kind: 'heal',
-    power: 170, cost: 2, target: 'allMercs', icon: '🩸',
+    power: 210, cost: 3, target: 'allMercs', icon: '🩸',
     effects: [{ t: 'heal', v: 30, target: 'allMercs' }],
   },
   {
     id: 'm2_emergencyWard', name: 'Экстренный блок', set: 'medicine', rarity: 'rare', kind: 'shield',
-    power: 175, cost: 2, target: 'allMercs', icon: '🏥',
+    power: 230, cost: 3, target: 'allMercs', icon: '🏥',
     effects: [
       { t: 'shield', v: 28, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'cleanse' },
@@ -1532,7 +1560,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_medBay', name: 'Медотсек', set: 'medicine', rarity: 'rare', kind: 'heal',
-    power: 180, cost: 3, target: 'allMercs', icon: '🏥',
+    power: 210, cost: 3, target: 'allMercs', icon: '🏥',
     effects: [
       { t: 'heal', v: 20, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'regen', v: 6, turns: 3 },
@@ -1540,13 +1568,13 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_resuscitate', name: 'Реанимация', set: 'medicine', rarity: 'rare', kind: 'heal',
-    power: 185, cost: 2, target: 'allMercs', icon: '💓',
+    power: 210, cost: 2, target: 'allMercs', icon: '💓',
     effects: [{ t: 'revive', v: 0.5 }],
     exhaust: true,
   },
   {
     id: 'm2_combatStim', name: 'Боевой стимулятор', set: 'medicine', rarity: 'rare', kind: 'buff',
-    power: 180, cost: 1, target: 'allMercs', icon: '💉',
+    power: 220, cost: 2, target: 'allMercs', icon: '💉',
     effects: [
       { t: 'energy', v: 2 },
       { t: 'draw', v: 2 },
@@ -1566,7 +1594,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_phoenixProtocol', name: 'Протокол «Феникс»', set: 'medicine', rarity: 'epic', kind: 'heal',
-    power: 220, cost: 3, target: 'allMercs', icon: '🔥',
+    power: 250, cost: 3, target: 'allMercs', icon: '🔥',
     effects: [
       { t: 'revive', v: 0.6 },
       { t: 'heal', v: 20, target: 'allMercs' },
@@ -1575,7 +1603,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_eternalLife', name: 'Вечная жизнь', set: 'medicine', rarity: 'legendary', kind: 'heal',
-    power: 265, cost: 3, target: 'allMercs', icon: '♾️',
+    power: 320, cost: 4, target: 'allMercs', icon: '♾️',
+    skipTurns: 2,
     effects: [
       { t: 'revive', v: 1 },
       { t: 'heal', v: 30, target: 'allMercs' },
@@ -1628,7 +1657,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'c2_stimVial', name: 'Колба бодрости', set: 'chemistry', rarity: 'common', kind: 'buff',
-    power: 55, cost: 0, target: 'none', icon: '🧪',
+    power: 75, cost: 0, target: 'none', icon: '🧪',
     effects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 1 }],
     exhaust: true,
   },
@@ -1658,7 +1687,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'c2_antitoxin', name: 'Антитоксин', set: 'chemistry', rarity: 'common', kind: 'utility',
-    power: 80, cost: 1, target: 'allMercs', icon: '🧪',
+    power: 100, cost: 1, target: 'allMercs', icon: '🧪',
     effects: [
       { t: 'status', on: 'allMercs', id: 'cleanse' },
       { t: 'heal', v: 6, target: 'allMercs' },
@@ -1710,7 +1739,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'c2_reagent', name: 'Реагент', set: 'chemistry', rarity: 'uncommon', kind: 'utility',
-    power: 115, cost: 0, target: 'none', icon: '⚗️',
+    power: 130, cost: 0, target: 'none', icon: '⚗️',
     effects: [{ t: 'draw', v: 2 }, { t: 'scry', v: 2 }],
   },
   {
@@ -1774,13 +1803,13 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'c2_plague', name: 'Чума', set: 'chemistry', rarity: 'epic', kind: 'aoe',
-    power: 215, cost: 3, target: 'allEnemies', icon: '🦠',
+    power: 240, cost: 3, target: 'allEnemies', icon: '🦠',
     effects: [{ t: 'status', on: 'allEnemies', id: 'poison', v: 9 }],
     keywords: ['echo'],
   },
   {
     id: 'c2_catalystPrime', name: 'Первичный катализатор', set: 'chemistry', rarity: 'legendary', kind: 'aoe',
-    power: 260, cost: 3, target: 'allEnemies', icon: '⚗️',
+    power: 300, cost: 3, target: 'allEnemies', icon: '⚗️',
     effects: [
       { t: 'damage', v: 14, target: 'allEnemies' },
       { t: 'status', on: 'allEnemies', id: 'burn', v: 8 },
@@ -1887,7 +1916,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'w2_hiveGuard', name: 'Стража улья', set: 'web', rarity: 'uncommon', kind: 'shield',
-    power: 125, cost: 2, target: 'allMercs', icon: '🛡️',
+    power: 160, cost: 2, target: 'allMercs', icon: '🛡️',
     effects: [
       { t: 'shield', v: 20, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'taunt', turns: 1 },
@@ -1927,7 +1956,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'w2_broodMother', name: 'Матка', set: 'web', rarity: 'rare', kind: 'heal',
-    power: 165, cost: 2, target: 'allMercs', icon: '🕷️',
+    power: 200, cost: 3, target: 'allMercs', icon: '🕷️',
     effects: [
       { t: 'heal', v: 18, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'regen', v: 6, turns: 2 },
@@ -1935,7 +1964,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'w2_webFortress', name: 'Паутинная крепость', set: 'web', rarity: 'rare', kind: 'shield',
-    power: 175, cost: 2, target: 'allMercs', icon: '🏯',
+    power: 230, cost: 3, target: 'allMercs', icon: '🏯',
     effects: [
       { t: 'shield', v: 28, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'thorns', v: 4 },
@@ -1961,7 +1990,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'w2_chitinWall', name: 'Хитиновая стена', set: 'web', rarity: 'epic', kind: 'shield',
-    power: 175, cost: 3, target: 'allMercs', icon: '🧱',
+    power: 210, cost: 3, target: 'allMercs', icon: '🧱',
     effects: [
       { t: 'shield', v: 24, target: 'allMercs' },
       { t: 'maxArmor', v: 5, target: 'allMercs' },
@@ -1989,7 +2018,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'w2_queenAscend', name: 'Возвышение матки', set: 'web', rarity: 'legendary', kind: 'buff',
-    power: 265, cost: 3, target: 'allMercs', icon: '👑',
+    power: 320, cost: 4, target: 'allMercs', icon: '👑',
+    skipTurns: 1,
     effects: [
       { t: 'status', on: 'allMercs', id: 'thorns', v: 10 },
       { t: 'maxArmor', v: 10, target: 'allMercs' },
@@ -2017,7 +2047,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_battlePlan', name: 'План боя', set: 'tactics', rarity: 'common', kind: 'utility',
-    power: 60, cost: 0, target: 'none', icon: '📝',
+    power: 80, cost: 0, target: 'none', icon: '📝',
     effects: [{ t: 'draw', v: 1 }, { t: 'energy', v: 1 }],
     exhaust: true,
   },
@@ -2064,7 +2094,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_pressOn', name: 'Не сбавлять темп', set: 'tactics', rarity: 'common', kind: 'utility',
-    power: 70, cost: 0, target: 'none', icon: '🏃',
+    power: 90, cost: 0, target: 'none', icon: '🏃',
     effects: [{ t: 'energy', v: 1 }, { t: 'draw', v: 1 }],
     exhaust: true,
   },
@@ -2077,7 +2107,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_shieldWall', name: 'Стена щитов', set: 'tactics', rarity: 'uncommon', kind: 'shield',
-    power: 125, cost: 2, target: 'allMercs', icon: '🛡️',
+    power: 150, cost: 2, target: 'allMercs', icon: '🛡️',
     effects: [
       { t: 'shield', v: 18, target: 'allMercs' },
       { t: 'maxArmor', v: 3, target: 'allMercs' },
@@ -2108,7 +2138,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_tacticalRetreat', name: 'Тактический отход', set: 'tactics', rarity: 'uncommon', kind: 'shield',
-    power: 120, cost: 1, target: 'allMercs', icon: '🏃',
+    power: 150, cost: 2, target: 'allMercs', icon: '🏃',
     effects: [
       { t: 'shield', v: 16, target: 'allMercs' },
       { t: 'draw', v: 1 },
@@ -2140,7 +2170,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_lastOrder', name: 'Последний приказ', set: 'tactics', rarity: 'epic', kind: 'buff',
-    power: 180, cost: 2, target: 'allMercs', icon: '📜',
+    power: 200, cost: 2, target: 'allMercs', icon: '📜',
     effects: [
       { t: 'energy', v: 2 },
       { t: 'draw', v: 2 },
@@ -2152,7 +2182,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_ironDiscipline', name: 'Железная дисциплина', set: 'tactics', rarity: 'rare', kind: 'shield',
-    power: 170, cost: 2, target: 'allMercs', icon: '🛡️',
+    power: 220, cost: 3, target: 'allMercs', icon: '🛡️',
     effects: [
       { t: 'shield', v: 26, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'cleanse' },
@@ -2230,7 +2260,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'r2_chitinCoin', name: 'Хитиновая монета', set: 'relics', rarity: 'common', kind: 'utility',
-    power: 50, cost: 0, target: 'none', icon: '🪙',
+    power: 65, cost: 0, target: 'none', icon: '🪙',
     effects: [{ t: 'energy', v: 1 }],
     exhaust: true,
   },
@@ -2261,7 +2291,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'r2_pheromoneVial', name: 'Флакон феромона', set: 'relics', rarity: 'common', kind: 'buff',
-    power: 75, cost: 1, target: 'allMercs', icon: '🟡',
+    power: 105, cost: 2, target: 'allMercs', icon: '🟡',
     effects: [
       { t: 'status', on: 'allMercs', id: 'taunt', turns: 2 },
       { t: 'shield', v: 8, target: 'allMercs' },
@@ -2295,7 +2325,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'r2_hiveLens', name: 'Линза улья', set: 'relics', rarity: 'uncommon', kind: 'utility',
-    power: 115, cost: 0, target: 'none', icon: '🔍',
+    power: 130, cost: 0, target: 'none', icon: '🔍',
     effects: [{ t: 'draw', v: 2 }, { t: 'scry', v: 2 }],
   },
   {
@@ -2313,7 +2343,7 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'r2_broodCharm', name: 'Оберег выводка', set: 'relics', rarity: 'uncommon', kind: 'heal',
-    power: 130, cost: 2, target: 'allMercs', icon: '❤️',
+    power: 160, cost: 2, target: 'allMercs', icon: '❤️',
     effects: [
       { t: 'heal', v: 16, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'cleanse' },
@@ -2354,12 +2384,12 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'r2_amberHeart', name: 'Янтарное сердце', set: 'relics', rarity: 'rare', kind: 'heal',
-    power: 170, cost: 2, target: 'allMercs', icon: '🟠',
+    power: 210, cost: 3, target: 'allMercs', icon: '🟠',
     effects: [{ t: 'heal', v: 30, target: 'allMercs' }],
   },
   {
     id: 'r2_silkCrown', name: 'Шёлковая корона', set: 'relics', rarity: 'rare', kind: 'buff',
-    power: 175, cost: 2, target: 'allMercs', icon: '👑',
+    power: 210, cost: 3, target: 'allMercs', icon: '👑',
     effects: [
       { t: 'status', on: 'allMercs', id: 'dodge', v: 25, turns: 2 },
       { t: 'shield', v: 20, target: 'allMercs' },
@@ -2387,7 +2417,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'r2_hiveAscendant', name: 'Улей возвышенный', set: 'relics', rarity: 'legendary', kind: 'heal',
-    power: 265, cost: 3, target: 'allMercs', icon: '🐝',
+    power: 320, cost: 4, target: 'allMercs', icon: '🐝',
+    skipTurns: 1,
     effects: [
       { t: 'heal', v: 40, target: 'allMercs' },
       { t: 'revive', v: 0.5 },
@@ -2614,6 +2645,7 @@ export const cardText = (def: CardDef, level: number, compact = false): string =
     if (comboText) extras.push(`Комбо: ${comboText}`);
   }
   if (c.once) extras.push('Один раз за бой.');
+  if (c.skipTurns) extras.push(`Вы пропускаете ${c.skipTurns} ${plural(c.skipTurns, 'ход', 'хода', 'ходов')}.`);
   for (const k of c.keywords || []) {
     if ((k === 'combo' && c.combo) || (k === 'xcost' && c.xcost) || (k === 'overheat' && c.overheat) || (k === 'once' && c.once)) continue;
     const kw = KEYWORD_TEXT[k];

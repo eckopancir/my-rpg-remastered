@@ -202,6 +202,12 @@ export const BattleScreen = () => {
           </span>
         )}
 
+        {(battle.skipTurns ?? 0) > 0 && (
+          <span className={styles.pill} style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.55)' }} title="Штраф карты: следующие ходы будут пропущены">
+            ⏳ ПРОПУСК ХОДОВ: {battle.skipTurns}
+          </span>
+        )}
+
         {needTarget && (
           <span className={styles.pill} style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.5)' }}>
             {needTarget === 'enemy' ? 'Выберите врага' : 'Выберите наёмника'}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CARD_MAP, MAX_CARD_LEVEL, MAX_DECK, SET_META, type CardSet } from '../../data/dungeon/cards';
+import { BASE_CARD_SET, CARD_MAP, MAX_CARD_LEVEL, MAX_DECK, SET_META, type CardSet } from '../../data/dungeon/cards';
 import { upgradeCostFor } from '../../data/dungeon/doors';
 import { ROLE_COLOR, ROLE_ICON, ROLE_NAME, SLOTS, SLOT_LABEL, mercStats, starsText, type Slot } from '../../data/dungeon/mercs';
 import { dungeonDeckCost, powerBudget, useDungeonStore } from '../../stores/dungeonStore';
@@ -40,6 +40,8 @@ export const SetupScreen = () => {
 
   const needle = query.trim().toLowerCase();
   const filteredCards = Object.values(CARD_MAP).filter((def) => {
+    // Покупка на старте — только базовый набор; карты из забега видны всегда.
+    if (!BASE_CARD_SET.has(def.id) && !run.deck.includes(def.id)) return false;
     if (setFilter !== 'all' && def.set !== setFilter) return false;
     if (onlyDeck && !run.deck.includes(def.id)) return false;
     if (needle && !def.name.toLowerCase().includes(needle)) return false;
@@ -189,6 +191,10 @@ export const SetupScreen = () => {
                 </div>
                 <span>{run.deck.length} / {MAX_DECK} карт</span>
               </div>
+
+              <p className={styles.sub} style={{ margin: '6px 0 0' }}>
+                Базовый набор: {BASE_CARD_SET.size} простых карт для старта. Остальные карты выпадают наградами в данже.
+              </p>
 
               <div className={styles.deckFilters}>
                 <input

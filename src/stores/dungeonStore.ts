@@ -165,6 +165,8 @@ export interface BattleState {
   overheat: Record<string, number>;
   /** Карты «один раз за бой»: defId, которые уже сыграны. */
   usedOnce: string[];
+  /** Сколько ходов игрок ещё пропускает (штраф карт). */
+  skipTurns?: number;
 }
 
 export interface RewardState {
@@ -721,6 +723,7 @@ export const useDungeonStore = create<DungeonStore>()(
           playedThisTurn: 0,
           overheat: {},
           usedOnce: [],
+          skipTurns: 0,
         };
         // innate-карты всегда в стартовой руке: кладём их в конец колоды (берём сверху).
         const innate = battle.drawPile.filter((c) => CARD_MAP[c.defId]?.keywords?.includes('innate'));
@@ -1106,6 +1109,10 @@ export const useDungeonStore = create<DungeonStore>()(
         if (def.overheat) {
           battle.overheat = { ...(battle.overheat || {}), [def.id]: (battle.overheat?.[def.id] || 0) + 1 };
         }
+        if (eff.skipTurns) {
+          battle.skipTurns = (battle.skipTurns || 0) + eff.skipTurns;
+          pushLog(battle, `Расплата: вы пропустите ${eff.skipTurns} ${eff.skipTurns === 1 ? 'ход' : 'хода'}.`);
+        }
 
         if (aliveEnemies(battle).length === 0) {
           winBattle(battle);
@@ -1166,9 +1173,28 @@ export const useDungeonStore = create<DungeonStore>()(
         }
         battle.turn += 1;
         battle.energy = 5;
-        battle.phase = 'player';
         battle.enemyQueue = [];
         battle.playedThisTurn = 0;
+
+        // Штраф «пропуск хода»: враги бьют снова, игрок не получает ход.
+        if ((battle.skipTurns || 0) > 0) {
+          battle.skipTurns = (battle.skipTurns || 0) - 1;
+          const keep: CardInstance[] = [];
+          for (const card of battle.hand) {
+            if ((CARD_MAP[card.defId]?.keywords || []).includes('retain')) keep.push(card);
+            else battle.discardPile.push(card);
+          }
+          battle.hand = keep;
+          pushLog(battle, `Вы пропускаете ход. Осталось пропусков: ${battle.skipTurns}.`);
+          battle.phase = 'enemy';
+          battle.enemyQueue = aliveEnemies(battle).map((e) => e.uid);
+          battle.fx = null;
+          computeIntents(battle);
+          patchRun({ battle });
+          return;
+        }
+
+        battle.phase = 'player';
         drawCards(battle, 5);
         computeIntents(battle);
         pushLog(battle, `Ход ${battle.turn}. Энергия восстановлена.`);
