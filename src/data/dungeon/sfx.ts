@@ -139,6 +139,26 @@ export const playBattleStartSfx = (): void => {
   playCombatSound('startbattle', 0.4);
 };
 
+/** Отдых / лечение между дверями. */
+export const playRestSfx = (): void => {
+  playCombatSound('healer', 0.35);
+};
+
+/** Событие: свиток/записка с выбором. */
+export const playEventSfx = (): void => {
+  playCombatSound('scroll', 0.3);
+};
+
+/** Финал забега: победа — нарастающий звон, поражение — затухание питания. */
+export const playRunEndSfx = (win: boolean): void => {
+  if (win) {
+    playCombatSound('open-magic-reveal-002379-', 0.4);
+    window.setTimeout(() => playCombatSound('chips', 0.35), 180);
+  } else {
+    playCombatSound('off', 0.35);
+  }
+};
+
 /** Прогрев сэмплов при входе в бой — чтобы первый выстрел не лагал. */
 export const preloadDungeonSfx = (): void => {
   preloadCombatSounds([
@@ -150,5 +170,6 @@ export const preloadDungeonSfx = (): void => {
     'kaban-vizjit-rezko-v-shvatke',
     'LotusOrbcast', 'open-magic-reveal-002379-',
     'craft', 'craft2', 'craft3', 'craft4',
+    'off', 'scroll',
   ]);
 };

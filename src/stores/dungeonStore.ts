@@ -30,7 +30,8 @@ import { useAuthStore } from './authStore';
 import { syncNow } from '../utils/serverSync';
 import {
   playBattleStartSfx, playCardSfx, playDodgeSfx, playEnemyDeathSfx,
-  playMercDeathSfx, playRewardSfx, playUpgradeSfx, preloadDungeonSfx,
+  playEventSfx, playMercDeathSfx, playRestSfx, playRewardSfx, playRunEndSfx,
+  playUpgradeSfx, preloadDungeonSfx,
 } from '../data/dungeon/sfx';
 import { removeItemFromGrid } from '../data/backpacks';
 
@@ -651,6 +652,7 @@ export const useDungeonStore = create<DungeonStore>()(
         const run = get().run;
         if (!run) return;
         grantChips(run.chips * 0.25);
+        playRunEndSfx(false);
         patchRun({ phase: 'dead', ended: 'dead', battle: run.battle ? { ...run.battle, phase: 'lost' } : null });
         syncNow();
       };
@@ -659,6 +661,7 @@ export const useDungeonStore = create<DungeonStore>()(
         const run = get().run;
         if (!run) return;
         grantChips(run.chips);
+        playRunEndSfx(true);
         patchRun({ phase: 'won', ended: 'won', battle: null, reward: null });
         syncNow();
       };
@@ -1485,6 +1488,7 @@ export const useDungeonStore = create<DungeonStore>()(
           const mercs = run.mercs.map((m) => (
             m.hp > 0 ? { ...m, hp: Math.min(m.maxHp, m.hp + Math.round(m.maxHp * 0.3)) } : m
           ));
+          playRestSfx();
           patchRun({ mercs });
           advanceDoor();
         },
@@ -1493,6 +1497,7 @@ export const useDungeonStore = create<DungeonStore>()(
           const run = get().run;
           if (!run || run.phase !== 'event' || !run.event) return;
           const id = run.event.id;
+          playEventSfx();
           let chips = run.chips;
           let mercs = run.mercs.map((m) => ({ ...m }));
           let deck = [...run.deck];
