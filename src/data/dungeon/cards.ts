@@ -57,7 +57,15 @@ export type Effect =
   /** Поднимает павшего наёмника с долей HP `v` (0.5 = 50%). */
   | { t: 'revive'; v: number }
   /** Превращает `v` случайных карт в руке в другие карты. */
-  | { t: 'transform'; v: number };
+  | { t: 'transform'; v: number }
+  /** Ярость: +v% к урону карт до конца боя (без броска). */
+  | { t: 'rage'; v: number }
+  /** Крит: +v% к шансу крита до конца боя. */
+  | { t: 'critChance'; v: number }
+  /** Крит: +v к множителю крита до конца боя (0.5 = +×0.5). */
+  | { t: 'critDamage'; v: number }
+  /** Заряды: следующая карта с уроном критует гарантированно. */
+  | { t: 'guaranteedCrit'; v: number };
 
 /** Патч карты на 4-м / 7-м уровне. */
 export interface LevelPatch extends Partial<Omit<CardDef, 'effects' | 'l4' | 'l7'>> {
@@ -94,6 +102,12 @@ export interface CardDef {
   /** Шанс ярости, % — +rageMult к урону наёмников до конца боя. */
   rageChance?: number;
   rageMult?: number;
+  /** Крит гарантирован, если это первая карта в ходу. */
+  critIfFirst?: boolean;
+  /** Крит гарантирован, если у цели меньше этой доли HP (0.4 = 40%). */
+  critBelowHp?: number;
+  /** При крите даёт +v% ярости. */
+  critToRage?: number;
   /** Доп. эффекты, если в этот ход уже сыграна карта. */
   combo?: Effect[];
   /** Тратит всю энергию; числа эффектов умножаются на потраченную энергию. */
@@ -240,9 +254,10 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'headshot', name: 'Выстрел в голову', set: 'ballistics', rarity: 'common', kind: 'attack',
-    power: 90, cost: 1, target: 'enemy', icon: '🩸',
+    power: 100, cost: 1, target: 'enemy', icon: '🩸',
     effects: [{ t: 'damage', v: 12 }],
     critChance: 10, critMult: 2,
+    critToRage: 10,
   },
 
   // -------------------------------------------------------------------------
@@ -294,9 +309,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'berserk', name: 'Удар берсерка', set: 'tactics', rarity: 'uncommon', kind: 'attack',
-    power: 150, cost: 2, target: 'enemy', icon: '🪓',
-    effects: [{ t: 'damage', v: 22 }],
-    rageChance: 25, rageMult: 0.1,
+    power: 170, cost: 2, target: 'enemy', icon: '🪓',
+    effects: [{ t: 'damage', v: 22 }, { t: 'rage', v: 10 }],
   },
 
   // -------------------------------------------------------------------------
@@ -364,11 +378,11 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'gunnerTrance', name: 'Транс стрелка', set: 'ballistics', rarity: 'uncommon', kind: 'buff',
-    power: 125, cost: 1, target: 'allEnemies', icon: '🌀',
+    power: 150, cost: 1, target: 'allEnemies', icon: '🌀',
     effects: [
       { t: 'status', on: 'allEnemies', id: 'vuln', turns: 2 },
       { t: 'draw', v: 1 },
-    ],
+      { t: 'critChance', v: 10 }],
     l7: { add: [{ t: 'status', on: 'allEnemies', id: 'vuln', turns: 1 }] },
   },
   {
@@ -768,8 +782,8 @@ const CARD_LIST: CardDef[] = [
   // -------------------------------------------------------------------------
   {
     id: 'warCry', name: 'Боевой клич', set: 'tactics', rarity: 'common', kind: 'buff',
-    power: 90, cost: 0, target: 'allEnemies', icon: '📢',
-    effects: [{ t: 'status', on: 'allEnemies', id: 'weak', turns: 1 }],
+    power: 110, cost: 0, target: 'allEnemies', icon: '📢',
+    effects: [{ t: 'status', on: 'allEnemies', id: 'weak', turns: 1 }, { t: 'rage', v: 5 }],
     l7: { add: [{ t: 'status', on: 'allEnemies', id: 'weak', turns: 1 }] },
   },
   {
@@ -782,11 +796,11 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'rally', name: 'Перегруппировка', set: 'tactics', rarity: 'common', kind: 'buff',
-    power: 100, cost: 1, target: 'allMercs', icon: '🚩',
+    power: 120, cost: 1, target: 'allMercs', icon: '🚩',
     effects: [
       { t: 'maxArmor', v: 4, target: 'allMercs' },
       { t: 'heal', v: 8, target: 'allMercs' },
-    ],
+      { t: 'rage', v: 5 }],
     once: true,
     keywords: ['once'],
   },
@@ -811,9 +825,10 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'ambush', name: 'Засада', set: 'tactics', rarity: 'rare', kind: 'attack',
-    power: 175, cost: 2, target: 'enemy', icon: '🌑',
+    power: 195, cost: 2, target: 'enemy', icon: '🌑',
     effects: [{ t: 'damage', v: 20 }],
     critChance: 25, critMult: 2,
+    critIfFirst: true,
   },
   {
     id: 'phalanx', name: 'Фаланга', set: 'tactics', rarity: 'epic', kind: 'shield',
@@ -827,12 +842,12 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'commander', name: 'Командир', set: 'tactics', rarity: 'epic', kind: 'buff',
-    power: 205, cost: 2, target: 'allMercs', icon: '🎖️',
+    power: 225, cost: 2, target: 'allMercs', icon: '🎖️',
     effects: [
       { t: 'energy', v: 2 },
       { t: 'draw', v: 2 },
       { t: 'maxArmor', v: 4, target: 'allMercs' },
-    ],
+      { t: 'rage', v: 10 }],
     exhaust: true,
     once: true,
     keywords: ['once'],
@@ -1098,8 +1113,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'b2_scopeIn', name: 'Прицеливание', set: 'ballistics', rarity: 'common', kind: 'buff',
-    power: 70, cost: 1, target: 'enemy', icon: '🔭',
-    effects: [{ t: 'status', on: 'enemy', id: 'vuln', turns: 2 }],
+    power: 120, cost: 1, target: 'enemy', icon: '🔭',
+    effects: [{ t: 'status', on: 'enemy', id: 'vuln', turns: 2 }, { t: 'critChance', v: 15 }],
   },
   {
     id: 'b2_incendiary', name: 'Зажигательный', set: 'ballistics', rarity: 'common', kind: 'attack',
@@ -1149,8 +1164,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'b2_overwatch', name: 'Наблюдение', set: 'ballistics', rarity: 'uncommon', kind: 'utility',
-    power: 115, cost: 1, target: 'none', icon: '👁️',
-    effects: [{ t: 'draw', v: 2 }, { t: 'energy', v: 1 }],
+    power: 150, cost: 1, target: 'none', icon: '👁️',
+    effects: [{ t: 'draw', v: 2 }, { t: 'energy', v: 1 }, { t: 'rage', v: 5 }, { t: 'critChance', v: 10 }],
     exhaust: true,
   },
   {
@@ -1166,10 +1181,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'b2_fireDiscipline', name: 'Огневая дисциплина', set: 'ballistics', rarity: 'uncommon', kind: 'attack',
-    power: 130, cost: 1, target: 'enemy', icon: '🎖️',
-    effects: [{ t: 'damage', v: 8 }],
-    rageChance: 20,
-    rageMult: 0.1,
+    power: 150, cost: 1, target: 'enemy', icon: '🎖️',
+    effects: [{ t: 'damage', v: 8 }, { t: 'rage', v: 10 }],
   },
   {
     id: 'b2_ricochetVolley', name: 'Рикошетный залп', set: 'ballistics', rarity: 'rare', kind: 'aoe',
@@ -1189,8 +1202,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'b2_steadyAim', name: 'Точный выстрел', set: 'ballistics', rarity: 'rare', kind: 'attack',
-    power: 175, cost: 2, target: 'enemy', icon: '🎯',
-    effects: [{ t: 'damage', v: 22 }],
+    power: 195, cost: 2, target: 'enemy', icon: '🎯',
+    effects: [{ t: 'damage', v: 22 }, { t: 'critChance', v: 10 }],
     critChance: 20,
     critMult: 2,
   },
@@ -1214,9 +1227,9 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'b2_deadeye', name: 'Мёртвый глаз', set: 'ballistics', rarity: 'epic', kind: 'attack',
-    power: 210, cost: 3, target: 'enemy', icon: '👁️',
-    effects: [{ t: 'damage', v: 28, pierce: true }],
-    critChance: 25,
+    power: 240, cost: 3, target: 'enemy', icon: '👁️',
+    effects: [{ t: 'damage', v: 20, pierce: true }],
+    critChance: 100,
     critMult: 2,
   },
   {
@@ -1574,12 +1587,12 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 'm2_combatStim', name: 'Боевой стимулятор', set: 'medicine', rarity: 'rare', kind: 'buff',
-    power: 220, cost: 2, target: 'allMercs', icon: '💉',
+    power: 250, cost: 2, target: 'allMercs', icon: '💉',
     effects: [
       { t: 'energy', v: 2 },
       { t: 'draw', v: 2 },
       { t: 'heal', v: 10, target: 'allMercs' },
-    ],
+      { t: 'rage', v: 10 }, { t: 'critDamage', v: 0.5 }],
     exhaust: true,
   },
   {
@@ -2047,8 +2060,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_battlePlan', name: 'План боя', set: 'tactics', rarity: 'common', kind: 'utility',
-    power: 80, cost: 0, target: 'none', icon: '📝',
-    effects: [{ t: 'draw', v: 1 }, { t: 'energy', v: 1 }],
+    power: 100, cost: 0, target: 'none', icon: '📝',
+    effects: [{ t: 'draw', v: 1 }, { t: 'energy', v: 1 }, { t: 'critChance', v: 5 }],
     exhaust: true,
   },
   {
@@ -2066,8 +2079,8 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_rallyCry', name: 'Ободряющий клич', set: 'tactics', rarity: 'common', kind: 'buff',
-    power: 65, cost: 1, target: 'allMercs', icon: '📢',
-    effects: [{ t: 'heal', v: 6, target: 'allMercs' }],
+    power: 90, cost: 1, target: 'allMercs', icon: '📢',
+    effects: [{ t: 'heal', v: 6, target: 'allMercs' }, { t: 'rage', v: 5 }],
   },
   {
     id: 't2_holdLine', name: 'Держать строй', set: 'tactics', rarity: 'common', kind: 'shield',
@@ -2125,9 +2138,7 @@ const CARD_LIST: CardDef[] = [
   {
     id: 't2_warDrums', name: 'Боевые барабаны', set: 'tactics', rarity: 'uncommon', kind: 'attack',
     power: 130, cost: 1, target: 'enemy', icon: '🥁',
-    effects: [{ t: 'damage', v: 10 }],
-    rageChance: 25,
-    rageMult: 0.1,
+    effects: [{ t: 'damage', v: 6 }, { t: 'rage', v: 10 }],
   },
   {
     id: 't2_ambush2', name: 'Внезапный удар', set: 'tactics', rarity: 'uncommon', kind: 'attack',
@@ -2146,11 +2157,11 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_commandSquad', name: 'Командир отряда', set: 'tactics', rarity: 'uncommon', kind: 'buff',
-    power: 125, cost: 1, target: 'allMercs', icon: '🎖️',
+    power: 150, cost: 1, target: 'allMercs', icon: '🎖️',
     effects: [
       { t: 'energy', v: 1 },
       { t: 'maxArmor', v: 3, target: 'allMercs' },
-    ],
+      { t: 'rage', v: 10 }],
     once: true,
     keywords: ['once'],
   },
@@ -2198,44 +2209,43 @@ const CARD_LIST: CardDef[] = [
   },
   {
     id: 't2_battleTrance', name: 'Боевой транс', set: 'tactics', rarity: 'epic', kind: 'attack',
-    power: 180, cost: 2, target: 'enemy', icon: '🌀',
+    power: 200, cost: 2, target: 'enemy', icon: '🌀',
     effects: [
       { t: 'damage', v: 8 },
       { t: 'status', on: 'allMercs', id: 'thorns', v: 6 },
-    ],
-    rageChance: 30,
-    rageMult: 0.1,
+      { t: 'rage', v: 15 }],
     once: true,
     keywords: ['once'],
   },
   {
     id: 't2_grandStrategy', name: 'Великая стратегия', set: 'tactics', rarity: 'rare', kind: 'utility',
-    power: 170, cost: 1, target: 'none', icon: '🧠',
+    power: 215, cost: 1, target: 'none', icon: '🧠',
     effects: [
       { t: 'draw', v: 3 },
       { t: 'energy', v: 1 },
       { t: 'scry', v: 3 },
-    ],
+      { t: 'critChance', v: 10 }, { t: 'critDamage', v: 0.5 }],
   },
   {
     id: 't2_warlord', name: 'Военачальник', set: 'tactics', rarity: 'epic', kind: 'buff',
-    power: 220, cost: 2, target: 'allMercs', icon: '🎖️',
+    power: 245, cost: 2, target: 'allMercs', icon: '🎖️',
     effects: [
       { t: 'energy', v: 2 },
       { t: 'maxArmor', v: 6, target: 'allMercs' },
       { t: 'status', on: 'allMercs', id: 'thorns', v: 5 },
-    ],
+      { t: 'rage', v: 15 }],
     once: true,
     keywords: ['once'],
   },
   {
     id: 't2_apexPredator', name: 'Высший хищник', set: 'tactics', rarity: 'legendary', kind: 'attack',
-    power: 265, cost: 3, target: 'enemy', icon: '🦁',
+    power: 285, cost: 3, target: 'enemy', icon: '🦁',
     effects: [{ t: 'damage', v: 34 }],
     exec: 0.4,
     execMult: 2,
     critChance: 30,
     critMult: 2,
+    critBelowHp: 0.4,
     once: true,
     keywords: ['once'],
   },
@@ -2588,6 +2598,14 @@ const effectText = (e: Effect, def: CardDef, firstDamage: boolean): string => {
       return `Поднимает павшего наёмника с ${Math.round(e.v * 100)}% HP.`;
     case 'transform':
       return `Превращает ${e.v} ${plural(e.v, 'карту', 'карты', 'карт')} в руке в другие.`;
+    case 'rage':
+      return `Ярость +${e.v}% до конца боя.`;
+    case 'critChance':
+      return `Крит +${e.v}% до конца боя.`;
+    case 'critDamage':
+      return `Урон крита +${e.v} до конца боя.`;
+    case 'guaranteedCrit':
+      return `${e.v > 1 ? `${e.v} следующих карт` : 'Следующая карта'} с уроном критует гарантированно.`;
     default:
       return '';
   }
@@ -2638,6 +2656,9 @@ export const cardText = (def: CardDef, level: number, compact = false): string =
   if (level >= 7 && def.add7) extras.push(def.add7);
   if (!compact && c.critChance) extras.push(`${c.critChance}% шанс крита ×${c.critMult || 2}.`);
   if (!compact && c.rageChance) extras.push(`${c.rageChance}% шанс ярости: +${Math.round((c.rageMult ?? 0.1) * 100)}% урона до конца боя.`);
+  if (c.critIfFirst) extras.push('Если это первая карта в ходу — крит гарантирован.');
+  if (c.critBelowHp) extras.push(`Крит гарантирован по цели ниже ${Math.round(c.critBelowHp * 100)}% HP.`);
+  if (c.critToRage) extras.push(`При крите: +${c.critToRage}% ярости.`);
   if (c.xcost) extras.push('Тратит всю энергию: сила эффекта × потраченная энергия.');
   if (c.overheat) extras.push(`+${c.overheat} урона за каждое применение в этом бою.`);
   if (c.combo) {

@@ -197,8 +197,26 @@ export const BattleScreen = () => {
         </div>
 
         {(battle.rage ?? 0) > 0 && (
-          <span className={styles.pill} style={{ color: '#fb923c', borderColor: 'rgba(251,146,60,0.55)' }} title="Урон наёмников увеличен до конца боя">
+          <span className={styles.pill} style={{ color: '#fb923c', borderColor: 'rgba(251,146,60,0.55)' }} title="Урон карт увеличен до конца боя">
             🔥 ЯРОСТЬ +{Math.round(battle.rage * 100)}%
+          </span>
+        )}
+
+        {(battle.critBonus ?? 0) > 0 && (
+          <span className={styles.pill} style={{ color: '#38bdf8', borderColor: 'rgba(56,189,248,0.55)' }} title="Бонус к шансу крита до конца боя">
+            🎯 КРИТ +{Math.round(battle.critBonus || 0)}%
+          </span>
+        )}
+
+        {(battle.critDmg ?? 0) > 0 && (
+          <span className={styles.pill} style={{ color: '#c084fc', borderColor: 'rgba(192,132,252,0.55)' }} title="Бонус к множителю крита">
+            💥 УРОН КРИТА ×{((battle.critDmg || 0) + 2).toFixed(1)}
+          </span>
+        )}
+
+        {(battle.guaranteedCrit ?? 0) > 0 && (
+          <span className={styles.pill} style={{ color: '#fbbf24', borderColor: 'rgba(251,191,36,0.55)' }} title="Следующие карты с уроном критуют гарантированно">
+            ✨ ГАРАНТ. КРИТ: {battle.guaranteedCrit}
           </span>
         )}
 

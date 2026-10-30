@@ -119,6 +119,8 @@ export interface BattleEnemy {
   stun: number;
   /** Горение: урон в конце действия врага, игнорирует броню. */
   burn: number;
+  /** Сколько ходов ещё горит (урон не слабеет). */
+  burnTurns: number;
   /** Яд: урон в конце хода врага. */
   poison: number;
   /** Кровотечение: урон, когда враг атакует. */
@@ -167,6 +169,14 @@ export interface BattleState {
   usedOnce: string[];
   /** Сколько ходов игрок ещё пропускает (штраф карт). */
   skipTurns?: number;
+  /** Бонус к шансу крита, % (до конца боя). */
+  critBonus?: number;
+  /** Бонус к множителю крита (0.5 = +×0.5). */
+  critDmg?: number;
+  /** Заряды гарантированного крита. */
+  guaranteedCrit?: number;
+  /** Сколько критов случилось в этот ход. */
+  critThisTurn?: number;
 }
 
 export interface RewardState {
@@ -397,6 +407,15 @@ const pickTarget = (b: BattleState, logic: EnemyLogic): BattleMerc | null => {
 /** Сколько врагов максимум может быть на поле (с призывами). */
 const BROOD_CAP = 6;
 
+/** Потолок ярости: +75% к урону карт. */
+export const RAGE_CAP = 0.75;
+/** Потолок шипов на одном наёмнике. */
+export const THORNS_CAP = 20;
+/** Сколько шипов сгорает в конце хода врага. */
+export const THORNS_DECAY = 2;
+/** Сколько ходов держится горение (урон не слабеет). */
+export const BURN_TURNS = 3;
+
 const bossPhaseOf = (e: BattleEnemy): number => {
   const p = e.hp / Math.max(1, e.maxHp);
   if (p <= 0.33) return 3;
@@ -433,6 +452,7 @@ const spawnBrood = (b: BattleState, count: number): number => {
       weak: 0,
       stun: 0,
       burn: 0,
+      burnTurns: 0,
       poison: 0,
       bleed: 0,
       armorBreak: 0,
@@ -612,6 +632,7 @@ const makeEnemy = (seed: EnemySeed, boost: number): BattleEnemy => {
     weak: 0,
     stun: 0,
     burn: 0,
+    burnTurns: 0,
     poison: 0,
     bleed: 0,
     armorBreak: 0,
@@ -724,6 +745,10 @@ export const useDungeonStore = create<DungeonStore>()(
           overheat: {},
           usedOnce: [],
           skipTurns: 0,
+          critBonus: 0,
+          critDmg: 0,
+          guaranteedCrit: 0,
+          critThisTurn: 0,
         };
         // innate-карты всегда в стартовой руке: кладём их в конец колоды (берём сверху).
         const innate = battle.drawPile.filter((c) => CARD_MAP[c.defId]?.keywords?.includes('innate'));
@@ -875,21 +900,46 @@ export const useDungeonStore = create<DungeonStore>()(
         if (def.target === 'enemy' && !targetEnemy) return;
         if (def.target === 'merc' && !targetMerc) return;
 
-        // Ярость: шанс активировать +урон наёмников до конца боя.
+        // Ярость: шанс активировать +урон карт до конца боя.
         let rageProc = false;
         if (eff.rageChance && Math.random() * 100 < eff.rageChance) {
           const before = battle.rage || 0;
-          battle.rage = Math.min(0.5, before + (eff.rageMult ?? 0.1));
+          battle.rage = Math.min(RAGE_CAP, before + (eff.rageMult ?? 0.1));
           rageProc = battle.rage > before;
           if (rageProc) {
-            pushLog(battle, `ЯРОСТЬ! Урон наёмников +${Math.round(battle.rage * 100)}% до конца боя.`);
+            pushLog(battle, `ЯРОСТЬ! Урон карт +${Math.round(battle.rage * 100)}% до конца боя.`);
             battle.fx = { id: Date.now() + Math.random(), targetUid: battle.mercs[0]?.id || '', kind: 'buff', value: Math.round(battle.rage * 100) };
           }
         }
 
         // Крит: один бросок на карту, весь её урон ×critMult.
-        const crit = !!eff.critChance && Math.random() * 100 < eff.critChance;
-        if (crit) pushLog(battle, `КРИТ! ${def.name} бьёт вдвое сильнее.`);
+        const dealsDamage =
+          eff.effects.some((e) => e.t === 'damage') || !!eff.combo?.some((e) => e.t === 'damage');
+        let crit = false;
+        if (dealsDamage) {
+          if (eff.critIfFirst && (battle.playedThisTurn || 0) === 0) crit = true;
+          if (!crit && eff.critBelowHp && targetEnemy
+            && targetEnemy.hp / Math.max(1, targetEnemy.maxHp) < eff.critBelowHp) crit = true;
+          if (!crit && (battle.guaranteedCrit || 0) > 0) {
+            crit = true;
+            battle.guaranteedCrit = Math.max(0, (battle.guaranteedCrit || 0) - 1);
+            pushLog(battle, 'Заряд прицела: удар критует гарантированно.');
+          }
+          const chance = Math.min(100, (eff.critChance || 0) + (battle.critBonus || 0));
+          if (!crit && chance > 0 && Math.random() * 100 < chance) crit = true;
+        }
+        const critMult = (eff.critMult || 2) + (battle.critDmg || 0);
+        if (crit) {
+          battle.critThisTurn = (battle.critThisTurn || 0) + 1;
+          pushLog(battle, `КРИТ! ${def.name} бьёт сильнее (×${critMult}).`);
+          if (eff.critToRage) {
+            const before = battle.rage || 0;
+            battle.rage = Math.min(RAGE_CAP, before + eff.critToRage / 100);
+            if (battle.rage > before) {
+              pushLog(battle, `Кровавый азарт: ярость +${Math.round(battle.rage * 100)}%.`);
+            }
+          }
+        }
 
         playCardSfx(def, { crit, rage: rageProc });
 
@@ -913,7 +963,7 @@ export const useDungeonStore = create<DungeonStore>()(
           if (eff.bonusLow && e.hp / Math.max(1, e.maxHp) < 0.5) dmg += eff.bonusLow;
           if (eff.bonusBoss && (e.isBoss || e.isElite)) dmg += eff.bonusBoss;
           if (eff.exec && e.hp / Math.max(1, e.maxHp) < eff.exec) dmg *= eff.execMult || 2;
-          if (crit) dmg *= eff.critMult || 2;
+          if (crit) dmg *= critMult;
           dmg *= 1 + (battle.rage || 0);
           hitEnemy(battle, e, dmg, { pierce, crit });
         };
@@ -925,7 +975,7 @@ export const useDungeonStore = create<DungeonStore>()(
             case 'stun': e.stun = Math.max(e.stun, turns); break;
             case 'web': e.web = Math.max(e.web ?? 0, turns); break;
             case 'armorBreak': e.armorBreak = Math.max(e.armorBreak ?? 0, turns); break;
-            case 'burn': e.burn = (e.burn ?? 0) + v; break;
+            case 'burn': e.burn = (e.burn ?? 0) + v; e.burnTurns = Math.max(e.burnTurns ?? 0, BURN_TURNS); break;
             case 'poison': e.poison = (e.poison ?? 0) + v; break;
             case 'bleed': e.bleed = (e.bleed ?? 0) + v; break;
             default: break;
@@ -937,7 +987,7 @@ export const useDungeonStore = create<DungeonStore>()(
           switch (id) {
             case 'barrier': m.barrier = (m.barrier ?? 0) + v; break;
             case 'regen': m.regen = v; m.regenTurns = Math.max(m.regenTurns ?? 0, turns); break;
-            case 'thorns': m.thorns = (m.thorns ?? 0) + v; break;
+            case 'thorns': m.thorns = Math.min(THORNS_CAP, (m.thorns ?? 0) + v); break;
             case 'taunt': m.taunt = Math.max(m.taunt ?? 0, turns); break;
             case 'dodge': m.dodge = Math.max(m.dodge ?? 0, v); break;
             case 'vuln': m.vuln = Math.max(m.vuln, turns); break;
@@ -1028,6 +1078,30 @@ export const useDungeonStore = create<DungeonStore>()(
             case 'energy':
               battle.energy += e.v;
               return;
+            case 'rage': {
+              const before = battle.rage || 0;
+              battle.rage = Math.min(RAGE_CAP, before + e.v / 100);
+              if (battle.rage > before) {
+                pushLog(battle, `Ярость +${Math.round(battle.rage * 100)}% (урон карт).`);
+                battle.fx = { id: Date.now() + Math.random(), targetUid: battle.mercs[0]?.id || '', kind: 'buff', value: Math.round(battle.rage * 100) };
+              }
+              return;
+            }
+            case 'critChance': {
+              battle.critBonus = Math.min(100, (battle.critBonus || 0) + e.v);
+              pushLog(battle, `Крит +${Math.round(battle.critBonus)}% до конца боя.`);
+              return;
+            }
+            case 'critDamage': {
+              battle.critDmg = Math.min(5, (battle.critDmg || 0) + e.v);
+              pushLog(battle, `Урон крита +${battle.critDmg} до конца боя.`);
+              return;
+            }
+            case 'guaranteedCrit': {
+              battle.guaranteedCrit = Math.min(5, (battle.guaranteedCrit || 0) + e.v);
+              pushLog(battle, `Заряды прицела: ${battle.guaranteedCrit}.`);
+              return;
+            }
             case 'discard': {
               let left = Math.max(0, Math.round(e.v));
               while (left > 0) {
@@ -1136,14 +1210,18 @@ export const useDungeonStore = create<DungeonStore>()(
         for (const e of battle.enemies) {
           if (e.hp <= 0) continue;
           const poison = Math.max(0, e.poison ?? 0);
-          const burn = Math.max(0, e.burn ?? 0);
+          const burn = (e.burnTurns ?? 0) > 0 ? Math.max(0, e.burn ?? 0) : 0;
           const tick = poison + burn;
           if (tick > 0) {
             e.hp = Math.max(0, e.hp - tick);
-            pushLog(battle, `${e.name} получает ${tick} урона от яда и горения.`);
+            const parts = [poison ? `яд ${poison}` : '', burn ? `горение ${burn}` : ''].filter(Boolean).join(', ');
+            pushLog(battle, `${e.name} получает ${tick} урона (${parts}).`);
             battle.fx = { id: Date.now() + Math.random(), targetUid: e.uid, kind: 'hit', value: tick };
             if (e.poison > 0) e.poison -= 1;
-            if (e.burn > 0) e.burn -= 1;
+            if ((e.burnTurns ?? 0) > 0) {
+              e.burnTurns = (e.burnTurns ?? 0) - 1;
+              if (e.burnTurns <= 0) e.burn = 0;
+            }
             if (e.hp <= 0) pushLog(battle, `${e.name} повержен.`);
           }
           if (e.vuln > 0) e.vuln -= 1;
@@ -1161,6 +1239,8 @@ export const useDungeonStore = create<DungeonStore>()(
           if (!m.alive) continue;
           m.armor = Math.max(0, Math.round(m.maxArmor * (m.armorDown > 0 ? 0.5 : 1)));
           m.shield = 0;
+          // Шипы выгорают: вечный стак не копится.
+          if ((m.thorns ?? 0) > 0) m.thorns = Math.max(0, m.thorns - THORNS_DECAY);
           if (m.healDown > 0) m.healDown -= 1;
           if (m.armorDown > 0) m.armorDown -= 1;
           if (m.vuln > 0) m.vuln -= 1;
@@ -1175,6 +1255,7 @@ export const useDungeonStore = create<DungeonStore>()(
         battle.energy = 5;
         battle.enemyQueue = [];
         battle.playedThisTurn = 0;
+        battle.critThisTurn = 0;
 
         // Штраф «пропуск хода»: враги бьют снова, игрок не получает ход.
         if ((battle.skipTurns || 0) > 0) {

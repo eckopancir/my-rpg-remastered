@@ -34,6 +34,8 @@ export const CardView = ({ defId, level = 1, hand, selected, disabled, uid, dela
   if (!def) return null;
   const artId = CARD_ART[defId];
   const eff = effectiveCard(def, level);
+  const rageGain = eff.effects.reduce((s, e) => (e.t === 'rage' ? s + e.v : s), 0);
+  const critGain = eff.effects.reduce((s, e) => (e.t === 'critChance' ? s + e.v : s), 0);
   const rarity = RARITY_META[def.rarity] || RARITY_META.common;
   const set = SET_META[def.set] || SET_META.tactics;
   const cls = [
@@ -78,10 +80,12 @@ export const CardView = ({ defId, level = 1, hand, selected, disabled, uid, dela
       <div className={styles.cardName}>{def.name}</div>
       <div className={styles.cardText}>{cardText(def, level, true)}</div>
 
-      {(eff.critChance || eff.rageChance) ? (
+      {(eff.critChance || eff.rageChance || rageGain || critGain) ? (
         <div className={styles.cardBadges}>
           {eff.critChance ? <span className={styles.badgeCrit}>крит {eff.critChance}%</span> : null}
+          {critGain ? <span className={styles.badgeCrit}>крит +{critGain}%</span> : null}
           {eff.rageChance ? <span className={styles.badgeRage}>ярость {eff.rageChance}%</span> : null}
+          {rageGain ? <span className={styles.badgeRage}>ярость +{rageGain}%</span> : null}
         </div>
       ) : null}
 
